@@ -30,6 +30,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
+class AssetTrackingTable;
 class StorageAssetTrackingTuple;
 
 /**
@@ -115,6 +116,7 @@ class ManagementClient {
 								const std::string& assetName,
 								const std::string& event);
 		int 			validateDatapoints(std::string dp1, std::string dp2);
+		AssetTrackingTable	*getDeprecatedAssetTrackingTuples();
 
 	private:
 		std::ostringstream 			m_urlbase;

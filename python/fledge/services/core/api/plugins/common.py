@@ -7,9 +7,7 @@
 """Common Definitions"""
 import sys
 import types
-import logging
 import os
-import platform
 import json
 import glob
 import importlib.util
@@ -17,8 +15,9 @@ from typing import Dict
 from datetime import datetime
 from functools import lru_cache
 
-from fledge.common import logger
+from fledge.common import utils as common_utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA, _FLEDGE_PLUGIN_PATH
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core.api import utils
 from fledge.services.core.api.plugins.exceptions import *
 
@@ -28,7 +27,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 _NO_OF_FILES_TO_RETAIN = 10
 
 
@@ -136,9 +135,11 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                         if is_config:
                             plugin_info.update({'config': temp})
                     else:
-                        _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+                        _logger.warning("{} hybrid plugin is not installed which is required for {}".format(
+                            connection_name, plugin_name))
                 else:
-                    _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+                    _logger.warning("{} hybrid plugin is not installed which is required for {}".format(
+                        connection_name, plugin_name))
             else:
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
@@ -171,9 +172,8 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
 
     stdout_file_path = create_log_file(action="list")
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
-    _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+    pkg_mgt = 'yum' if common_utils.is_redhat_based() else 'apt'
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
     pkg_cache_mgr = server.Server._package_cache_manager
@@ -184,10 +184,9 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
     # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
     if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-        _logger.info("Attempting update on {}".format(now))
+        _logger.info("Attempting {} update on {}...".format(pkg_mgt, now))
         cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-        if 'centos' in _platform or 'redhat' in _platform:
-            pkg_mgt = 'yum'
+        if pkg_mgt == 'yum':
             cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
         # Execute command
         os.system(cmd)
@@ -195,7 +194,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         # fetch available package caching always clear on every update request
         _get_available_packages.cache_clear()
     else:
-        _logger.warning("Maximum update exceeds the limit for the day")
+        _logger.warning("Maximum {} update exceeds the limit for the day.".format(pkg_mgt))
     ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
     if ttl_cat_item_val > 0:
         last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']
@@ -230,7 +229,7 @@ def create_log_file(action: str = "", plugin_name: str = "") -> str:
     logs_dir = '/logs/'
     _PATH = _FLEDGE_DATA + logs_dir if _FLEDGE_DATA else _FLEDGE_ROOT + '/data{}'.format(logs_dir)
     # YYMMDD-HH-MM-SS-{plugin_name}.log
-    file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
+    file_spec = datetime.utcnow().strftime('%y%m%d-%H-%M-%S')
     if not action:
         log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
     else:

@@ -33,11 +33,14 @@
 #include <filter_plugin.h>
 #include <config_handler.h>
 #include <syslog.h>
+#include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
 
 extern int makeDaemon(void);
 extern void handler(int sig);
+
+static void reconfThreadMain(void *arg);
 
 using namespace std;
 
@@ -103,8 +106,12 @@ bool	       dryrun = false;
 	{
 		service->setDryRun();
 	}
-	Logger::getLogger()->setMinLevel(logLevel);
+	Logger *logger = Logger::getLogger();
+	logger->setMinLevel(logLevel);
+	// Start the service. This will oly return whren the serivce is shutdown
 	service->start(coreAddress, corePort);
+	delete service;
+	delete logger;
 	return 0;
 }
 
@@ -201,46 +208,73 @@ void doIngest(Ingest *ingest, Reading reading)
 void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
     std::vector<Reading *> *vec = set->getAllReadingsPtr();
-    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
     if (!vec)
     {
         Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
         return;
     }
-    else
-    {
-        for (auto & r : *vec)
-        {
-            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
-            vec2->emplace_back(r2);
-        }
-    }
+	// move reading vector from set to new vector vec2
+    std::vector<Reading *> *vec2 = set->moveAllReadings();
+    
     Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 	delete set;
-}
 
+	ingest->flowControl();
+}
 
 /**
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
+				southPlugin(NULL),
+				m_assetTracker(NULL),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token),
 				m_repeatCnt(1),
+				m_pluginData(NULL),
 				m_dryRun(false),
-				m_requestRestart(false)
+				m_requestRestart(false),
+				m_auditLogger(NULL),
+				m_perfMonitor(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
+	m_pollType = POLL_INTERVAL;
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+
+	m_reconfThread = new std::thread(reconfThreadMain, this);
+}
+
+/**
+ * Destructor for south service
+ */
+SouthService::~SouthService()
+{
+	m_cvNewReconf.notify_all();	// Wakeup the reconfigure thread to terminate it
+	m_reconfThread->join();
+	delete m_reconfThread;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_perfMonitor)
+		delete m_perfMonitor;
+	delete m_assetTracker;
+	delete m_auditLogger;
+	delete m_mgtClient;
+
+	// We would like to shutdown the Python environment if it
+	// was running. However this causes a segmentation fault within Python
+	// so we currently can not do this
+#if PYTHON_SHUTDOWN
+	PythonRuntime::shutdown();	// Shutdown and release Python resources
+#endif
 }
 
 /**
@@ -282,6 +316,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// Allocate and save ManagementClient object
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
+
+		// Create the audit logger instance
+		m_auditLogger = new AuditLogger(m_mgtClient);
 
 		// Create an empty South category if one doesn't exist
 		DefaultConfigCategory southConfig(string("South"), string("{}"));
@@ -332,6 +369,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
 		storage.registerManagement(m_mgtClient);
+
+		m_perfMonitor = new PerformanceMonitor(m_name, &storage);
 		unsigned int threshold = 100;
 		long timeout = 5000;
 		std::string pluginName;
@@ -384,17 +423,32 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
-		m_storageAssetTracker = new StorageAssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
-		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
+		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
+		ingest.setPerfMon(m_perfMonitor);
 		m_ingest = &ingest;
+		if (m_throttle)
+		{
+			m_ingest->setFlowControl(m_lowWater, m_highWater);
+		}
 
 		if (m_configAdvanced.itemExists("statistics"))
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
 		}
+
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
+
+		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
 			m_readingsPerSec = 1;
@@ -432,29 +486,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			// Get and ingest data
 			if (! southPlugin->isAsync())
 			{
-				string units = m_configAdvanced.getValue("units");
-				unsigned long dividend = 1000000;
-				if (units.compare("second") == 0)
-					dividend = 1000000;
-				else if (units.compare("minute") == 0)
-					dividend = 60000000;
-				else if (units.compare("hour") == 0)
-					dividend = 3600000000;
-				m_rateUnits = units;
-				unsigned long usecs = dividend / m_readingsPerSec;
-
-				if (usecs > MAX_SLEEP * 1000000)
-				{
-					double x = usecs / (MAX_SLEEP * 1000000);
-					m_repeatCnt = ceil(x);
-					usecs /= m_repeatCnt;
-				}
-				else
-				{
-					m_repeatCnt = 1;
-				}
-				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-				m_desiredRate.tv_usec = (int)(usecs % 1000000);
+				calculateTimerRate();
 				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
 				m_currentRate = m_desiredRate;
 				if (m_timerfd < 0)
@@ -473,7 +505,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
 
 				/*
-				 * Start the plugin. If it fails with an excpetion retry the start with a delay
+				 * Start the plugin. If it fails with an exception, retry the start with a delay
 				 * That delay starts at 500mS and will backoff to 1 minute
 				 *
 				 * We will continue to retry the start until the service is shutdown
@@ -510,22 +542,42 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 				while (!m_shutdown)
 				{
-					uint64_t exp;
+					uint64_t exp = 0;
 					ssize_t s;
 					
-					long rep = m_repeatCnt;
-					while (rep > 0)
+					if (m_pollType == POLL_FIXED)
 					{
-						s = read(m_timerfd, &exp, sizeof(uint64_t));
-						if ((unsigned int)s != sizeof(uint64_t))
-							logger->error("timerfd read()");
-						if (exp > 100 && exp > m_readingsPerSec/2)
-						logger->error("%d expiry notifications accumulated", exp);
-						rep--;
-						if (m_shutdown)
+						if (syncToNextPoll())
+							exp = 1;	// Perform one poll
+					}
+					else if (m_pollType == POLL_INTERVAL)
+					{
+						long rep = m_repeatCnt;
+						while (rep > 0)
 						{
-							break;
+							s = read(m_timerfd, &exp, sizeof(uint64_t));
+							if ((unsigned int)s != sizeof(uint64_t))
+								logger->error("timerfd read()");
+							if (exp > 100 && exp > m_readingsPerSec/2)
+							logger->error("%d expiry notifications accumulated", exp);
+							rep--;
+							if (m_shutdown)
+							{
+								break;
+							}
+							checkPendingReconfigure();
+							if (rep > m_repeatCnt)
+							{
+								// Reconfigure has resulted in more frequent
+								// polling
+								rep = m_repeatCnt;
+							}
 						}
+					}
+					else if (m_pollType == POLL_ON_DEMAND)
+					{
+						if (onDemandPoll())
+							exp = 1;
 					}
 					if (m_shutdown)
 					{
@@ -547,30 +599,23 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
+							checkPendingReconfigure();
 							ReadingSet *set = southPlugin->pollV2();
-				if (set)
-				{
-				    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-				    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-				    if (!vec)
-				    {
-					Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
-					continue;
-				    }
-				    else
-				    {
-					for (auto & r : *vec)
-					{
-					    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-					    vec2->emplace_back(r2);
-					}
-				    }
-
-							ingest.ingest(vec2);
-							pollCount += (int) vec2->size();
-							delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-							delete set;
-				}
+							if (set)
+							{
+							    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+							    if (!vec)
+							    {
+								Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+								continue;
+							    }
+							    // move reading vector from set to vec2
+								std::vector<Reading *> *vec2 = set->moveAllReadings();
+								ingest.ingest(vec2);
+								pollCount += (int) vec2->size();
+								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+								delete set;
+							}
 						}
 						throttlePoll();
 					}
@@ -631,6 +676,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		else
 		{
+			m_shutdown = true;
 			Logger::getLogger()->info("Dryrun of service, shutting down");
 		}
 
@@ -650,6 +696,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			{
 				southPlugin->shutdown();
 			}
+			delete southPlugin;
+			southPlugin = NULL;
 		}
 		}
 		
@@ -675,10 +723,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
-	if (m_storageAssetTracker)
-	{
-		m_storageAssetTracker->releaseStorageAssetTracker();
-	}
+
 	logger->info("Stopping south service...\n");
 }
 
@@ -795,7 +840,16 @@ void SouthService::shutdown()
 	/* Stop recieving new requests and allow existing
 	 * requests to drain.
 	 */
-	m_shutdown = true;
+	if (m_pollType == POLL_ON_DEMAND)
+	{
+		lock_guard<mutex> lk(m_pollMutex);
+		m_shutdown = true;
+		m_pollCV.notify_all();
+	}
+	else
+	{
+		m_shutdown = true;
+	}
 	logger->info("South service shutdown in progress.");
 }
 
@@ -814,8 +868,11 @@ void SouthService::restart()
 
 /**
  * Configuration change notification
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
  */
-void SouthService::configChange(const string& categoryName, const string& category)
+void SouthService::processConfigChange(const string& categoryName, const string& category)
 {
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
@@ -839,6 +896,14 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
 		}
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
 		if (! southPlugin->isAsync())
 		{
 			try {
@@ -849,33 +914,61 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					m_readingsPerSec = 1;
 				}
 				string units = m_configAdvanced.getValue("units");
-				unsigned long dividend = 1000000;
-				if (units.compare("second") == 0)
-					dividend = 1000000;
-				else if (units.compare("minute") == 0)
-					dividend = 60000000;
-				else if (units.compare("hour") == 0)
-					dividend = 3600000000;
-				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
+				string pollType = m_configAdvanced.getValue("pollType");
+				bool wakeup = false;
+				if (m_pollType == POLL_ON_DEMAND)
 				{
+					wakeup = true;
+				}
+				if (pollType.compare("Fixed Times") == 0)
+				{
+					m_pollType = POLL_FIXED;
+					processNumberList(m_configAdvanced, "pollHours", m_hours);
+					processNumberList(m_configAdvanced, "pollMinutes", m_minutes);
+					processNumberList(m_configAdvanced, "pollSeconds", m_seconds);
+
+					if (m_minutes.size() == 0 && m_hours.size() != 0)
+						m_minutes.push_back(0);
+					if (m_seconds.size() == 0 && m_minutes.size() != 0)
+						m_seconds.push_back(0);
+
+					m_desiredRate.tv_sec  = 1;
+					m_desiredRate.tv_usec = 0;
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
+				}
+				else if (pollType.compare("Interval") == 0
+						&& (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0))
+				{
+					m_pollType = POLL_INTERVAL;
 					m_readingsPerSec = newval;
 					m_rateUnits = units;
 					close(m_timerfd);
-					unsigned long usecs = dividend / m_readingsPerSec;
-					if (usecs > MAX_SLEEP * 1000000)
-					{
-						double x = usecs / (MAX_SLEEP * 1000000);
-						m_repeatCnt = ceil(x);
-						usecs /= m_repeatCnt;
-					}
-					else
-					{
-						m_repeatCnt = 1;
-					}
-					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-					m_desiredRate.tv_usec = (int)(usecs % 1000000);
+					calculateTimerRate();
 					m_currentRate = m_desiredRate;
 					m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
+				}
+				else if (pollType.compare("Interval") == 0 && m_pollType != POLL_INTERVAL)
+				{
+					// Change to interval mode without the rate changing
+					m_pollType = POLL_INTERVAL;
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
+				}
+				else if (pollType.compare("On Demand") == 0)
+				{
+					m_pollType = POLL_ON_DEMAND;
 				}
 			} catch (ConfigItemNotFound e) {
 				logger->error("Failed to update poll interval following configuration change");
@@ -941,6 +1034,89 @@ void SouthService::configChange(const string& categoryName, const string& catego
 }
 
 /**
+ * Separate thread to run plugin_reconf, to avoid blocking 
+ * service's management interface due to long plugin_poll calls
+ */
+static void reconfThreadMain(void *arg)
+{
+	SouthService *ss = (SouthService *)arg;
+	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
+	ss->handlePendingReconf();
+	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
+}
+
+/**
+ * Handle configuration change notification; called by reconf thread
+ * Waits for some reconf operation(s) to get queued up, then works thru' them
+ */
+void SouthService::handlePendingReconf()
+{
+	while (isRunning())
+	{
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
+		mutex mtx;
+		unique_lock<mutex> lck(mtx);
+		m_cvNewReconf.wait(lck);
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
+
+		while (isRunning())
+		{
+			unsigned int numPendingReconfs = 0;
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				numPendingReconfs = m_pendingNewConfig.size();
+				if (numPendingReconfs)
+					Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+				else
+				{
+					Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
+					break;
+				}
+			}
+
+			for (unsigned int i=0; i<numPendingReconfs; i++)
+			{
+				logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+				std::pair<std::string,std::string> *reconfValue = NULL;
+				{
+					lock_guard<mutex> guard(m_pendingNewConfigMutex);
+					reconfValue = &m_pendingNewConfig[i];
+				}
+				std::string categoryName = reconfValue->first;
+				std::string category = reconfValue->second;
+				processConfigChange(categoryName, category);
+
+				logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+			}
+			
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				for (unsigned int i=0; i<numPendingReconfs; i++)
+					m_pendingNewConfig.pop_front();
+				logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+			}
+		}
+	}
+}
+
+/**
+ * Configuration change notification using a separate thread
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
+ */
+void SouthService::configChange(const string& categoryName, const string& category)
+{
+	{
+		lock_guard<mutex> guard(m_pendingNewConfigMutex);
+		m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
+		Logger::getLogger()->debug("SouthService::reconfigure(): After adding new entry, m_pendingNewConfig.size()=%d", m_pendingNewConfig.size());
+
+		m_cvNewReconf.notify_all();
+	}
+}
+
+/**
  * Add the generic south service configuration options to the advanced
  * category
  *
@@ -972,6 +1148,40 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem("units", "Reading Rate Per",
 				"second", "second", rateUnits);
 		defaultConfig.setItemDisplayName("units", "Reading Rate Per");
+
+		/* Now add the fixed time polling option */
+		vector<string> pollOptions = { "Interval", "Fixed Times", "On Demand" };
+		defaultConfig.addItem("pollType", "Either poll at fixed intervals, at fixed times or when trigger by a poll control operation.",
+				"Interval", "Interval", pollOptions);
+		defaultConfig.setItemDisplayName("pollType", "Poll Type");
+
+		/* Add the validity for interval polling items */
+		defaultConfig.setItemAttribute("readingsPerSec",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+		defaultConfig.setItemAttribute("units",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+		defaultConfig.setItemAttribute("throttle",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+
+		/* Add the three time specifiers */
+		defaultConfig.addItem("pollHours",
+				"List of hours on which to poll or leave empty for all hours",
+				"string", "", "");
+		defaultConfig.setItemDisplayName("pollHours", "Hours");
+		defaultConfig.setItemAttribute("pollHours",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
+		defaultConfig.addItem("pollMinutes",
+				"List of minutes on which to poll or leave empty for all minutes",
+				"string", "", "");
+		defaultConfig.setItemDisplayName("pollMinutes", "Minutes");
+		defaultConfig.setItemAttribute("pollMinutes",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
+		defaultConfig.addItem("pollSeconds",
+				"Seconds on which to poll expressed as a comma seperated list",
+				"string", "0,15,30,45", "0,15,30,40");
+		defaultConfig.setItemDisplayName("pollSeconds", "Seconds");
+		defaultConfig.setItemAttribute("pollSeconds",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
 	}
 
 	if (southPlugin->hasControl())
@@ -992,6 +1202,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
 			"per asset & service", "per asset & service", statistics);
 	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
+	defaultConfig.addItem("perfmon", "Track and store performance counters",
+			       "boolean", "false", "false");
+	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
 }
 
 /**
@@ -1084,6 +1297,7 @@ struct timeval now, res;
 		m_lastThrottle = now;
 		m_throttled = true;
 		logger->warn("%s Throttled down poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+		m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
@@ -1116,6 +1330,7 @@ struct timeval now, res;
 			{
 				logger->warn("%s Throttled up poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
 			}
+			m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 			close(m_timerfd);
 			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
 			m_lastThrottle = now;
@@ -1152,7 +1367,21 @@ bool SouthService::setPoint(const string& name, const string& value)
  */
 bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>& params)
 {
-	if (southPlugin->hasControl())
+	if (operation.compare("poll") == 0)
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			m_doPoll = true;
+			m_pollCV.notify_all();
+			return true;
+		}
+		else
+		{
+			logger->warn("Received a poll request for a service that is not enabled for on demand polling");
+			return false;
+		}
+	}
+	else if (southPlugin->hasControl())
 	{
 		return southPlugin->operation(operation, params);
 	}
@@ -1160,5 +1389,329 @@ bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>
 	{
 		logger->warn("Operation %s attempted on plugin that does not support control", operation.c_str());
 		return false;
+	}
+}
+
+/**
+ * Process a list of numbers into a vector of integers.
+ * The list of numbers is obtained from a configuration
+ * item.
+ *
+ * @param category	The configuration category
+ * @param item		Name of the configuration item
+ * @param list		The vector to populate
+ */
+void SouthService::processNumberList(const ConfigCategory& category,
+				const string& item, vector<unsigned long>& list)
+{
+	list.clear();
+	if (!category.itemExists(item))
+	{
+		Logger::getLogger()->warn("Item %s does not exist", item.c_str());
+		return;
+	}
+	string value = category.getValue(item);
+	if (value.length() == 0)
+	{
+		Logger::getLogger()->info("Item %s is empty", item.c_str());
+		return;
+	}
+
+	const char *ptr = value.c_str();
+	char *eptr;
+	while (*ptr)
+	{
+		list.push_back(strtoul(ptr, &eptr, 10));
+		ptr = eptr;
+		if (*ptr == ',')
+			ptr++;
+	}
+}
+
+/**
+ * Calcuate the rate at which the timer should trigger and the repeat
+ * requirement needed to match the requested poll rate
+ */
+void SouthService::calculateTimerRate()
+{
+	string pollType = m_configAdvanced.getValue("pollType");
+	if (pollType.compare("Fixed Times") == 0)
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			lock_guard<mutex> lk(m_pollMutex);
+			m_pollType = POLL_FIXED;
+			m_pollCV.notify_all();
+		}
+		m_pollType = POLL_FIXED;
+		processNumberList(m_configAdvanced, "pollHours", m_hours);
+		processNumberList(m_configAdvanced, "pollMinutes", m_minutes);
+		processNumberList(m_configAdvanced, "pollSeconds", m_seconds);
+
+		if (m_minutes.size() == 0 && m_hours.size() != 0)
+			m_minutes.push_back(0);
+		if (m_seconds.size() == 0 && m_minutes.size() != 0)
+			m_seconds.push_back(0);
+
+		m_desiredRate.tv_sec  = 1;
+		m_desiredRate.tv_usec = 0;
+	}
+	else if (pollType.compare("On Demand") == 0)
+	{
+		m_pollType = POLL_ON_DEMAND;
+	}
+	else
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			lock_guard<mutex> lk(m_pollMutex);
+			m_pollType = POLL_INTERVAL;
+			m_pollCV.notify_all();
+		}
+		m_pollType = POLL_INTERVAL;
+		string units = m_configAdvanced.getValue("units");
+		unsigned long dividend = 1000000;
+		if (units.compare("second") == 0)
+			dividend = 1000000;
+		else if (units.compare("minute") == 0)
+			dividend = 60000000;
+		else if (units.compare("hour") == 0)
+			dividend = 3600000000;
+		m_rateUnits = units;
+		unsigned long usecs = dividend / m_readingsPerSec;
+
+		if (usecs > MAX_SLEEP * 1000000)
+		{
+			double x = usecs / (MAX_SLEEP * 1000000);
+			m_repeatCnt = ceil(x);
+			usecs /= m_repeatCnt;
+		}
+		else
+		{
+			m_repeatCnt = 1;
+		}
+		m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+		m_desiredRate.tv_usec = (int)(usecs % 1000000);
+	}
+}
+
+/**
+ * Find the next fixed time poll time and wait for that time before returning.
+ * This method will also return if m_shutdown is set.
+ *
+ * @return bool	True if the return is doe to a poll being required.
+ */
+bool SouthService::syncToNextPoll()
+{
+	time_t tim = time(0);
+	struct tm tm;
+	localtime_r(&tim, &tm);
+	unsigned long waitFor = 1;
+
+	if (m_hours.size() == 0 && m_minutes.size() == 0 && m_seconds.size() == 0)
+	{
+		Logger::getLogger()->error("Poll time misconfigured.");
+	}
+	else if (m_hours.size() == 0 && m_minutes.size() == 0)
+	{
+		// Only looking at seconds
+		unsigned int i;
+		for (i = 0; i < m_seconds.size() && m_seconds[i] <= (unsigned)tm.tm_sec; i++)
+		{
+		}
+		if (i == m_seconds.size())
+		{
+			waitFor = (60 - (unsigned)tm.tm_sec) + m_seconds[0];
+		}
+		else
+		{
+			waitFor = m_seconds[i] - (unsigned)tm.tm_sec;
+		}
+	}
+	else if (m_hours.size() == 0)
+	{
+		unsigned int target_min = (unsigned)tm.tm_min;
+		unsigned int min, sec;
+		for (min = 0; min < m_minutes.size() && m_minutes[min] < target_min; min++)
+		{
+		}
+		if (min == m_minutes.size()) // Reset to start of minute list
+		{
+			min = 0;
+		}
+
+		if (m_minutes[min] != target_min)	// Not this minute
+		{
+			sec = 0;	// Always use first setting of seconds
+		}
+		else
+		{
+			for (sec = 0; sec < m_seconds.size() && m_seconds[sec] <= (unsigned)tm.tm_sec; sec++)
+			{
+			}
+			if (sec == m_seconds.size())
+			{
+				// Too late in this minute use next minute setting
+				sec = 0;
+				min++;
+				if (min >= m_minutes[min])
+				{
+					min = 0;
+				}
+			}
+		}
+		waitFor = 0;
+		if (m_minutes[min] > (unsigned)tm.tm_min)
+		{
+			waitFor = 60 * (m_minutes[min] - (unsigned)tm.tm_min);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor = 60 * ((60 - (unsigned)tm.tm_min) + m_minutes[min]);
+		}
+		if (m_seconds[sec] > (unsigned)tm.tm_sec)
+		{
+			waitFor += ((unsigned)tm.tm_sec - m_seconds[sec]);
+		}
+		else
+		{
+			waitFor += ((60 - (unsigned)tm.tm_sec) + m_seconds[sec]);
+		}
+	}
+	else	// Hours, minutes and seconds
+	{
+		unsigned int hour, min, sec;
+		for (hour = 0; hour < m_hours.size() && m_hours[hour] < (unsigned)tm.tm_hour; hour++)
+		{
+		}
+		if (hour == m_hours.size()) // Reset to start of minute list
+		{
+			min = 0;
+			sec = 0;
+			hour = 0;
+		}
+		else if (m_hours[hour] == (unsigned)tm.tm_hour)	// Check for this hour
+		{
+			for (min = 0; min < m_minutes.size() && m_minutes[min] < (unsigned)tm.tm_min; min++)
+			{
+			}
+			if (min < m_minutes.size()) // may still be a trogger in this hor
+			{
+				for (sec = 0; sec < m_seconds.size() && m_seconds[sec] <= (unsigned)tm.tm_sec; sec++)
+				{
+				}
+				if (sec == m_seconds.size())
+				{
+					// Too late in this minute use next minute setting
+					sec = 0;
+					min++;
+					if (min == m_minutes.size())
+					{
+						min = 0;
+						sec = 0;
+						hour++;
+						if (m_hours.size() == hour)
+							hour = 0;
+					}
+				}
+			}
+			else
+			{
+				hour++;
+				min = 0;
+				sec = 0;
+				if (m_hours.size() == hour)
+					hour = 0;
+			}
+		}
+		else
+		{
+			hour++;
+			min = 0;
+			sec = 0;
+			if (m_hours.size() == hour)
+				hour = 0;
+		}
+		waitFor = 0;
+		if (m_hours[hour] > (unsigned)tm.tm_hour)
+		{
+			waitFor += 60 * 60 * (m_hours[hour] - (unsigned)tm.tm_hour);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * 60 * ((24 - (unsigned)tm.tm_hour) + m_hours[hour]);
+		}
+		if (m_minutes[min] > (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * (m_minutes[min] - (unsigned)tm.tm_min);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * ((60 - (unsigned)tm.tm_min) + m_minutes[min]);
+		}
+		if (m_seconds[sec] > (unsigned)tm.tm_sec)
+		{
+			waitFor += ((unsigned)tm.tm_sec - m_seconds[sec]);
+		}
+		else
+		{
+			waitFor += ((60 - (unsigned)tm.tm_sec) + m_seconds[sec]);
+		}
+	}
+
+
+	uint64_t exp;
+	while (waitFor)
+	{
+		if (read(m_timerfd, &exp, sizeof(uint64_t)) == -1)
+			return false;
+		waitFor--;
+		if (m_shutdown)
+			return false;
+		if (m_pollType != POLL_FIXED)	// Configuration has change to the poll type
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Wait until either a shutdown request is received or a poll operation
+ *
+ * @return bool		True if the return is due to a new poll request
+ */
+bool SouthService::onDemandPoll()
+{
+	unique_lock<mutex> lk(m_pollMutex);
+	if (! m_shutdown)
+	{
+		m_doPoll = false;
+		m_pollCV.wait(lk);
+	}
+	return m_doPoll;
+}
+
+/**
+ * Check to see if there is a reconfiguration option blocking in another
+ * thread and yield until that reconfiguration has occured.
+ */
+void SouthService::checkPendingReconfigure()
+{
+	while(1)
+	{
+		unsigned int numPendingReconfs;
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+		}
+		// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
+		if (numPendingReconfs)
+		{
+			Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		}
+		else
+			return;
 	}
 }

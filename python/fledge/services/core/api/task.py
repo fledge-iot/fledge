@@ -10,8 +10,8 @@ import uuid
 from aiohttp import web
 
 from fledge.common import utils
-from fledge.common import logger
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 
@@ -34,7 +34,7 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
-_logger = logger.setup()
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def add_task(request):
@@ -163,30 +163,28 @@ EOF
             # Checking for C-type plugins
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
             if not plugin_info:
-                msg = "Plugin {} does not appear to be a valid plugin".format(plugin)
-                _logger.error(msg)
+                msg = "Plugin {} does not appear to be a valid plugin.".format(plugin)
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             valid_c_plugin_info_keys = ['name', 'version', 'type', 'interface', 'flag', 'config']
             for k in valid_c_plugin_info_keys:
                 if k not in list(plugin_info.keys()):
-                    msg = "Plugin info does not appear to be a valid for {} plugin. '{}' item not found".format(
+                    msg = "Plugin info does not appear to be a valid for {} plugin. '{}' item not found.".format(
                         plugin, k)
-                    _logger.error(msg)
                     return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             if plugin_info['type'] != task_type:
-                msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-                _logger.error(msg)
+                msg = "Plugin of {} type is not supported.".format(plugin_info['type'])
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             if not plugin_config:
-                _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin,
-                                                                                                 plugin_module_path))
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, task_type, plugin)
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(
+                    plugin, plugin_module_path))
         except TypeError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except Exception as ex:
-            _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
-            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
+            msg = "Failed to fetch plugin configuration."
+            _logger.error(ex, msg)
+            raise web.HTTPInternalServerError(reason=msg)
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
@@ -202,7 +200,7 @@ EOF
 
         if result['count'] >= 1:            
             msg = 'Unable to reuse name {0}, already used by a previous task.'.format(name)
-            _logger.exception(msg)
+            _logger.warning(msg)
             raise web.HTTPBadRequest(reason=msg)
 
         # Check whether category name already exists
@@ -225,10 +223,10 @@ EOF
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                _logger.exception("Failed to create scheduled process. %s", ex.error)
+                _logger.exception("Failed to create scheduled process due to {}".format(ex.error))
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process. %s", ex)
+                _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
         # If successful then create a configuration entry from plugin configuration
@@ -251,7 +249,7 @@ EOF
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create plugin configuration. %s", str(ex))
+            _logger.error(ex, "Failed to create plugin configuration.")
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
 
         # If all successful then lastly add a schedule to run the new task at startup
@@ -276,11 +274,11 @@ EOF
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create schedule. %s", ex.error)
+            _logger.exception("Failed to create north instance due to {}".format(ex.error))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create schedule. %s", str(ex))
+            _logger.error(ex, "Failed to create north instance.")
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
     except ValueError as e:
@@ -295,8 +293,8 @@ async def delete_task(request):
         :Example:
             curl -X DELETE http://localhost:8081/fledge/scheduled/task/<task name>
     """
+    north_instance = request.match_info.get('task_name', None)
     try:
-        north_instance = request.match_info.get('task_name', None)
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, north_instance)
@@ -324,9 +322,10 @@ async def delete_task(request):
         await delete_plugin_data(storage, north_instance)
         # update deprecated timestamp in asset_tracker
         await update_deprecated_ts_in_asset_tracker(storage, north_instance)
-
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error(ex, "Failed to delete {} north task.".format(north_instance))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})
 

@@ -3,6 +3,7 @@
 set -e
 
 BRANCH=${2:-develop}   # here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is develop
+COLLECT_FILES=${3}
 
 OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
@@ -17,6 +18,7 @@ echo "UNAME is "${UNAME}
 sudo apt -y  install git
 
 # cloning fledge
+echo "Cloning Fledge branch $BRANCH"
 git clone -b $BRANCH  https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
 
 echo 'Changing CMakelists'
@@ -34,30 +36,44 @@ export FLEDGE_ROOT=`pwd` && cd ..;
 
 # modifying script
 echo 'fledge root path is set to  ${FLEDGE_ROOT}'
-valgrind_conf=' --tool=memcheck  --fullpath-after=  --xml=yes  --log-file=\/tmp\/south_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes '
+valgrind_conf=' --tool=memcheck --leak-check=full --show-leak-kinds=all'
 
 psouth_c=${FLEDGE_ROOT}/scripts/services/south_c
 echo $psouth_c
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${psouth_c}
-sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind -v --xml-file=\/tmp\/south_valgrind_%p.xml  '"$valgrind_conf"'  /' ${psouth_c}
+if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
+	sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --log-file=\/tmp\/south_valgrind.log '"$valgrind_conf"' /' ${psouth_c}
+else
+	sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/south_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${psouth_c}
+fi
 
 pnorth_C=${FLEDGE_ROOT}/scripts/services/north_C
 echo $pnorth_C
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
-sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind -v  --xml-file=\/tmp\/north_valgrind_%p.xml '"$valgrind_conf"'  /' ${pnorth_C}
+if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
+	sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --log-file=\/tmp\/north_valgrind.log '"$valgrind_conf"' /' ${pnorth_C}
+else
+	sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/north_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${pnorth_C}
+fi
 
 pstorage=${FLEDGE_ROOT}/scripts/services/storage
 echo $pstorage
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
-sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v   --xml-file=\/tmp\/storage_valgrind_%p.xml '"$valgrind_conf"'  /' ${pstorage}
+if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
+	sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --log-file=\/tmp\/storage_valgrind.log '"$valgrind_conf"' /' ${pstorage}
+else
+	sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --xml=yes --xml-file=\/tmp\/storage_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${pstorage}
+fi
 
 # cloning plugins based on parameters passed to the script, Currently only installing sinusoid
-for i in ${1}
+
+IFS=' ' read -ra plugin_list <<< "${1}"
+for i in "${plugin_list[@]}"
 do
 	echo $i
 	git clone  https://github.com/fledge-iot/${i}.git && cd ${i}; plugin_dir=`pwd`
 
-        # Cheking requirements.sh file exists or not, to install plugins dependencies
+	# Cheking requirements.sh file exists or not, to install plugins dependencies
 	if [[ -f ${plugin_dir}/requirements.sh  ]]
 	then
 		./${plugin_dir}/requirements.sh
@@ -69,7 +85,7 @@ do
 		sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g'  ${plugin_dir}/CMakeLists.txt
 		# building C based plugin
 		echo 'Building C plugin'
-		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install
+		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install && cd ..
 	else 
 		# Checking requirements.txt file exists or not, to install plugins dependencies (if any)
 		if [[ -f ${plugin_dir}/requirements.txt  ]]
@@ -81,8 +97,7 @@ do
 		sudo cp -r $plugin_dir/python $FLEDGE_ROOT/
 		echo 'Copied.'
 	fi
-	cd ../..
+	cd ../
 done
 echo 'Current location - '; pwd;
 echo 'End of setup'
-

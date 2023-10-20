@@ -25,12 +25,23 @@
 #include <asset_tracking.h>
 #include <service_handler.h>
 #include <set>
+#include <perfmonitors.h>
 
 #define SERVICE_NAME  "Fledge South"
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
-#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creatign new stats
+#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
+
+#define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache
+
+/*
+ * Constants related to flow control for async south services.
+ *
+ */
+#define	AFC_SLEEP_INCREMENT	20	// Number of milliseconds to wait for readings to drain
+#define AFC_SLEEP_MAX		200	// Maximum sleep tiem in ms between tests
+#define AFC_MAX_WAIT		5000	// Maximum amount of time we wait for the queue to drain
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -42,8 +53,6 @@ class Ingest : public ServiceHandler {
 
 public:
 	Ingest(StorageClient& storage,
-		long timeout,
-		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
 		ManagementClient *mgmtClient);
@@ -51,6 +60,7 @@ public:
 
 	void		ingest(const Reading& reading);
 	void		ingest(const std::vector<Reading *> *vec);
+	void		start(long timeout, unsigned int threshold);
 	bool		running();
     	bool		isStopping();
 	bool		isRunning() { return !m_shutdown; };
@@ -76,12 +86,19 @@ public:
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);
-	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                                        const std::string& assetName, const std::string&, const unsigned int&);
+	void		unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+							const std::string& assetName,
+							const std::string&,
+							const unsigned int&);
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
-
+	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
+	void		flowControl();
+	void		setPerfMon(PerformanceMonitor *mon)
+			{
+				m_performance = mon;
+			};
 
 private:
 	void				signalStatsUpdate() {
@@ -133,6 +150,12 @@ private:
 	int				m_statsUpdateFails;
 	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
 					m_statisticsOption;
+	unsigned int			m_highWater;
+	unsigned int			m_lowWater;
+	AssetTrackingTable		*m_deprecated;
+	time_t				m_deprecatedAgeOut;
+	time_t				m_deprecatedAgeOutStorage;
+	PerformanceMonitor		*m_performance;
 };
 
 #endif

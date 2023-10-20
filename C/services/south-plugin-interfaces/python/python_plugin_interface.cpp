@@ -510,46 +510,35 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 	}
 	else
 	{
-		// Get reading data
-        PythonReadingSet *pyReadingSet = NULL;
+			// Get reading data
+		PythonReadingSet *pyReadingSet = NULL;
 
-        // Valid ReadingSet would be in the form of python dict or list
-        if (PyList_Check(pReturn) || PyDict_Check(pReturn))
-        {
-            try
-            {
-                pyReadingSet = new PythonReadingSet(pReturn);
-            }
-            catch (std::exception e)
-            {
-        		Logger::getLogger()->warn("PythonReadingSet c'tor failed, error: %s", e.what());
-                pyReadingSet = NULL;
-        	}
-        }
-		
+		// Valid ReadingSet would be in the form of python dict or list
+		if (PyList_Check(pReturn) || PyDict_Check(pReturn))
+		{
+			try {
+				pyReadingSet = new PythonReadingSet(pReturn);
+			} catch (std::exception e) {
+				Logger::getLogger()->warn("Failed to create a Python ReadingSet from the data returned by the south plugin poll routine, %s", e.what());
+				pyReadingSet = NULL;
+			}
+		}
+			
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
 
 		PyGILState_Release(state);
 
-        if (pyReadingSet)
-        {
-            std::vector<Reading *> *vec = pyReadingSet->getAllReadingsPtr();
-            std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-            
-            for (auto & r : *vec)
-            {
-                Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del pyReadingSet" below would remove encapsulated reading objects
-                vec2->emplace_back(r2);
-            }
-            
-            delete pyReadingSet;
-    		return vec2;
-        }
-        else
-        {
-            return NULL;
-        }
+		if (pyReadingSet)
+		{
+			std::vector<Reading *> *vec2 = pyReadingSet->moveAllReadings();
+			delete pyReadingSet;
+			return vec2;
+		}
+		else
+		{
+			return NULL;
+		}
 	}
 }
 	

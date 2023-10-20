@@ -67,11 +67,19 @@ get_pid() {
 }
 
 fledge_start() {
-  sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+    if [ "$IS_RHEL" = "" ]; then
+        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+    else
+        "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+    fi
 }
  
 fledge_stop() {
-  sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+    if [ "$IS_RHEL" = "" ]; then
+        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+    else
+        "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+    fi
 }
  
 case "$1" in

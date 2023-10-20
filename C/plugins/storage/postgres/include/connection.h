@@ -21,7 +21,13 @@
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
-#define STORAGE_PURGE_SIZE	     0x0004U
+#define STORAGE_PURGE_SIZE	 0x0004U
+
+/**
+ * Maximum number of readings to insert in a single 
+ * insert statement
+ */
+#define INSERT_ROW_LIMIT	5000
 
 class Connection {
 	public:
@@ -53,6 +59,10 @@ class Connection {
 						const std::string &name,
 						std::string &resultSet);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		void		setMaxReadingRows(long rows)
+				{
+					m_maxReadingRows = rows;
+				}
 
 	private:
 		bool		m_logSQL;
@@ -75,6 +85,7 @@ class Connection {
 
 		std::string getIndexName(std::string s);
 		bool 		checkValidDataType(const std::string &s);
+		long		m_maxReadingRows;
 
 
 		typedef	struct{

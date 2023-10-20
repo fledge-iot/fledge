@@ -28,6 +28,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include "json_utils.h"
+
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -327,7 +329,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 /**
  * Create a database connection
  */
-Connection::Connection()
+Connection::Connection() : m_maxReadingRows(INSERT_ROW_LIMIT)
 {
 	const char *defaultConninfo = "dbname = fledge";
 	char *connInfo = NULL;
@@ -1234,8 +1236,11 @@ SQLBuffer	sql;
 						}
 						else
 						{
+							StringBuffer buffer;
+							Writer<StringBuffer> writer(buffer);
+							value.Accept(writer);
 							sql.append("'\"");
-							sql.append(escape_double_quotes(escape(str)));
+							sql.append(escape_double_quotes(escape(JSONunescape(buffer.GetString()))));
 							sql.append("\"'");
 						}
 					}
@@ -1511,12 +1516,10 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
-
 	if (!doc.HasMember("readings"))
 	{
 		raiseError("appendReadings", "Payload is missing a readings array");
-	return -1;
+		return -1;
 	}
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
@@ -1524,8 +1527,33 @@ bool 		add_row = false;
 		raiseError("appendReadings", "Payload is missing the readings array");
 		return -1;
 	}
+
+	const char *head = "INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ";
+	sql.append(head);
+
+	int count = 0;
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
+		if (count == m_maxReadingRows)
+		{
+			sql.append(';');
+
+			const char *query = sql.coalesce();
+			logSQL("ReadingsAppend", query);
+			PGresult *res = PQexec(dbConnection, query);
+			delete[] query;
+			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+			{
+				raiseError("appendReadings", PQerrorMessage(dbConnection));
+				PQclear(res);
+				return -1;
+			}
+			PQclear(res);
+
+			sql.clear();
+			sql.append(head);
+			count = 0;
+		}
 		if (!itr->IsObject())
 		{
 			raiseError("appendReadings",
@@ -1533,12 +1561,18 @@ bool 		add_row = false;
 			return -1;
 		}
 		add_row = true;
+		const char *asset_code = (*itr)["asset_code"].GetString();
+		if (strlen(asset_code) == 0)
+		{
+			Logger::getLogger()->warn("Postgres appendReadings - empty asset code value, row is ignored");
+			continue;
+		}
 
 		const char *str = (*itr)["user_ts"].GetString();
 		// Check if the string is a function
 		if (isFunction(str))
 		{
-			if (row)
+			if (count)
 				sql.append(", (");
 			else
 				sql.append('(');
@@ -1555,7 +1589,7 @@ bool 		add_row = false;
 			}
 			else
 			{
-				if (row)
+				if (count)
 				{
 					sql.append(", (");
 				}
@@ -1573,10 +1607,11 @@ bool 		add_row = false;
 		if (add_row)
 		{
 			row++;
+			count++;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append((*itr)["asset_code"].GetString());
+			sql.append(asset_code);
 			sql.append("', '");
 
 			// Handles - reading
@@ -1589,21 +1624,35 @@ bool 		add_row = false;
 			sql.append(')');
 		}
 	}
+
+	if (count == 0)
+	{
+		// No rows in final block
+		return 0;
+	}
 	sql.append(';');
 
 	const char *query = sql.coalesce();
 
-	logSQL("ReadingsAppend", query);
-	PGresult *res = PQexec(dbConnection, query);
-	delete[] query;
-	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	if (row > 0)
 	{
+		logSQL("ReadingsAppend", query);
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_COMMAND_OK)
+		{
+			PQclear(res);
+			return atoi(PQcmdTuples(res));
+		}
+ 		raiseError("appendReadings", PQerrorMessage(dbConnection));
 		PQclear(res);
-		return atoi(PQcmdTuples(res));
+		return -1;
 	}
- 	raiseError("appendReadings", PQerrorMessage(dbConnection));
-	PQclear(res);
-	return -1;
+	else
+	{
+		delete[] query;
+		return 0;
+	}
 }
 
 /**
@@ -1663,7 +1712,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0, ";
+	result += " \"method\" : \"age\", ";
+	result += " \"duration\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -1879,20 +1930,21 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	ostringstream convert;
 
+	unsigned long duration;
+	gettimeofday(&endTv, NULL);
+	duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	convert << "{ \"removed\" : "       << deletedRows    << ", ";
 	convert << " \"unsentPurged\" : "   << unsentPurged   << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : "       << numReadings    << " }";
+	convert << " \"readings\" : "       << numReadings    << ", ";
+	convert << " \"method\" : \"age\", ";
+	convert << " \"duration\" : "       << duration       << " }";
 
 	result = convert.str();
 
-	{ // Timing
-		unsigned long duration;
-		gettimeofday(&endTv, NULL);
-		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-		duration = duration / 1000; // milliseconds
-		logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
-	}
+	duration = duration / 1000; // milliseconds
+	logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
@@ -1964,6 +2016,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long rowcount, minId, maxId;
 	unsigned long rowsAffectedLastComand;
 	unsigned long deletePoint;
+	struct timeval startTv, endTv;
 
 	string sqlCommand;
 	bool flag_retain;
@@ -1972,6 +2025,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	Logger *logger = Logger::getLogger();
 
+	gettimeofday(&startTv, NULL);
 	flag_retain = false;
 
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
@@ -2064,12 +2118,17 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		unsentRetained = numReadings - rows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"rows\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 

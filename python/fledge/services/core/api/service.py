@@ -9,14 +9,13 @@ import asyncio
 import os
 import datetime
 import uuid
-import platform
 import json
 import multiprocessing
 from aiohttp import web
 
 from typing import Dict, List
 from fledge.common import utils
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -50,8 +49,7 @@ _help = """
     | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
-
-_logger = logger.setup()
+_logger = FLCoreLogger().get_logger(__name__)
 
 #################################
 #  Service
@@ -263,9 +261,7 @@ async def add_service(request):
                     delimiter = '.'
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
-
-                _platform = platform.platform()
-                pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+                pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
                 # Check Pre-conditions from Packages table
                 # if status is -1 (Already in progress) then return as rejected request
                 storage = connect.get_storage_async()
@@ -356,21 +352,21 @@ async def add_service(request):
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' import problem from path '{}''.".format(plugin, plugin_module_path)
+                    _logger.exception(msg)
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
+                    _logger.exception(ex, msg)
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
-                _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
-                _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
+                _logger.error(ex, "Failed to fetch plugin info config item.")
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
@@ -424,7 +420,7 @@ async def add_service(request):
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process. %s", str(ex))
+                _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # check that notification service is not already registered, right now notification service LIMIT to 1
@@ -474,11 +470,11 @@ async def add_service(request):
                         raise ValueError('Config must be a JSON object')
                     for k, v in config.items():
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
-
             except Exception as ex:
                 await config_mgr.delete_category_and_children_recursively(name)
-                _logger.exception("Failed to create plugin configuration. %s", str(ex))
-                raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
+                msg = "Failed to create plugin configuration while adding service."
+                _logger.error(ex, msg)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
@@ -499,7 +495,7 @@ async def add_service(request):
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create service. %s", str(ex))
+            _logger.error(ex, "Failed to create service.")
             raise web.HTTPInternalServerError(reason='Failed to create service.')
     except ValueError as err:
         msg = str(err)
@@ -595,11 +591,13 @@ async def update_service(request: web.Request) -> web.Response:
     name = request.match_info.get('name', None)
     try:
         _type = _type.lower()
-        # TODO: 5141 - once done we need to fix for dispatcher type as well
-        if _type != 'notification':
-            raise ValueError("Invalid service type. Must be 'notification'")
+        if _type not in ('notification', 'dispatcher', 'bucket_storage', 'management'):
+            raise ValueError("Invalid service type.")
 
-        # Check requested service name is installed or not
+        # NOTE: `bucketstorage` repository name with `BucketStorage` type in service registry has package name *-`bucket`.
+        # URL: /fledge/service/bucket_storage/bucket/update
+
+        # Check requested service is installed or not
         installed_services = get_service_installed()
         if name not in installed_services:
             raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
@@ -623,9 +621,11 @@ async def update_service(request: web.Request) -> web.Response:
                 ['name', '=', package_name]).payload()
             await storage_client.delete_from_tbl("packages", delete_payload)
 
-        # process_name always ends with "_c" suffix
-        payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=', '{}_c'.format(
-            _type)]).payload()
+        _where_clause = ['process_name', '=', '{}_c'.format(_type)]
+        if _type == 'management':
+            _where_clause = ['process_name', '=', '{}'.format(_type)]
+
+        payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(_where_clause).payload()
         result = await storage_client.query_tbl_with_payload('schedules', payload)
         sch_info = result['rows']
         sch_list = []
@@ -643,10 +643,12 @@ async def update_service(request: web.Request) -> web.Response:
         result = await storage_client.insert_into_tbl("packages", insert_payload)
         if result['response'] == "inserted" and result['rows_affected'] == 1:
             pn = "{}-{}".format(action, name)
-            p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
-                                                                         server.Server._host,
-                                                                         server.Server.core_management_port,
-                                                                         storage_client, package_name, uid, sch_list))
+            # Scheme is always http:// on core_management_port
+            p = multiprocessing.Process(name=pn,
+                                        target=do_update,
+                                        args=("http", server.Server._host,
+                                              server.Server.core_management_port, storage_client, package_name,
+                                              uid, sch_list))
             p.daemon = True
             p.start()
             msg = "{} {} started".format(package_name, action)
@@ -667,7 +669,7 @@ async def update_service(request: web.Request) -> web.Response:
 async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
     management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
     headers = {'content-type': 'application/json'}
-    verify_ssl = False if protocol == 'HTTP' else True
+    verify_ssl = False
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
     async with aiohttp.ClientSession(connector=connector) as session:
         async with session.put(management_api_url, data=json.dumps({"value": is_enabled}), headers=headers) as resp:
@@ -681,16 +683,12 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
             _logger.debug("PUT Schedule response: %s", response)
 
 
-def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_name: str, uid: str,
-              schedules: list) -> None:
+def do_update(protocol: str, host: str, port: int, storage: connect, pkg_name: str, uid: str, schedules: list) -> None:
     _logger.info("{} service update started...".format(pkg_name))
-    _platform = platform.platform()
     stdout_file_path = common.create_log_file("update", pkg_name)
-    pkg_mgt = 'apt'
+    pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    protocol = "HTTP" if http_enabled else "HTTPS"
-    if 'centos' in _platform or 'redhat' in _platform:
-        pkg_mgt = 'yum'
+    if pkg_mgt == 'yum':
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error

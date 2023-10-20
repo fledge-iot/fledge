@@ -54,7 +54,7 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
-		if ((*it)->getId() > m_last_id)
+		if ((*it)->hasId() && (*it)->getId() > m_last_id)
 			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 	}
@@ -62,7 +62,13 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 
 /**
  * Construct a reading set from a JSON document returned from
- * the Fledge storage service query or notification.
+ * the Fledge storage service query or notification. The JSON
+ * is parsed using the in-situ RapidJSON parser in order to
+ * reduce overhead on what is most likely a large JSON document.
+ *
+ * WARNING: Although the string passed in is defiend as const
+ * this call is destructive to this string and the conntents
+ * of the string should not be used after making this call.
  *
  * @param json	The JSON document (as string) with readings data
  */
@@ -70,7 +76,7 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 {
 	unsigned long rows = 0;
 	Document doc;
-	doc.Parse(json.c_str());
+	doc.ParseInsitu((char *)json.c_str());	// Cast away const in order to use in-situ
 	if (doc.HasParseError())
 	{
 		throw new ReadingSetException("Unable to parse results json document");
@@ -158,30 +164,44 @@ ReadingSet::~ReadingSet()
 /**
  * Append the readings in a second reading set to this reading set.
  * The readings are removed from the original reading set
+ *
+ * @param readings	A ReadingSet to append to the current ReadingSet
  */
 void
 ReadingSet::append(ReadingSet *readings)
 {
-	append(readings->getAllReadings());
+	vector<Reading *> *vec = readings->getAllReadingsPtr();
+	append(*vec);
 	readings->clear();
 }
 
 /**
  * Append the readings in a second reading set to this reading set.
  * The readings are removed from the original reading set
+ *
+ * @param readings	A ReadingSet to append to the current ReadingSet
  */
 void
 ReadingSet::append(ReadingSet& readings)
 {
-	append(readings.getAllReadings());
+	vector<Reading *> *vec = readings.getAllReadingsPtr();
+	append(*vec);
 	readings.clear();
 }
 
 /**
- * Append a set of readings to this reading set.
+ * Append a set of readings to this reading set. The
+ * readings are not copied, but rather moved from the
+ * vector, with the resulting vector havign the values
+ * removed on return.
+ *
+ * It is assumed the readings in the vector have been
+ * created with the new operator.
+ *
+ * @param readings	A vector of Reading pointers to append to the ReadingSet
  */
 void
-ReadingSet::append(const vector<Reading *>& readings)
+ReadingSet::append(vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
@@ -190,6 +210,92 @@ ReadingSet::append(const vector<Reading *>& readings)
 		m_readings.push_back(*it);
 		m_count++;
 	}
+	readings.clear();
+}
+
+/**
+* Deep copy a set of readings to this reading set.
+*/
+bool
+ReadingSet::copy(const ReadingSet& src)
+{
+	vector<Reading *> readings;
+	bool copyResult = true;
+	try
+	{
+		// Iterate over all the readings in ReadingSet
+		for (auto const &reading : src.getAllReadings())
+		{
+			std::string assetName = reading->getAssetName();
+			std::vector<Datapoint *> dataPoints;
+			try
+			{
+				// Iterate over all the datapoints associated with one reading
+				for (auto const &dp : reading->getReadingData())
+				{
+					std::string dataPointName  = dp->getName();
+					DatapointValue dv = dp->getData();
+					dataPoints.emplace_back(new Datapoint(dataPointName, dv));
+					
+				}
+			}
+			// Catch exception while copying datapoints
+			catch(std::bad_alloc& ex)
+			{
+				Logger::getLogger()->error("Insufficient memory, failed while copying dataPoints from ReadingSet, %s ", ex.what());
+				copyResult = false;
+				for (auto const &dp : dataPoints)
+				{
+					delete dp;
+				}
+				dataPoints.clear();
+				throw;
+			}
+			catch (std::exception& ex)
+			{
+				Logger::getLogger()->error("Unknown exception, failed while copying datapoint from ReadingSet, %s ", ex.what());
+				copyResult = false;
+				for (auto const &dp : dataPoints)
+				{
+					delete dp;
+				}
+				dataPoints.clear();
+				throw;
+			}
+			
+			Reading *in = new Reading(assetName, dataPoints);
+			readings.emplace_back(in);
+	   }
+   }
+   // Catch exception while copying readings
+   catch (std::bad_alloc& ex)
+   {
+		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
+		copyResult = false;
+		for (auto const &r : readings)
+		{
+			delete r;
+		}
+		readings.clear();
+   }
+   catch (std::exception& ex)
+   {
+		Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
+		copyResult = false;
+		for (auto const &r : readings)
+		{
+			delete r;
+		}
+		readings.clear();
+   }
+
+   //Append if All elements have been copied successfully
+   if (copyResult)
+   {
+	   append(readings);
+   }
+
+   return copyResult;
 }
 
 /**
@@ -204,6 +310,8 @@ ReadingSet::removeAll()
 		delete *it;
 	}
 	m_readings.clear();
+	m_count = 0;
+	m_last_id = 0;
 }
 
 /**
@@ -213,6 +321,39 @@ void
 ReadingSet::clear()
 {
 	m_readings.clear();
+	m_count = 0;
+	m_last_id = 0;
+}
+
+/**
+ * Remove readings from the vector and return a reference to new vector
+ * containing readings*
+*/
+std::vector<Reading*>* ReadingSet::moveAllReadings()
+{
+	std::vector<Reading*>* transferredPtr = new std::vector<Reading*>(std::move(m_readings));
+	m_count = 0;
+	m_last_id = 0;
+	m_readings.clear();
+
+	return transferredPtr;
+}
+
+/**
+ * Remove reading from vector based on index and return its pointer
+*/
+Reading* ReadingSet::removeReading(unsigned long id)
+{
+	if (id >= m_readings.size())
+	{
+		return nullptr;
+	}
+
+	Reading* reading = m_readings[id];
+	m_readings.erase(m_readings.begin() + id);
+	m_count--;
+
+	return reading;
 }
 
 /**
@@ -432,23 +573,28 @@ Datapoint *rval = NULL;
 		// Number
 		case (kNumberType):
 		{
-			if (item.IsInt() ||
-			    item.IsUint() ||
-			    item.IsInt64() ||
-			    item.IsUint64())
+			if (item.IsInt())
 			{
-
-				DatapointValue *value;
-				if (item.IsInt() || item.IsUint())
-				{
-					value = new DatapointValue((long) item.GetInt());
-				}
-				else
-				{
-					value = new DatapointValue((long) item.GetInt64());
-				}
-				rval = new Datapoint(name, *value);
-				delete value;
+				DatapointValue value((long)item.GetInt());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsUint())
+			{
+				DatapointValue value((long)item.GetUint());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsInt64())
+			{
+				DatapointValue value((long)item.GetInt64());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsUint64())
+			{
+				DatapointValue value((long)item.GetUint64());
+				rval = new Datapoint(name, value);
 				break;
 			}
 			else if (item.IsDouble())

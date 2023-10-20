@@ -5,18 +5,17 @@
 # FLEDGE_END
 
 import json
-import logging
 from aiohttp import web
 
-
-from fledge.common import logger
+from fledge.common.acl_manager import ACLManager
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
-from fledge.common.acl_manager import ACLManager
 
 
 __author__ = "Ashish Jabble, Massimiliano Pinto"
@@ -33,7 +32,7 @@ _help = """
     --------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_all_acls(request: web.Request) -> web.Response:
@@ -75,6 +74,7 @@ async def get_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get {} ACL.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(acl_info)
@@ -125,6 +125,9 @@ async def add_acl(request: web.Request) -> web.Response:
             if 'response' in insert_control_acl_result:
                 if insert_control_acl_result['response'] == "inserted":
                     result = {"name": name, "service": json.loads(services), "url": json.loads(urls)}
+                    # ACLAD audit trail entry
+                    audit = AuditLogger(storage)
+                    await audit.information('ACLAD', result)
             else:
                 raise StorageServerError(insert_control_acl_result)
         else:
@@ -141,6 +144,7 @@ async def add_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to create ACL.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
@@ -170,13 +174,12 @@ async def update_acl(request: web.Request) -> web.Response:
         if url is not None and not isinstance(url, list):
             raise TypeError('url must be a list.')
         storage = connect.get_storage_async()
-        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
         message = ""
         if 'rows' in result:
             if result['rows']:
                 update_query = PayloadBuilder()
-                
                 set_values = {}
                 if service is not None:
                     set_values["service"] = json.dumps(service)
@@ -184,11 +187,14 @@ async def update_acl(request: web.Request) -> web.Response:
                     set_values["url"] = json.dumps(url)
                 
                 update_query.SET(**set_values).WHERE(['name', '=', name])
-
                 update_result = await storage.update_tbl("control_acl", update_query.payload())
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
                         message = "ACL {} updated successfully.".format(name)
+                        # ACLCH audit trail entry
+                        audit = AuditLogger(storage)
+                        values = {'name': name, 'service': service, 'url': url}
+                        await audit.information('ACLCH', {'acl': values, 'old_acl': result['rows'][0]})
                 else:
                     raise StorageServerError(update_result)
             else:
@@ -206,6 +212,7 @@ async def update_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=message, body=json.dumps({"message": message}))
     except Exception as ex:
         message = str(ex)
+        _logger.error(ex, "Failed to update {} ACL.".format(name))
         raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
         # Fetch service name associated with acl
@@ -242,13 +249,16 @@ async def delete_acl(request: web.Request) -> web.Response:
                 if services or scripts:
                     message = "{} is associated with an entity. So cannot delete." \
                                  " Make sure to remove all the usages of this ACL.".format(name)
-                    _logger.info(message)
-                    return web.json_response({"message": message})
+                    _logger.warning(message)
+                    return web.HTTPConflict(reason=message, body=json.dumps({"message": message}))
 
                 delete_result = await storage.delete_from_tbl("control_acl", payload)
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
                         message = "{} ACL deleted successfully.".format(name)
+                        # ACLDL audit trail entry
+                        audit = AuditLogger(storage)
+                        await audit.information('ACLDL', {"message": message, "name": name})
                 else:
                     raise StorageServerError(delete_result)
             else:
@@ -263,6 +273,7 @@ async def delete_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to delete {} ACL.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
@@ -275,8 +286,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
     """
+    svc_name = request.match_info.get('service_name', None)
     try:
-        svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', svc_name]).payload()
         # check service name existence
@@ -350,6 +361,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Attach ACL to {} service failed.".format(svc_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Call service security endpoint with attachACL = acl_name
@@ -367,8 +379,8 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
     """
+    svc_name = request.match_info.get('service_name', None)
     try:
-        svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', svc_name]).payload()
         # check service name existence
@@ -425,6 +437,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Detach ACL from {} service failed.".format(svc_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})

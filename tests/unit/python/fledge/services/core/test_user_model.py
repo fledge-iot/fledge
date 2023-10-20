@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-
 # FLEDGE_BEGIN
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import copy
 import json
 import asyncio
 from unittest.mock import MagicMock, patch
-import pytest
 import sys
+import pytest
 
-from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.services.core import connect
 from fledge.services.core.user_model import User
-from fledge.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -87,7 +88,6 @@ class TestUserModel:
 
     async def test_get_all(self):
         expected = {'rows': [], 'count': 0}
-        payload = '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -97,10 +97,10 @@ class TestUserModel:
             _rv = asyncio.ensure_future(mock_coro(expected))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 actual = await User.Objects.all()
                 assert actual == expected['rows']
-            query_tbl_patch.assert_called_once_with('users', payload)
+            query_tbl_patch.assert_called_once_with('users')
 
     @pytest.mark.parametrize("kwargs, payload", [
         ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
@@ -173,19 +173,27 @@ class TestUserModel:
         expected = {'rows_affected': 1, "response": "inserted"}
         payload = {"pwd": "dd7171406eaf4baa8bc805857f719bca", "role_id": 1, "uname": "aj", 'access_method': 'any',
                    'description': '', 'real_name': ''}
+        audit_details = copy.deepcopy(payload)
+        audit_details.pop('pwd', None)
+        audit_details['message'] = "'{}' username created for '{}' user.".format(payload['uname'], payload['real_name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(expected)
+            _rv2 = await mock_coro(None)
         else:
-            _rv = asyncio.ensure_future(mock_coro(expected))        
+            _rv = asyncio.ensure_future(mock_coro(expected))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv) as insert_tbl_patch:
-                    actual = await User.Objects.create("aj", "fledge", 1)
-                    assert actual == expected
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv2) as patch_audit:
+                            actual = await User.Objects.create("aj", "fledge", 1)
+                            assert actual == expected
+                        patch_audit.assert_called_once_with('USRAD', audit_details)
                 assert 1 == insert_tbl_patch.call_count
                 assert insert_tbl_patch.called is True
                 args, kwargs = insert_tbl_patch.call_args
@@ -226,20 +234,26 @@ class TestUserModel:
         r2 = {'response': 'updated', 'rows_affected': 1}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        user_id = 2
+        audit_details = {"user_id": user_id, "message": "User ID: <{}> has been disabled.".format(user_id)}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro(r1)
             _rv2 = await mock_coro(r2)
+            _rv3 = await mock_coro(None)
         else:
             _rv1 = asyncio.ensure_future(mock_coro(r1))
             _rv2 = asyncio.ensure_future(mock_coro(r2))
-        
+            _rv3 = asyncio.ensure_future(mock_coro(None))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv1) as delete_tbl_patch:
                 with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                    actual = await User.Objects.delete(2)
-                    assert r2 == actual
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                            actual = await User.Objects.delete(user_id)
+                            assert r2 == actual
+                        patch_audit.assert_called_once_with('USRDL', audit_details)
                 update_tbl_patch.assert_called_once_with('users', p2)
             delete_tbl_patch.assert_called_once_with('user_logins', p1)
 
@@ -275,25 +289,38 @@ class TestUserModel:
     async def test_update_user_role(self, user_data, payload):
         expected = {'response': 'updated', 'rows_affected': 1}
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        user_id = 2
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+                     'description': ''}
+        audit_details = {'user_id': user_id, 'old_value': {'role_id': 4},
+                         'message': "'dianomic' user has been changed.", 'new_value': user_data}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv0 = await mock_coro(user_info)
             _rv1 = await mock_coro()
             _rv2 = await mock_coro(expected)
+            _rv3 = await mock_coro(None)
         else:
+            _rv0 = asyncio.ensure_future(mock_coro(user_info))
             _rv1 = asyncio.ensure_future(mock_coro())
             _rv2 = asyncio.ensure_future(mock_coro(expected))
-        
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
-                    actual = await User.Objects.update(2, user_data)
-                    assert actual is True
-                delete_token_patch.assert_called_once_with(2)
-            args, kwargs = update_tbl_patch.call_args
-            assert 'users' == args[0]
-            p = json.loads(args[1])
-            assert payload == p
+            _rv3 = asyncio.ensure_future(mock_coro(None))
+
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
+                    with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                                actual = await User.Objects.update(user_id, user_data)
+                                assert actual is True
+                            patch_audit.assert_called_once_with('USRCH', audit_details)
+                    delete_token_patch.assert_called_once_with(user_id)
+                args, kwargs = update_tbl_patch.call_args
+                assert 'users' == args[0]
+                p = json.loads(args[1])
+                assert payload == p
+        patch_get.assert_called_once_with(uid=user_id)
 
     @pytest.mark.parametrize("user_data, payload", [
         ({'password': "Test@123"}, {"values": {"pwd": "HASHED_PASSWORD"}, "where": {"column": "id", "condition": "=", "value": 2}})
@@ -301,59 +328,96 @@ class TestUserModel:
     async def test_update_user_password(self, user_data, payload):
         expected = {'response': 'updated', 'rows_affected': 1}
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        user_id = 2
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+                     'description': ''}
+        audit_details = {'user_id': user_id, 'old_value': {'pwd': '****'},
+                         'new_value': {'pwd': 'Password has been updated.'},
+                         'message': "'dianomic' user has been changed."}
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv0 = await mock_coro(user_info)
             _rv1 = await mock_coro()
             _rv2 = await mock_coro(expected)
             _rv3 = await mock_coro(['HASHED_PWD'])
+            _rv4 = await mock_coro(None)
         else:
+            _rv0 = asyncio.ensure_future(mock_coro(user_info))
             _rv1 = asyncio.ensure_future(mock_coro())
             _rv2 = asyncio.ensure_future(mock_coro(expected))
             _rv3 = asyncio.ensure_future(mock_coro(['HASHED_PWD']))
+            _rv4 = asyncio.ensure_future(mock_coro(None))
         
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(User.Objects, 'hash_password', return_value='HASHED_PWD') as hash_pwd_patch:
-                with patch.object(User.Objects, '_get_password_history', return_value=_rv3) as pwd_list_patch:
-                    with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                        with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
-                            with patch.object(User.Objects, '_insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds', return_value=_rv1) as pwd_history_patch:
-                                actual = await User.Objects.update(2, user_data)
-                                assert actual is True
-                            pwd_history_patch.assert_called_once_with(storage_client_mock, 2, 'HASHED_PWD', ['HASHED_PWD'])
-                        delete_token_patch.assert_called_once_with(2)
-                    args, kwargs = update_tbl_patch.call_args
-                    assert 'users' == args[0]
-                    # FIXME: payload ordering issue after datetime patch
-                    # update_tbl_patch.assert_called_once_with('users', payload)
-                pwd_list_patch.assert_called_once_with(storage_client_mock, 2, user_data)
-            hash_pwd_patch.assert_called_once_with(user_data['password'])
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(User.Objects, 'hash_password', return_value='HASHED_PWD') as hash_pwd_patch:
+                    with patch.object(User.Objects, '_get_password_history', return_value=_rv3) as pwd_list_patch:
+                        with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
+                            with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
+                                with patch.object(User.Objects,
+                                                  '_insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds',
+                                                  return_value=_rv1) as pwd_history_patch:
+                                    with patch.object(AuditLogger, '__init__', return_value=None):
+                                        with patch.object(AuditLogger, 'information', return_value=_rv4) as patch_audit:
+                                            actual = await User.Objects.update(user_id, user_data)
+                                            assert actual is True
+                                        patch_audit.assert_called_once_with('USRCH', audit_details)
+                                pwd_history_patch.assert_called_once_with(
+                                    storage_client_mock, user_id, 'HASHED_PWD', ['HASHED_PWD'])
+                            delete_token_patch.assert_called_once_with(user_id)
+                        args, kwargs = update_tbl_patch.call_args
+                        assert 'users' == args[0]
+                        # FIXME: payload ordering issue after datetime patch
+                        # update_tbl_patch.assert_called_once_with('users', payload)
+                    pwd_list_patch.assert_called_once_with(storage_client_mock, user_id, user_data)
+                hash_pwd_patch.assert_called_once_with(user_data['password'])
+        patch_get.assert_called_once_with(uid=user_id)
 
     async def test_update_user_storage_exception(self):
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'update'}
-        payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, ' \
+                  '"and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        user_id = 2
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+                     'description': ''}
+        _rv0 = await mock_coro(user_info) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
+            asyncio.ensure_future(mock_coro(user_info))
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(code=400, reason="blah", error=expected)) as update_tbl_patch:
-                with pytest.raises(ValueError) as excinfo:
-                    await User.Objects.update(2, {'role_id': 2})
-                assert str(excinfo.value) == expected['message']
-        update_tbl_patch.assert_called_once_with('users', payload)
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'update_tbl', side_effect=StorageServerError(
+                        code=400, reason="blah", error=expected)) as update_tbl_patch:
+                    with pytest.raises(ValueError) as excinfo:
+                        await User.Objects.update(user_id, {'role_id': 2})
+                    assert str(excinfo.value) == expected['message']
+            update_tbl_patch.assert_called_once_with('users', payload)
+        patch_get.assert_called_once_with(uid=user_id)
 
     async def test_update_user_exception(self):
-        payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}'
+        payload = '{"values": {"role_id": "blah"}, "where": {"column": "id", "condition": "=", "value": 2, ' \
+                  '"and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         msg = 'Bad role id'
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'update_tbl', side_effect=ValueError(msg)) as update_tbl_patch:
-                with pytest.raises(Exception) as excinfo:
-                    await User.Objects.update(2, {'role_id': 'blah'})
-                assert excinfo.type is ValueError
-                assert str(excinfo.value) == msg
-            update_tbl_patch.assert_called_once_with('users', payload)
+        user_id = 2
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+                     'description': ''}
+        _rv0 = await mock_coro(user_info) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
+            asyncio.ensure_future(mock_coro(user_info))
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'update_tbl', side_effect=ValueError(msg)) as update_tbl_patch:
+                    with pytest.raises(Exception) as excinfo:
+                        await User.Objects.update(user_id, {'role_id': 'blah'})
+                    assert excinfo.type is ValueError
+                    assert str(excinfo.value) == msg
+                update_tbl_patch.assert_called_once_with('users', payload)
+        patch_get.assert_called_once_with(uid=user_id)
 
     @pytest.mark.parametrize("user_data", [
-        {'real_name': 'MSD'}, {'description': 'Captain Cool'}, {'real_name': 'MSD', 'description': 'Captain Cool'},
+        {'real_name': 'MSD'},
+        {'description': 'Captain Cool'},
+        {'real_name': 'MSD', 'description': 'Captain Cool'},
         {'access_method': 'pwd'}
     ])
     async def test_update_user_other_fields(self, user_data):
@@ -362,25 +426,42 @@ class TestUserModel:
                                       'and': {'column': 'enabled', 'condition': '=', 'value': 't'}}}
         expected_payload.update({'values': user_data})
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        user_id = 2
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+                     'description': ''}
+
+        audit_details = {'user_id': user_id, 'new_value': user_data, 'message': "'dianomic' user has been changed."}
+        temp = {}
+        for u in user_data.keys():
+            temp[u] = user_info[u]
+        audit_details['old_value'] = temp
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv0 = await mock_coro(user_info)
             _rv1 = await mock_coro()
             _rv2 = await mock_coro(expected)
+            _rv3 = await mock_coro(None)
         else:
+            _rv0 = asyncio.ensure_future(mock_coro(user_info))
             _rv1 = asyncio.ensure_future(mock_coro())
             _rv2 = asyncio.ensure_future(mock_coro(expected))
-        
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
-                    actual = await User.Objects.update(2, user_data)
-                    assert actual is True
-                delete_token_patch.assert_not_called()
-            args, kwargs = update_tbl_patch.call_args
-            assert 'users' == args[0]
-            p = json.loads(args[1])
-            assert expected_payload == p
+            _rv3 = asyncio.ensure_future(mock_coro(None))
+
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
+                    with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                                actual = await User.Objects.update(user_id, user_data)
+                                assert actual is True
+                            patch_audit.assert_called_once_with('USRCH', audit_details)
+                    delete_token_patch.assert_not_called()
+                args, kwargs = update_tbl_patch.call_args
+                assert 'users' == args[0]
+                p = json.loads(args[1])
+                assert expected_payload == p
+        patch_get.assert_called_once_with(uid=user_id)
 
     async def test_login_if_no_user_exists(self):
         async def mock_get_category_item():

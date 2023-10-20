@@ -9,14 +9,14 @@ import pytest
 import asyncio
 import sys
 from unittest.mock import patch, call, MagicMock
-from fledge.common import logger
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
+from fledge.common.process import FledgeProcess
+from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.storage_client import StorageClientAsync, ReadingsStorageClientAsync
 from fledge.common.statistics import Statistics
 from fledge.tasks.purge.purge import Purge
-from fledge.common.process import FledgeProcess
-from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common.audit_logger import AuditLogger
-from fledge.common.storage_client.exceptions import *
 
 
 __author__ = "Vaibhav Singhal"
@@ -49,7 +49,7 @@ class TestPurge:
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
         with patch.object(FledgeProcess, "__init__") as mock_process:
-            with patch.object(logger, "setup") as log:
+            with patch.object(FLCoreLogger, "get_logger") as log:
                 with patch.object(mock_audit_logger, "__init__", return_value=None):
                     p = Purge()
                     assert isinstance(p, Purge)
@@ -106,7 +106,7 @@ class TestPurge:
     async def store_purge(self, **kwargs):
         if kwargs.get('age') == '-1' or kwargs.get('size') == '-1':
             raise StorageServerError(400, "Bla", "Some Error")
-        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7}
+        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7, "duration": 100, "method":"mock"}
 
     config = {"purgeAgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "20"}},
               "purgeAge": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "0"}},
@@ -146,7 +146,7 @@ class TestPurge:
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
-                p._logger = logger
+                p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
                 p._logger.debug = MagicMock()
@@ -190,7 +190,7 @@ class TestPurge:
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
-                p._logger = logger
+                p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
@@ -225,7 +225,7 @@ class TestPurge:
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
-                p._logger = logger
+                p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
@@ -260,7 +260,7 @@ class TestPurge:
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
-                p._logger = logger
+                p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
@@ -330,4 +330,5 @@ class TestPurge:
                         with patch.object(p, 'write_statistics'):
                             await p.run()
                 # Test the negative case when function purge_data raise some exception
-                p._logger.exception.assert_called_once_with("")
+                assert 1 == p._logger.exception.call_count
+

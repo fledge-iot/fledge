@@ -12,11 +12,14 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <mutex>
 #include <time.h>
 #include <string.h>
 #include <logger.h>
+#include <rapidjson/document.h>
 
 using namespace std;
+using namespace rapidjson;
 
 std::vector<std::string> Reading::m_dateTypes = {
 	DEFAULT_DATE_TIME_FORMAT,
@@ -32,7 +35,7 @@ std::vector<std::string> Reading::m_dateTypes = {
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset)
+Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset), m_has_id(false)
 {
 	m_values.push_back(value);
 	// Store seconds and microseconds
@@ -48,7 +51,7 @@ Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset)
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asset)
+Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asset), m_has_id(false)
 {
 	for (auto it = values.cbegin(); it != values.cend(); it++)
 	{
@@ -67,13 +70,72 @@ Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asse
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, vector<Datapoint *> values, const string& ts) : m_asset(asset)
+Reading::Reading(const string& asset, vector<Datapoint *> values, const string& ts) : m_asset(asset), m_has_id(false)
 {
 	for (auto it = values.cbegin(); it != values.cend(); it++)
 	{
 		m_values.push_back(*it);
 	}
 	stringToTimestamp(ts, &m_timestamp);
+	// Initialise m_userTimestamp
+	m_userTimestamp = m_timestamp;
+}
+
+/**
+ * Construct a reading with datapoints given as JSON
+ */
+Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset), m_has_id(false)
+{
+	Document d;
+	if (d.Parse(datapoints.c_str()).HasParseError())
+	{
+		throw runtime_error("Failed to parse reading datapoints " + datapoints);
+	}
+	for (Value::ConstMemberIterator itr = d.MemberBegin(); itr != d.MemberEnd(); ++itr)
+	{
+		string name = itr->name.GetString();
+		if (itr->value.IsInt64())
+		{
+			long v = itr->value.GetInt64();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsDouble())
+		{
+			double v = itr->value.GetDouble();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsString())
+		{
+			string v = itr->value.GetString();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsObject())
+		{
+			// Map objects as nested datapoints
+			vector<Datapoint *> *values = JSONtoDatapoints(itr->value);
+			DatapointValue dpv(values, true);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsArray())
+		{
+			vector<double> arr;
+			for (auto& v : itr->value.GetArray())
+			{
+				if (v.IsNumber())
+					arr.emplace_back(v.GetDouble());
+				else
+					throw runtime_error("Only numeric lists are currently supported in datapoints");
+			}
+
+			DatapointValue dpv(arr);
+			m_values.emplace_back(new Datapoint(name, dpv));
+		}
+	}
+	// Store seconds and microseconds
+	gettimeofday(&m_timestamp, NULL);
 	// Initialise m_userTimestamp
 	m_userTimestamp = m_timestamp;
 }
@@ -88,7 +150,7 @@ Reading::Reading(const Reading& orig) : m_asset(orig.m_asset),
 {
 	for (auto it = orig.m_values.cbegin(); it != orig.m_values.cend(); it++)
 	{
-		m_values.push_back(new Datapoint(**it));
+		m_values.emplace_back(new Datapoint(**it));
 	}
 }
 
@@ -226,6 +288,51 @@ ostringstream convert;
 }
 
 /**
+ * Convert time since epoch to a formatted m_timestamp DataTime in UTC 
+ * and use a cache to speed it up
+ * @param tv_sec	Seconds since epoch
+ * @param date_time	Buffer in which to return the formatted timestamp
+ * @param dateFormat	Format: FMT_DEFAULT or FMT_STANDARD
+ */
+void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, readingTimeFormat dateFormat) const
+{
+	static unsigned long cached_sec_since_epoch = 0;
+	static char cached_date_time_str[DATE_TIME_BUFFER_LEN] = "";
+	static readingTimeFormat cachedDateFormat = (readingTimeFormat) 0xff;
+	static std::mutex mtx;
+
+	std::unique_lock<std::mutex> lck(mtx);
+
+	if(*cached_date_time_str && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch && cachedDateFormat == dateFormat)
+	{
+		strncpy(date_time, cached_date_time_str, DATE_TIME_BUFFER_LEN);
+		date_time[DATE_TIME_BUFFER_LEN-1] = '\0';
+		return;
+	}
+
+	struct tm timeinfo;
+	gmtime_r(tv_sec, &timeinfo);
+
+	/**
+	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
+	 * this is same as Python3:
+	 * datetime.datetime.now(tz=datetime.timezone.utc)
+	 */
+
+	// Create datetime with seconds
+	std::strftime(date_time, DATE_TIME_BUFFER_LEN,
+	      m_dateTypes[dateFormat].c_str(),
+                  &timeinfo);
+
+	// update cache
+	strncpy(cached_date_time_str, date_time, DATE_TIME_BUFFER_LEN);
+	cached_date_time_str[DATE_TIME_BUFFER_LEN-1] = '\0';
+	cached_sec_since_epoch = *tv_sec;
+	cachedDateFormat = dateFormat;
+}
+
+
+/**
  * Return a formatted m_timestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
@@ -236,20 +343,7 @@ char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
 char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-        // Populate tm structure
-        struct tm timeinfo;
-	gmtime_r(&m_timestamp.tv_sec, &timeinfo);
-
-        /**
-         * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-         * this is same as Python3:
-         * datetime.datetime.now(tz=datetime.timezone.utc)
-         */
-
-        // Create datetime with seconds
-        std::strftime(date_time, sizeof(date_time),
-		      m_dateTypes[dateFormat].c_str(),
-                      &timeinfo);
+	getFormattedDateTimeStr(&m_timestamp.tv_sec, date_time, dateFormat);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
@@ -293,21 +387,8 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 	char micro_s[10];
 	char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-	// Populate tm structure with UTC time
-	struct tm timeinfo;
-	gmtime_r(&m_userTimestamp.tv_sec, &timeinfo);
-
-	/**
-	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-	 * this is same as Python3:
-	 * datetime.datetime.now(tz=datetime.timezone.utc)
-	 */
-
-	// Create datetime with seconds
-	std::strftime(date_time, sizeof(date_time),
-				  m_dateTypes[dateFormat].c_str(),
-				  &timeinfo);
-
+	getFormattedDateTimeStr(&m_userTimestamp.tv_sec, date_time, dateFormat);
+	
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
 		// Add microseconds
@@ -375,18 +456,47 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
+	static std::mutex mtx;
+	static char cached_timestamp_upto_min[32] = "";
+	static unsigned long cached_sec_since_epoch = 0;
+
+	const int timestamp_str_len_till_min = 16;
+	const int timestamp_str_len_till_sec = 19;
+	
 	char date_time [DATE_TIME_BUFFER_LEN];
 
 	strcpy (date_time, timestamp.c_str());
 
-	struct tm tm;
-	memset(&tm, 0, sizeof(struct tm));
-	strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
-	// Convert time to epoch - mktime assumes localtime so most adjust for that
-	ts->tv_sec = mktime(&tm);
-	extern long timezone;
-	ts->tv_sec -= timezone;
+	{
+		lock_guard<mutex> guard(mtx);
+		
+		char timestamp_sec[32];
+		strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
+		timestamp_sec[timestamp_str_len_till_sec] = '\0';
+		if(*cached_timestamp_upto_min && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_min, timestamp_str_len_till_min) == 0))
+		{
+			// cache hit
+			int sec_part = strtoul(timestamp_sec+timestamp_str_len_till_min+1, NULL, 10);
+			ts->tv_sec = cached_sec_since_epoch + sec_part;
+		}
+		else
+		{
+			// cache miss
+			struct tm tm;
+			memset(&tm, 0, sizeof(struct tm));
+			strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
+			// Convert time to epoch - mktime assumes localtime so most adjust for that
+			ts->tv_sec = mktime(&tm);
 
+			extern long timezone;
+			ts->tv_sec -= timezone;
+
+			strncpy(cached_timestamp_upto_min, timestamp_sec, timestamp_str_len_till_min);
+			cached_timestamp_upto_min[timestamp_str_len_till_min] = '\0';
+			cached_sec_since_epoch = ts->tv_sec - tm.tm_sec;  // store only for upto-minute part
+		}
+	}
+	
 	// Now process the fractional seconds
 	const char *ptr = date_time;
 	while (*ptr && *ptr != '.')
@@ -415,11 +525,12 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 	{
 		int h, m;
 		int sign = (*ptr == '+' ? -1 : +1);
-		ptr++;
-		sscanf(ptr, "%02d:%02d", &h, &m);
+		h = strtoul(ptr+1, NULL, 10);
+		m = strtoul(ptr+4, NULL, 10);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
 }
+
 
 /**
  * Escape quotes etc to allow the string to be a property value within
@@ -454,4 +565,59 @@ int bscount = 0;
 		rval += str[i];
 	}
 	return rval;
+}
+
+/**
+ * Convert a JSON Value object to a set of data points
+ *
+ * @param json	The json object to convert
+ */
+vector<Datapoint *> *Reading::JSONtoDatapoints(const Value& json)
+{
+vector<Datapoint *> *values = new vector<Datapoint *>;
+
+	for (Value::ConstMemberIterator itr = json.MemberBegin(); itr != json.MemberEnd(); ++itr)
+	{
+		string name = itr->name.GetString();
+		if (itr->value.IsInt64())
+		{
+			long v = itr->value.GetInt64();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsDouble())
+		{
+			double v = itr->value.GetDouble();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsString())
+		{
+			string v = itr->value.GetString();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsObject())
+		{
+			// Map objects as nested datapoints
+			vector<Datapoint *> *nestedValues = JSONtoDatapoints(itr->value);
+			DatapointValue dpv(nestedValues, true);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsArray())
+		{
+			vector<double> arr;
+			for (auto& v : itr->value.GetArray())
+			{
+				if (v.IsNumber())
+					arr.emplace_back(v.GetDouble());
+				else
+					throw runtime_error("Only numeric lists are currently supported in datapoints");
+			}
+
+			DatapointValue dpv(arr);
+			values->emplace_back(new Datapoint(name, dpv));
+		}
+	}
+	return values;
 }

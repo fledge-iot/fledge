@@ -9,7 +9,7 @@
  */
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
+#include <sqlite_common.h>
 #include <utils.h>
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
@@ -119,7 +119,7 @@ bool Connection::getNow(string& Now)
 
 	string nowSqlCMD = "SELECT " SQLITE3_NOW_READING;
 
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, "now",
 	                 nowSqlCMD.c_str(),
 	                 dateCallback,
 	                 nowDate,
@@ -243,7 +243,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 		char formattedData[100] = "";
 
 		// Exec the format SQL
-		int rc = SQLexec(dbHandle,
+		int rc = SQLexec(dbHandle, "date", 
 				 formatStmt.c_str(),
 				 dateCallback,
 				 formattedData,
@@ -524,8 +524,9 @@ Connection::Connection()
 
 		const char *sqlStmt = attachDb.coalesce();
 
+		zErrMsg = NULL;
 		// Exec the statement
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "database",
 			     sqlStmt,
 			     NULL,
 			     NULL,
@@ -551,6 +552,24 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
+	
+		bool initialiseReadings = false;
+		if (access(dbPathReadings.c_str(), R_OK) == -1)
+		{
+			sqlite3 *dbHandle;
+			// Readings do not exist so set flag to initialise
+			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+			if(rc != SQLITE_OK)
+			{
+			}
+        		else
+			{
+				// Enables the WAL feature
+				rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+			}
+        		sqlite3_close(dbHandle);
+			initialiseReadings = true;
+		}
 
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
@@ -560,7 +579,7 @@ Connection::Connection()
 		const char *sqlReadingsStmt = attachReadingsDb.coalesce();
 
 		// Exec the statement
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "database", 
 			     sqlReadingsStmt,
 			     NULL,
 			     NULL,
@@ -586,6 +605,151 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlReadingsStmt;
+
+		if (initialiseReadings)
+		{
+			// Would really like to run an external script here, but until we have that
+			// worked out we have the SQL needed to create the table and indexes
+			
+			// Need to initialise the readings
+			SQLBuffer initReadings;
+			initReadings.append("CREATE TABLE readings.readings (");
+			initReadings.append("id         INTEGER                     PRIMARY KEY AUTOINCREMENT,");
+			initReadings.append("asset_code character varying(50)       NOT NULL,");
+			initReadings.append("reading    JSON                        NOT NULL DEFAULT '{}',");
+			initReadings.append("user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),");
+			initReadings.append("ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))");
+			initReadings.append(");");
+
+			const char *sqlReadingsStmt = initReadings.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle, "readings creation", 
+				     sqlReadingsStmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' table, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlReadingsStmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlReadingsStmt;
+
+			SQLBuffer index1;
+			index1.append("CREATE INDEX readings.fki_readings_fk1 ON readings (asset_code, user_ts desc);");
+
+			const char *sqlIndex1Stmt = index1.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle, "readings creation", 
+				     sqlIndex1Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex1Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex1Stmt;
+
+			SQLBuffer index2;
+			index2.append("CREATE INDEX readings.readings_ix2 ON readings (asset_code);");
+
+			const char *sqlIndex2Stmt = index2.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle, "readings creation",
+				     sqlIndex2Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex2Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex2Stmt;
+
+			SQLBuffer index3;
+			index3.append("CREATE INDEX readings.readings_ix3 ON readings (user_ts);");
+
+			const char *sqlIndex3Stmt = index3.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle, "readings creation",
+				     sqlIndex3Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex3Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex3Stmt;
+		}
 
 		// Enable the WAL for the readings DB
 		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
@@ -1101,17 +1265,15 @@ int Connection::insert(const std::string& schema,
 			const std::string& table,
 			const std::string& data)
 {
-SQLBuffer	sql;
 Document	document;
 ostringstream convert;
+sqlite3_stmt *stmt;
+int rc;
 std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
 	{
-		raiseError("insert",
-			"Schema %s does not exist, unable to insert into table %s",
-			schema.c_str(),
-			table.c_str());
+		raiseError("insert", "Schema %s does not exist, unable to insert into table %s", schema.c_str(), table.c_str());
 		return false;
 	}
 
@@ -1141,13 +1303,11 @@ std::size_t arr = data.find("inserts");
 		return -1;
 	}
 
-	// Start a trabsaction
-	sql.append("BEGIN TRANSACTION;");
-
 	// Number of inserts
 	int ins = 0;
-
-	// Iterate through insert array
+	int failedInsertCount = 0;
+	
+	// Generate sql query for prepared statement
 	for (Value::ConstValueIterator iter = inserts.Begin();
 					iter != inserts.End();
 					++iter)
@@ -1159,138 +1319,153 @@ std::size_t arr = data.find("inserts");
 			return -1;
 		}
 
-		int col = 0;
-		SQLBuffer values;
-
-		sql.append("INSERT INTO ");
-		sql.append(schema);
-		sql.append('.');
-		sql.append(table);
-		sql.append(" (");
-
-		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
-						itr != (*iter).MemberEnd();
-						++itr)
 		{
-			// Append column name
-			if (col)
+			int col = 0;
+			SQLBuffer sql;
+			SQLBuffer values;
+			sql.append("INSERT INTO " + schema + "." + table + " (");
+			
+			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+							itr != (*iter).MemberEnd();
+							++itr)
 			{
-				sql.append(", ");
-			}
-			sql.append(itr->name.GetString());
- 
-			// Append column value
-			if (col)
-			{
-				values.append(", ");
-			}
-			if (itr->value.IsString())
-			{
-				const char *str = itr->value.GetString();
-				if (strcmp(str, "now()") == 0)
+				// Append column name
+				if (col)
 				{
-					values.append(SQLITE3_NOW);
+					sql.append(", ");
 				}
-				else
-				{
-					values.append('\'');
-					values.append(escape(str));
-					values.append('\'');
-				}
+				sql.append(itr->name.GetString());
+				col++;
 			}
-			else if (itr->value.IsDouble())
-				values.append(itr->value.GetDouble());
-			else if (itr->value.IsInt64())
-				values.append((long)itr->value.GetInt64());
-			else if (itr->value.IsInt())
-				values.append(itr->value.GetInt());
-			else if (itr->value.IsObject())
+			
+			sql.append(") VALUES (");
+			for ( auto i = 0 ; i < col; i++ )
 			{
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				itr->value.Accept(writer);
-				values.append('\'');
-				values.append(escape(buffer.GetString()));
-				values.append('\'');
+				if (i) 
+				{
+					sql.append(",");
+				}
+				sql.append("?");
 			}
-			col++;
-		}
-		sql.append(") VALUES (");
-		const char *vals = values.coalesce();
-		sql.append(vals);
-		delete[] vals;
-		sql.append(");");
+			sql.append(");");
+			
+			const char *query = sql.coalesce();
+			
+			rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				return -1;
+			}
 
+			// Bind columns with prepared sql query
+			int columID = 1;
+			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+							itr != (*iter).MemberEnd();
+							++itr)
+			{
+				
+				if (itr->value.IsString())
+				{
+					const char *str = itr->value.GetString();
+					if (strcmp(str, "now()") == 0)
+					{
+						sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
+					}
+					else
+					{	
+						sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
+					}
+				}
+				else if (itr->value.IsDouble()) {
+					sqlite3_bind_double(stmt, columID,itr->value.GetDouble());
+				}
+					
+				else if (itr->value.IsInt64())
+				{
+					sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
+				}
+					
+				else if (itr->value.IsInt())
+				{
+					sqlite3_bind_int(stmt, columID,itr->value.GetInt());
+				}
+					
+				else if (itr->value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					itr->value.Accept(writer);
+					sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
+				}
+				columID++ ;
+			}
+			
+			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			{
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				return -1;
+			}
+
+			m_writeAccessOngoing.fetch_add(1);
+			
+			int sqlite3_resut = SQLstep(stmt);
+			
+			m_writeAccessOngoing.fetch_sub(1);
+			
+			if (sqlite3_resut == SQLITE_DONE)
+			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+			}
+			else
+			{
+				failedInsertCount++;
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
+				
+				// transaction is still open, do rollback
+				if (sqlite3_get_autocommit(dbHandle) == 0)
+				{
+					rc = sqlite3_exec(dbHandle,"ROLLBACK TRANSACTION;",NULL,NULL,NULL);
+					if (rc != SQLITE_OK)
+					{
+						raiseError("insert rollback", sqlite3_errmsg(dbHandle));
+					}
+				
+				}
+			}
+			
+
+			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			{
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				return -1;
+			}
+		
+			delete[] query;
+		}
 		// Increment row count
 		ins++;
+		
 	}
 
-	sql.append("COMMIT TRANSACTION;");
+	sqlite3_finalize(stmt);
 
-	const char *query = sql.coalesce();
-	logSQL("CommonInsert", query);
-	char *zErrMsg = NULL;
-	int rc;
-
-	// Exec INSERT statement: no callback, no result set
-	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
-		     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
-	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
 
-	// Check exec result
-	if (rc != SQLITE_OK )
+	if (failedInsertCount)
 	{
-		raiseError("insert", zErrMsg);
-		Logger::getLogger()->error("SQL statement: %s", query);
-		sqlite3_free(zErrMsg);
-
-		// transaction is still open, do rollback
-		if (sqlite3_get_autocommit(dbHandle) == 0)
-                {
-			rc = SQLexec(dbHandle,
-				     "ROLLBACK TRANSACTION;",
-				     NULL,
-				     NULL,
-				     &zErrMsg);
-			if (rc != SQLITE_OK)
-			{
-				raiseError("insert rollback", zErrMsg);
-				sqlite3_free(zErrMsg);
-			}
-		}
-
-		Logger::getLogger()->error("SQL statement: %s", query);
-		// Release memory for 'query' var
-		delete[] query;
-
-		// Failure
-		return -1;
+		char buf[100];
+		snprintf(buf, sizeof(buf),
+				"Not all inserts into table '%s.%s' within transaction succeeded",
+				schema.c_str(), table.c_str());
+		raiseError("insert", buf);
 	}
-	else
-	{
-		// Release memory for 'query' var
-		delete[] query;
 
-		int insert = sqlite3_changes(dbHandle);
-
-		if (insert == 0)
-		{
-			char buf[100];
-			snprintf(buf, sizeof(buf),
-					"Not all inserts within transaction '%s.%s' succeeded",
-					schema.c_str(), table.c_str());
-			raiseError("insert", buf);
-		}
-
-		// Return the status
-		return (insert ? ins : -1);
-	}
+	return (!failedInsertCount ? ins : -1);
 }
 #endif
 
@@ -1657,7 +1832,7 @@ bool		allowZero = false;
 
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, table,
 		     query,
 		     NULL,
 		     NULL,
@@ -1673,7 +1848,7 @@ bool		allowZero = false;
 		sqlite3_free(zErrMsg);
 		if (sqlite3_get_autocommit(dbHandle)==0) // transaction is still open, do rollback
 		{
-			rc=SQLexec(dbHandle,
+			rc=SQLexec(dbHandle, table,
 				"ROLLBACK TRANSACTION;",
 				NULL,
 				NULL,
@@ -2910,7 +3085,7 @@ void Connection::logSQL(const char *tag, const char *stmt)
  * @param	cbArg		Callback 1st argument
  * @param	errmsg		Locaiton to write error message
  */
-int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,char**,char**),
+int Connection::SQLexec(sqlite3 *db, const string& table, const char *sql, int (*callback)(void*,int,char**,char**),
   			void *cbArg, char **errmsg)
 {
 int retries = 0, rc;
@@ -2954,7 +3129,7 @@ int interval;
 			{
 				int rc2;
 				char *zErrMsg = NULL;
-				rc2=SQLexec(db,
+				rc2=SQLexec(db, table,
 					"ROLLBACK TRANSACTION;",
 					NULL,
 					NULL,
@@ -2996,11 +3171,11 @@ int interval;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("Database still locked after maximum retries");
+		Logger::getLogger()->error("Database still locked after maximum retries, executing %s operation on %s", operation(sql).c_str(), table.c_str());
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("Database still busy after maximum retries");
+		Logger::getLogger()->error("Database still busy after maximum retries, executing %s operation on %s", operation(sql).c_str(), table.c_str());
 	}
 
 	return rc;
@@ -3133,7 +3308,7 @@ SQLBuffer	sql;
 
 	// Exec the DELETE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, table,
 		     query,
 		     NULL,
 		     NULL,
@@ -3181,7 +3356,7 @@ int Connection::create_table_snapshot(const string& table, const string& id)
 	logSQL("CreateTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3219,7 +3394,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 	logSQL("LoadTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3238,7 +3413,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 		// transaction is still open, do rollback
 		if (sqlite3_get_autocommit(dbHandle) == 0)
 		{
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, table,
 				     "ROLLBACK TRANSACTION;",
 				     NULL,
 				     NULL,
@@ -3268,7 +3443,7 @@ int Connection::delete_table_snapshot(const string& table, const string& id)
 	logSQL("DeleteTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3371,7 +3546,7 @@ bool Connection::vacuum()
 {
 	char* zErrMsg = NULL;
 	// Exec the statement
-	int rc = SQLexec(dbHandle, "VACUUM;", NULL, NULL, &zErrMsg);
+	int rc = SQLexec(dbHandle, "database", "VACUUM;", NULL, NULL, &zErrMsg);
 
 	// Check result
 	if (rc != SQLITE_OK)
@@ -3389,3 +3564,20 @@ bool Connection::vacuum()
 	return true;
 }
 #endif
+
+/*
+ * Return the first word in a SQL statement, ie the operation that is being executed.
+ *
+ * @param sql	The complete SQL statement
+ * @return string	The operation
+ */
+string Connection::operation(const char *sql)
+{
+	const char *p1 = sql;
+	char buf[40], *p2 = buf;
+	while (*p1 && !isspace(*p1) && p2 - buf < 40)
+		*p2++ = *p1++;
+	*p2 = '\0';
+	return string(buf);
+
+}

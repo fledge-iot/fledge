@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <perfmonitors.h>
 
 class DataLoad;
 class NorthService;
@@ -19,6 +20,7 @@ class DataSender {
 		void			updatePlugin(NorthPlugin *plugin) { m_plugin = plugin; };
 		void			pause();
 		void			release();
+		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
 	private:
 		unsigned long		send(ReadingSet *readings);
 		void			blockPause();
@@ -34,6 +36,7 @@ class DataSender {
 		bool			m_sending;
 		std::mutex		m_pauseMutex;
 		std::condition_variable m_pauseCV;
+		PerformanceMonitor	*m_perfMonitor;
 
 };
 #endif

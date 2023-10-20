@@ -8,7 +8,6 @@
 """
 import subprocess
 import os
-import platform
 import sys
 import fnmatch
 import http.client
@@ -16,10 +15,11 @@ import json
 import base64
 import ssl
 import shutil
-import pytest
 from urllib.parse import quote
 from pathlib import Path
-import sys
+import time
+import pytest
+from helpers import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -59,12 +59,12 @@ def reset_and_start_fledge(storage_plugin):
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
-    if storage_plugin == 'postgres':
-        subprocess.run(["sed -i 's/sqlite/postgres/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-    else:
-        subprocess.run(["sed -i 's/postgres/sqlite/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-
-    subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
+    subprocess.run(
+        ["echo $(jq -c --arg STORAGE_PLUGIN_VAL {} '.plugin.value=$STORAGE_PLUGIN_VAL' "
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin_val)],
+        shell=True, check=True)
+    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
@@ -133,9 +133,7 @@ def add_south():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pytest.PKG_MGR, south_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(south_plugin)
@@ -158,7 +156,7 @@ def add_south():
 @pytest.fixture
 def add_north():
     def _add_fledge_north(fledge_url, north_plugin, north_branch, installation_type='make', north_instance_name="play",
-                          config=None,
+                          config=None, schedule_repeat_time=30, 
                           plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
                           is_task=True):
         """Add north plugin and start the service/task by default"""
@@ -186,9 +184,7 @@ def add_north():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-north-{}".format(pkg_mgr, north_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-north-{}".format(pytest.PKG_MGR, north_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(north_plugin)
@@ -198,9 +194,10 @@ def add_north():
 
         if is_task:
             # Create north task
-            data = {"name": "{}".format(north_instance_name), "type": "North",
+            data = {"name": "{}".format(north_instance_name), "type": "north",
                     "plugin": "{}".format(plugin_discovery_name),
-                    "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+                    "schedule_enabled": _enabled, "schedule_repeat": "{}".format(schedule_repeat_time), "schedule_type": "3", "config": _config}
+            print(data)
             conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         else:
             # Create north service
@@ -218,6 +215,138 @@ def add_north():
 
     return _add_fledge_north
 
+@pytest.fixture
+def add_service():
+    def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "svc@123",
+                     enabled = True):
+        
+        """ 
+            Fixture to add Service and start the start service by default
+            fledge_url: IP address or domain to access fledge
+            service: Service to be installed
+            service_branch: Branch of service to be installed
+            retries: Number of tries for polling
+            installation_type: Type of installation for service i.e. make or package
+            service_name: Name that will be given to service to be installed
+            enabled: Flag to enable or disable notification instance
+        """
+        
+        # Check if the service is already installed installed
+        retval = utils.get_request(fledge_url, "/fledge/service")
+        for ele in retval["services"]:
+            if ele["type"].lower() == service:
+                return ele
+        
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        
+        # Install Service
+        def clone_make_install():
+            try:
+                subprocess.run(["{}/tests/system/python/scripts/install_c_service {} {}".format(
+                    PROJECT_ROOT, service_branch, service)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} service  installation failed".format(service)
+                
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                subprocess.run(["sudo {} install -y fledge-service-{}".format(pytest.PKG_MGR, service)], shell=True,
+                            check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(service)
+        else:
+            return("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
+        
+        # Add Service
+        data = {"name": "{}".format(service_name), "type": "{}".format(service), "enabled": enabled}
+        retval = utils.post_request(fledge_url, "/fledge/service", data)
+        assert service_name == retval["name"]
+        return retval
+        
+    return _add_service
+
+@pytest.fixture
+def add_notification_instance():
+    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config={}, delivery_config={}, 
+                                   rule_plugin="Threshold", rule_branch=None, rule_plugin_discovery_name=None, 
+                                   delivery_plugin_discovery_name=None, installation_type='make', notification_type="one shot",
+                                   notification_instance_name="noti@123", retrigger_time=30, enabled=True):
+        """
+            Fixture to add Service instance and start the instance by default
+            fledge_url: IP address or domain to access fledge
+            delivery_plugin: Notify or Delivery plugin to be installed
+            delivery_branch: Branch of Notify or Delivery plugin to be installed
+            rule_config: Configuration of Rule plugin
+            delivery_config: Configuration of Delivery plugin
+            rule_plugin: Rule plugin to be installed, by default Threshold and DataAvailability plugin is installed 
+            rule_branch: Branch of Rule plugin to be installed
+            rule_plugin_discovery_name: Name to identify the Rule Plugin after installation 
+            delivery_plugin_discovery_name: Name to identify the Delivery Plugin after installation 
+            installation_type: Type of installation for plugins i.e. make or package
+            notification_type: Type of notification to be triggered i.e. one_shot, retriggered, toggle
+            notification_instance_name: Name that will be given to notification instance to be created
+            retrigger_time: Interval between retriggered notifications
+            enabled: Flag to enable or disable notification instance
+        """
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        
+        if rule_plugin_discovery_name is None:
+            rule_plugin_discovery_name = rule_plugin
+            
+        if delivery_plugin_discovery_name is None:
+            delivery_plugin_discovery_name = delivery_plugin
+
+        def clone_make_install(plugin_branch, plugin_type, plugin):
+            try:
+                subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
+                    PROJECT_ROOT, plugin_branch, plugin_type, plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(plugin)
+
+        if installation_type == 'make':
+            # Install Rule Plugin if it is not Threshold or DataAvailability
+            if rule_plugin not in  ("Threshold","DataAvailability"):
+                clone_make_install(rule_branch, "rule", rule_plugin)
+            
+            clone_make_install(delivery_branch, "notify", delivery_plugin)
+            
+        elif installation_type == 'package':
+            try:
+                if rule_plugin not in ["Threshold", "DataAvailability"]:
+                    subprocess.run(["sudo {} install -y fledge-rule-{}".format(pytest.PKG_MGR, rule_plugin)], shell=True,
+                               check=True)
+                    
+            except subprocess.CalledProcessError:
+                assert False, "Package installation of {} failed!".format(rule_plugin)
+                
+            try :
+                subprocess.run(["sudo {} install -y fledge-notify-{}".format(pytest.PKG_MGR, delivery_plugin)], shell=True,
+                               check=True)
+                
+            except subprocess.CalledProcessError:
+                assert False, "Package installation of {} failed!".format(delivery_plugin)
+        else:
+            return("Skipped {} and {} plugin installation. Installation mechanism is set to {}.".format(rule_plugin, delivery_plugin,
+                                                                                                installation_type))
+
+        data = {
+                "name": notification_instance_name,
+                "description": "{} notification instance".format(notification_instance_name),
+                "rule_config": rule_config,
+                "rule": rule_plugin_discovery_name,
+                "delivery_config": delivery_config,
+                "channel": delivery_plugin_discovery_name,
+                "notification_type": notification_type,
+                "enabled": enabled, 
+                "retrigger_time": "{}".format(retrigger_time),
+                }
+        
+        retval = utils.post_request(fledge_url, "/fledge/notification", data)
+        assert "Notification {} created successfully".format(notification_instance_name) == retval["result"]
+        return retval
+    
+    return _add_notification_instance
 
 @pytest.fixture
 def start_north_pi_v2():
@@ -429,6 +558,102 @@ def clear_pi_system_through_pi_web_api():
 
     return clear_pi_system_pi_web_api
 
+@pytest.fixture
+def verify_hierarchy_and_get_datapoints_from_pi_web_api():
+    def _verify_hierarchy_and_get_datapoints_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
+        """ This method verifies hierarchy created in pi web api is correctly """
+    
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+        AF_HIERARCHY_LIST=af_hierarchy_list.split('/')[1:]
+        AF_HIERARCHY_COUNT=len(AF_HIERARCHY_LIST)
+        
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs_url= r['Items'][0]['Links']['Databases']
+            print(dbs_url)
+            if dbs_url is not None:
+                conn.request("GET", dbs_url, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r['Items']
+                CHECK_DATABASE_EXISTS = list(filter(lambda items: items['Name'] == pi_database, items))[0]
+                
+                if len(CHECK_DATABASE_EXISTS) > 0:
+                    elements_url = CHECK_DATABASE_EXISTS['Links']['Elements']
+                else:
+                    raise Exception('Database not exist')
+                
+                if elements_url is not None:
+                    conn.request("GET", elements_url, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    items = r['Items']
+                    
+                    CHECK_AF_ELEMENT_EXISTS = list(filter(lambda items: items['Name'] == AF_HIERARCHY_LIST[0], items))[0]
+                    if len(CHECK_AF_ELEMENT_EXISTS) != 0:
+                        
+                        counter =  0
+                        while counter < AF_HIERARCHY_COUNT:
+                            if CHECK_AF_ELEMENT_EXISTS['Name'] == AF_HIERARCHY_LIST[counter]:
+                                counter+=1
+                                elements_url = CHECK_AF_ELEMENT_EXISTS['Links']['Elements']
+                                conn.request("GET", elements_url, headers=headers)
+                                res = conn.getresponse()
+                                CHECK_AF_ELEMENT_EXISTS = json.loads(res.read().decode())['Items'][0]
+                            else:
+                                raise Exception("AF Heirarchy is incorrect")
+                            
+                        record = dict()
+                        if CHECK_AF_ELEMENT_EXISTS['Name'] == asset:
+                            record_url = CHECK_AF_ELEMENT_EXISTS['Links']['RecordedData']
+                            get_record_url = quote("{}?limit=10000".format(record_url), safe='?,=&/.:')
+                            print(get_record_url)
+                            conn.request("GET", get_record_url, headers=headers)
+                            res = conn.getresponse()
+                            items = json.loads(res.read().decode())['Items']
+                            no_of_datapoint_in_pi_server = len(items)
+                            Item_matched = False
+                            count = 0
+                            if no_of_datapoint_in_pi_server == 0:
+                                raise "Data points are not created in PI Server"
+                            else:
+                                for item in items:
+                                    count += 1
+                                    if item['Name'] in sensor:
+                                        print(item['Name'])
+                                        record[item['Name']] = list(map(lambda val: val['Value'], filter(lambda ele: isinstance(ele['Value'], int) or isinstance(ele['Value'], float) , item['Items'])))
+                                        Item_matched = True
+                                    elif count == no_of_datapoint_in_pi_server and Item_matched == False:
+                                        raise "Required Data points is not Present --> {}".format(sensor)
+                        else:
+                            raise "Asset does not exist, Although Hierarchy is correct"
+                        
+                        return(record)
+                            
+                    else:
+                        raise Exception("AF Root not exists")
+                else:
+                    raise Exception("Elements URL not found")
+            else:
+                raise Exception("DataBase URL not found")
+                
+            
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
+            return None
+        
+    return(_verify_hierarchy_and_get_datapoints_from_pi_web_api)
 
 @pytest.fixture
 def read_data_from_pi_web_api():
@@ -513,10 +738,8 @@ def add_filter():
                 assert False, "{} filter plugin installation failed".format(filter_plugin)
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True,
-                               check=True)
+                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pytest.PKG_MGR, filter_plugin)],
+                               shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(filter_plugin)
         else:
@@ -583,12 +806,16 @@ def disable_schedule():
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
+    parser.addoption("--readings-plugin", action="store", default="Use main plugin",
+                     help="Readings plugin to use for tests")
     parser.addoption("--fledge-url", action="store", default="localhost:8081",
                      help="Fledge client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
                      help="use pip cache is requirement is available")
     parser.addoption("--wait-time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
+    parser.addoption("--wait-fix", action="store", default=0, type=int,
+                     help="Extra wait time required for process to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
     # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
@@ -613,6 +840,7 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
+    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -708,10 +936,47 @@ def pytest_addoption(parser):
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
 
+    # Fogbench Config
+    parser.addoption("--fogbench-host", action="store", default="localhost",
+                     help="FogBench Destination Host Address")
+                     
+    parser.addoption("--fogbench-port", action="store", default="5683", type=int,
+                     help="FogBench Destination Port")
+    
+    # Azure-IoT Config
+    parser.addoption("--azure-host", action="store", default="azure-server",
+                     help="Azure-IoT Host Name")
+    
+    parser.addoption("--azure-device", action="store", default="azure-iot-device",
+                     help="Azure-IoT Device ID")
+    
+    parser.addoption("--azure-key", action="store", default="azure-iot-key",
+                     help="Azure-IoT SharedAccess key")
+    
+    parser.addoption("--azure-storage-account-url", action="store", default="azure-storage-account-url",
+                     help="Azure Storage Account URL")
+    
+    parser.addoption("--azure-storage-account-key", action="store", default="azure-storage-account-key",
+                     help="Azure Storage Account Access Key")
+    
+    parser.addoption("--azure-storage-container", action="store", default="azure_storage_container",
+                     help="Container Name in Azure where data is stored")
+    
+    parser.addoption("--run-time", action="store", default="60",
+                    help="The number of minute for which a test should run")
 
+@pytest.fixture
+def num_assets(request):
+    return request.config.getoption("--num-assets")
+    
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def readings_plugin(request):
+    return request.config.getoption("--readings-plugin")
 
 
 @pytest.fixture
@@ -793,7 +1058,10 @@ def fledge_url(request):
 def wait_time(request):
     return request.config.getoption("--wait-time")
 
-
+@pytest.fixture
+def wait_fix(request):
+    return request.config.getoption("--wait-fix")
+    
 @pytest.fixture
 def retries(request):
     return request.config.getoption("--retries")
@@ -982,3 +1250,79 @@ def throttled_network_config(request):
 @pytest.fixture
 def start_north_as_service(request):
     return request.config.getoption("--start-north-as-service")
+
+
+def read_os_release():
+    """ General information to identifying the operating system """
+    import ast
+    import re
+    os_details = {}
+    with open('/etc/os-release', encoding="utf-8") as f:
+        for line_number, line in enumerate(f, start=1):
+            line = line.rstrip()
+            if not line or line.startswith('#'):
+                continue
+            m = re.match(r'([A-Z][A-Z_0-9]+)=(.*)', line)
+            if m:
+                name, val = m.groups()
+                if val and val[0] in '"\'':
+                    val = ast.literal_eval(val)
+                os_details.update({name: val})
+    return os_details
+
+
+def is_redhat_based():
+    """
+        To check if the Operating system is of Red Hat family or Not
+        Examples:
+            a) For an operating system with "ID=centos", an assignment of "ID_LIKE="rhel fedora"" is appropriate
+            b) For an operating system with "ID=ubuntu/raspbian", an assignment of "ID_LIKE=debian" is appropriate.
+    """
+    os_release = read_os_release()
+    id_like = os_release.get('ID_LIKE')
+    if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
+        return True
+    return False
+
+
+def pytest_configure():
+    pytest.OS_PLATFORM_DETAILS = read_os_release()
+    pytest.IS_REDHAT = is_redhat_based()
+    pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
+
+@pytest.fixture
+def fogbench_host(request):
+    return request.config.getoption("--fogbench-host")
+
+
+@pytest.fixture
+def fogbench_port(request):
+    return request.config.getoption("--fogbench-port")
+
+@pytest.fixture
+def azure_host(request):
+    return request.config.getoption("--azure-host")
+
+@pytest.fixture
+def azure_device(request):
+    return request.config.getoption("--azure-device")
+
+@pytest.fixture
+def azure_key(request):
+    return request.config.getoption("--azure-key")
+
+@pytest.fixture
+def azure_storage_account_url(request):
+    return request.config.getoption("--azure-storage-account-url")
+
+@pytest.fixture
+def azure_storage_account_key(request):
+    return request.config.getoption("--azure-storage-account-key")
+
+@pytest.fixture
+def azure_storage_container(request):
+    return request.config.getoption("--azure-storage-container")
+
+@pytest.fixture
+def run_time(request):
+    return request.config.getoption("--run-time")

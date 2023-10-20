@@ -27,7 +27,9 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define READING_ACCESS  	"^/storage/reading$"
 #define READING_QUERY   	"^/storage/reading/query"
 #define READING_PURGE   	"^/storage/reading/purge"
-#define READING_INTEREST	"^/storage/reading/interest/([A-Za-z\\*][a-zA-Z0-9_%\\.\\-]*)$"
+#define READING_INTEREST	"^/storage/reading/interest/([A-Za-z0-9\\*][a-zA-Z0-9_%\\.\\-]*)$"
+#define TABLE_INTEREST		"^/storage/table/interest/([A-Za-z\\*][a-zA-Z0-9_%\\.\\-]*)$"
+
 #define GET_TABLE_SNAPSHOTS	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot$"
 #define CREATE_TABLE_SNAPSHOT	GET_TABLE_SNAPSHOTS
 #define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"
@@ -58,6 +60,7 @@ class StorageApi {
 
 public:
 	StorageApi(const unsigned short port, const unsigned  int threads);
+	~StorageApi();
         static StorageApi *getInstance();
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
@@ -79,6 +82,8 @@ public:
 	void	readingPurge(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	readingUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	tableRegister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void	tableUnregister(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	createTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	loadTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	deleteTableSnapshot(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);

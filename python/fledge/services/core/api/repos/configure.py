@@ -6,13 +6,13 @@
 
 import os
 import platform
-import logging
 import json
 
 from aiohttp import web
 
+from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 
 
 __author__ = "Ashish Jabble"
@@ -25,7 +25,7 @@ _help = """
     | POST             | /fledge/repository                                       |
     -------------------------------------------------------------------------------
 """
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 async def add_package_repo(request: web.Request) -> web.Response:
@@ -49,53 +49,63 @@ async def add_package_repo(request: web.Request) -> web.Response:
             raise ValueError('url param is required')
 
         _platform = platform.platform()
-        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         v_list = ['nightly', 'latest']
         if not (version in v_list or version.startswith('fixes/')):
             if str(version).count('.') != 2:
-                raise ValueError('Invalid version; it should be latest, nightly or a valid semantic version X.Y.Z i.e. major.minor.patch')
+                raise ValueError('Invalid version; it should be latest, '
+                                 'nightly or a valid semantic version X.Y.Z i.e. major.minor.patch')
 
-        if 'x86_64-with-Ubuntu-18.04' in _platform:
-            os_name = "ubuntu1804"
-            architecture = "x86_64"
-            extra_commands = ""
-        elif 'x86_64-with-glib' in _platform:
-            os_name = "ubuntu2004"
-            architecture = "x86_64"
-            extra_commands = ""
-        elif 'armv7l-with-debian' in _platform:
-            os_name = "buster"
-            architecture = "armv7l"
-            extra_commands = ""
-        elif 'armv7l-with-glibc' in _platform:
-            os_name = "bullseye"
-            architecture = "armv7l"
-            extra_commands = ""
-        elif 'aarch64-with-Ubuntu-18.04' in _platform:
-            os_name = "ubuntu1804"
-            architecture = "aarch64"
-            extra_commands = ""
-        elif 'x86_64-with-redhat' in _platform:
-            os_name = "rhel7"
-            architecture = "x86_64"
-            extra_commands = "sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'"
-        elif 'aarch64-with-Mendel' in _platform:
-            os_name = "mendel"
-            architecture = "aarch64"
-            extra_commands = ""
-        elif 'x86_64-with-centos' in _platform:
-            os_name = "centos7"
-            architecture = "x86_64"
-            extra_commands = "sudo yum install -y centos-release-scl-rh epel-release"
+        if utils.is_redhat_based():
+            pkg_mgt = 'yum'
+            if 'x86_64-with-redhat' in _platform:
+                os_name = "rhel7"
+                architecture = "x86_64"
+                extra_commands = "sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'"
+            elif 'x86_64-with-centos' in _platform:
+                os_name = "centos7"
+                architecture = "x86_64"
+                extra_commands = "sudo yum install -y centos-release-scl-rh epel-release"
+            elif 'x86_64-with-glibc' in _platform:
+                os_name = "centos-stream-9"
+                architecture = "x86_64"
+                extra_commands = ""
+            else:
+                raise ValueError("{} is not supported".format(_platform))
         else:
-            raise ValueError("{} is not supported".format(_platform))
+            pkg_mgt = 'apt'
+            if 'x86_64-with-Ubuntu-18.04' in _platform:
+                os_name = "ubuntu1804"
+                architecture = "x86_64"
+                extra_commands = ""
+            elif 'x86_64-with-glib' in _platform:
+                os_name = "ubuntu2004"
+                architecture = "x86_64"
+                extra_commands = ""
+            elif 'armv7l-with-debian' in _platform:
+                os_name = "buster"
+                architecture = "armv7l"
+                extra_commands = ""
+            elif 'armv7l-with-glibc' in _platform:
+                os_name = "bullseye"
+                architecture = "armv7l"
+                extra_commands = ""
+            elif 'aarch64-with-Ubuntu-18.04' in _platform:
+                os_name = "ubuntu1804"
+                architecture = "aarch64"
+                extra_commands = ""
+            elif 'aarch64-with-Mendel' in _platform:
+                os_name = "mendel"
+                architecture = "aarch64"
+                extra_commands = ""
+            else:
+                raise ValueError("{} is not supported".format(_platform))
 
         stdout_file_path = _FLEDGE_ROOT + "/data/configure_repo_output.txt"
         if pkg_mgt == 'yum':
             cmd = "sudo rpm --import {}/RPM-GPG-KEY-fledge > {} 2>&1".format(url, stdout_file_path)
         else:
             cmd = "wget -q -O - {}/KEY.gpg | sudo apt-key add - > {} 2>&1".format(url, stdout_file_path)
-        _LOGGER.debug("CMD-1....{}".format(cmd))
+        _LOGGER.debug("Add the key that is used to verify the package with command: {}".format(cmd))
         ret_code = os.system(cmd)
         if ret_code != 0:
             raise RuntimeError("See logs in {}".format(stdout_file_path))
@@ -105,7 +115,7 @@ async def add_package_repo(request: web.Request) -> web.Response:
         else:
             cmd = "echo \"deb {}/ /\" | sudo tee /etc/apt/sources.list.d/fledge.list >> {} 2>&1".format(
                 full_url, stdout_file_path)
-        _LOGGER.debug("CMD-2....{}".format(cmd))
+        _LOGGER.debug("Edit the sources list with command: {}".format(cmd))
         ret_code = os.system(cmd)
         if ret_code != 0:
             raise RuntimeError("See logs in {}".format(stdout_file_path))
@@ -113,7 +123,7 @@ async def add_package_repo(request: web.Request) -> web.Response:
             cmd = "{} >> {} 2>&1".format(extra_commands, stdout_file_path)
         else:
             cmd = "sudo {} -y update >> {} 2>&1".format(pkg_mgt, stdout_file_path)
-        _LOGGER.debug("CMD-3....{}".format(cmd))
+        _LOGGER.debug("Fetch the list of packages with command: {}".format(cmd))
         ret_code = os.system(cmd)
         if ret_code != 0:
             raise RuntimeError("See logs in {}".format(stdout_file_path))
@@ -126,8 +136,9 @@ async def add_package_repo(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": "Failed to configure package repository",
                                                   "output_log": msg}), reason=msg)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = "Failed to configure archive package repository setup."
+        _LOGGER.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response({"message": "Package repository configured successfully.",
                                   "output_log": stdout_file_path})
-

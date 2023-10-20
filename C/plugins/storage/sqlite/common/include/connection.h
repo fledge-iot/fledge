@@ -21,28 +21,13 @@
 #include <vector>
 #include <atomic>
 
-#define _DB_NAME                  "/fledge.db"
-#define READINGS_DB_NAME_BASE     "readings"
+#define TRACK_CONNECTION_USER		0 // Set to 1 to get dianositcs about connection pool use
+
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
 #define READINGS_DB               READINGS_DB_NAME_BASE "_1"
 #define READINGS_TABLE            "readings"
 #define READINGS_TABLE_MEM       READINGS_TABLE "_1"
 
-#define LEN_BUFFER_DATE 100
-#define F_TIMEH24_S             "%H:%M:%S"
-#define F_DATEH24_S             "%Y-%m-%d %H:%M:%S"
-#define F_DATEH24_M             "%Y-%m-%d %H:%M"
-#define F_DATEH24_H             "%Y-%m-%d %H"
-// This is the default datetime format in Fledge: 2018-05-03 18:15:00.622
-#define F_DATEH24_MS            "%Y-%m-%d %H:%M:%f"
-// Format up to seconds
-#define F_DATEH24_SEC           "%Y-%m-%d %H:%M:%S"
-#define SQLITE3_NOW             "strftime('%Y-%m-%d %H:%M:%f', 'now', 'localtime')"
-// The default precision is milliseconds, it adds microseconds and timezone
-#define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
-#define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
-
-#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
 
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME
@@ -160,9 +145,15 @@ class Connection {
 		void		shutdownAppendReadings();
 		unsigned int	purgeReadingsAsset(const std::string& asset);
 		bool		vacuum();
+		bool		supportsReadings() { return ! m_noReadings; };
+#if TRACK_CONNECTION_USER
+		void		setUsage(std::string usage) { m_usage = usage; };
+		void		clearUsage() { m_usage = ""; };
+		std::string	getUsage() { return m_usage; };
+#endif
 
 	private:
-
+		std::string	operation(const char *sql);
 		std::vector<int>
 		       		m_NewDbIdList;            // Newly created databases that should be attached
 
@@ -170,7 +161,7 @@ class Connection {
 		int		m_queuing;
 		std::mutex	m_qMutex;
 		int		SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
-		int		SQLexec(sqlite3 *db, const char *sql,
+		int		SQLexec(sqlite3 *db, const std::string& table, const char *sql,
 				int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
 
@@ -213,6 +204,10 @@ class Connection {
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
+		bool		m_noReadings;
+#if TRACK_CONNECTION_USER
+		std::string	m_usage;
+#endif
 };
 
 #endif

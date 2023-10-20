@@ -133,11 +133,16 @@ class TestBundleSupport:
                 assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
 
     async def test_create_support_bundle_exception(self, client):
+        msg = "Failed to create support bundle."
         with patch.object(SupportBuilder, "__init__", return_value=None):
             with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
-                resp = await client.post('/fledge/support')
-                assert 500 == resp.status
-                assert "Support bundle could not be created. blah" == resp.reason
+                with patch.object(support._logger, "error") as patch_logger:
+                    resp = await client.post('/fledge/support')
+                    assert 500 == resp.status
+                    assert msg == resp.reason
+                assert 1 == patch_logger.call_count
+                args = patch_logger.call_args
+                assert msg == args[0][1]
 
     async def test_get_syslog_entries_all_ok(self, client):
         def mock_syslog():
@@ -253,12 +258,14 @@ class TestBundleSupport:
     async def test_get_syslog_entries_cmd_exception(self, client):
         msg = 'Internal Server Error'
         with patch.object(subprocess, "Popen", side_effect=Exception(msg)):
-            resp = await client.get('/fledge/syslog')
-            assert 500 == resp.status
-            assert msg == resp.reason
-            res = await resp.text()
-            jdict = json.loads(res)
-            assert {"message": msg} == jdict
+            with patch.object(support._logger, "error") as patch_logger:
+                resp = await client.get('/fledge/syslog')
+                assert 500 == resp.status
+                assert msg == resp.reason
+                res = await resp.text()
+                jdict = json.loads(res)
+                assert {"message": msg} == jdict
+            assert 1 == patch_logger.call_count
 
     async def test_get_syslog_entries_from_name(self, client):
         def mock_syslog():

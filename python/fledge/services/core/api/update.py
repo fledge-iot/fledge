@@ -13,14 +13,13 @@ import datetime
 import os
 import asyncio
 import re
-import platform
 
+from fledge.common import utils
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core import server
-from fledge.common import logger
 from fledge.services.core.scheduler.entities import ManualSchedule
 
-_LOG_LEVEL = 20
-_logger = logger.setup(__name__, level=_LOG_LEVEL)
+_logger = FLCoreLogger().get_logger(__name__)
 
 __author__ = "Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -77,7 +76,6 @@ async def update_package(request):
             manual_schedule = ManualSchedule()
 
             if not manual_schedule:
-                _logger.error(error_message)
                 raise ValueError(error_message)
             # Set schedule fields
             manual_schedule.name = _FLEDGE_MANUAL_UPDATE_SCHEDULE
@@ -107,6 +105,7 @@ async def update_package(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to update Fledge package.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"status": "Running", "message": status_message})
@@ -126,10 +125,9 @@ async def get_updates(request: web.Request) -> web.Response:
         Example
          curl -sX GET http://localhost:8081/fledge/update |jq
     """
-    _platform = platform.platform()
     update_cmd = "sudo apt update"
     upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
-    if "centos" in _platform or "redhat" in _platform:
+    if utils.is_redhat_based():
         update_cmd = "sudo yum check-update"
         upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
 
@@ -152,7 +150,7 @@ async def get_updates(request: web.Request) -> web.Response:
         return web.json_response({'updates': upgradable_packages})
     try:
         process_output = stdout.decode("utf-8")
-        _logger.info(process_output)
+        _logger.debug(process_output)
         # split on new-line
         word_list = re.split(r"\n+", process_output)
 
@@ -177,8 +175,8 @@ async def get_updates(request: web.Request) -> web.Response:
         # Make a set to avoid duplicates.
         upgradable_packages = list(set(packages))
     except Exception as ex:
-        msg = "Failed to fetch upgradable packages list for the configured repository! {}".format(str(ex))
-        _logger.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Failed to fetch upgradable packages list for the configured repository!"
+        _logger.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response({'updates': upgradable_packages})

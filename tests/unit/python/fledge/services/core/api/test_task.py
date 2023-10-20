@@ -22,7 +22,7 @@ from fledge.services.core.scheduler.entities import TimedSchedule
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.api import task
 from fledge.services.core.api.plugins import common
-from fledge.services.core.api.service import _logger
+from fledge.services.core.api.task import _logger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -107,7 +107,7 @@ class TestTask:
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(_logger, 'exception') as ex_logger:
+                with patch.object(_logger, 'error') as patch_logger:
                     with patch.object(c_mgr, 'get_category_all_items',
                                       return_value=_rv) as patch_get_cat_info:
                         with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -115,8 +115,8 @@ class TestTask:
                                 resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                                 assert 500 == resp.status
                                 assert 'Failed to create north instance.' == resp.reason
-                        assert 1 == ex_logger.call_count
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+                assert 1 == patch_logger.call_count
 
     async def test_dupe_category_name_add_task(self, client):
 
@@ -304,20 +304,11 @@ class TestTask:
                         assert p['script'] == '["tasks/north_c"]'
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
-    @pytest.mark.parametrize(
-        "expected_count,"
-        "expected_http_code,"
-        "expected_message",
-        [
-            ( 1, 400, '400: Unable to reuse name north bound, already used by a previous task.'),
-            (10, 400, '400: Unable to reuse name north bound, already used by a previous task.')
-        ]
-    )
-    async def test_add_task_twice(self,
-                                  client,
-                                  expected_count,
-                                  expected_http_code,
-                                  expected_message):
+    @pytest.mark.parametrize("expected_count, expected_http_code, expected_message", [
+        (1, 400, '400: Unable to reuse name north bound, already used by a previous task.'),
+        (10, 400, '400: Unable to reuse name north bound, already used by a previous task.')
+    ])
+    async def test_add_task_twice(self, client, expected_count, expected_http_code, expected_message):
 
         @asyncio.coroutine
         def q_result(*arg):
@@ -351,15 +342,16 @@ class TestTask:
         }
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(_logger, 'exception') as ex_logger:
+        with patch.object(_logger, 'warning') as patch_logger:
             with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                        with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                            resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
-                            result = await resp.text()
-                            assert resp.status == expected_http_code
-                            assert result == expected_message
-        assert 1 == ex_logger.call_count
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
+                        result = await resp.text()
+                        assert resp.status == expected_http_code
+                        assert result == expected_message
+                        print(expected_message)
+        assert 1 == patch_logger.call_count
 
     async def test_add_task_with_config(self, client):
         async def async_mock_get_schedule():
@@ -580,9 +572,13 @@ class TestTask:
 
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(task, "get_schedule", side_effect=Exception)
-        resp = await client.delete("/fledge/scheduled/task/Test")
-        assert 500 == resp.status
-        assert resp.reason is ''
+        with patch.object(_logger, 'error') as patch_logger:
+            resp = await client.delete("/fledge/scheduled/task/Test")
+            assert 500 == resp.status
+            assert resp.reason is ''
+        assert 1 == patch_logger.call_count
+        args = patch_logger.call_args
+        assert 'Failed to delete Test north task.' == args[0][1]
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}

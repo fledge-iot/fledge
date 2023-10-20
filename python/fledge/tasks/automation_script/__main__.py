@@ -8,12 +8,11 @@
 """Automation script starter"""
 
 import sys
-import logging
 import json
 import http.client
 import argparse
 
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
@@ -22,7 +21,7 @@ __version__ = "${VERSION}"
 
 
 if __name__ == '__main__':
-    _logger = logger.setup("Automation Script", level=logging.INFO)
+    _logger = FLCoreLogger().get_logger("Control Script")
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True)
     parser.add_argument("--address", required=True)

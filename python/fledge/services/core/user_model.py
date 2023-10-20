@@ -4,21 +4,21 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-""" Fledge user entity class with CRUD operations to Storage layer
-
-"""
+"""Fledge user entity class with CRUD operations to Storage layer"""
+import json
 import uuid
 import hashlib
 from datetime import datetime, timedelta
 import jwt
 
-from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common import logger
 from fledge.common.web.ssl_wrapper import SSLVerifier
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.services.core import connect
 
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -32,7 +32,7 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class User:
@@ -110,6 +110,12 @@ class User:
                                               description=description).payload()
             try:
                 result = await storage_client.insert_into_tbl("users", payload)
+                # USRAD audit trail entry
+                audit = AuditLogger(storage_client)
+                audit_details = json.loads(payload)
+                audit_details.pop('pwd', None)
+                audit_details['message'] = "'{}' username created for '{}' user.".format(username, real_name)
+                await audit.information('USRAD', audit_details)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
@@ -135,8 +141,13 @@ class User:
                 # first delete the active login references
                 await cls.delete_user_tokens(user_id)
 
-                payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 't']).payload()
+                payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(
+                    ['enabled', '=', 't']).payload()
                 result = await storage_client.update_tbl("users", payload)
+                # USRDL audit trail entry
+                audit = AuditLogger(storage_client)
+                await audit.information(
+                    'USRDL', {"user_id": user_id, "message": "User ID: <{}> has been disabled.".format(user_id)})
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT
@@ -155,29 +166,35 @@ class User:
             """
             if not user_data:
                 return False
-            kwargs = dict()
+            old_data = await cls.get(uid=user_id)
+            new_kwargs = {}
+            old_kwargs = {}
             if 'access_method' in user_data:
-                kwargs.update({"access_method": user_data['access_method']})
+                old_kwargs["access_method"] = old_data['access_method']
+                new_kwargs.update({"access_method": user_data['access_method']})
             if 'real_name' in user_data:
-                kwargs.update({"real_name": user_data['real_name']})
+                old_kwargs["real_name"] = old_data['real_name']
+                new_kwargs.update({"real_name": user_data['real_name']})
             if 'description' in user_data:
-                kwargs.update({"description": user_data['description']})
+                old_kwargs["description"] = old_data['description']
+                new_kwargs.update({"description": user_data['description']})
             if 'role_id' in user_data:
-                kwargs.update({"role_id": user_data['role_id']})
+                old_kwargs["role_id"] = old_data['role_id']
+                new_kwargs.update({"role_id": user_data['role_id']})
             storage_client = connect.get_storage_async()
-
             hashed_pwd = None
             pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
                     hashed_pwd = cls.hash_password(user_data['password'])
                     current_datetime = datetime.now()
-                    kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
+                    old_kwargs["pwd"] = "****"
+                    new_kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
                     pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
             try:
-                payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
+                payload = PayloadBuilder().SET(**new_kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
                 result = await storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
@@ -191,6 +208,14 @@ class User:
                         await cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(
                             storage_client, user_id, hashed_pwd, pwd_history_list)
 
+                    # USRCH audit trail entry
+                    audit = AuditLogger(storage_client)
+                    if 'pwd' in new_kwargs:
+                        new_kwargs['pwd'] = "Password has been updated."
+                        new_kwargs.pop('pwd_last_changed', None)
+                    await audit.information(
+                        'USRCH', {'user_id': user_id, 'old_value': old_kwargs, 'new_value': new_kwargs,
+                                  "message": "'{}' user has been changed.".format(old_data['uname'])})
                     return True
             except StorageServerError as ex:
                 if ex.error["retryable"]:
@@ -216,9 +241,7 @@ class User:
         @classmethod
         async def all(cls):
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name",
-                                              "description").WHERE(['enabled', '=', 't']).payload()
-            result = await storage_client.query_tbl_with_payload('users', payload)
+            result = await storage_client.query_tbl('users')
             return result['rows']
 
         @classmethod
@@ -356,7 +379,7 @@ class User:
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             uid = found_user['id']
             p = {'uid': uid, 'exp': exp}
-            jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
+            jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM)
 
             payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
                                               token_expiration=str(exp), ip=host).payload()

@@ -13,14 +13,14 @@ from aiohttp import web
 import jwt
 
 from fledge.services.core.user_model import User
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def error_middleware(app, handler):
@@ -42,7 +42,7 @@ async def error_middleware(app, handler):
 
 async def optional_auth_middleware(app, handler):
     async def middleware(request):
-        _logger.info("Received %s request for %s", request.method, request.path)
+        _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = True
         request.user = None
         return await handler(request)
@@ -54,7 +54,7 @@ async def auth_middleware(app, handler):
         # if `rest_api` config has `authentication` set to mandatory then:
         #   request must carry auth header,
         #   actual value will be checked too and if bad then 401: unauthorized will be returned
-        _logger.info("Received %s request for %s", request.method, request.path)
+        _logger.debug("Received %s request for %s", request.method, request.path)
 
         request.is_auth_optional = False
         request.user = None
@@ -160,11 +160,13 @@ def handle_api_exception(ex, _class=None, if_trace=0):
 
 async def validate_requests(request):
     """
-        a) With "view" based user role id=3 only
+        a) With "normal" based user role id=2 only
+           - restrict operations of Control scripts and pipelines except GET
+        b) With "view" based user role id=3 only
            - read access operations (GET calls)
            - change profile (PUT call)
            - logout (PUT call)
-        b) With "data-view" based user role id=4 only
+        c) With "data-view" based user role id=4 only
            - ping (GET call)
            - browser asset read operation (GET call)
            - service (GET call)
@@ -173,12 +175,24 @@ async def validate_requests(request):
            - user roles (GET call)
            - change profile (PUT call)
            - logout (PUT call)
+        d) With "control" based user role id=5 only
+           - same as normal user can do
+           - All CRUD's privileges for control scripts
+           - All CRUD's privileges for control pipelines
     """
     user_id = request.user['id']
-    if int(request.user["role_id"]) == 3 and request.method != 'GET':
+    # Normal/Editor user
+    if int(request.user["role_id"]) == 2 and request.method != 'GET':
+        # Special case: Allowed control entrypoint update request and handling of rejection in its handler
+        if str(request.rel_url).startswith('/fledge/control') and not str(request.rel_url).startswith(
+                '/fledge/control/request'):
+            raise web.HTTPForbidden
+    # Viewer user
+    elif int(request.user["role_id"]) == 3 and request.method != 'GET':
         supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
+    # Data Viewer user
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':
             supported_endpoints = ['/fledge/asset', '/fledge/ping', '/fledge/statistics',

@@ -492,39 +492,42 @@ class TestStatistics:
         assert 400 == resp.status
         assert msg == resp.reason
 
-    async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=readings'):
-        output = {'rates': {'readings': {'1': 120.52585669781932, '5': 120.52585669781932}}}
-        p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'},
-              'return': ['schedule_interval']}
-        p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
-                                               {"operation": "count", "column": "value"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
-                        "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
-        p3 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
-                                               {"operation": "count", "column": "value"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
-                        "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
+    async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=READINGS'):
+        output = {'rates': {'READINGS': {'1': 45.0, '5': 9.0}}}
+        p1 = ({"where": {"value": "stats collector", "condition": "=", "column": "process_name"},
+               "return": ["schedule_interval"]})
+        p2 = {"return": ["value"], "where": {"column": "key", "condition": "=", "value": "READINGS"},
+              "sort": {"column": "history_ts", "direction": "desc"}, "limit": 4}
+        p3 = {"return": ["value"], "where": {"column": "key", "condition": "=", "value": "READINGS"},
+              "sort": {"column": "history_ts", "direction": "desc"}, "limit": 20}
 
-        @asyncio.coroutine
-        def q_result(*args):
-            table = args[0]
-            payload = args[1]
+        async def async_mock(return_value):
+            return return_value
 
-            if table == 'schedules':
-                assert p1 == json.loads(payload)
-                return {"rows": [{"schedule_interval": "00:00:15"}]}
-
-            if table == 'statistics_history':
-                # TODO: datetime patch required which is a bit tricky
-                # assert p2 == json.loads(payload)
-                return {"rows": [{'sum_value': 96722, 'count_value': 3210, "key": "READINGS"}], "count": 1}
+        storage_rows = {"rows": [{"value": 15}, {"value": 10}, {"value": 5}, {"value": 15}], "count": 4}
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock({"rows": [{"schedule_interval": "00:00:15"}]})
+            _rv2 = await async_mock(storage_rows)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock({"rows": [{"schedule_interval": "00:00:15"}]}))
+            _rv2 = asyncio.ensure_future(async_mock(storage_rows))
 
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
-            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', side_effect=q_result) as query_patch:
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload',
+                              side_effect=[_rv1, _rv2, _rv2]) as query_patch:
                 resp = await client.get("/fledge/statistics/rate{}".format(params))
                 assert 200 == resp.status
                 r = await resp.text()
                 assert output == json.loads(r)
             assert query_patch.called
             assert 3 == query_patch.call_count
+            args, _ = query_patch.call_args_list[0]
+            assert 'schedules' == args[0]
+            assert p1 == json.loads(args[1])
+            args, _ = query_patch.call_args_list[1]
+            assert 'statistics_history' == args[0]
+            assert p2 == json.loads(args[1])
+            args, _ = query_patch.call_args_list[2]
+            assert 'statistics_history' == args[0]
+            assert p3 == json.loads(args[1])

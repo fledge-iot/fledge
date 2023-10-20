@@ -127,6 +127,15 @@ class PayloadBuilder(object):
                     with_clause = OrderedDict()
                     with_clause['column'] = item
                     with_clause[clause] = clause_value
+                    """
+                    NOTE: 
+                        For Sqlite based engines, Temporarily workaround in payload builder to add "utc" timezone always 
+                        when query with user_ts column and having alias timestamp.
+                        Though for PostgreSQL we already have set a session level time zone to 'UTC' during connection
+                        https://github.com/fledge-iot/fledge/pull/900/files
+                    """
+                    if col == "user_ts" and clause_value == "timestamp":
+                        with_clause["timezone"] = "utc"
                     qp_list[i] = with_clause
             if isinstance(item, dict):
                 if 'json' in qp_list[i] and qp_list[i]['json']['column'] == col:

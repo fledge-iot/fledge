@@ -168,6 +168,35 @@ CREATE SEQUENCE fledge.asset_tracker_id_seq
     MAXVALUE 9223372036854775807
     CACHE 1;
 
+CREATE SEQUENCE fledge.control_source_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+CREATE SEQUENCE fledge.control_destination_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+CREATE SEQUENCE fledge.control_pipelines_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+CREATE SEQUENCE fledge.control_filters_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
+
 ----- TABLES & SEQUENCES
 
 -- Log Codes Table
@@ -837,6 +866,88 @@ CREATE TABLE fledge.acl_usage (
              entity_name     character varying(255)  NOT NULL,  -- associated entity name
              CONSTRAINT      usage_acl_pkey          PRIMARY KEY (name, entity_type, entity_name) );
 
+-- Create control_source table
+CREATE TABLE fledge.control_source (
+             cpsid            integer                     NOT NULL DEFAULT nextval('fledge.control_source_id_seq'::regclass),     -- auto source id
+             name             character  varying(40)      NOT NULL                                                          ,     -- source name
+             description      character  varying(120)     NOT NULL                                                          ,     -- source description
+             CONSTRAINT       control_source_pkey         PRIMARY KEY (cpsid)
+            );
+
+-- Create control_destination table
+CREATE TABLE fledge.control_destination (
+             cpdid            integer                     NOT NULL DEFAULT nextval('fledge.control_destination_id_seq'::regclass),  -- auto destination id
+             name             character  varying(40)      NOT NULL                                                               ,  -- destination name
+             description      character  varying(120)     NOT NULL                                                               ,  -- destination description
+             CONSTRAINT       control_destination_pkey    PRIMARY KEY (cpdid)
+            );
+
+-- Create control_pipelines table
+CREATE TABLE fledge.control_pipelines (
+             cpid             integer                     NOT NULL DEFAULT nextval('fledge.control_pipelines_id_seq'::regclass),  -- control pipeline id
+             name             character  varying(255)     NOT NULL                                                             ,  -- control pipeline name
+             stype            integer                                                                                          ,  -- source type id from control_source table
+             sname            character  varying(80)                                                                           ,  -- source name from control_source table
+             dtype            integer                                                                                          ,  -- destination type id from control_destination table
+             dname            character  varying(80)                                                                           ,  -- destination name from control_destination table
+             enabled          boolean                     NOT NULL DEFAULT FALSE                                               ,  -- false = A given pipeline is disabled by default
+             execution        character  varying(20)      NOT NULL DEFAULT  'shared'                                           ,  -- pipeline will be executed as with shared execution model by default
+             CONSTRAINT       control_pipelines_pkey      PRIMARY KEY (cpid)
+             );
+
+-- Create control_filters table
+CREATE TABLE fledge.control_filters (
+             fid              integer                          NOT NULL DEFAULT nextval('fledge.control_filters_id_seq'::regclass),  -- auto filter id
+             cpid             integer                          NOT NULL                                                           ,  -- control pipeline id
+             forder           integer                          NOT NULL                                                           ,  -- filter order
+             fname            character  varying(255)          NOT NULL                                                           ,  -- Name of the filter instance
+             CONSTRAINT       control_filters_pkey             PRIMARY KEY (fid)                                                  ,
+             CONSTRAINT       control_filters_fk1              FOREIGN KEY (cpid) REFERENCES fledge.control_pipelines (cpid)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+             );
+
+-- Create control_api table
+CREATE TABLE fledge.control_api (
+             name             character  varying(255)     NOT NULL                 ,       -- control API name
+             description      character  varying(255)     NOT NULL                 ,       -- description of control API
+             type             integer                     NOT NULL                 ,       -- 0 for write and 1 for operation
+             operation_name   character  varying(255)                              ,       -- name of the operation and only valid if type is operation
+             destination      integer                     NOT NULL                 ,       -- destination of request; 0-broadcast, 1-service, 2-asset, 3-script
+             destination_arg  character  varying(255)                              ,       -- name of the destination and only used if destination is non-zero
+             anonymous        boolean                     NOT NULL DEFAULT  'f'    ,       -- anonymous callers to make request to control API; by default false
+             CONSTRAINT       control_api_pname           PRIMARY KEY (name)
+             );
+
+-- Create control_api_parameters table
+CREATE TABLE fledge.control_api_parameters (
+             name             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.control_api
+             parameter        character  varying(255)     NOT NULL                 ,       -- name of parameter
+             value            character  varying(255)                              ,       -- value of parameter if constant otherwise default
+             constant         boolean                     NOT NULL                 ,       -- parameter is either a constant or variable
+             CONSTRAINT       control_api_parameters_fk1  FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+             );
+
+-- Create control_api_acl table
+CREATE TABLE fledge.control_api_acl (
+             name             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.control_api
+             "user"           character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.users
+             CONSTRAINT       control_api_acl_fk1         FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION,
+             CONSTRAINT       control_api_acl_fk2         FOREIGN KEY ("user") REFERENCES fledge.users (uname)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+             );
+
+CREATE TABLE fledge.monitors (
+             service        character varying(255) NOT NULL,
+             monitor        character varying(80) NOT NULL,
+             minimum        bigint,
+             maximum        bigint,
+             average        bigint,
+             samples        bigint,
+             ts             timestamp(6) with time zone NOT NULL DEFAULT now()
+             );
+
+CREATE INDEX monitors_ix1
+    ON fledge.monitors(service, monitor);
+
+
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
 
@@ -850,7 +961,8 @@ INSERT INTO fledge.roles ( name, description )
      VALUES ('admin', 'All CRUD privileges'),
             ('user', 'All CRUD operations and self profile management'),
             ('view', 'Only to view the configuration'),
-            ('data-view', 'Only read the data in buffer');
+            ('data-view', 'Only read the data in buffer'),
+            ('control', 'Same as editor can do and also have access for control scripts and pipelines');
 
 
 -- Users
@@ -905,7 +1017,16 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'ASTDP', 'Asset deprecated' ),
             ( 'ASTUN', 'Asset un-deprecated' ),
             ( 'PIPIN', 'Pip installation' ),
-            ( 'AUMRK', 'Audit Log Marker' );
+            ( 'AUMRK', 'Audit Log Marker' ),
+            ( 'USRAD', 'User Added' ),
+            ( 'USRDL', 'User Deleted' ),
+            ( 'USRCH', 'User Changed' ),
+            ( 'USRRS', 'User Restored' ),
+            ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
+            ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
+            ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
+            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' )
+            ;
 
 --
 -- Configuration parameters
@@ -973,7 +1094,7 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 'purge',                                -- process_name
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
-                '01:00:00',                             -- schedule_interval (evey hour)
+                '00:10:00',                             -- schedule_interval (evey hour)
                 true,                                   -- exclusive
                 true                                    -- enabled
               );
@@ -1070,3 +1191,22 @@ CREATE TABLE fledge.service_schema (
              service       character varying(255)        NOT NULL,
              version       integer                       NOT NULL,
              definition    JSON);
+
+-- Insert predefined entries for Control Source
+DELETE FROM fledge.control_source;
+INSERT INTO fledge.control_source ( name, description )
+     VALUES ('Any', 'Any source.'),
+            ('Service', 'A named service in source of the control pipeline.'),
+            ('API', 'The control pipeline source is the REST API.'),
+            ('Notification', 'The control pipeline originated from a notification.'),
+            ('Schedule', 'The control request was triggered by a schedule.'),
+            ('Script', 'The control request has come from the named script.');
+
+-- Insert predefined entries for Control Destination
+DELETE FROM fledge.control_destination;
+INSERT INTO fledge.control_destination ( name, description )
+     VALUES ('Any', 'Any destination.'),
+            ('Service', 'A name of service that is being controlled.'),
+            ('Asset', 'A name of asset that is being controlled.'),
+            ('Script', 'A name of script that will be executed.'),
+            ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');

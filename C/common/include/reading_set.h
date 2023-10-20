@@ -28,9 +28,9 @@ class ReadingSet {
 		ReadingSet();
 		ReadingSet(const std::string& json);
 		ReadingSet(const std::vector<Reading *>* readings);
-		~ReadingSet();
+		virtual ~ReadingSet();
 
-		unsigned long			getCount() const { return m_count; };
+		unsigned long			getCount() const { return m_readings.size(); };
 		const Reading			*operator[] (const unsigned int idx) {
 							return m_readings[idx];
 						};
@@ -40,14 +40,20 @@ class ReadingSet {
 		// Return the reference of readings
 		std::vector<Reading *>*		getAllReadingsPtr() { return &m_readings; };
 
+		// Remove readings from reading set and return reference to readings
+		std::vector<Reading *>* moveAllReadings();
+		// Delete a reading from reading set and return pointer of deleted reading
+		Reading* removeReading(unsigned long id);
+		
 		// Return the reading id of the last  data element
 		unsigned long			getLastId() const { return m_last_id; };
 		unsigned long			getReadingId(uint32_t pos);
 		void				append(ReadingSet *);
 		void				append(ReadingSet&);
-		void				append(const std::vector<Reading *> &);
+		void				append(std::vector<Reading *> &);
 		void				removeAll();
 		void				clear();
+		bool				copy(const ReadingSet& src);
 
 	protected:
 		unsigned long			m_count;
@@ -66,6 +72,7 @@ class ReadingSet {
 class JSONReading : public Reading {
 	public:
 		JSONReading(const rapidjson::Value& json);
+		~JSONReading() {};
 
 		// Return the reading id
 		unsigned long	getId() const { return m_id; };

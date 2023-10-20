@@ -14,12 +14,15 @@
 class PythonRuntime {
 	public:
 		static PythonRuntime	*getPythonRuntime();
+		static bool		initialised() { return m_instance != NULL; };
+		static void		shutdown();
 		void 	execute(const std::string& python);
 		PyObject	*call(const std::string& name, const std::string& fmt, ...);
 		PyObject	*call(PyObject *module, const std::string& name, const std::string& fmt, ...);
 		PyObject	*importModule(const std::string& name);
 	private:
 		PythonRuntime();
+		~PythonRuntime();
 		PythonRuntime(const PythonRuntime& rhs);
 		PythonRuntime& operator=(const PythonRuntime& rhs);
 		void		logException(const std::string& name);

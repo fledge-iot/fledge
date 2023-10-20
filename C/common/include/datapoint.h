@@ -17,6 +17,7 @@
 #include <logger.h>
 #include <dpimage.h>
 #include <databuffer.h>
+#include <rapidjson/document.h>
 
 class Datapoint;
 /**
@@ -139,7 +140,21 @@ class DatapointValue {
 		 */
 		~DatapointValue();
 
-		
+		/**
+                 * Set the value of a datapoint, this may
+                 * also cause the type to be changed.
+                 * @param value An string value to set
+                 */
+                void setValue(std::string value)
+                {
+                        if(m_value.str)
+                        {
+                                delete m_value.str;
+                        }
+                        m_value.str = new std::string(value);
+                        m_type = T_STRING;
+                }
+	
 		/**
 		 * Set the value of a datapoint, this may
 		 * also cause the type to be changed.
@@ -347,6 +362,14 @@ class Datapoint {
 		{
 			return m_value;
 		}
+
+		/**
+		 * Parse a json string and generates 
+		 * a corresponding datapoint vector  
+		 */
+		std::vector<Datapoint*>* parseJson(const std::string& json);
+		std::vector<Datapoint*>* recursiveJson(const rapidjson::Value& document);
+
 	private:
 		std::string		m_name;
 		DatapointValue		m_value;

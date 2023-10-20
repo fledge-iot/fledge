@@ -24,14 +24,26 @@ class BinaryPluginHandle : public PluginHandle
 	public:
 		// for the Storage plugin
 		BinaryPluginHandle(const char *name, const char *path, tPluginType type) {
+			dlerror();	// Clear the existing error
 			handle = dlopen(path, RTLD_LAZY);
+			if (!handle)
+			{
+				Logger::getLogger()->error("Unable to load storage plugin %s, %s",
+						name, dlerror());
+			}
 
 			Logger::getLogger()->debug("%s - storage plugin / RTLD_LAZY - name :%s: path :%s:", __FUNCTION__, name, path);
 		}
 
 		// for all the others plugins
 		BinaryPluginHandle(const char *name, const char *path)                   {
+			dlerror();	// Clear the existing error
 			handle = dlopen(path, RTLD_LAZY|RTLD_GLOBAL);
+			if (!handle)
+			{
+				Logger::getLogger()->error("Unable to load plugin %s, %s",
+						name, dlerror());
+			}
 
 			Logger::getLogger()->debug("%s - other plugin / RTLD_LAZY|RTLD_GLOBAL - name :%s: path :%s:", __FUNCTION__, name, path);
 		}

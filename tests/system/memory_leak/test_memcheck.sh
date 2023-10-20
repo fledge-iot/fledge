@@ -7,18 +7,25 @@ source config.sh
 
 export FLEDGE_ROOT=$(pwd)/fledge
 
-FLEDGE_TEST_BRANCH=$1     #here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is devops
+FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
+
+COLLECT_FILES="${2:-LOGS}"
+
+if [[  ${COLLECT_FILES} != @(LOGS|XML|) ]]
+then
+   echo "Invalid argument ${COLLECT_FILES}. Please provide valid arguments: XML or LOGS."
+   exit 1
+fi
 
 cleanup(){
   # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 
-  echo "Removing Cloned repository and tmp files"
-  rm -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml
+  echo "Removing Cloned repository and log files"
   rm -rf fledge* reports && echo 'Done.'
 }
 
 # Setting up Fledge and installing its plugin
 setup(){
-   ./scripts/setup fledge-south-sinusoid  ${FLEDGE_TEST_BRANCH} 
+   ./scripts/setup "fledge-south-sinusoid fledge-south-random"  "${FLEDGE_TEST_BRANCH}" "${COLLECT_FILES}"
 }
 
 reset_fledge(){
@@ -26,7 +33,7 @@ reset_fledge(){
 }
 
 add_sinusoid(){ 
-  echo -e INFO: "Add South"
+  echo -e INFO: "Add South Sinusoid"
   curl -sX POST "$FLEDGE_URL/service" -d \
   '{
      "name": "Sine",
@@ -44,6 +51,25 @@ add_sinusoid(){
   echo
 }
 
+add_random(){
+  echo -e INFO: "Add South Random"
+  curl -sX POST "$FLEDGE_URL/service" -d \
+  '{
+     "name": "Random",
+     "type": "south",
+     "plugin": "Random",
+     "enabled": true,
+     "config": {}
+  }'
+  echo
+  echo 'Updating Readings per second'
+
+  sleep 60
+
+  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "100"}'
+  echo
+
+}
 setup_north_pi_egress () {
   # Add PI North as service
   echo 'Setting up North'
@@ -58,16 +84,16 @@ setup_north_pi_egress () {
            "value": "PI Web API"
         },
         "ServerHostname": {
-           "value": "'$2'"
+           "value": "'${PI_IP}'"
         },
         "ServerPort": {
            "value": "443"
         },
         "PIWebAPIUserId": {
-           "value": "'$3'"
+           "value": "'${PI_USER}'"
         },
         "PIWebAPIPassword": {
-           "value": "'$4'"
+           "value": "'${PI_PASSWORD}'"
         },
         "NamingScheme": {
            "value": "Backward compatibility"
@@ -96,16 +122,18 @@ collect_data(){
 
 generate_valgrind_logs(){
   echo 'Creating reports directory';
-  mkdir -p reports/test1 ; ls -lrth
+  mkdir -p reports/ ; ls -lrth
   echo 'copying reports '
-  cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/test1/.  && echo 'copied'
-  rm -rf fledge*
+  extension="xml"
+  if [[ "${COLLECT_FILES}" == "LOGS" ]]; then extension="log"; fi
+  cp -rf /tmp/*valgrind*.${extension} reports/. && echo 'copied'
 }
 
 cleanup
 setup
 reset_fledge
 add_sinusoid
+add_random
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

@@ -37,6 +37,19 @@ SQLBuffer::~SQLBuffer()
 }
 
 /**
+ * Clear all the buffers from the SQLBuffer and allow it to be reused
+ */
+void SQLBuffer::clear()
+{
+	for (list<SQLBuffer::Buffer *>::iterator it = buffers.begin(); it != buffers.end(); ++it)
+	{
+		delete *it;
+	}
+	buffers.clear();
+        buffers.push_front(new SQLBuffer::Buffer());
+}
+
+/**
  * Append a character to a buffer
  *
  * @param data	The character to append to the buffer

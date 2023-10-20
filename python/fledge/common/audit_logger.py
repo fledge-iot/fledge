@@ -4,19 +4,17 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
-
-from fledge.common import logger
 
 __author__ = "Mark Riddoch"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class AuditLoggerSingleton(object):
@@ -62,7 +60,7 @@ class AuditLogger(AuditLoggerSingleton):
             await self._storage.insert_into_tbl("log", payload)
 
         except (StorageServerError, Exception) as ex:
-            _logger.exception("Failed to log audit trail entry '%s': %s", code, str(ex))
+            _logger.error(ex, "Failed to log audit trail entry '{}'.".format(code))
             raise ex
 
     async def success(self, code, log):

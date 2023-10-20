@@ -10,14 +10,14 @@ import aiohttp
 from aiohttp import web
 
 from fledge.common import utils
-from fledge.common import logger
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core import connect
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
-from fledge.common.audit_logger import AuditLogger
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 Dianomic Systems"
@@ -32,8 +32,8 @@ _help = """
     | GET DELETE                     | /fledge/notification/{notification_name}/delivery/{channel_name} |
     -----------------------------------------------------------------------------------------------------
 """
+_logger = FLCoreLogger().get_logger(__name__)
 
-_logger = logger.setup()
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
 
@@ -56,7 +56,9 @@ async def get_plugin(request):
         url = 'http://{}:{}/notification/delivery'.format(_address, _port)
         delivery_plugins = json.loads(await _hit_get_url(url))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error(ex, "Failed to get notification plugin list.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
 
@@ -111,7 +113,9 @@ async def get_notification(request):
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error(ex, "Failed to get {} notification instance.".format(notif))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'notification': notification})
 
@@ -147,7 +151,9 @@ async def get_notifications(request):
 
             notifications.append(notification)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error(ex, "Failed to get notification instances.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'notifications': notifications})
 
@@ -281,8 +287,10 @@ async def post_notification(request):
         await audit.information('NTFAD', {"name": name})
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to create notification instance.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "Notification {} created successfully".format(name)})
 
@@ -436,7 +444,9 @@ async def put_notification(request):
     except NotFoundError as e:
         raise web.HTTPNotFound(reason=str(e))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error(ex, "Failed to update {} notification instance.".format(notif))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # TODO: Start notification after update
         return web.json_response({'result': "Notification {} updated successfully".format(notif)})
@@ -475,7 +485,9 @@ async def delete_notification(request):
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error(ex, "Failed to delete {} notification instance.".format(notif))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'Notification {} deleted successfully.'.format(notif)})
 
@@ -488,8 +500,8 @@ async def _hit_get_url(get_url, token=None):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
-                                  get_url)
+                    _logger.error("Error code: {}, reason: {}, details: {}, url: {}".format(
+                        resp.status, resp.reason, jdoc, get_url))
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -504,8 +516,8 @@ async def _hit_post_url(post_url, data=None):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
-                                  post_url)
+                    _logger.error("Error code: {}, reason: {}, details: {}, url: {}".format(
+                        resp.status, resp.reason, jdoc, post_url))
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise
@@ -527,8 +539,9 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
             category_name = "delivery{}".format(name)
             await config_mgr.update_configuration_item_bulk(category_name, delivery_config)
     except Exception as ex:
-        _logger.exception("Failed to update notification configuration. %s", str(ex))
-        raise web.HTTPInternalServerError(reason='Failed to update notification configuration. {}'.format(ex))
+        msg = "Failed to update {} notification configuration.".format(name)
+        _logger.error(ex, msg)
+        return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def _hit_delete_url(delete_url, data=None):
@@ -538,11 +551,8 @@ async def _hit_delete_url(delete_url, data=None):
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _logger.error("Error code: %d, reason: %s, details: %s, url: %s",
-                                  resp.status,
-                                  resp.reason,
-                                  jdoc,
-                                  delete_url)
+                    _logger.error("Error code: {}, reason: {}, details: {}, url: {}".format(
+                        resp.status, resp.reason, jdoc, delete_url))
                     raise StorageServerError(code=resp.status,
                                              reason=resp.reason,
                                              error=jdoc)
@@ -629,6 +639,7 @@ async def get_delivery_channels(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get delivery channels of {} notification.".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"channels": channels})
@@ -689,6 +700,7 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to create delivery channel of {} notification".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"category": channel_name, "description": channel_description,
@@ -721,6 +733,8 @@ async def get_delivery_channel_configuration(request: web.Request) -> web.Respon
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get delivery channel configuration of {} notification.".format(
+            notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"config": channel_config})
@@ -775,9 +789,11 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to delete delivery channel of {} notification.".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"channels": channels})
+
 
 async def _get_all_delivery_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> dict:
     """ Remove all delivery channels

@@ -14,6 +14,7 @@
 #include <ctime>
 #include <vector>
 #include <sys/time.h>
+#include <rapidjson/document.h>
 
 #define DEFAULT_DATE_TIME_FORMAT      "%Y-%m-%d %H:%M:%S"
 #define COMBINED_DATE_STANDARD_FORMAT "%Y-%m-%dT%H:%M:%S"
@@ -34,9 +35,10 @@ class Reading {
 		Reading(const std::string& asset, Datapoint *value);
 		Reading(const std::string& asset, std::vector<Datapoint *> values);
 		Reading(const std::string& asset, std::vector<Datapoint *> values, const std::string& ts);
+		Reading(const std::string& asset, const std::string& datapoints);
 		Reading(const Reading& orig);
 
-		~Reading();
+		~Reading();	// This should bbe virtual
 		void				addDatapoint(Datapoint *value);
 		Datapoint			*removeDatapoint(const std::string& name);
 		Datapoint			*getDatapoint(const std::string& name) const;
@@ -52,6 +54,7 @@ class Reading {
 		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
+		bool				hasId() const { return m_has_id; };
 		unsigned long			getId() const { return m_id; };
 		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
 		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
@@ -67,6 +70,7 @@ class Reading {
 
 		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601, FMT_ISO8601MS } readingTimeFormat;
 
+		void	getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, readingTimeFormat dateFormat) const;
 		// Return Reading asset time - ts time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 		// Return Reading asset time - user_ts time
@@ -77,6 +81,7 @@ class Reading {
 		Reading&			operator=(Reading const&);
 		void				stringToTimestamp(const std::string& timestamp, struct timeval *ts);
 		const std::string		escape(const std::string& str) const;
+		std::vector<Datapoint *>	*JSONtoDatapoints(const rapidjson::Value& json);
 		unsigned long			m_id;
 		bool				m_has_id;
 		std::string			m_asset;

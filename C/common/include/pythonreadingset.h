@@ -20,6 +20,7 @@
 class PythonReadingSet : public ReadingSet {
 	public:
 		PythonReadingSet(PyObject *pySet);
+		~PythonReadingSet() {};
 		PyObject	*toPython(bool changeKeys = false);
 	private:
 		void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissing);

@@ -31,6 +31,8 @@ std::mutex mtx2;
  */
 SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) : Plugin(handle)
 {
+	m_started = false; // Set started indicator, overrided by async plugins only
+
 	// Call the init method of the plugin
 	PLUGIN_HANDLE (*pluginInit)(const void *) = (PLUGIN_HANDLE (*)(const void *))
 					manager->resolveSymbol(handle, "plugin_init");
@@ -111,13 +113,22 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 }
 
 /**
+ * South plugin destructor
+ */
+SouthPlugin::~SouthPlugin()
+{
+}
+
+/**
  * Call the start method in the plugin
  */
 void SouthPlugin::start()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginStartPtr(instance);
+		this->pluginStartPtr(instance);
+		m_started = true; // Set start indicator
+		return;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
 			e.what());
@@ -137,7 +148,9 @@ void SouthPlugin::startData(const string& data)
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginStartDataPtr(instance, data);
+		this->pluginStartDataPtr(instance, data);
+		m_started = true; // Set start indicator
+		return;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
 			e.what());
@@ -177,15 +190,16 @@ ReadingSet* SouthPlugin::pollV2()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-        std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
-        if(vec)
-        {
-            ReadingSet *set = new ReadingSet(vec);
-            delete vec;
-    		return set;  // this->pluginPollPtrV2(instance);
-        }
-        else
-            return NULL;
+		std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
+		if(vec)
+		{
+			ReadingSet *set = new ReadingSet(vec);
+			vec->clear();
+			delete vec;
+			return set;  // this->pluginPollPtrV2(instance);
+        	}
+		else
+			return NULL;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
 			e.what());
@@ -309,7 +323,29 @@ bool SouthPlugin::write(const string& name, const string& value)
 	try {
 		if (pluginWritePtr)
 		{
-			return this->pluginWritePtr(instance, name, value);
+			bool run = true;
+			// Check plugin_start is done for async plugin before calling pluginWritePtr
+			if (isAsync()) {
+				int tries = 0;
+				while (!m_started) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					Logger::getLogger()->debug("South plugin write call is on hold, try %d", tries);
+					if (tries > 20) {
+						break;
+					}
+					tries++;
+				}
+				run = m_started;
+			}
+
+			if (run) {
+				return this->pluginWritePtr(instance, name, value);
+			}
+                        else
+			{
+				Logger::getLogger()->error("South plugin write canceled after waiting for 2 seconds");
+				return false;
+			}
 		}
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception in plugin write operation: %s", e.what());
@@ -349,7 +385,29 @@ bool SouthPlugin::operation(const string& name, vector<PLUGIN_PARAMETER *>& para
 	}
 	params[count] = NULL;
 	try {
-		status = this->pluginOperationPtr(instance, name, (int)count, params);
+		bool run = true;
+		// Check plugin_start is done for async plugin before calling pluginOperationPtr
+		if (isAsync()) {
+			int tries = 0;
+			while (!m_started) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				Logger::getLogger()->debug("South plugin operation is on hold, try %d", tries);
+				if (tries > 20) {
+					break;
+				}
+				tries++;
+			}
+			run = m_started;
+		}
+
+		if (run) {
+			status = this->pluginOperationPtr(instance, name, (int)count, params);
+		}
+		else
+		{
+			Logger::getLogger()->error("South plugin operation canceled after waiting for 2 seconds");
+			return false;
+		}
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception in plugin operation: %s", e.what());
 	}

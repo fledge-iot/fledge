@@ -18,6 +18,8 @@
 #include <filter_plugin.h>
 #include <mutex>
 #include <condition_variable>
+#include <audit_logger.h>
+#include <perfmonitors.h>
 
 #define SERVICE_NAME  "Fledge North"
 
@@ -33,7 +35,7 @@ class NorthService : public ServiceAuthHandler {
 	public:
 		NorthService(const std::string& name,
 				const std::string& token = "");
-		~NorthService();
+		virtual ~NorthService();
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();
@@ -58,6 +60,7 @@ class NorthService : public ServiceAuthHandler {
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 		void				restartPlugin();
 	private:
+		std::string			controlSource();
 		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
 		bool				sendToDispatcher(const std::string& path, const std::string& payload);
 		DataLoad			*m_dataLoad;
@@ -78,5 +81,7 @@ class NorthService : public ServiceAuthHandler {
 		bool				m_allowControl;
 		bool				m_dryRun;
 		bool				m_requestRestart;
+		AuditLogger			*m_auditLogger;
+		PerformanceMonitor		*m_perfMonitor;
 };
 #endif

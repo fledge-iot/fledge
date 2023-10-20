@@ -47,6 +47,8 @@ const char *myCategory_quoted = "{\"description\": {"
 		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
+const char *myCategory_quotedSpecial = R"QQ({"description": { "value": "The \"Fledge\" admini\\strative API", "type": "string", "default": "The \"Fledge\" administra\tive API", "description": "The description of this \"Fledge\" service"}, "name": { "value": "\"Fledge\"", "type": "string", "default": "\"Fledge\"", "description": "The name of this \"Fledge\" service"}, "complex": { "value": { "first" : "Fledge", "second" : "json" }, "type": "json", "default": {"first" : "Fledge", "second" : "json" }, "description": "A JSON configuration parameter"} })QQ";
+
 const char *myCategoryDisplayName = "{\"description\": {"
 		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
@@ -308,6 +310,36 @@ const char* bigCategory =
 			"\"default\": \"readings\", " \
 			"\"description\": \"Defines\"} " \
 		"}";
+
+const char *optionals = 
+	"{\"item1\" : { "\
+			"\"type\": \"integer\", \"displayName\": \"Item1\", " \
+			"\"value\": \"3\", \"default\": \"3\", " \
+			"\"description\": \"First Item\", " \
+			"\"group\" : \"Group1\", " \
+			"\"rule\" : \"1 = 0\", " \
+			"\"deprecated\" : \"false\", " \
+			"\"order\": \"10\"} "
+		"}";
+
+const char *json_quotedSpecial = R"QS({ "key" : "test \"a\"", "description" : "Test \"description\"", "value" : {"description" : { "description" : "The description of this \"Fledge\" service", "type" : "string", "value" : "The \"Fledge\" admini\\strative API", "default" : "The \"Fledge\" administra\tive API" }, "name" : { "description" : "The name of this \"Fledge\" service", "type" : "string", "value" : "\"Fledge\"", "default" : "\"Fledge\"" }, "complex" : { "description" : "A JSON configuration parameter", "type" : "json", "value" : {"first":"Fledge","second":"json"}, "default" : {"first":"Fledge","second":"json"} }} })QS";
+
+const char *json_parse_error = "{\"description\": {"
+		"\"value\": \"The Fledge administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
+	"\"name\": {"
+		"\"value\": \"Fledge\","
+		"\"type\": \"string\","
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
+		"error : here,"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
 
 TEST(CategoriesTest, Count)
 {
@@ -614,4 +646,33 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.isString("plugin"));
         ASSERT_EQ(true, complex.getValue("plugin").compare("OMF") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
+}
+
+
+/**
+ * Test optional attributes
+ */
+TEST(CategoryTest, optionalItems)
+{
+	ConfigCategory category("optional", optionals);
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::GROUP_ATTR).compare("Group1"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::DEPRECATED_ATTR).compare("false"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::RULE_ATTR).compare("1 = 0"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::DISPLAY_NAME_ATTR).compare("Item1"));
+}
+
+/**
+ * Special quotes for \\s and \\t
+ */
+
+TEST(CategoryTestQuoted, toJSONQuotedSpecial)
+{
+	ConfigCategory confCategory("test \"a\"", myCategory_quotedSpecial);
+	confCategory.setDescription("Test \"description\"");
+	ASSERT_EQ(0, confCategory.toJSON().compare(json_quotedSpecial));
+}
+
+TEST(Categorytest, parseError)
+{
+	EXPECT_THROW(ConfigCategory("parseTest", json_parse_error), ConfigMalformed*);
 }

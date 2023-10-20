@@ -145,33 +145,33 @@ GET statistics/rate
 
 **Request Parameters**
 
-  - **statistics** - a comma separated list of statistics values to return
+  - **statistics** - a comma separated list of statistics keys.
 
-  - **periods** - a comma separated list of time periods in minutes. The corresponding rate that will be returned for a given value X is the counts per minute over the previous X minutes.
+  - **periods** - a comma separated list of time periods in minutes.
+
+The corresponding rate that will be returned for a given value X is the counts per minute over the previous X minutes.
 
 **Example**
 
 .. code-block:: console
 
    $ curl -sX GET http://localhost:8081/fledge/statistics/rate?statistics=READINGS,Readings%20Sent\&periods=1,5,15,30,60
-   {
+
+    {
       "rates": {
         "READINGS": {
-          "1": 12.938816958618938,
-          "5": 12.938816958618938,
-          "15": 12.938816958618938,
-          "30": 12.938816958618938,
-          "60": 12.938816958618938
+          "1": 2561.0,
+          "5": 512.2,
+          "15": 170.73333333333332,
+          "30": 85.36666666666666,
+          "60": 42.68333333333333
         },
         "Readings Sent": {
-          "1": 0,
-          "5": 0,
-          "15": 0,
-          "30": 0,
-          "60": 0
+          "1": 2225.0,
+          "5": 445.0,
+          "15": 148.33333333333334,
+          "30": 74.16666666666667,
+          "60": 37.083333333333336
         }
       }
     }
-    $
-
-

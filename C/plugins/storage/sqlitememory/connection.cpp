@@ -10,7 +10,9 @@
 
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
+#include <sqlite_common.h>
+#include <utils.h>
+#include <unistd.h>
 
 /**
  * SQLite3 storage plugin for Fledge
@@ -50,6 +52,8 @@ Connection::Connection()
 					");";
 
 	const char * createReadingsFk = "CREATE INDEX fki_" READINGS_TABLE_MEM "_fk1 ON " READINGS_TABLE_MEM " (asset_code);";
+	const char * createReadingsIdx1 = "CREATE INDEX ix1_" READINGS_TABLE_MEM " ON " READINGS_TABLE_MEM " (asset_code, user_ts desc);";
+	const char * createReadingsIdx2 = "CREATE INDEX ix2_" READINGS_TABLE_MEM " ON " READINGS_TABLE_MEM " (user_ts);";
 
 	// Allow usage of URI for filename
         sqlite3_config(SQLITE_CONFIG_URI, 1);
@@ -99,6 +103,18 @@ Connection::Connection()
 				  NULL,
 				  NULL);
 
+                // Idx1
+		rc = sqlite3_exec(dbHandle,
+				  createReadingsIdx1,
+				  NULL,
+				  NULL,
+				  NULL);
+                // Idx2
+		rc = sqlite3_exec(dbHandle,
+				  createReadingsIdx2,
+				  NULL,
+				  NULL,
+				  NULL);
 	}
 
 }
@@ -110,4 +126,79 @@ Connection::Connection()
 bool Connection::vacuum()
 {
 	return true;
+}
+
+/**
+ * Load the in memory database from a file backup
+ *
+ * @param filename	The name of the file to restore from
+ * @return bool		Success or failure of the backup
+ */
+bool Connection::loadDatabase(const string& filename)
+{
+int rc;
+sqlite3 *file;
+sqlite3_backup *backup;
+
+	string pathname = getDataDir() + "/";
+	pathname.append(filename);
+	pathname.append(".db");
+	if (access(pathname.c_str(), R_OK) != 0)
+	{
+		Logger::getLogger()->warn("Persisted database %s does not exist",
+				pathname.c_str());
+		return false;
+	}
+	if ((rc = sqlite3_open(pathname.c_str(), &file)) == SQLITE_OK)
+	{
+		if (backup = sqlite3_backup_init(dbHandle, READINGS_TABLE_MEM, file, "main"))
+		{
+			(void)sqlite3_backup_step(backup, -1);
+			(void)sqlite3_backup_finish(backup);
+			Logger::getLogger()->info("Reloaded persisted data to in-memory database");
+		}
+		rc = sqlite3_errcode(dbHandle);
+
+		(void)sqlite3_close(file);
+	}
+	return rc == SQLITE_OK;
+}
+
+/**
+ * Backup the in memory database to a file
+ *
+ * @param filename	The name of the file to backup to
+ * @return bool		Success or failure of the backup
+ */
+bool Connection::saveDatabase(const string& filename)
+{
+int rc;
+sqlite3 *file;
+sqlite3_backup *backup;
+
+	string pathname = getDataDir() + "/";
+	pathname.append(filename);
+	pathname.append(".db");
+	unlink(pathname.c_str());
+	if ((rc = sqlite3_open(pathname.c_str(), &file)) == SQLITE_OK)
+	{
+		if (backup = sqlite3_backup_init(file, "main", dbHandle, READINGS_TABLE_MEM))
+		{
+			rc = sqlite3_backup_step(backup, -1);
+			(void)sqlite3_backup_finish(backup);
+			Logger::getLogger()->info("Persisted data from in-memory database to %s", pathname.c_str());
+		}
+		rc = sqlite3_errcode(file);
+		if (rc != SQLITE_OK)
+		{
+			Logger::getLogger()->warn("Persisting in-memory database failed: %s", sqlite3_errmsg(file));
+		}
+
+		(void)sqlite3_close(file);
+	}
+	else
+	{
+		Logger::getLogger()->warn("Failed to open database %s to persist in-memory data", pathname.c_str());
+	}
+	return rc == SQLITE_OK;
 }

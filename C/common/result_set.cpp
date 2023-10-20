@@ -30,7 +30,7 @@ ResultSet::ResultSet(const std::string& json)
 	{
 		throw new ResultException("Unable to parse results json document");
 	}
-	if (doc.HasMember("count"))
+	if (doc.HasMember("count") && doc["count"].IsUint())
 	{
 		m_rowCount = doc["count"].GetUint();
 		if (m_rowCount)
@@ -95,7 +95,7 @@ ResultSet::ResultSet(const std::string& json)
 							rowValue->append(new ColumnValue(string(item->value.GetString())));
 							break;
 						case INT_COLUMN:
-							rowValue->append(new ColumnValue(item->value.GetInt()));
+							rowValue->append(new ColumnValue((long)(item->value.GetInt64())));
 							break;
 						case NUMBER_COLUMN:
 							rowValue->append(new ColumnValue(item->value.GetDouble()));

@@ -17,7 +17,8 @@
 #include <ingest.h>
 #include <filter_plugin.h>
 #include <plugin_data.h>
-#include <storage_asset_tracking.h>
+#include <audit_logger.h>
+#include <perfmonitors.h>
 
 #define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
 
@@ -46,12 +47,14 @@ class SouthService : public ServiceAuthHandler {
 	public:
 		SouthService(const std::string& name,
 			const std::string& token = "");
+		virtual				~SouthService();
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
 		void				restart();
 		void				configChange(const std::string&, const std::string&);
+		void				processConfigChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string&,
 								const std::string&,
 								const std::string&){};
@@ -61,6 +64,8 @@ class SouthService : public ServiceAuthHandler {
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 		void				setDryRun() { m_dryRun = true; };
+		void				handlePendingReconf();
+		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -69,7 +74,17 @@ class SouthService : public ServiceAuthHandler {
 									std::string parent_name,
 									std::string current_name);
 		void				throttlePoll();
+		void				processNumberList(const ConfigCategory& cateogry, const std::string& item, std::vector<unsigned long>& list);
+		void				calculateTimerRate();
+		bool				syncToNextPoll();
+		bool				onDemandPoll();
+		void				checkPendingReconfigure();
 	private:
+		std::thread			*m_reconfThread;
+		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
+		std::mutex			m_pendingNewConfigMutex;
+		std::condition_variable		m_cvNewReconf;
+	
 		SouthPlugin			*southPlugin;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;
@@ -95,7 +110,18 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_dryRun;
 		bool				m_requestRestart;
 		std::string			m_rateUnits;
-		StorageAssetTracker             *m_storageAssetTracker;
-
+		enum { POLL_INTERVAL, POLL_FIXED, POLL_ON_DEMAND }
+						m_pollType;
+		std::vector<unsigned long>	m_hours;
+		std::vector<unsigned long>	m_minutes;
+		std::vector<unsigned long>	m_seconds;
+		std::string			m_hoursStr;
+		std::string			m_minutesStr;
+		std::string			m_secondsStr;
+		std::condition_variable		m_pollCV;
+		std::mutex			m_pollMutex;
+		bool				m_doPoll;
+		AuditLogger			*m_auditLogger;
+		PerformanceMonitor		*m_perfMonitor;
 };
 #endif

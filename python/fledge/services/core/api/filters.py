@@ -10,14 +10,16 @@ import aiohttp
 from aiohttp import web
 from typing import List, Dict, Tuple
 
+from fledge.common import utils
+from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.configuration_manager import ConfigurationManager
-from fledge.services.core import connect
-from fledge.services.core.api import utils as apiutils
-from fledge.common import logger, utils
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.common import _FLEDGE_ROOT
+
+from fledge.services.core import connect
+from fledge.services.core.api import utils as apiutils
 from fledge.services.core.api.plugins import common
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
@@ -32,8 +34,7 @@ _help = """
     | GET DELETE      | /fledge/filter/{filter_name}                         |
     ---------------------------------------------------------------------------
 """
-
-_LOGGER = logger.setup("filter")
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 async def create_filter(request: web.Request) -> web.Response:
@@ -128,22 +129,24 @@ async def create_filter(request: web.Request) -> web.Response:
         # Fetch the new created filter: get category items
         category_info = await cf_mgr.get_category_all_items(category_name=filter_name)
         if category_info is None:
-            raise ValueError("No such '{}' filter found".format(filter_name))
+            raise ValueError("No such '{}' filter found.".format(filter_name))
         else:
             return web.json_response({'filter': filter_name, 'description': filter_desc, 'value': category_info})
-    except ValueError as ex:
-        _LOGGER.exception("Add filter, caught exception: " + str(ex))
-        raise web.HTTPNotFound(reason=str(ex))
-    except TypeError as ex:
-        _LOGGER.exception("Add filter, caught exception: " + str(ex))
-        raise web.HTTPBadRequest(reason=str(ex))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg)
+    except TypeError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg)
     except StorageServerError as ex:
+        msg = ex.error
         await _delete_configuration_category(storage, filter_name)  # Revert configuration entry
-        _LOGGER.exception("Failed to create filter. %s", ex.error)
-        raise web.HTTPInternalServerError(reason='Failed to create filter.')
+        _LOGGER.exception("Failed to create filter with: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        _LOGGER.exception("Add filter, caught exception:  %s", str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error(ex, "Add filter failed.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def add_filters_pipeline(request: web.Request) -> web.Response:
@@ -267,18 +270,20 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             await cf_mgr.create_child_category(user_name, filter_list)
             return web.json_response(
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
-    except ValueError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
-        raise web.HTTPNotFound(reason=str(ex))
-    except TypeError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
-        raise web.HTTPBadRequest(reason=ex)
-    except StorageServerError as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex.error))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg)
+    except TypeError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg)
+    except StorageServerError as e:
+        msg = e.error
+        _LOGGER.exception("Add filters pipeline, caught storage error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        _LOGGER.exception("Add filters pipeline, caught exception: %s", str(ex))
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error(ex, "Add filters pipeline failed.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def get_filter(request: web.Request) -> web.Response:
@@ -315,14 +320,17 @@ async def get_filter(request: web.Request) -> web.Response:
             users.append(row["user"])
         filter_detail.update({"users": users})
     except StorageServerError as ex:
-        _LOGGER.exception("Get filter: %s, caught exception: %s", filter_name, str(ex.error))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except TypeError as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        msg = ex.error
+        _LOGGER.exception("Failed to get filter name: {}. Storage error occurred: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        raise web.HTTPNotFound(reason=str(err))
+    except TypeError as err:
+        raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _LOGGER.error(ex, "Get {} filter failed.".format(filter_name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filter': filter_detail})
 
@@ -338,10 +346,13 @@ async def get_filters(request: web.Request) -> web.Response:
         result = await storage.query_tbl("filters")
         filters = result["rows"]
     except StorageServerError as ex:
-        _LOGGER.exception("Get filters, caught exception: %s", str(ex.error))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+        msg = ex.error
+        _LOGGER.exception("Get all filters, caught storage exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _LOGGER.error(ex, "Get all filters failed.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filters': filters})
 
@@ -364,16 +375,18 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
 
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError:
-        msg = "No filter pipeline exists for {}".format(user_name)
-        _LOGGER.info(msg)
+        msg = "No filter pipeline exists for {}.".format(user_name)
         raise web.HTTPNotFound(reason=msg)
     except StorageServerError as ex:
-        _LOGGER.exception("Get pipeline: %s, caught exception: %s", user_name, str(ex.error))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=ex)
+        msg = ex.error
+        _LOGGER.exception("Failed to delete filter pipeline {}. Storage error occurred: {}".format(user_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        raise web.HTTPNotFound(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _LOGGER.error(ex, "Get filter pipeline failed.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': filter_value_from_storage})
 
@@ -427,16 +440,19 @@ async def delete_filter(request: web.Request) -> web.Response:
                     ['plugin', '=', filter_name]).payload()
                 await storage.update_tbl("asset_tracker", update_payload)
     except StorageServerError as ex:
-        _LOGGER.exception("Delete filter: %s, caught exception: %s", filter_name, str(ex.error))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except TypeError as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        msg = ex.error
+        _LOGGER.exception("Delete {} filter, caught storage exception: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        raise web.HTTPNotFound(reason=str(err))
+    except TypeError as err:
+        raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _LOGGER.error(ex, "Delete {} filter failed.".format(filter_name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({'result': "Filter {} deleted successfully".format(filter_name)})
+        return web.json_response({'result': "Filter {} deleted successfully.".format(filter_name)})
 
 
 async def delete_filter_pipeline(request: web.Request) -> web.Response:
@@ -454,8 +470,8 @@ async def delete_filter_pipeline(request: web.Request) -> web.Response:
                 status_code = resp.status
                 jdoc = await resp.text()
                 if status_code not in range(200, 209):
-                    _LOGGER.error("Error code: %d, reason: %s, details: %s, url: %s", resp.status, resp.reason, jdoc,
-                                  put_url)
+                    _LOGGER.error("Delete {} filter pipeline; Error code: {}, reason: {}, details: {}, url: {}"
+                                  "".format(user_name, resp.status, resp.reason, jdoc, put_url))
                     raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
     except Exception:
         raise

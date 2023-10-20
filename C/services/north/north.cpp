@@ -35,6 +35,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <string_utils.h>
+#include <audit_logger.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -188,6 +189,8 @@ bool		dryRun = false;
 	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
+
+	delete service;
 	return 0;
 }
 
@@ -276,6 +279,9 @@ int	size;
  */
 NorthService::NorthService(const string& myName, const string& token) :
 	m_dataLoad(NULL),
+	m_dataSender(NULL),
+	northPlugin(NULL),
+	m_assetTracker(NULL),
 	m_shutdown(false),
 	m_storage(NULL),
 	m_pluginData(NULL),
@@ -283,7 +289,9 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_token(token),
 	m_allowControl(true),
 	m_dryRun(false),
-	m_requestRestart()
+	m_requestRestart(),
+	m_auditLogger(NULL),
+	m_perfMonitor(NULL)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -295,8 +303,25 @@ NorthService::NorthService(const string& myName, const string& token) :
  */
 NorthService::~NorthService()
 {
+	if (m_perfMonitor)
+		delete m_perfMonitor;
+	if (northPlugin)
+		delete northPlugin;
 	if (m_storage)
 		delete m_storage;
+	if (m_dataLoad)
+		delete m_dataLoad;
+	if (m_dataSender)
+		delete m_dataSender;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_assetTracker)
+		delete m_assetTracker;
+	if (m_auditLogger)
+		delete m_auditLogger;
+	if (m_mgtClient)
+		delete m_mgtClient;
+	delete logger;
 }
 
 /**
@@ -328,11 +353,14 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
+		m_auditLogger = new AuditLogger(m_mgtClient);
+
 		// Create an empty North category if one doesn't exist
 		DefaultConfigCategory northConfig(string("North"), string("{}"));
 		northConfig.setDescription("North");
 		m_mgtClient->addCategory(northConfig, true);
 
+		// Fetch Configuration
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -378,7 +406,18 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_storage->registerManagement(m_mgtClient);
 
-		// Fetch Confguration
+		// Setup the performance monitor
+		m_perfMonitor = new PerformanceMonitor(m_name, m_storage);
+
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
+
 		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
@@ -390,19 +429,23 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Deal with persisted data and start the plugin
-		if (northPlugin->persistData())
+		if (!m_dryRun)
 		{
-			logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
-			m_pluginData = new PluginData(m_storage);
-			string key = m_name + m_pluginName;
-			string storedData = m_pluginData->loadStoredData(key);
-			logger->debug("Starting plugin with storedData: %s", storedData.c_str());
-			northPlugin->startData(storedData);
-		}
-		else
-		{
-			logger->debug("Start %s plugin", m_pluginName.c_str());
-			northPlugin->start();
+			if (northPlugin->persistData())
+			{
+				logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+				m_pluginData = new PluginData(m_storage);
+				string key = m_name + m_pluginName;
+				string storedData = m_pluginData->loadStoredData(key);
+				logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+				northPlugin->startData(storedData);
+				
+			}
+			else
+			{
+				logger->debug("Start %s plugin", m_pluginName.c_str());
+				northPlugin->start();
+			}
 		}
 
 		// Create default security category
@@ -416,6 +459,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 		logger->debug("Create threads for stream %d", streamId);
 		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
+		m_dataLoad->setPerfMonitor(m_perfMonitor);
 		if (m_config.itemExists("source"))
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
@@ -432,6 +476,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
+		m_dataSender->setPerfMonitor(m_perfMonitor);
 
 		if (!m_dryRun)
 		{
@@ -458,13 +503,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		m_dataSender = NULL;
 		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		m_dataLoad = NULL;
 		logger->debug("North service shutting down plugin");
 
 
 		// Shutdown the north plugin
-		if (northPlugin)
+		if (northPlugin && !m_dryRun)
 		{
 			if (m_pluginData)
 			{
@@ -643,7 +690,7 @@ bool NorthService::loadPlugin()
 
 			return true;
 		}
-	} catch (exception e) {
+	} catch (exception &e) {
 		logger->fatal("Failed to load north plugin: %s\n", e.what());
 	}
 	return false;
@@ -754,6 +801,14 @@ void NorthService::configChange(const string& categoryName, const string& catego
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
 	}
 
 	// Update the  Security category
@@ -796,6 +851,7 @@ void NorthService::restartPlugin()
 	}
 
 	delete northPlugin;
+	northPlugin = NULL;
 	loadPlugin();
 	// Deal with persisted data and start the plugin
 	if (northPlugin->persistData())
@@ -856,6 +912,9 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(DEFAULT_BLOCK_SIZE),
 		std::to_string(DEFAULT_BLOCK_SIZE));
 	defaultConfig.setItemDisplayName("blockSize", "Data block size");
+	defaultConfig.addItem("perfmon", "Track and store performance counters",
+			"boolean", "false", "false");
+	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
 }
 
 /**
@@ -875,7 +934,8 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += "\"write\" : { \"";
+	payload += controlSource();
+	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
 	string escaped = value;
@@ -920,10 +980,12 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 			payload += "broadcast\"";
 			break;
 	}
+	payload += ", ";
+	payload += controlSource();
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	string escaped = name;
+	string escaped = value;
 	StringEscapeQuotes(escaped);
 	payload += escaped;
 	payload += "\" } }";
@@ -951,7 +1013,8 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += "\"operation\" : { \"";
+	payload += controlSource();
+	payload += ", \"operation\" : { \"";
 	payload += name;
 	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
@@ -1009,6 +1072,8 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 			payload += "broadcast\"";
 			break;
 	}
+	payload += ", ";
+	payload += controlSource();
 	payload += ", \"operation\" : { \"";
 	payload += name;
 	payload += "\" : { ";
@@ -1087,6 +1152,7 @@ bool NorthService::sendToService(const string& southService, const string& name,
  */
 bool NorthService::sendToDispatcher(const string& path, const string& payload)
 {
+	Logger::getLogger()->debug("Dispatch %s with %s", path.c_str(), payload.c_str());
 	// Send the control message to the south service
 	try {
 		ServiceRecord service("dispatcher");
@@ -1133,4 +1199,19 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 		return false;
 	}
 
+}
+
+/**
+ * Return the control source for control operations. This is used
+ * for pipeline matching.
+ *
+ * @return string	The control source
+ */
+string NorthService::controlSource()
+{
+	string source = "\"source\" : \"service\", \"source_name\" : \"";
+	source += m_name;
+	source += "\"";
+
+	return source;
 }

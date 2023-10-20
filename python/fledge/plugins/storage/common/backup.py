@@ -211,7 +211,7 @@ class Backup(object):
         try:
             await server.Server.scheduler.queue_task(uuid.UUID(Backup._SCHEDULE_BACKUP_ON_DEMAND))
             _message = self._MESSAGES_LIST["i000003"]
-            Backup._logger.info("{0}".format(_message))
+            Backup._logger.debug("{0}".format(_message))
             status = "running"
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000004"].format(_ex)

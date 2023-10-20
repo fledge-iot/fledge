@@ -5,35 +5,29 @@
 # FLEDGE_END
 
 import os
-import platform
 import subprocess
 import json
-import logging
 import datetime
 
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core.support import SupportBuilder
 
-from fledge.common.common import _FLEDGE_ROOT
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
-_SYSLOG_FILE = '/var/log/syslog'
-if any(x in platform.platform() for x in ['centos', 'redhat']):
-    _SYSLOG_FILE = '/var/log/messages'
-
+_SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
-
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
@@ -115,7 +109,9 @@ async def create_support_bundle(request):
     try:
         bundle_name = await SupportBuilder(support_dir).build()
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
+        msg = 'Failed to create support bundle.'
+        _logger.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"bundle created": bundle_name})
 
@@ -134,9 +130,11 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&offset=5&source=storage"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&keyword=Storage%20error"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=5"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50&keyword=fledge.services"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>&limit=10&offset=50"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
     """
@@ -185,7 +183,10 @@ async def get_syslog_entries(request):
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
                 levels = "(ERROR|FATAL)"
-
+        # keyword
+        keyword = ''
+        if 'keyword' in request.query and request.query['keyword'] != '':
+            keyword = request.query['keyword']
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[
@@ -200,11 +201,14 @@ async def get_syslog_entries(request):
             response['count'] = total_lines
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         else:
-            scriptPath = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
+            script_path = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
             # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
-            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
-            _logger.debug('********* non_totals=true: new shell command: {}'.format(cmd))
+            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source \'{}\' -level {}'.format(
+                script_path, offset, limit, pattern, _SYSLOG_FILE, source, level)
+            if len(keyword):
+                cmd += ' -keyword \'{}\''.format(keyword)
+            _logger.debug('********* non_totals={}: new shell command: {}'.format(non_totals, cmd))
 
         t1 = datetime.datetime.now()
         rv = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
@@ -217,6 +221,7 @@ async def get_syslog_entries(request):
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except (OSError, Exception) as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get syslog entries.")
         raise web.HTTPInternalServerError(body=json.dumps({"message": msg}), reason=msg)
 
     return web.json_response(response)

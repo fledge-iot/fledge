@@ -7,7 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
-
+#include <sqlite_common.h>
 #include <connection_manager.h>
 #include <connection.h>
 #include <plugin_api.h>
@@ -24,7 +24,7 @@
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
-#include <common.h>
+#include <reading_stream.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -41,6 +41,21 @@ const char *default_config = QUOTE({
 			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
+		},
+		"filename" : {
+			"description" : "The name of the file to which the in-memory database should be persisted",
+			"type" : "string",
+			"default" : "inmemory",
+			"displayName" : "Persist File",
+			"order" : "3",
+			"validity": "persist == \"true\""
+		},
+		"persist" : {
+			"description" : "Enable the persistence of the in-memory database between executions",
+			"type" : "boolean",
+			"default" : "false",
+			"displayName" : "Persist Data",
+			"order" : "2"
 		}
 });
 
@@ -82,6 +97,27 @@ int poolSize = 5;
 		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
 	}
 	manager->growPool(poolSize);
+	if (category->itemExists("persist"))
+	{
+		string p = category->getValue("persist");
+		if (p.compare("true") == 0 && category->itemExists("filename"))
+		{
+			manager->setPersist(true, category->getValue("filename"));
+		}
+		else
+		{
+			manager->setPersist(false);
+		}
+	}
+	else
+	{
+		manager->setPersist(false);
+	}
+	if (manager->persist())
+	{
+		Connection        *connection = manager->allocate();
+		connection->loadDatabase(manager->filename());
+	}
 	return manager;
 }
 /**
@@ -93,6 +129,21 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
 	int result = connection->appendReadings(readings);
+	manager->release(connection);
+	return result;;
+}
+
+/**
+ * Append a stream of readings to the readings buffer
+ */
+int plugin_readingStream(PLUGIN_HANDLE handle, ReadingStream **readings, bool commit)
+{
+	int result = 0;
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	result = connection->readingStream(readings, commit);
+
 	manager->release(connection);
 	return result;;
 }
@@ -174,6 +225,11 @@ bool plugin_shutdown(PLUGIN_HANDLE handle)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
   
+	if (manager->persist())
+	{
+		Connection        *connection = manager->allocate();
+		connection->saveDatabase(manager->filename());
+	}
 	manager->shutdown();
 	return true;
 }

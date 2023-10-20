@@ -32,11 +32,14 @@
 
 #include <basetypes.h>
 #include <omflinkeddata.h>
+#include <audit_logger.h>
+#include <omferror.h>
 
 using namespace std;
 using namespace rapidjson;
 
 static bool isTypeSupported(DatapointValue& dataPoint);
+vector<string> OMF::m_reportedAssets;
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
@@ -223,7 +226,8 @@ const string& OMFData::OMFdataVal() const
 /**
  * OMF constructor
  */
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	HttpSender& sender,
 	 const string& path,
 	 const long id,
 	 const string& token) :
@@ -231,7 +235,10 @@ OMF::OMF(HttpSender& sender,
 	 m_typeId(id),
 	 m_producerToken(token),
 	 m_sender(sender),
-	 m_legacy(false)
+	 m_legacy(false),
+	 m_name(name),
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -243,14 +250,18 @@ OMF::OMF(HttpSender& sender,
  * OMF constructor with per asset data types
  */
 
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	 HttpSender& sender,
 	 const string& path,
 	 map<string, OMFDataTypes>& types,
 	 const string& token) :
 	 m_path(path),
 	 m_OMFDataTypes(&types),
 	 m_producerToken(token),
-	 m_sender(sender)
+	 m_sender(sender),
+	 m_name(name),
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	// Get starting type-id sequence or set the default value
 	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);
@@ -350,6 +361,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	// Build an HTTPS POST with 'resType' headers
 	// and 'typeData' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
+	string assetName = row.getAssetName();
 	try
 	{
 		res = m_sender.sendRequest("POST",
@@ -358,39 +370,55 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type', HTTP code %d - %s %s",
-						   res,
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str());
+			string msg = "An error occurred sending the dataType message for the asset " + assetName;
+			msg.append(". HTTP error code " + to_string(res));
+			reportAsset(assetName, "error", msg);
 			return false;
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data types: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-			string errorMsg = errorMessageHandler(e.what());
+		string errorMsg = errorMessageHandler(e.what());
 
-			Logger::getLogger()->warn("Sending dataType message 'Type', not blocking issue: %s %s - %s %s",
-				(m_changeTypeId ? "Data Type " : "" ),
-				errorMsg.c_str(),
-				m_sender.getHostPort().c_str(),
-				m_path.c_str());
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
+				+ ". " + errorMsg;
+		if (m_changeTypeId)
+		{
+			msg.append(". A data type change will take place to try to resolve this error");
+		}
+		reportAsset(assetName, "error", msg);
 
+		return false;
+	}
+	catch (const Unauthorized& e)
+	{
+		Logger::getLogger()->error("OMF endpoint reported we are not authorized, please check configuration of the authentication method and credentials");
 		return false;
 	}
 	catch (const std::exception& e)
 	{
 		string errorMsg = errorMessageHandler(e.what());
 
-		Logger::getLogger()->error("Sending dataType message 'Type', %s - %s %s",
-									errorMsg.c_str(),
-									m_sender.getHostPort().c_str(),
-									m_path.c_str());
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
+				+ ". " + errorMsg;
+		reportAsset(assetName, "error", msg);
 		m_connected = false;
 		return false;
 	}
@@ -411,17 +439,28 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeContainer);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-						   "- error: HTTP code |%d| - %s %s",
-						   res,
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str() );
+			string msg = "An error occurred sending the dataType container message for the asset " + assetName;
+			msg.append(". HTTP error code " + to_string(res));
+			reportAsset(assetName, "error", msg);
 			return false;
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data type containers : %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change
@@ -429,29 +468,33 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		}
 		string errorMsg = errorMessageHandler(e.what());
 
-		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
-					   "not blocking issue: |%s| - %s - %s %s",
-					   (m_changeTypeId ? "Data Type " : "" ),
-					   errorMsg.c_str(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str() );
+		string msg = "An error occurred sending the dataType container message for the asset " + assetName
+				+ ". " + errorMsg;
+		if (m_changeTypeId)
+		{
+			msg.append(". A data type change will take place to try to resolve this error");
+		}
+		reportAsset(assetName, "error", msg);
+		return false;
+	}
+	catch (const Unauthorized& e)
+	{
+		Logger::getLogger()->error("OMF endpoint reported we are not authorized, please check configuration of the authentication method and credentials");
 		return false;
 	}
 	catch (const std::exception& e)
 	{
 		string errorMsg = errorMessageHandler(e.what());
 
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' - %s - %s %s",
-					   errorMsg.c_str(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str());
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
+				+ ". " + errorMsg;
+		reportAsset(assetName, "error", msg);
 		m_connected = false;
 		return false;
 	}
 
-	if (m_sendFullStructure) {
-
-
+	if (m_sendFullStructure)
+	{
 		// Create header for Static data
 		vector<pair<string, string>> resStaticData = OMF::createMessageHeader("Data");
 		// Create data for Static Data message
@@ -468,17 +511,28 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						   typeStaticData);
 			if  ( ! (res >= 200 && res <= 299) )
 			{
-				Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
-							   "- error: HTTP code |%d| - %s %s",
-							   res,
-							   m_sender.getHostPort().c_str(),
-							   m_path.c_str() );
+				string msg = "An error occurred sending the StaticData dataType message for the asset " + assetName;
+				msg.append(". HTTP error code " + to_string(res));
+				reportAsset(assetName, "warn", msg);
 				return false;
 			}
 		}
 		// Exception raised fof HTTP 400 Bad Request
 		catch (const BadRequest& e)
 		{
+			OMFError error(m_sender.getHTTPResponse());
+			// FIXME The following is too verbose
+			if (error.hasErrors())
+			{
+				Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending Static dataType: %d messages",
+						error.messageCount());
+				for (unsigned int i = 0; i < error.messageCount(); i++)
+				{
+					Logger::getLogger()->warn("Message %d: %s, %s, %s",
+							i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+				}
+			}
+
 			if (OMF::isDataTypeError(e.what()))
 			{
 				// Data type error: force type-id change
@@ -486,31 +540,27 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			}
 			string errorMsg = errorMessageHandler(e.what());
 
-			Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
-						   "not blocking issue: |%s| - %s - %s %s",
-						   (m_changeTypeId ? "Data Type " : "" ),
-						   errorMsg.c_str(),
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str() );
+			string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
+					+ ". " + errorMsg;
+			if (m_changeTypeId)
+			{
+				msg.append(". A data type change will take place to try to resolve this error");
+			}
+			reportAsset(assetName, "warn", msg);
 			return false;
 		}
 		catch (const std::exception& e)
 		{
 			string errorMsg = errorMessageHandler(e.what());
 
-			Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-						   "- generic error: %s -  %s %s",
-						   errorMsg.c_str(),
-						   m_sender.getHostPort().c_str(),
-						   m_path.c_str() );
+			string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
+					+ ". " + errorMsg;
+			reportAsset(assetName, "debug", msg);
 			m_connected = false;
 			return false;
 		}
-	}
 
 
-	if (m_sendFullStructure)
-	{
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
@@ -540,13 +590,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					objectPrefix = prefix;
 				}
 
-				Logger::getLogger()->debug("%s - assetName :%s: AFHierarchy :%s: prefix :%s: objectPrefix :%s:  AFHierarchyLevel :%s: ", __FUNCTION__
-										   ,assetName.c_str()
-										   , AFHierarchy.c_str()
-										   , prefix.c_str()
-										   , objectPrefix.c_str()
-										   , AFHierarchyLevel.c_str() );
-
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints, true);
 				string payload = "[" + typeLinkData + "]";
@@ -562,47 +605,60 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 											   payload);
 					if (!(res >= 200 && res <= 299))
 					{
-						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - error: HTTP code |%d| - %s %s",
-												   res,
-												   m_sender.getHostPort().c_str(),
-												   m_path.c_str());
+						string msg = "An error occurred sending the link dataType message for the asset " + assetName;
+						msg.append(". HTTP error code " + to_string(res));
+						reportAsset(assetName, "warn", msg);
 						return false;
 					}
 				}
-					// Exception raised fof HTTP 400 Bad Request
+				// Exception raised for HTTP 400 Bad Request
 				catch (const BadRequest &e)
 				{
+					OMFError error(m_sender.getHTTPResponse());
+					// FIXME The following is too verbose
+					if (error.hasErrors())
+					{
+						Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending link types: %d messages",
+								error.messageCount());
+						for (unsigned int i = 0; i < error.messageCount(); i++)
+						{
+							Logger::getLogger()->warn("Message %d: %s, %s, %s",
+									i, error.getEventSeverity(i).c_str(),
+									error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+						}
+					}
+
 					if (OMF::isDataTypeError(e.what()))
 					{
 						// Data type error: force type-id change
 						m_changeTypeId = true;
 					}
 					string errorMsg = errorMessageHandler(e.what());
+					string msg = "An error occurred sending the dataType link message for the asset " + assetName
+							+ ". " + errorMsg;
+					if (m_changeTypeId)
+					{
+						msg.append(". A data type change will take place to try to resolve this error");
+					}
+					reportAsset(assetName, "warn", msg);
 
-					Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-											  "not blocking issue: |%s| - %s - %s %s",
-											  (m_changeTypeId ? "Data Type " : ""),
-											  errorMsg.c_str(),
-											  m_sender.getHostPort().c_str(),
-											  m_path.c_str() );
 					return false;
 				}
 				catch (const std::exception &e)
 				{
 					string errorMsg = errorMessageHandler(e.what());
 
-					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-											   "- generic error: %s - %s %s",
-											   errorMsg.c_str(),
-											   m_sender.getHostPort().c_str(),
-											   m_path.c_str() );
+					string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
+							+ ". " + errorMsg;
+					reportAsset(assetName, "debug", msg);
 					return false;
 				}
 			}
 		}
 		else
 		{
-			Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|", assetName.c_str());
+			string msg("AF hierarchy is not defined for the asset " + assetName);
+			reportAsset(assetName, "warn", msg);
 		}
 	}
 	// All data types sent: success
@@ -635,6 +691,17 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData, const 
 	}
 	catch (const BadRequest& ex)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending AF hierarchy: %d messages",
+				error.messageCount());
+		for (unsigned int i = 0; i < error.messageCount(); i++)
+		{
+			Logger::getLogger()->warn("Message %d: %s, %s, %s",
+					i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(),
+					error.getEventReason(i).c_str());
+		}
+
 		success = false;
 		errorMessage = ex.what();
 	}
@@ -1037,15 +1104,23 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&start, NULL);
 #endif
 
-	if (m_linkedProperties)
+	if (m_linkedProperties && m_baseTypesSent == false)
 	{
 		if (!sendBaseTypes())
 		{
-			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent");
+			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent. The system will fall back to using complex types.");
 			m_linkedProperties = false;
+		}
+		else
+		{
+			m_baseTypesSent = true;
 		}
 	}
 
+	// TODO We do not need the superset stuff if we are using linked data types,
+	// this would save us interating over the dat aan extra time and reduce our
+	// memory footprint
+	//
 	// Create a superset of all the datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handles
 	// creation of OMF data types. This is used for the initial type
@@ -1264,8 +1339,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					}
 				}
 
-				if (m_sendFullStructure) {
-
+				if (m_sendFullStructure)
+				{
 					// The AF hierarchy is created/recreated if an OMF type message is sent
 					// it sends the hierarchy once
 					if (sendDataTypes and ! AFHierarchySent)
@@ -1327,7 +1402,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (asset_sent == m_assetSent.end())
+			if (m_sendFullStructure && asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -1392,7 +1467,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 */
 
 	// Create header for Readings data
-	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data");
+	std::string action = (this->m_OMFVersion.compare("1.2") == 0) ? "update" : "create";
+	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", action);
 	if (compression)
 		readingData.push_back(pair<string, string>("compression", "gzip"));
 
@@ -1442,7 +1518,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		timersub(&t5, &t4, &tm);
 		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - readings |%d| - msg size |%d| - msg size compressed |%d| ",
+		Logger::getLogger()->warn("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - readings |%d| - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,
@@ -1462,6 +1538,19 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
         {
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Some assets have invalid or redefined data type
@@ -1798,8 +1887,8 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 
 	string tData="[";
 
-	if (m_sendFullStructure) {
-
+	if (m_sendFullStructure)
+	{
 		// Add the Static data part
 		tData.append("{ \"type\": \"object\", \"properties\": { ");
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
@@ -4620,7 +4709,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 /**
  * Send the base types that we use to define all the data point values
  *
- * @return true If the data types were sent correctly. Otherwsie false.
+ * @return true If the data types were sent correctly. Otherwise false.
  */
 bool OMF::sendBaseTypes()
 {
@@ -4647,6 +4736,19 @@ bool OMF::sendBaseTypes()
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending base types: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change
@@ -4673,14 +4775,14 @@ bool OMF::sendBaseTypes()
 		m_connected = false;
 		return false;
 	}
-	Logger::getLogger()->info("Base types successully sent");
+	Logger::getLogger()->debug("Base types successfully sent");
 	return true;
 }
 
 /**
  * Create the messages to link the asset into the right place in the AF structure
  *
- * @param reading	The reading beign sent
+ * @param reading	The reading being sent
  * @param hints		OMF Hints for this reading
  */
 string OMF::createAFLinks(Reading& reading, OMFHints *hints)
@@ -4733,4 +4835,52 @@ string AFDataMessage;
 		}
 	}
 	return AFDataMessage;
+}
+
+/**
+ * Report an error related to an asset if the asset has not already been reported
+ *
+ * @param asset	The asset name
+ * @param level	The level to log the message at
+ * @param msg	The message to log
+ */
+void OMF::reportAsset(const string& asset, const string& level, const string& msg)
+{
+	if (std::find(m_reportedAssets.begin(), m_reportedAssets.end(), asset) == m_reportedAssets.end())
+	{
+		m_reportedAssets.push_back(asset);
+		if (level.compare("error") == 0)
+			Logger::getLogger()->error(msg);
+		else if (level.compare("warn") == 0)
+			Logger::getLogger()->warn(msg);
+		else if (level.compare("fatal") == 0)
+			Logger::getLogger()->fatal(msg);
+		else if (level.compare("info") == 0)
+			Logger::getLogger()->info(msg);
+		else
+			Logger::getLogger()->debug(msg);
+	}
+}
+
+/**
+ * Set the connection state
+ *
+ * @param connectionStatus	The target connection status
+ */
+void OMF::setConnected(const bool connectionStatus)
+{
+	if (connectionStatus != m_connected)
+	{
+		// Send an audit event for the change of state
+		string data = "{ \"plugin\" : \"OMF\", \"service\" : \"" + m_name + "\" }";
+		if (!connectionStatus)
+		{
+			AuditLogger::auditLog("NHDWN", "ERROR", data);
+		}
+		else
+		{
+			AuditLogger::auditLog("NHAVL", "INFORMATION", data);
+		}
+	}
+	m_connected = connectionStatus;
 }

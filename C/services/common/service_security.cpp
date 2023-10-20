@@ -12,6 +12,8 @@
 #define TO_STRING_(...) #__VA_ARGS__
 #define QUOTE(...) TO_STRING(__VA_ARGS__)
 
+#define DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION 120
+
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -93,7 +95,7 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	// Start thread for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound" && dryRun == false)
 	{
-		new thread(bearer_token_refresh_thread, this);
+		m_refreshThread = new thread(bearer_token_refresh_thread, this);
 	}
 
 	return true;
@@ -593,9 +595,9 @@ void ServiceAuthHandler::refreshBearerToken()
 
 	// While server is running get bearer token
 	// and sleeps for a few secods.
-	// When expires_in - 10 seconds is done
+	// When expires_in - DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION seconds is done
 	// then get new token and sleep again
-	while (this->isRunning())
+	while (m_refreshRunning)
 	{
 		if (k >= max_retries)
 		{
@@ -604,7 +606,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			Logger::getLogger()->error(msg.c_str());
 
 			// Shutdown service
-			if (this->isRunning())
+			if (m_refreshRunning)
 			{
 				Logger::getLogger()->warn("Service is being shut down " \
 						"due to bearer token refresh error");
@@ -644,7 +646,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			current_token = bToken.token();
 
 			// Token exists and it is valid, get expiration time
-			expires_in = bToken.getExpiration() - time(NULL) - 10;
+			expires_in = bToken.getExpiration() - time(NULL) - DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION;
 
 			Logger::getLogger()->debug("Bearer token refresh will be called in "
 						"%ld seconds, service '%s'",
@@ -663,7 +665,7 @@ void ServiceAuthHandler::refreshBearerToken()
 
 		// A shutdown maybe is set, since last check: check it now
 		// refresh_token core API endpoint
-		if (!this->isRunning())
+		if (!m_refreshRunning)
 		{
 			Logger::getLogger()->info("Service is being shut down: " \
 						"refresh thread does not call " \

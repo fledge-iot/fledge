@@ -19,13 +19,15 @@ PLUGIN_NAME=$3
 [[ -z "${PLUGIN_TYPE}" ]] && echo "Plugin type not found." && exit 1
 [[ -z "${PLUGIN_NAME}" ]] && echo "Plugin name not found." && exit 1
 
-os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
+os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 REPO_NAME=fledge-${PLUGIN_TYPE}-${PLUGIN_NAME,,}
-if [[ "${PLUGIN_TYPE}" = "rule" ]]; then rm -rf /tmp/fledge-service-notification; fi
+if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf /tmp/fledge-service-notification; fi
 
 
 clean () {
    rm -rf /tmp/${REPO_NAME}
+   if [[ "${PLUGIN_TYPE}" = "rule" ]]; then rm -rf ${FLEDGE_ROOT}/plugins/notificationRule/${PLUGIN_NAME} ; elif [[ "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf ${FLEDGE_ROOT}/plugins/notificationDelivery/${PLUGIN_NAME} ; fi
    rm -rf ${FLEDGE_ROOT}/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}
 }
 
@@ -39,22 +41,25 @@ install_requirement (){
 }
 
 install_binary_file () {
-   if [[ "${PLUGIN_TYPE}" = "rule" ]]
+   if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]
    then
+   
         # fledge-service-notification repo is required to build notificationRule Plugins
         service_repo_name='fledge-service-notification'
         git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge-iot/${service_repo_name}.git /tmp/${service_repo_name}
-        export NOTIFICATION_SERVICE_INCLUDE_DIRS=/tmp/${service_repo_name}/C/services/common/include
+        export NOTIFICATION_SERVICE_INCLUDE_DIRS=/tmp/${service_repo_name}/C/services/notification/include
    fi
    
    if [ -f /tmp/${REPO_NAME}/build.sh ]; then
 	cd /tmp/${REPO_NAME}; ./build.sh -DFLEDGE_INSTALL=${FLEDGE_ROOT}; cd build && make install;
    else
         if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then    
-            set +e
-            source scl_source enable rh-postgresql13
-            source scl_source enable devtoolset-7
-            set -e
+            if [[ ${os_version} -eq "7" ]]; then
+                set +e
+                source scl_source enable rh-postgresql13
+                source scl_source enable devtoolset-7
+                set -e
+            fi
         fi
         mkdir -p /tmp/${REPO_NAME}/build; cd /tmp/${REPO_NAME}/build; cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} ..; make -j4 && make install; cd -
    fi   

@@ -105,13 +105,13 @@ PythonReading::PythonReading(PyObject *pyReading)
 			// or reading['ema']
 			if (PyUnicode_Check(dKey))   
 			{
-				m_values.push_back(new Datapoint(
+				m_values.emplace_back(new Datapoint(
 					string(PyUnicode_AsUTF8(dKey)),
 					*dataPoint));
 			}
 			else
 			{
-				m_values.push_back(new Datapoint(
+				m_values.emplace_back(new Datapoint(
 					string(PyBytes_AsString(dKey)),
 					*dataPoint));
 			}
@@ -131,9 +131,11 @@ PythonReading::PythonReading(PyObject *pyReading)
 	{
 		// Set id
 		m_id = PyLong_AsUnsignedLong(id);
+		m_has_id = true;
 	}
 	else
 	{
+		m_has_id = false;
 		m_id = 0;
 	}
 
@@ -231,7 +233,14 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			DatapointValue *dpv = getDatapointValue(dValue);
 			if (dpv)
 			{
-				values->push_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
+		               if (PyUnicode_Check(dKey))
+                               {
+                                     values->emplace_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dpv));
+                               }
+                               else
+                               {
+                                     values->emplace_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
+                               }
 				// Remove temp objects
 				delete dpv;
 			}
@@ -286,7 +295,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 					DatapointValue *dpv = getDatapointValue(val);
 					if (dpv)
 					{
-						values->push_back(new Datapoint(string(PyBytes_AsString(key)), *dpv));
+						values->emplace_back(new Datapoint(string(PyBytes_AsString(key)), *dpv));
 						// Remove temp objects
 						delete dpv;
 					}
@@ -577,9 +586,9 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp, bool bytesString)
 	else if (dataType == DatapointValue::dataTagType::T_DP_DICT)
 	{
 		vector<Datapoint *>* children = dp->getData().getDpVec();;
+		value = PyDict_New();
 		for (auto child = children->begin(); child != children->end(); ++child)
 		{
-			value = PyDict_New();
 			PyObject *childValue = convertDatapoint(*child);
 			// Add Datapoint: key and value
 			PyObject *key = PyUnicode_FromString((*child)->getName().c_str());
@@ -593,9 +602,9 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp, bool bytesString)
 	{
 		vector<Datapoint *>* children = dp->getData().getDpVec();
 		int i = 0;
+		value = PyList_New(children->size());
 		for (auto child = children->begin(); child != children->end(); ++child)
 		{
-			value = PyList_New(children->size());
 			PyObject *childValue = convertDatapoint(*child);
 			// TODO complete
 			// Add Datapoint: key and value

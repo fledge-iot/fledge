@@ -26,7 +26,7 @@
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
-#define STREAM_BLK_SIZE 	50	// Readings to send per write call to a stream
+#define STREAM_BLK_SIZE 	100	// Readings to send per write call to a stream
 #define STREAM_THRESHOLD	25	// Switch to streamed mode above this number of readings per second
 
 // Backup values for repeated storage client exception messages
@@ -49,6 +49,12 @@ class StorageClient {
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		ReadingSet	*queryTableToReadings(const std::string& tableName, const Query& query);
 		int 		insertTable(const std::string& schema, const std::string& tableName, const InsertValues& values);
+		int             insertTable(const std::string& schema, const std::string& tableName,
+                                                const std::vector<InsertValues>& values);
+                int             insertTable(const std::string& tableName, const std::vector<InsertValues>& values);
+
+
+
 		int		updateTable(const std::string& schema, const std::string& tableName, const InsertValues& values,
 					const Where& where, const UpdateModifier *modifier = NULL);
 		int		updateTable(const std::string& schema, const std::string& tableName, const JSONProperties& json,
@@ -73,6 +79,12 @@ class StorageClient {
 					const UpdateModifier *modifier = NULL);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressions,
 					const Where& where, const UpdateModifier *modifier = NULL);
+		int 		updateTable(const std::string& schema, const std::string& tableName, 
+					std::vector<std::pair<InsertValue*, Where* > > &updates, const UpdateModifier *modifier);
+
+		int 		updateTable(const std::string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, 
+					const UpdateModifier *modifier = NULL);
+
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
 		bool		readingAppend(const std::vector<Reading *> & readings);
@@ -86,7 +98,10 @@ class StorageClient {
 							  const std::string& callbackUrl);
 		bool		unregisterAssetNotification(const std::string& assetName,
 							    const std::string& callbackUrl);
-
+		bool		registerTableNotification(const std::string& tableName, const std::string& key, 
+								std::vector<std::string> keyValues, const std::string& operation, const std::string& callbackUrl);
+		bool		unregisterTableNotification(const std::string& tableName, const std::string& key, 
+								std::vector<std::string> keyValues, const std::string& operation, const std::string& callbackUrl);
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 		bool 		createSchema(const std::string&);
 

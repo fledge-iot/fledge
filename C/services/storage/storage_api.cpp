@@ -253,6 +253,24 @@ void readingUnregisterWrapper(shared_ptr<HttpServer::Response> response, shared_
 }
 
 /**
+ * Wrapper function for the table interest register API call.
+ */
+void tableRegisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->tableRegister(response, request);
+}
+
+/**
+ * Wrapper function for the table interest unregister API call.
+ */
+void tableUnregisterWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->tableUnregister(response, request);
+}
+
+/**
  * Wrapper function for the create snapshot API call.
  */
 void createTableSnapshotWrapper(shared_ptr<HttpServer::Response> response,
@@ -367,7 +385,7 @@ void storageTableQueryWrapper(shared_ptr<HttpServer::Response> response,
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0), streamHandler(0)
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : m_thread(NULL), readingPlugin(0), streamHandler(0)
 {
 
 	m_port = port;
@@ -376,6 +394,24 @@ StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : 
 	m_server->config.port = port;
 	m_server->config.thread_pool_size = threads;
 	StorageApi::m_instance = this;
+}
+
+/**
+ * Destructor for the storage API class. There is only ever one StorageApi class
+ * in existance and it lives for the entire duration of the storage service, so this
+ * is really for completerness rather than any pracitical use.
+ */
+StorageApi::~StorageApi()
+{
+	if (m_server)
+	{
+		delete m_server;
+	}
+	m_instance = NULL;
+	if (m_thread)
+	{
+		delete m_thread;
+	}
 }
 
 /**
@@ -420,6 +456,9 @@ void StorageApi::initResources()
 
 	m_server->resource[READING_INTEREST]["POST"] = readingRegisterWrapper;
 	m_server->resource[READING_INTEREST]["DELETE"] = readingUnregisterWrapper;
+
+	m_server->resource[TABLE_INTEREST]["POST"] = tableRegisterWrapper;
+	m_server->resource[TABLE_INTEREST]["DELETE"] = tableUnregisterWrapper;
 
 	m_server->resource[CREATE_TABLE_SNAPSHOT]["POST"] = createTableSnapshotWrapper;
 	m_server->resource[LOAD_TABLE_SNAPSHOT]["PUT"] = loadTableSnapshotWrapper;
@@ -536,6 +575,7 @@ string  responsePayload;
 		int rval = plugin->commonInsert(tableName, payload);
 		if (rval != -1)
 		{
+			registry.processTableInsert(tableName, payload);
 			responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -612,6 +652,7 @@ string	responsePayload;
 		int rval = plugin->commonUpdate(tableName, payload);
 		if (rval != -1)
 		{
+			registry.processTableUpdate(tableName, payload);
 			responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -735,6 +776,7 @@ string  responsePayload;
 		int rval = plugin->commonDelete(tableName, payload);
 		if (rval != -1)
 		{
+			registry.processTableDelete(tableName, payload);
 			responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -1119,6 +1161,82 @@ Document	doc;
 }
 
 /**
+ * Register interest in readings for an asset
+ */
+void StorageApi::tableRegister(shared_ptr<HttpServer::Response> response,
+				 shared_ptr<HttpServer::Request> request)
+{
+string		table;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	// URL decode table name
+	table = urlDecode(request->path_match[TABLE_NAME_COMPONENT]);
+	
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+		string resp = "{ \"error\" : \"Badly formed payload\" }";
+		respond(response,
+			SimpleWeb::StatusCode::client_error_bad_request,
+			resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.registerTable(table, payload);
+			string resp = " { \"" + table + "\" : \"registered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
+	}
+}
+
+/**
+ * Unregister interest in readings for an asset
+ */
+void StorageApi::tableUnregister(shared_ptr<HttpServer::Response> response,
+				   shared_ptr<HttpServer::Request> request)
+{
+string		table;
+string		payload;
+Document	doc;
+
+	payload = request->content.string();
+	// URL decode table name
+	table = urlDecode(request->path_match[TABLE_NAME_COMPONENT]);
+	
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+			string resp = "{ \"error\" : \"Badly formed payload\" }";
+			respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				resp);
+	}
+	else
+	{
+		if (doc.HasMember("url"))
+		{
+			registry.unregisterTable(table, payload);
+			string resp = " { \"" + table + "\" : \"unregistered\" }";
+			respond(response, resp);
+		}
+		else
+		{
+			string resp = "{ \"error\" : \"Missing url element in payload\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
+		}
+	}
+}
+
+/**
  * Create a stream for high speed storage ingestion
  *
  * @param response	The response stream to send the response on
@@ -1158,14 +1276,11 @@ string	responsePayload;
 /**
  * Append the readings that have arrived via a stream to the storage plugin
  *
- * @param readings	A Null terminiunated array of points to ReadingStream structures
+ * @param readings	A Null terminated array of points to ReadingStream structures
  * @param commit	A flag to commit the readings block
  */
 bool StorageApi::readingStream(ReadingStream **readings, bool commit)
 {
-	int c;
-	for (c = 0; readings[c]; c++);
-	Logger::getLogger()->debug("ReadingStream called with %d", c);
 	if ((readingPlugin ? readingPlugin : plugin)->hasStreamSupport())
 	{
 		return (readingPlugin ? readingPlugin : plugin)->readingStream(readings, commit);
@@ -1449,6 +1564,7 @@ string  responsePayload;
                 int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";
@@ -1527,6 +1643,7 @@ string  responsePayload;
                 int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";
@@ -1565,6 +1682,7 @@ string  responsePayload;
                 int rval = plugin->commonDelete(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableDelete(tableName, payload);
                         responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";

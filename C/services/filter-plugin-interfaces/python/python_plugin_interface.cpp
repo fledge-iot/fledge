@@ -262,7 +262,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	}
 
 	Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
-
+	
 	// Create a readingList of readings to be filtered
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
 	PyObject* readingsList = pyReadingSet->toPython();
@@ -272,9 +272,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						  handle,
 						  readingsList);
 	Py_CLEAR(pFunc);
-	// Remove input data
-	delete (ReadingSet *)data;
-	data = NULL;
 
 	// Handle returned data
 	if (!pReturn)
@@ -285,6 +282,45 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		logErrorMessage();
 	}
 
+	data->removeAll();
+	delete data;
+
+#if 0
+	PythonReadingSet *filteredReadingSet = NULL;
+	if (pReturn)
+	{
+		// Check we have a list of readings
+		if (PyList_Check(readingsList))
+		{
+			try
+			{
+				// Create ReadingSet from Python reading list
+				filteredReadingSet = new PythonReadingSet(readingsList);
+
+				// Remove input data
+				data->removeAll();
+
+				// Append filtered readings;  append will empty the passed reading set as well
+				data->append(filteredReadingSet);
+
+				delete filteredReadingSet;
+				filteredReadingSet = NULL;
+			}
+			catch (std::exception e)
+			{
+				Logger::getLogger()->warn("Unable to create a PythonReadingSet, error: %s", e.what());
+				filteredReadingSet = NULL;
+			}
+		}
+		else
+		{
+			Logger::getLogger()->error("Filter did not return a Python List "
+						   "but object type %s",
+						   Py_TYPE(readingsList)->tp_name);
+		}
+	}
+#endif
+	
 	// Remove readings to dict
 	Py_CLEAR(readingsList);
 	// Remove CallFunction result

@@ -538,12 +538,14 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	}
 	m_connected = updatedConnected;
 
+#if NEW_CONNECTION
 	// FIXME
 	delete m_omf;
 	delete m_sender;
 	m_omf = NULL;
 	m_sender = NULL;
 	m_connected = false;
+#endif
 	
 #if INSTRUMENT
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);

@@ -26,7 +26,7 @@
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500
 
-#define LOG_AFTER_NERRORS 5
+#define LOG_AFTER_NERRORS (MAX_RETRIES / 2)
 
 /**
  * SQLite3 storage plugin for Fledge
@@ -3133,8 +3133,6 @@ int retries = 0, rc;
 		retries++;
 		if (rc != SQLITE_OK)
 		{
-			if (retries > LOG_AFTER_NERRORS)
-				Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
 
 
 #if DO_PROFILE_RETRIES
@@ -3146,8 +3144,6 @@ int retries = 0, rc;
 #endif
 			int interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-			if (retries > 9) Logger::getLogger()->info("SQLExec: error :%s: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
-													   sqlite3_errmsg(dbHandle), retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", sqlite3_errmsg(db), this, interval);
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
 			m_waiting.fetch_sub(1);
@@ -3171,6 +3167,15 @@ int retries = 0, rc;
 
 		}
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
+	if (retries >= MAX_RETRIES)
+	{
+		Logger::getLogger()->error("SQL statement %s failed after maximum retries", sql, sqlite3_errmsg(dbHandle));
+	}
+	else if (retries > LOG_AFTER_NERRORS)
+	{
+		Logger::getLogger()->warn("%d retries required of the SQL statement '%s': %s", retries, sql, sqlite3_errmsg(dbHandle));
+		Logger::getLogger()->warn("If the excessive retries continue for sustained periods it is a sign that the system may be reaching the limits of the load it can handle");
+	}
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > RETRY_REPORT_THRESHOLD - 1)
@@ -3240,14 +3245,17 @@ int retries = 0, rc;
 			int interval = (retries * RETRY_BACKOFF);
 
 			this_thread::sleep_for(chrono::milliseconds(interval));
-
-			if (retries > 5) {
-				Logger::getLogger()->debug("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
-						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
-
-			}
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	if (retries >= MAX_RETRIES)
+	{
+		Logger::getLogger()->error("SQL statement failed after maximum retries", sqlite3_errmsg(dbHandle));
+	}
+	else if (retries > LOG_AFTER_NERRORS)
+	{
+		Logger::getLogger()->warn("%d retries required of the SQL statement: %s", retries, sqlite3_errmsg(dbHandle));
+		Logger::getLogger()->warn("If the excessive retries continue for sustained periods it is a sign that the system may be reaching the limits of the load it can handle");
+	}
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > 1000)

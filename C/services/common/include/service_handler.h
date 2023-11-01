@@ -12,6 +12,9 @@
 #include <config_category.h>
 #include <string>
 #include <management_client.h>
+#include <housekeeper.h>
+
+#define REFRESH_CHECK_INTERVAL	60	// Check the bearer toek every 60 seconds
 
 /**
  * ServiceHandler abstract class - the interface that services using the
@@ -29,14 +32,41 @@ class ServiceHandler
 		virtual bool	securityChange(const std::string &payload) { return payload.empty(); };
 };
 
+class ServiceAuthHandler;
+
+/**
+ * HouseKeeperTask class used to refresh the bearer token
+ */
+class BearerTokenRefresh : public HouseKeeperTask
+{
+	public:
+		BearerTokenRefresh(ServiceAuthHandler *handler) :
+					HouseKeeperTask("BearerTokenRefresh", REFRESH_CHECK_INTERVAL, HK_NORMAL),
+					m_handler(handler)
+		{
+		};
+		void		run();
+		void		cleanup() {};
+	private:
+		ServiceAuthHandler	*m_handler;
+};
+
+
 /**
  * ServiceAuthHandler adds security to the base class ServiceHandler
  */
 class ServiceAuthHandler : public ServiceHandler
 {
 	public:
-		ServiceAuthHandler() : m_refreshThread(NULL), m_refreshRunning(true) {};
-		virtual ~ServiceAuthHandler() { if (m_refreshThread) { m_refreshRunning = false; m_refreshThread->join(); delete m_refreshThread; } };
+		ServiceAuthHandler() : m_refreshTask(NULL), m_refreshRunning(true) {};
+		virtual		 ~ServiceAuthHandler()
+	       			{
+					if (m_refreshTask)
+					{
+						HouseKeeper::getInstance()->removeTask(m_refreshTask);
+						delete m_refreshTask;
+					}
+				};
 		std::string&	getName() { return m_name; };
 		std::string&	getType() { return m_type; };
 		bool		createSecurityCategories(ManagementClient* mgtClient, bool dryRun);
@@ -107,8 +137,8 @@ class ServiceAuthHandler : public ServiceHandler
 		ConfigCategory	m_security;
 		// Service ACL
 		ACL		m_service_acl;
-		std::thread	*m_refreshThread;
+		BearerTokenRefresh
+				*m_refreshTask;
 		bool		m_refreshRunning;
 };
-
 #endif

@@ -18,15 +18,6 @@ using namespace std;
 AssetTracker *AssetTracker::instance = 0;
 
 /**
- * Worker thread entry point
- */
-static void worker(void *arg)
-{
-	AssetTracker *tracker = (AssetTracker *)arg;
-	tracker->workerThread();
-}
-
-/**
  * Get asset tracker singleton instance for the current south service
  *
  * @return	Singleton asset tracker instance
@@ -43,12 +34,11 @@ AssetTracker *AssetTracker::getAssetTracker()
  * @param service  		Service name
  */
 AssetTracker::AssetTracker(ManagementClient *mgtClient, string service) 
-	: m_mgtClient(mgtClient), m_service(service)
+	: HouseKeeperTask("AssetTracker", ASSET_TRACKER_FLUSH_INTERVAL), m_mgtClient(mgtClient), m_service(service)
 {
 	instance = this;
 	m_shutdown = false;
 	m_storageClient = NULL;
-	m_thread = new thread(worker, this);
 
 	try {
 		// Find out the name of the fledge service
@@ -80,6 +70,7 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 		Logger::getLogger()->error("Failed to create storage client", ex.what());
 	}
 
+	HouseKeeper::getInstance()->addTask(this);
 }
 
 /**
@@ -89,22 +80,8 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 AssetTracker::~AssetTracker()
 {
 	m_shutdown = true;
-	// Signal the worker thread to flush the queue
-	{
-		unique_lock<mutex> lck(m_mutex);
-		m_cv.notify_all();
-	}
-	while (m_pending.size())
-	{
-		// Wait for pending queue to drain
-		this_thread::sleep_for(chrono::milliseconds(10));
-	}
-	if (m_thread)
-	{
-		m_thread->join();
-		delete m_thread;
-		m_thread = NULL;
-	}
+
+	HouseKeeper::getInstance()->addTask(this);
 
 	if (m_storageClient)
 	{
@@ -340,16 +317,22 @@ void AssetTracker::queue(TrackingTuple *tuple)
 
 /**
  * The worker thread that will flush any pending asset tuples to
- * the database.
+ * the database. This is called perodically by the housekeeper.
  */
-void AssetTracker::workerThread()
+void AssetTracker::run()
 {
 	unique_lock<mutex> lck(m_mutex);
-	while (m_pending.empty() && m_shutdown == false)
-	{
-		m_cv.wait_for(lck, chrono::milliseconds(500));
-		processQueue();
-	}
+	// Process any items in the queue at regular intervals
+	processQueue();
+}
+
+/**
+ * The worker thread that will flush any pending asset tuples to
+ * the database. This is called perodically by the housekeeper.
+ */
+void AssetTracker::cleanup()
+{
+	unique_lock<mutex> lck(m_mutex);
 	// Process any items left in the queue at shutdown
 	processQueue();
 }

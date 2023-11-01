@@ -26,12 +26,14 @@
 #include <service_handler.h>
 #include <set>
 #include <perfmonitors.h>
+#include <housekeeper.h>
 
 #define SERVICE_NAME  "Fledge South"
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
 #define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
+#define STATS_UPDATE_INTERVAL	5	// How often, in seconds, to write the statistics
 
 #define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache
 
@@ -42,6 +44,8 @@
 #define	AFC_SLEEP_INCREMENT	20	// Number of milliseconds to wait for readings to drain
 #define AFC_SLEEP_MAX		200	// Maximum sleep tiem in ms between tests
 #define AFC_MAX_WAIT		5000	// Maximum amount of time we wait for the queue to drain
+
+class StatisticsTask;
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -127,7 +131,7 @@ private:
 	std::mutex			m_statsMutex;
 	std::mutex			m_pipelineMutex;
 	std::thread*			m_thread;
-	std::thread*			m_statsThread;
+	StatisticsTask			*m_statsTask;
 	Logger*				m_logger;
 	std::condition_variable		m_cv;
 	std::condition_variable		m_statsCv;
@@ -156,6 +160,18 @@ private:
 	time_t				m_deprecatedAgeOut;
 	time_t				m_deprecatedAgeOutStorage;
 	PerformanceMonitor		*m_performance;
+};
+
+/**
+ * Housekeeper task that flushes statistics
+ */
+class StatisticsTask : public HouseKeeperTask {
+	public:
+		StatisticsTask(Ingest *ingest);
+		void	run() { m_ingest->updateStats(); };
+		void	cleanup() { m_ingest->updateStats(); };
+	private:
+		Ingest	*m_ingest;
 };
 
 #endif

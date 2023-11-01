@@ -16,10 +16,12 @@
 #include <unordered_set>
 #include <management_client.h>
 #include <queue>
-#include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <storage_client.h>
+#include <housekeeper.h>
+
+#define ASSET_TRACKER_FLUSH_INTERVAL	5
 
 /**
  * Tracking abstract base class to be passed in the process data queue
@@ -233,8 +235,12 @@ class ManagementClient;
  * The AssetTracker class provides the asset tracking functionality.
  * There are methods to populate asset tracking cache from asset_tracker DB table,
  * and methods to check/add asset tracking tuples to DB and to cache
+ *
+ * We derive this class from a HouseKeeperTask so that the run entry point will be
+ * called periodically. The cleanup entry point will be called when we remove the
+ * class from the housekeeper scheduled task list.
  */
-class AssetTracker {
+class AssetTracker : public HouseKeeperTask {
 
 public:
 	AssetTracker(ManagementClient *mgtClient, std::string service);
@@ -268,6 +274,8 @@ public:
 	void	updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr);
 	std::set<std::string>
 		*getStorageAssetTrackingCacheData(StorageAssetTrackingTuple* tuple);
+	void	run();
+	void	cleanup();
 
 private:
 	std::string
@@ -285,7 +293,6 @@ private:
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>
 						assetTrackerTuplesCache;
 	std::queue<TrackingTuple *>		m_pending;	// Tuples that are not yet written to the storage
-	std::thread				*m_thread;
 	bool					m_shutdown;
 	std::condition_variable			m_cv;
 	std::mutex				m_mutex;

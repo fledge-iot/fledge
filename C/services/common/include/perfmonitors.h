@@ -15,7 +15,13 @@
 #include <insert.h>
 #include <mutex>
 #include <condition_variable>
+#include <housekeeper.h>
 
+class PerformanceMonitor;
+
+/**
+ * The individual monitors
+ */
 class PerfMon {
 	public:
 		PerfMon(const std::string& name);
@@ -29,6 +35,21 @@ class PerfMon {
 		int		m_samples;
 		std::mutex	m_mutex;
 };
+
+/**
+ * The housekeeper task used to send the performance monitors
+ */
+class PerformanceTask : public HouseKeeperTask
+{
+	public:
+		PerformanceTask(PerformanceMonitor *monitor);
+		void		run();
+		void		cleanup();
+	private:
+		PerformanceMonitor
+				*m_monitor;
+};
+
 /**
  * Class to handle the performance monitors
  */
@@ -50,13 +71,13 @@ class PerformanceMonitor {
 						}
 					};
 		void			setCollecting(bool state);
-		void			writeThread();
+		void			writeCounters();
 	private:
 		void			doCollection(const std::string& name, long value);
 	private:
 		std::string		m_service;
 		StorageClient		*m_storage;
-		std::thread		*m_thread;
+		PerformanceTask		*m_task;
 		bool			m_collecting;
 		std::unordered_map<std::string, PerfMon *>
 					m_monitors;

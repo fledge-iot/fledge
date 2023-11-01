@@ -37,17 +37,6 @@ static void ingestThread(Ingest *ingest)
 }
 
 /**
- * Thread to update statistics table in DB
- */
-static void statsThread(Ingest *ingest)
-{
-	while (ingest->running())
-	{
-		ingest->updateStats();
-	}
-}
-
-/**
  * Create a row for given assetName in statistics DB table, if not present already
  * The key checked/created in the table is "<assetName>"
  * 
@@ -161,8 +150,6 @@ int Ingest::createServiceStatsDbEntry()
 void Ingest::updateStats()
 {
 	unique_lock<mutex> lck(m_statsMutex);
-	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
-		m_statsCv.wait(lck);
 
 	if (statsPendingEntries.empty())
 	{
@@ -288,6 +275,7 @@ Ingest::Ingest(StorageClient& storage,
 			m_statisticsOption(STATS_BOTH),
 			m_highWater(0)
 {
+	m_statsTask = NULL;
 	m_shutdown = false;
 	m_running = true;
 	m_queue = new vector<Reading *>();
@@ -323,7 +311,8 @@ void Ingest::start(long timeout, unsigned int threshold)
 	m_timeout = timeout;
 	m_queueSizeThreshold = threshold;
 	m_thread = new thread(ingestThread, this);
-	m_statsThread = new thread(statsThread, this);
+	m_statsTask = new StatisticsTask(this);
+	HouseKeeper::getInstance()->addTask(m_statsTask);
 }
 
 /**
@@ -354,8 +343,11 @@ Ingest::~Ingest()
 	m_thread->join();
 	processQueue();
 	m_statsCv.notify_one();
-	m_statsThread->join();
-	updateStats();
+	if (m_statsTask)
+	{
+		HouseKeeper::getInstance()->removeTask(m_statsTask);
+		delete m_statsTask;
+	}
 	// Cleanup and readings left in the various queues
 	for (auto& reading : *m_queue)
 	{
@@ -381,7 +373,6 @@ Ingest::~Ingest()
 		m_fullQueues.pop();
 	}
 	delete m_thread;
-	delete m_statsThread;
 
 	// Delete filter pipeline
 	{
@@ -1498,4 +1489,14 @@ void Ingest::flowControl()
 			       	? "failed to drain in sufficient time" : "has drained");
 		m_performance->collect("flow controlled", total);
 	}
+}
+
+/**
+ * Constrcutor for the statistics update housekeeper task
+ *
+ * @param ingest	The pointer to the ingest instance
+ */
+StatisticsTask::StatisticsTask(Ingest *ingest) :
+       	HouseKeeperTask("StatisticsUpdate", STATS_UPDATE_INTERVAL), m_ingest(ingest)
+{
 }

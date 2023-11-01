@@ -75,7 +75,7 @@ int PerfMon::getValues(InsertValues& values)
  * @param storage	Point to the storage client class for the service
  */
 PerformanceMonitor::PerformanceMonitor(const string& service, StorageClient *storage) :
-	m_service(service), m_storage(storage), m_collecting(false), m_thread(NULL)
+	m_service(service), m_storage(storage), m_collecting(false), m_task(NULL)
 {
 }
 
@@ -88,7 +88,14 @@ PerformanceMonitor::~PerformanceMonitor()
 	{
 		setCollecting(false);
 	}
-	// Write thread has now been stopped or
+	if (m_task)
+	{
+		HouseKeeper *hk = HouseKeeper::getInstance();
+		hk->removeTask(m_task);
+		delete m_task;
+		m_task = NULL;
+	}
+	// Write task has now been stopped or
 	// was never running
 	for (const auto& it : m_monitors)
 	{
@@ -98,15 +105,6 @@ PerformanceMonitor::~PerformanceMonitor()
 	}
 }
 
-/**
- * Monitor thread entry point
- *
- * @param perfMon	The perforamnce monitore class
- */
-static void monitorThread(PerformanceMonitor *perfMon)
-{
-	perfMon->writeThread();
-}
 
 /**
  * Set the collection state of the performance monitors
@@ -115,19 +113,19 @@ static void monitorThread(PerformanceMonitor *perfMon)
  */
 void PerformanceMonitor::setCollecting(bool state)
 {
+	HouseKeeper *hk = HouseKeeper::getInstance();
 	m_collecting = state;
-	if (m_collecting && m_thread == NULL)
+	if (m_collecting && m_task == NULL)
 	{
 		// Start the thread to write the monitors to the database
-		m_thread = new thread(monitorThread, this);
+		m_task = new PerformanceTask(this);
+		hk->addTask(m_task);
 	}
-	else if (m_collecting == false && m_thread)
+	else if (m_collecting == false && m_task)
 	{
-		// Stop the thread to write the monitors to the database
-		m_cv.notify_all();
-		m_thread->join();
-		delete m_thread;
-		m_thread = NULL;
+		hk->removeTask(m_task);
+		delete m_task;
+		m_task = NULL;
 	}
 }
 
@@ -155,29 +153,56 @@ void PerformanceMonitor::doCollection(const string& name, long value)
 }
 
 /**
- * The thread that runs to write database values
+ * The hosuekeeper task that runs to write database values
  */
-void PerformanceMonitor::writeThread()
+void PerformanceMonitor::writeCounters()
 {
-	while (m_collecting)
+	unique_lock<mutex> lk(m_mutex);
+	if (m_collecting)
 	{
-		unique_lock<mutex> lk(m_mutex);
-		m_cv.wait_for(lk, chrono::seconds(60));
-		if (m_collecting)
+		// Write to the database
+		for (const auto& it : m_monitors)
 		{
-			// Write to the database
-			for (const auto& it : m_monitors)
+			string name = it.first;
+			PerfMon *mon = it.second;
+			InsertValues values;
+			if (mon->getValues(values) > 0)
 			{
-				string name = it.first;
-				PerfMon *mon = it.second;
-				InsertValues values;
-			       	if (mon->getValues(values) > 0)
-				{
-					values.push_back(InsertValue("service", m_service));
-					values.push_back(InsertValue("monitor", name));
-					m_storage->insertTable("monitors", values);
-				}
+				values.push_back(InsertValue("service", m_service));
+				values.push_back(InsertValue("monitor", name));
+				m_storage->insertTable("monitors", values);
 			}
 		}
 	}
+}
+
+/**
+ * Constructor for the house keeper task used to write
+ * the performance monitors to the database.
+ *
+ * We arrange for the run method to be called every 60 seconds
+ *
+ * @param monitor	The performance monitor instance
+ */
+PerformanceTask::PerformanceTask(PerformanceMonitor *monitor) :
+	m_monitor(monitor), HouseKeeperTask("PerformanceMonitor", 60)
+{
+}
+
+/**
+ * The run routine called every 60 seconds by the hosue keeper. Simply
+ * write the performance counters to the database.
+ */
+void PerformanceTask::run()
+{
+	m_monitor->writeCounters();
+}
+
+/**
+ * The cleanup routine called eithher when the housekeeper shuts down
+ * or the task is removed from the house keeper list of tasks.
+ */
+void PerformanceTask::cleanup()
+{
+	// Do nothing. We don't want to write a partial minutes worth of data
 }

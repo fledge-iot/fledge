@@ -188,7 +188,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			string baseType = getBaseType(dp, format);
 			if (dpLookup == m_linkedAssetState->end())
 			{
-				m_logger()->error("Trying to send a link for a datapoint for which we have not created a base type");
+				Logger::getLogger()->error("Trying to send a link for a datapoint for which we have not created a base type");
 			}
 			else if (dpLookup->second.containerState() == false)
 			{

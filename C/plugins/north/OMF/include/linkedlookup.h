@@ -12,9 +12,9 @@ typedef enum {
  * This is the data stored for each asset and asset datapoint pair that
  * is being sent to PI using the linked container mechanism. We use the class
  * so we can comnbine all the information we need in a single lookup table,
- * this not only saves space but allows to to build and retian the table
- * before we start buildign the payloads. This hopefully will help prevent
- * to much memory fragmentation, which was an issue with the old, seperate
+ * this not only saves space but allows to to build and reitan the table
+ * before we start building the payloads. This hopefully will help prevent
+ * to much memory fragmentation, which was an issue with the old, separate
  * lookup mechanism we had.
  */
 class LALookup {

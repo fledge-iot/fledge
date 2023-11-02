@@ -188,8 +188,9 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			string baseType = getBaseType(dp, format);
 			if (dpLookup == m_linkedAssetState->end())
 			{
+				m_logger()->error("Trying to send a link for a datapoint for which we have not created a base type");
 			}
-			if (dpLookup->second.containerState() == false)
+			else if (dpLookup->second.containerState() == false)
 			{
 				sendContainer(link, dp, hints, baseType);
 				dpLookup->second.containerSent(baseType);
@@ -268,7 +269,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 }
 
 /**
- * If the entries are needed in the lookup table for this reading crete them
+ * If the entries are needed in the lookup table for this reading create them
  */
 void OMFLinkedData::buildLookup(const Reading& reading)
 {
@@ -557,7 +558,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 }
 
 /**
- * Set the base tyoe by passign the string of the base type
+ * Set the base type by passing the string of the base type
  */
 void LALookup::setBaseType(const string& baseType)
 {
@@ -581,6 +582,8 @@ void LALookup::setBaseType(const string& baseType)
 		m_baseType = OMFBT_STRING;
 	else if (baseType.compare("FledgeAsset") == 0)
 		m_baseType = OMFBT_FLEDGEASSET;
+	else
+		Logger::getLogger()->fatal("Unable to map base type '%s'", baseType.c_str());
 }
 
 /**
@@ -619,5 +622,7 @@ string LALookup::getBaseTypeString()
 			return "UInteger64";
 		case OMFBT_STRING:
 			return "String";
+		default:
+			return "Unknown";
 	}
 }

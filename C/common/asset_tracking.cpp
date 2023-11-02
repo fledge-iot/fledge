@@ -81,7 +81,7 @@ AssetTracker::~AssetTracker()
 {
 	m_shutdown = true;
 
-	HouseKeeper::getInstance()->addTask(this);
+	HouseKeeper::getInstance()->removeTask(this);
 
 	if (m_storageClient)
 	{

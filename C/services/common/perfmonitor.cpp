@@ -153,7 +153,7 @@ void PerformanceMonitor::doCollection(const string& name, long value)
 }
 
 /**
- * The hosuekeeper task that runs to write database values
+ * The housekeeper task that runs to write database values
  */
 void PerformanceMonitor::writeCounters()
 {
@@ -190,7 +190,7 @@ PerformanceTask::PerformanceTask(PerformanceMonitor *monitor) :
 }
 
 /**
- * The run routine called every 60 seconds by the hosue keeper. Simply
+ * The run routine called every 60 seconds by the house keeper. Simply
  * write the performance counters to the database.
  */
 void PerformanceTask::run()
@@ -199,7 +199,7 @@ void PerformanceTask::run()
 }
 
 /**
- * The cleanup routine called eithher when the housekeeper shuts down
+ * The cleanup routine called either when the housekeeper shuts down
  * or the task is removed from the house keeper list of tasks.
  */
 void PerformanceTask::cleanup()

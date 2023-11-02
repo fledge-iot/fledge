@@ -1492,7 +1492,7 @@ void Ingest::flowControl()
 }
 
 /**
- * Constrcutor for the statistics update housekeeper task
+ * Constructor for the statistics update housekeeper task
  *
  * @param ingest	The pointer to the ingest instance
  */

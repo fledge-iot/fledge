@@ -99,10 +99,10 @@ void HouseKeeper::addTask(HouseKeeperTask *task)
 }
 
 /**
- * Remove a registered task fromt eh house keeper queue
+ * Remove a registered task from the house keeper queue
  *
- * If a task is foudn then the cleanup of the task is called.
- * Note: the task is not deleted by this rotuine and the caller
+ * If a task is found then the cleanup of the task is called.
+ * Note: the task is not deleted by this routine and the caller
  * must delete the task.
  *
  * @param task	The task to remove
@@ -128,7 +128,7 @@ void HouseKeeper::removeTask(HouseKeeperTask *task)
 /**
  * Find the next task to execute. Based on the next execution time
  * and the priority this routine will get the m_nextTask member
- * varaible to the next task that should be run.
+ * variable to the next task that should be run.
  *
  * Note: This routine expects to be called with m_mutex held by 
  * the caller
@@ -199,7 +199,7 @@ void HouseKeeper::runTasks()
 
 		if (m_nextTask)
 		{
-			// Wait wait until it is time to run another task
+			// Wait until it is time to run another task
 			// or a new task is registered.
 			m_cv.wait_for(lk, chrono::seconds(m_nextTask->getNextExecution() - time(0)));
 		}

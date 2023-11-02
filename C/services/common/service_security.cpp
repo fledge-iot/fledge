@@ -90,7 +90,7 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 		m_service_acl = m_mgtClient->getACL(acl_name);
 	}
 
-	// Start hhousekeeper task for automatic bearer token refresh, before expiration
+	// Start housekeeper task for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound" && dryRun == false)
 	{
 		m_refreshTask = new BearerTokenRefresh(this);
@@ -574,7 +574,7 @@ bool ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::R
 
 /**
  * Refresh the bearer token of the running service
- * This routine is run by the housekeeper omn a fixed schedule
+ * This routine is run by the housekeeper on a fixed schedule
  *
  * a new one is requested to the core via
  * token_refresh API endpoint

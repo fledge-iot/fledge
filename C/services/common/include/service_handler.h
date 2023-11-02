@@ -14,7 +14,7 @@
 #include <management_client.h>
 #include <housekeeper.h>
 
-#define REFRESH_CHECK_INTERVAL	60	// Check the bearer toek every 60 seconds
+#define REFRESH_CHECK_INTERVAL	60	// Check the bearer token every 60 seconds
 
 /**
  * ServiceHandler abstract class - the interface that services using the

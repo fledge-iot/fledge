@@ -19,15 +19,15 @@ class HouseKeeperTask;
 
 /**
  * A single class that implements a house keeper thread that is used
- * to run periodic or one-off tasks on a sepreate thread. The purpose
+ * to run periodic or one-off tasks on a separate thread. The purpose
  * of the house keeper is to reduce the number of threads that are run
- * in order to reduce both the meomry footprint and the quanity of threads
+ * in order to reduce both the meomry footprint and the quantity of threads
  * in the system.
  *
  * The housekeeper should be used for any task that needs to be run on a
  * periodic basis but does not require to run for long each time it runs. Likewise
- * it may be used to run occasional one-off tasks on a seperate thread, again
- * these one-off tasks shoudl not run for any considerable amount of time
+ * it may be used to run occasional one-off tasks on a separate thread, again
+ * these one-off tasks should not run for any considerable amount of time
  * as they may block other periodic tasks.
  */
 class HouseKeeper {
@@ -58,7 +58,7 @@ class HouseKeeper {
  */
 typedef enum {
 	/**
-	 * Low priorty task whose execution is not time critical and can
+	 * Low priority task whose execution is not time critical and can
 	 * wait for other tasks to complete.
 	 */
 	HK_LOW,
@@ -68,7 +68,7 @@ typedef enum {
 	 */
        	HK_NORMAL,
 	/**
-	 * A task that must be run as close as possible to the tiem interval
+	 * A task that must be run as close as possible to the time interval
 	 * given.
 	 */
 	HK_HIGH
@@ -94,7 +94,7 @@ class HouseKeeperTask {
 		virtual void		cleanup() = 0;
 
 					/**
-					 * Return the next exeuction time for the task
+					 * Return the next execution time for the task
 					 */
 		time_t			getNextExecution() { return m_nextExecution; };
 

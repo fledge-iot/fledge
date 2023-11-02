@@ -159,10 +159,10 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 	m_AFMap = AFMap;
 
 	// OCS configurations
-	OCSNamespace    = OCSNamespace;
-	OCSTenantId     = OCSTenantId;
-	OCSClientId     = OCSClientId;
-	OCSClientSecret = OCSClientSecret;
+	m_OCSNamespace    = OCSNamespace;
+	m_OCSTenantId     = OCSTenantId;
+	m_OCSClientId     = OCSClientId;
+	m_OCSClientSecret = OCSClientSecret;
 
 	// PI Web API end-point - evaluates the authentication method requested
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)

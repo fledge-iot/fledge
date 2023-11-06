@@ -3031,7 +3031,15 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
 
 		auto item = make_pair(m_DefaultAFLocation, prefix);
-		m_AssetNamePrefix[assetName].push_back(item);
+		auto & curr_vec = m_AssetNamePrefix[assetName];
+		
+		// Insert new item into m_AssetNamePrefix[assetName] vector, if it doesn't exists already
+		if (std::find(curr_vec.begin(), curr_vec.end(), item) == curr_vec.end())
+		{
+			m_AssetNamePrefix[assetName].push_back(item);
+			Logger::getLogger()->debug("m_AssetNamePrefix.size()=%d; m_AssetNamePrefix[assetName].size()=%d, added m_AssetNamePrefix[%s]=(%s,%s)", 
+								m_AssetNamePrefix.size(), m_AssetNamePrefix[assetName].size(), assetName.c_str(), m_DefaultAFLocation.c_str(), prefix.c_str());
+		}
 	}
 
 	return success;

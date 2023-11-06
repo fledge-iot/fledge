@@ -42,7 +42,7 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 vector<string> OMF::m_reportedAssets;
 
 // 1 enable performance tracking
-#define INSTRUMENT	0
+#define INSTRUMENT	1
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"      // The asset name is composed by: asset name + AF_TYPES_SUFFIX + incremental id of the type
@@ -1523,15 +1523,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		timersub(&t5, &t4, &tm);
 		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->warn("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - readings |%d| - msg size |%d| - msg size compressed |%d| ",
+		Logger::getLogger()->warn("Timing seconds - thread %s - superSet %6.3f - Loop %6.3f - compress %6.3f - send data %6.3f - readings %d - msg size %d",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,
 								   timeT3,
 								   timeT4,
 								   readings.size(),
-								   payload.size(),
-								   payload.size()
+								   strlen(omfData)
 		);
 
 #endif

@@ -269,44 +269,50 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 }
 
 /**
- * If the entries are needed in the lookup table for this reading create them
+ * If the entries are needed in the lookup table for this bblock of readings then create them
+ *
+ * @param readings	A block of readings to process
  */
-void OMFLinkedData::buildLookup(const Reading& reading)
+void OMFLinkedData::buildLookup(const vector<Reading *>& readings)
 {
-	string assetName = reading.getAssetName();
-	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
 
-	// Apply any TagName hints to modify the containerid
-	LALookup empty;
-
-	string assetKey = assetName + ".";
-	if (m_linkedAssetState->count(assetKey) == 0)
-		m_linkedAssetState->insert(pair<string, LALookup>(assetKey, empty));
-
-	// Get reading data
-	const vector<Datapoint*> data = reading.getReadingData();
-
-	/**
-	 * This loop creates the data values for each of the datapoints in the
-	 * reading.
-	 */
-	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
+	for (const Reading *reading : readings)
 	{
-		Datapoint *dp = *it;
-		string dpName = dp->getName();
-		if (dpName.compare(OMF_HINT) == 0)
+		string assetName = reading->getAssetName();
+		assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
+		// Apply any TagName hints to modify the containerid
+		LALookup empty;
+
+		string assetKey = assetName + ".";
+		if (m_linkedAssetState->count(assetKey) == 0)
+			m_linkedAssetState->insert(pair<string, LALookup>(assetKey, empty));
+
+		// Get reading data
+		const vector<Datapoint*> data = reading->getReadingData();
+
+		/**
+		 * This loop creates the data values for each of the datapoints in the
+		 * reading.
+		 */
+		for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 		{
-			// Don't send the OMF Hint to the PI Server
-			continue;
+			Datapoint *dp = *it;
+			string dpName = dp->getName();
+			if (dpName.compare(OMF_HINT) == 0)
+			{
+				// Don't send the OMF Hint to the PI Server
+				continue;
+			}
+			dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
+			if (!isTypeSupported(dp->getData()))
+			{
+				continue;
+			}
+			string link = assetName + "." + dpName;
+			if (m_linkedAssetState->count(link) == 0)
+				m_linkedAssetState->insert(pair<string, LALookup>(link, empty));
 		}
-		dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
-		if (!isTypeSupported(dp->getData()))
-		{
-			continue;
-		}
-		string link = assetName + "." + dpName;
-		if (m_linkedAssetState->count(link) == 0)
-			m_linkedAssetState->insert(pair<string, LALookup>(link, empty));
 	}
 }
 

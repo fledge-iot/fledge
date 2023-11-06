@@ -1165,13 +1165,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
 
-	for (vector<Reading *>::const_iterator elem = readings.begin();
-						    elem != readings.end();
-						    ++elem)
-	{
-		Reading *reading = *elem;
-		linkedData.buildLookup(*reading);
-	}
+	// Create the lookup data for this block of readings
+	linkedData.buildLookup(readings);
 
 	bool pendingSeparator = false;
 	ostringstream jsonData;

@@ -13,6 +13,7 @@
 #include <map>
 #include <reading.h>
 #include <OMFHint.h>
+#include <linkedlookup.h>
 
 /**
  * The OMFLinkedData class.
@@ -34,13 +35,9 @@
 class OMFLinkedData
 {
 	public:
-		OMFLinkedData(  std::unordered_map<std::string, std::string> *containerSent,
-				std::unordered_map<std::string, bool> *assetSent,
-				std::unordered_map<std::string, bool> *linkSent,
+		OMFLinkedData(  std::unordered_map<std::string, LALookup> *linkedAssetState,
 				const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR) :
-					m_containerSent(containerSent),
-					m_assetSent(assetSent),
-					m_linkSent(linkSent),
+					m_linkedAssetState(linkedAssetState),
 					m_endpoint(PIServerEndpoint),
        					m_doubleFormat("float64"),
 					m_integerFormat("int64")
@@ -48,6 +45,7 @@ class OMFLinkedData
 		std::string 	processReading(const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
+		void		buildLookup(const std::vector<Reading *>& reading);
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{
@@ -77,20 +75,7 @@ class OMFLinkedData
 		 * with a '.' delimiter between. The value is the base type used, a
 		 * container will be sent if the base type changes.
 		 */
-		std::unordered_map<std::string, std::string>	*m_containerSent;
-
-		/**
-		 * The data message for this asset has been sent in
-		 * this session. The key is the asset name. The value is always true.
-		 */
-		std::unordered_map<std::string, bool>		*m_assetSent;
-
-		/**
-		 * The link for this asset and data point has been sent in
-		 * this session. key is the asset followed by the datapoint name
-                 * with a '.' delimiter between. The value is always true.
-		 */
-		std::unordered_map<std::string, bool>		*m_linkSent;
+		std::unordered_map<std::string, LALookup>	*m_linkedAssetState;
 
 		/**
 		 * The endpoint to which we are sending data

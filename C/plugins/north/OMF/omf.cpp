@@ -252,6 +252,7 @@ OMF::OMF(const string& name,
 	m_changeTypeId = false;
 	m_OMFDataTypes = NULL;
 	m_OMFVersion = "1.0";
+	m_connected = false;
 }
 
 /**
@@ -279,6 +280,7 @@ OMF::OMF(const string& name,
 
 	m_lastError = false;
 	m_changeTypeId = false;
+	m_connected = false;
 }
 
 // Destructor
@@ -1124,9 +1126,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			m_baseTypesSent = true;
 		}
 	}
-
 	// TODO We do not need the superset stuff if we are using linked data types,
-	// this would save us interating over the dat aan extra time and reduce our
+	// this would save us iterating over the data an extra time and reduce our
 	// memory footprint
 	//
 	// Create a superset of all the datapoints for each assetName
@@ -1169,8 +1170,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	bool legacyType = m_legacy;
 
 	// Create the class that deals with the linked data generation
-	OMFLinkedData linkedData(&m_containerSent, &m_assetSent, &m_linkSent, m_PIServerEndpoint);
+	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
+
+	// Create the lookup data for this block of readings
+	linkedData.buildLookup(readings);
 
 	bool pendingSeparator = false;
 
@@ -1411,11 +1415,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		{
 			// We do this before the send so we know if it was sent for the first time
 			// in the processReading call
-			auto asset_sent = m_assetSent.find(m_assetName);
+			auto lookup = m_linkedAssetState.find(m_assetName + ".");
 			// Send data for this reading using the new mechanism
 			if (linkedData.processReading(payload, pendingSeparator, *reading, AFHierarchyPrefix, hints))
 				pendingSeparator = true;
-			if (m_sendFullStructure && asset_sent == m_assetSent.end())
+			if (m_sendFullStructure && lookup->second.assetState() == false)
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -3049,7 +3053,15 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		generateAFHierarchyPrefixLevel(m_DefaultAFLocation, prefix, AFHierarchyLevel);
 
 		auto item = make_pair(m_DefaultAFLocation, prefix);
-		m_AssetNamePrefix[assetName].push_back(item);
+		auto & curr_vec = m_AssetNamePrefix[assetName];
+		
+		// Insert new item into m_AssetNamePrefix[assetName] vector, if it doesn't exists already
+		if (std::find(curr_vec.begin(), curr_vec.end(), item) == curr_vec.end())
+		{
+			m_AssetNamePrefix[assetName].push_back(item);
+			Logger::getLogger()->debug("m_AssetNamePrefix.size()=%d; m_AssetNamePrefix[assetName].size()=%d, added m_AssetNamePrefix[%s]=(%s,%s)", 
+								m_AssetNamePrefix.size(), m_AssetNamePrefix[assetName].size(), assetName.c_str(), m_DefaultAFLocation.c_str(), prefix.c_str());
+		}
 	}
 
 	return success;

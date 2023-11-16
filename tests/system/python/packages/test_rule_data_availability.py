@@ -263,6 +263,7 @@ class TestDataAvailabilityBasedNotificationRuleOnEgress:
         get_url = "/fledge/audit?source=NTFSN"
         resp1 = utils.get_request(fledge_url, get_url)
         
+        time.sleep(wait_time)
         get_url = "/fledge/audit?source=NTFSN"
         resp2 = utils.get_request(fledge_url, get_url)
         assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"

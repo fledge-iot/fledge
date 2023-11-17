@@ -35,7 +35,7 @@ class TestConfigurationManager:
 
     def test_supported_validate_type_strings(self):
         expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string', 'ACL']
+                'northTask', 'password', 'script', 'string', 'ACL', 'bucket']
         assert len(expected_types) == len(_valid_type_strings)
         assert sorted(expected_types) == _valid_type_strings
 

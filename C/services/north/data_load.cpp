@@ -604,7 +604,14 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 
 		if (m_storage->insertTable(table, values) != 1)
 		{
-			Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
+			{
+				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
+			}
+			else
+			{
+				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			}
 		}
 		else
 		{

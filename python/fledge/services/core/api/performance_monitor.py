@@ -47,7 +47,22 @@ async def get_by_service_name(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/monitors/<SVC_NAME>
     """
-    return web.json_response({})
+    service = request.match_info.get('service', None)
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().SELECT("average", "maximum", "minimum", "monitor", "samples", "ts").ALIAS(
+        "return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(
+        ["service", '=', service]).payload()
+    response = {"service": service}
+    result = await storage.query_tbl_with_payload('monitors', payload)
+    if 'rows' in result:
+        monitor = {}
+        for d in result["rows"]:
+            val = {"average": d["average"], "maximum": d["maximum"], "minimum": d["minimum"], "samples": d["samples"],
+                   "timestamp": d["timestamp"]}
+            monitor.setdefault(d['monitor'], []).append(val)
+        monitors = [{'monitor': k, 'values': v} for k, v in monitor.items()]
+        response["monitors"] = monitors
+    return web.json_response(response)
 
 async def get_by_service_and_counter_name(request: web.Request) -> web.Response:
     """ GET values for the single counter for the single service

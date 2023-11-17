@@ -7,6 +7,14 @@ typedef enum {
 } OMFBaseType;
 
 /**
+ * Lookup status bit
+ */
+#define	LAL_ASSET_SENT		0x01	// We have sent the asset 
+#define LAL_LINK_SENT		0x02	// We have sent the link to the base type
+#define LAL_CONTAINER_SENT	0x04	// We have sent the container
+#define LAL_AFLINK_SENT		0x08	// We have sent the link to the AF location
+
+/**
  * Linked Asset Information class
  *
  * This is the data stored for each asset and asset datapoint pair that
@@ -20,14 +28,16 @@ typedef enum {
 class LALookup {
 	public:
 		LALookup()	{ m_sentState = 0; m_baseType = OMFBT_UNKNOWN; };
-		bool		assetState() { return (m_sentState & 0x01) != 0; };
-		bool		linkState() { return (m_sentState & 0x02) != 0; };
-		bool		containerState() { return (m_sentState & 0x04) != 0; };
+		bool		assetState() { return (m_sentState & LAL_ASSET_SENT) != 0; };
+		bool		linkState() { return (m_sentState & LAL_LINK_SENT) != 0; };
+		bool		containerState() { return (m_sentState & LAL_CONTAINER_SENT) != 0; };
+		bool		afLinkState() { return (m_sentState & LAL_AFLINK_SENT) != 0; };
 		void		setBaseType(const std::string& baseType);
 		OMFBaseType	getBaseType() { return m_baseType; };
 		std::string	getBaseTypeString();
-		void		assetSent() { m_sentState |= 0x01; };
-		void		linkSent() { m_sentState |= 0x02; };
+		void		assetSent() { m_sentState |= LAL_ASSET_SENT; };
+		void		linkSent() { m_sentState |= LAL_LINK_SENT; };
+		void		afLinkSent() {  m_sentState |= LAL_AFLINK_SENT; };
 		void		containerSent(const std::string& baseType);
 		void		containerSent(OMFBaseType baseType) { m_baseType = baseType; };
 	private:

@@ -598,7 +598,7 @@ void LALookup::setBaseType(const string& baseType)
 void LALookup::containerSent(const std::string& baseType)
 {
 	setBaseType(baseType);
-	m_sentState |= 0x04;
+	m_sentState |= LAL_CONTAINER_SENT;
 }
 
 /**

@@ -32,13 +32,26 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/monitors/{service}', purge_by_service)
     app.router.add_route('DELETE', '/fledge/monitors/{service}/{counter}', purge_by_service_and_counter)
 
+# TODO: 8167 - Limit and Offset support and other pending queries
+
 async def get_all(request: web.Request) -> web.Response:
     """ GET list of performance monitors
 
     :Example:
         curl -sX GET http://localhost:8081/fledge/monitors
     """
-    return web.json_response({"message": "To be Implemented"})
+    storage = connect.get_storage_async()
+    monitors = await storage.query_tbl("monitors")
+    counters = monitors["rows"]
+    monitor = {}
+    response = {}
+    for c in counters:
+        val = {"average": c["average"], "maximum": c["maximum"], "minimum": c["minimum"], "samples": c["samples"],
+               "timestamp": c["ts"], "service": c["service"]}
+        monitor.setdefault(c['monitor'], []).append(val)
+    monitors = [{'monitor': k, 'values': v} for k, v in monitor.items()]
+    response["monitors"] = monitors
+    return web.json_response(response)
 
 
 async def get_by_service_name(request: web.Request) -> web.Response:
@@ -56,10 +69,10 @@ async def get_by_service_name(request: web.Request) -> web.Response:
     result = await storage.query_tbl_with_payload('monitors', payload)
     if 'rows' in result:
         monitor = {}
-        for d in result["rows"]:
-            val = {"average": d["average"], "maximum": d["maximum"], "minimum": d["minimum"], "samples": d["samples"],
-                   "timestamp": d["timestamp"]}
-            monitor.setdefault(d['monitor'], []).append(val)
+        for row in result["rows"]:
+            val = {"average": row["average"], "maximum": row["maximum"], "minimum": row["minimum"],
+                   "samples": row["samples"], "timestamp": row["timestamp"]}
+            monitor.setdefault(row['monitor'], []).append(val)
         monitors = [{'monitor': k, 'values': v} for k, v in monitor.items()]
         response["monitors"] = monitors
     return web.json_response(response)

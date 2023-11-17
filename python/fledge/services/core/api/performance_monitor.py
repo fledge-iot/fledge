@@ -7,6 +7,8 @@
 from aiohttp import web
 
 from fledge.common.logger import FLCoreLogger
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2023, Dianomic Systems Inc."
@@ -53,8 +55,19 @@ async def get_by_service_and_counter_name(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/monitors/<SVC_NAME>/<COUNTER_NAME>
     """
-    return web.json_response({})
+    service = request.match_info.get('service', None)
+    counter = request.match_info.get('counter', None)
 
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().SELECT("average", "maximum", "minimum", "samples", "ts").ALIAS(
+        "return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(
+        ["service", '=', service]).AND_WHERE(["monitor", '=', counter]).payload()
+    result = await storage.query_tbl_with_payload('monitors', payload)
+    response = {}
+    if 'rows' in result:
+        response = {"service": service, "monitors":{"monitor": counter}}
+        response["monitors"]["values"] = result["rows"] if result["rows"] else []
+    return web.json_response(response)
 
 async def purge_all(request: web.Request) -> web.Response:
     """ DELETE all performance monitors

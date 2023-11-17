@@ -1406,7 +1406,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			auto lookup = m_linkedAssetState.find(m_assetName + ".");
 			// Send data for this reading using the new mechanism
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (m_sendFullStructure && lookup->second.assetState() == false)
+			if (m_sendFullStructure && lookup->second.afLinkState() == false)
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -1425,6 +1425,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					outData.append(",");
 					outData.append(af);
 				}
+				lookup->second.afLinkSent();
 			}
 		}
 		if (!outData.empty())
@@ -4607,7 +4608,10 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	nameFixed = StringTrim(objName);
 
-	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	if (objName.compare(nameFixed) != 0)
+	{
+		Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	}
 
 	if (nameFixed.empty ()) {
 

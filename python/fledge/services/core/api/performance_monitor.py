@@ -90,7 +90,13 @@ async def purge_all(request: web.Request) -> web.Response:
     :Example:
         curl -sX DELETE http://localhost:8081/fledge/monitors
     """
-    return web.json_response({"message": "To be Implemented"})
+    storage = connect.get_storage_async()
+    result = await storage.delete_from_tbl("monitors", {})
+    message = "Nothing to remove for service performance counters."
+    if 'rows_affected' in result:
+        if result['response'] == "deleted" and result['rows_affected']:
+            message = "All Performance counters have been removed successfully."
+    return web.json_response({"message": message})
 
 async def purge_by_service(request: web.Request) -> web.Response:
     """ DELETE performance monitors for the given service
@@ -104,7 +110,7 @@ async def purge_by_service(request: web.Request) -> web.Response:
     result = await storage.delete_from_tbl("monitors", payload)
     message = "Nothing to remove counters from '{}' service.".format(service)
     if 'rows_affected' in result:
-        if result['rows_affected']:
+        if result['response'] == "deleted" and result['rows_affected']:
             message = "Performance counters have been removed from '{}' service.".format(service)
     return web.json_response({"message": message})
 
@@ -122,6 +128,6 @@ async def purge_by_service_and_counter(request: web.Request) -> web.Response:
     result = await storage.delete_from_tbl("monitors", payload)
     message = "Nothing to remove '{}' counter from '{}' service.".format(counter, service)
     if 'rows_affected' in result:
-        if result['rows_affected']:
+        if result['response'] == "deleted" and result['rows_affected']:
             message = "Performance '{}' counter has been removed from '{}' service.".format(counter, service)
     return web.json_response({"message": message})

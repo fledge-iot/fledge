@@ -329,7 +329,7 @@ class TestPackagesSinusoid_PI_WebAPI:
             raise Exception("None of packet delay or rate limit given, "
                             "cannot apply network impairment.")
         # Insert some readings before turning off compression.
-        time.sleep(2)
+        time.sleep(3)
         # Turn off south service
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(5)

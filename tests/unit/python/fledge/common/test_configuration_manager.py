@@ -539,11 +539,15 @@ class TestConfigurationManager:
         ("string", " ", False),
         ("JSON", "", False),
         ("JSON", " ", False),
+        ("bucket", "", False),
+        ("bucket", " ", False),
         ("integer", " ", True),
         ("string", "", True),
         ("string", " ", True),
         ("JSON", "", True),
-        ("JSON", " ", True)
+        ("JSON", " ", True),
+        ("bucket", "", True),
+        ("bucket", " ", True)
     ])
     async def test__validate_category_val_with_optional_mandatory(self, _type, value, from_default_val):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -554,7 +558,8 @@ class TestConfigurationManager:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
                                                set_value_val_from_default_val=from_default_val)
         assert excinfo.type is ValueError
-        assert "For {} category, A default value must be given for {}".format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
+        assert ("For {} category, A default value must be given for {}"
+                "").format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     async def test__validate_category_val_with_enum_type(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3476,7 +3481,8 @@ class TestConfigurationManager:
         (None, 'group', 5,
          "For catname category, entry value must be string for optional item group; got <class 'int'>"),
         (None, 'group', True,
-         "For catname category, entry value must be string for optional item group; got <class 'bool'>")
+         "For catname category, entry value must be string for optional item group; got <class 'bool'>"),
+        (None, 'properties', '{"foo": "bar"}', 'For catname category, optional item name properties cannot be updated.')
     ])
     async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name,
                                                        new_value_entry, exc_msg):
@@ -3497,7 +3503,8 @@ class TestConfigurationManager:
         storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6',
                                'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4',
                                'description': 'Test Optional', 'minimum': minimum, 'value': '13', 'maximum': maximum,
-                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false', 'group': 'Security'}
+                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false', 'group': 'Security',
+                               'properties': "{}"}
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:

@@ -968,14 +968,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     return
             # Validate optional types only when new_value_entry not empty; otherwise set empty value
             if new_value_entry:
-                if optional_entry_name == 'readonly' or optional_entry_name == 'deprecated' or optional_entry_name == 'mandatory':
+                if optional_entry_name == "properties":
+                    raise ValueError('For {} category, optional item name properties cannot be updated.'.format(
+                        category_name))
+                elif optional_entry_name in ('readonly', 'deprecated', 'mandatory'):
                     if self._validate_type_value('boolean', new_value_entry) is False:
                         raise ValueError(
                             'For {} category, entry value must be boolean for optional item name {}; got {}'
                             .format(category_name, optional_entry_name, type(new_value_entry)))
-                elif optional_entry_name == 'minimum' or optional_entry_name == 'maximum':
-                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value('float',
-                                                                                                           new_value_entry)) is False:
+                elif optional_entry_name in ('minimum', 'maximum'):
+                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value(
+                            'float', new_value_entry)) is False:
                         raise ValueError('For {} category, entry value must be an integer or float for optional item '
                                          '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
                 elif optional_entry_name in ('displayName', 'group', 'rule', 'validity'):

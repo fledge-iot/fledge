@@ -533,6 +533,24 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
+    @pytest.mark.parametrize("config, is_value", [
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, True),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "property": "{}"}}, True),
+        ({"item": {"description": "test description", "type": "string", "default": "A"},
+          ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, True),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, False),
+        ({"item": {"description": "test description", "type": "string", "default": "A", "value": "B"},
+          ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, False)
+    ])
+    async def test__validate_category_val_bucket_type_bad(self, config, is_value):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=is_value)
+        assert excinfo.type is KeyError
+        assert "'For test category, properties KV pair must be required for item name test_item_name.'" == str(excinfo.value)
+
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
         ("string", "", False),
@@ -554,6 +572,8 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config = {ITEM_NAME: {"description": "test description", "type": _type, "default": value,
                                    "mandatory": "true"}}
+        if _type == "bucket":
+            test_config[ITEM_NAME]['properties'] = '{"foo": "bar"}'
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
                                                set_value_val_from_default_val=from_default_val)

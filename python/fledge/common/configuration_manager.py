@@ -277,7 +277,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             def get_entry_val(k):
                 v = [val for name, val in item_val.items() if name == k]
                 return v[0]
-
             for entry_name, entry_val in item_val.copy().items():
                 if type(entry_name) is not str:
                     raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
@@ -309,6 +308,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
                                             'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                            type(entry_val)))
+                elif 'type' in item_val and entry_val == 'bucket':
+                    if 'properties' not in item_val:
+                        raise KeyError('For {} category, properties KV pair must be required '
+                                       'for item name {}.'.format(category_name, item_name))
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '

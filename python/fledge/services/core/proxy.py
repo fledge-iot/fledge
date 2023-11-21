@@ -149,8 +149,21 @@ async def handler(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(status=status_code, body=response)
-
+        # Check for method and {string}/{string} and return JSON or raw data
+        if request.method != "GET":
+            # Return JSON
+            return web.json_response(status=status_code, body=response)
+        else:
+            # Check for bucket/{id}
+            index_b = url.find("bucket/")
+            if index_b == -1:
+                # Return JSON
+                return web.json_response(status=status_code, body=response)
+            else:
+                # Return raw data for bucket id request
+                return web.Response(status=status_code,
+                                    body=response,
+                                    content_type='application/octet-stream')
 
 async def _get_service_record_info_along_with_bearer_token(svc_name):
     try:

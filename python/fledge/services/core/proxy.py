@@ -188,7 +188,7 @@ async def _call_microservice_service_api(
         if request.method == 'GET':
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as resp:
-                    message = await resp.text()
+                    message = await resp.read()
                     response = (resp.status, message)
                     if resp.status not in range(200, 209):
                         _logger.error("GET Request Error: Http status code: {}, reason: {}, response: {}".format(

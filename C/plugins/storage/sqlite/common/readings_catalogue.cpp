@@ -719,7 +719,9 @@ char	*zErrMsg = NULL;
 	// See if the overflow table exists and if not create it
 	// This is a workaround as the schema update mechanism can't cope
 	// with multiple readings tables
-	sqlCmd = "select count(*) from " + alias + ".readings_overflow;";
+	// NB If this is ever removed we must reinstate the call to
+	// createReadingsOverflowTable in ReadingsCatalogue::createNewDB()
+	sqlCmd = "select count(*) from " + alias + ".readings_" + std::to_string(id) + "_overflow;";
 	rc = SQLExec(dbHandle, sqlCmd.c_str(), &zErrMsg);
 	if (rc != SQLITE_OK)
 	{
@@ -1715,7 +1717,9 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	}
 
 	// Create the overflow table in the new database
-	createReadingsOverflowTable(dbHandle, newDbId);
+	// NB We do not need to do this as attachDB will have done it as a side effect
+	// If that code is ever removed we must reinstate the line below
+	// createReadingsOverflowTable(dbHandle, newDbId);
 
 	if (attachAllDb == NEW_DB_DETACH)
 	{

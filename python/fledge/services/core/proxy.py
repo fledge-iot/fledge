@@ -140,7 +140,7 @@ async def handler(request: web.Request) -> web.Response:
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
             url = str(request.url).split('fledge/extension/')[1]
-            status_code, response = await _call_microservice_service_api(
+            status_code, response, content_type = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:
             msg = "{} route not found.".format(request.rel_url)
@@ -149,8 +149,7 @@ async def handler(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(status=status_code, body=response)
-
+        return web.json_response(status=status_code, body=response, content_type=content_type)
 
 async def _get_service_record_info_along_with_bearer_token(svc_name):
     try:
@@ -175,8 +174,8 @@ async def _call_microservice_service_api(
         if request.method == 'GET':
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as resp:
-                    message = await resp.text()
-                    response = (resp.status, message)
+                    message = await resp.read() if resp.content_type == 'application/octet-stream' else await resp.text()
+                    response = (resp.status, message, resp.content_type)
                     if resp.status not in range(200, 209):
                         _logger.error("GET Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, message))
@@ -225,5 +224,9 @@ async def _call_microservice_service_api(
     except Exception as ex:
         raise Exception(str(ex))
     else:
-        # Return Tuple - (http statuscode, message)
-        return response
+        response_tuples = response
+        # Default content-type is 'application/json'
+        if len(response) == 2:
+            response_tuples = response + ('application/json',)
+        # Return Tuple - (http statuscode, message, content-type)
+        return response_tuples

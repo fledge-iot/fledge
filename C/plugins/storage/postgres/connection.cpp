@@ -3412,21 +3412,7 @@ SQLBuffer sql;
  */
 bool Connection::isFunction(const char *str) const
 {
-const char *p;
-
-	p = str + strlen(str) - 1;
-	// A function would have a closing bracket followed pnly by white space at the end
-	while (p > str && isspace(*p))
-		p--;
-	if (*p != ')')
-		return false;
-
-	// We found the closing bracket now check for the opening bracket
-	while (p > str && *p != '(')
-		p--;
-	if (*p == '(')
-		return true;
-	return false;
+	return strcmp(str, "now()") == 0;
 }
 
 /**

@@ -1709,15 +1709,8 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		m_nReadingsAvailable = readingsToAllocate;
 	}
 
-<<<<<<< HEAD
 	// Create the overflow table in the new database if it was not previosuly created
 	createReadingsOverflowTable(dbHandle, newDbId);
-=======
-	// Create the overflow table in the new database
-	// NB We do not need to do this as attachDB will have done it as a side effect
-	// If that code is ever removed we must reinstate the line below
-	// createReadingsOverflowTable(dbHandle, newDbId);
->>>>>>> develop
 
 	if (attachAllDb == NEW_DB_DETACH)
 	{

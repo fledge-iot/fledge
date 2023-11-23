@@ -719,14 +719,7 @@ char	*zErrMsg = NULL;
 	// See if the overflow table exists and if not create it
 	// This is a workaround as the schema update mechanism can't cope
 	// with multiple readings tables
-	// NB If this is ever removed we must reinstate the call to
-	// createReadingsOverflowTable in ReadingsCatalogue::createNewDB()
-	sqlCmd = "select count(*) from " + alias + ".readings_" + std::to_string(id) + "_overflow;";
-	rc = SQLExec(dbHandle, sqlCmd.c_str(), &zErrMsg);
-	if (rc != SQLITE_OK)
-	{
-		createReadingsOverflowTable(dbHandle, id);
-	}
+	createReadingsOverflowTable(dbHandle, id);
 
 	return result;
 }
@@ -1716,10 +1709,8 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		m_nReadingsAvailable = readingsToAllocate;
 	}
 
-	// Create the overflow table in the new database
-	// NB We do not need to do this as attachDB will have done it as a side effect
-	// If that code is ever removed we must reinstate the line below
-	// createReadingsOverflowTable(dbHandle, newDbId);
+	// Create the overflow table in the new database if it was not previosuly created
+	createReadingsOverflowTable(dbHandle, newDbId);
 
 	if (attachAllDb == NEW_DB_DETACH)
 	{
@@ -1850,6 +1841,15 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 	dbReadingsName = string(READINGS_TABLE) + "_" + to_string(dbId);
        	dbReadingsName.append("_overflow");
 
+	string sqlCmd = "select count(*) from " + dbName + "." + dbReadingsName + ";";
+	char *errMsg;
+	int rc = SQLExec(dbHandle, sqlCmd.c_str(), &errMsg);
+	if (rc == SQLITE_OK)
+	{
+		logger->debug("Overflow table %s already exists, not attempting creation", dbReadingsName.c_str());
+		return true;
+	}
+
 	string createReadings = R"(
 		CREATE TABLE IF NOT EXISTS )" + dbName + "." + dbReadingsName + R"( (
 			id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
@@ -1872,7 +1872,7 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 
 	logger->info(" Creating table '%s' sql cmd '%s'", dbReadingsName.c_str(), createReadings.c_str());
 
-	int rc = SQLExec(dbHandle, createReadings.c_str());
+	rc = SQLExec(dbHandle, createReadings.c_str());
 	if (rc != SQLITE_OK)
 	{
 		raiseError("creating overflow table", sqlite3_errmsg(dbHandle));

@@ -427,7 +427,7 @@ async def add_configuration_item(request):
         response = result['response']
 
         # update cache with new config item
-         if category_name in cf_mgr._cacheManager.cache:
+        if category_name in cf_mgr._cacheManager.cache:
             cf_mgr._cacheManager.cache[category_name]['value'].update({new_config_item: data})
 
         # logged audit new config item for category

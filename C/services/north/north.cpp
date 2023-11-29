@@ -716,13 +716,19 @@ void NorthService::shutdown()
  */
 void NorthService::restart()
 {
-	/* Set restart action */
+	// Set restart action
 	m_requestRestart = true;
+
+	// Set shutdown action
+	m_shutdown = true;
 
 	logger->info("North service restart in progress.");
 
 	// Request core to restart this service
 	m_mgtClient->restartService();
+
+	// Signal main thread to shutdown
+	m_cv.notify_all();
 }
 
 /**

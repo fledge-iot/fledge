@@ -533,9 +533,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		
 		if (!m_dryRun)
 		{
-			// Clean shutdown, unregister the storage service
-			logger->info("Unregistering service");
-			m_mgtClient->unregisterService();
+			if (m_requestRestart)
+			{
+				// Request core to restart this service
+				m_mgtClient->restartService();
+			} 
+			else
+			{
+				// Clean shutdown, unregister the storage service
+				logger->info("Unregistering service");
+				m_mgtClient->unregisterService();
+			}
 		}
 	}
 	management.stop();
@@ -716,16 +724,13 @@ void NorthService::shutdown()
  */
 void NorthService::restart()
 {
+	logger->info("North service restart in progress.");
+
 	// Set restart action
 	m_requestRestart = true;
 
 	// Set shutdown action
 	m_shutdown = true;
-
-	logger->info("North service restart in progress.");
-
-	// Request core to restart this service
-	m_mgtClient->restartService();
 
 	// Signal main thread to shutdown
 	m_cv.notify_all();

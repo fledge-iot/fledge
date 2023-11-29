@@ -716,15 +716,13 @@ void NorthService::shutdown()
  */
 void NorthService::restart()
 {
-	/* Stop recieving new requests and allow existing
-	 * requests to drain.
-	 */
+	/* Set restart action */
 	m_requestRestart = true;
-	m_shutdown = true;
-	logger->info("North service shutdown in progress.");
 
-	// Signal main thread to shutdown
-	m_cv.notify_all();
+	logger->info("North service restart in progress.");
+
+	// Request core to restart this service
+	m_mgtClient->restartService();
 }
 
 /**

@@ -15,6 +15,8 @@
 #include <storage_stats.h>
 #include <storage_registry.h>
 #include <stream_handler.h>
+#include <chrono>
+#include <condition_variable>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -50,6 +52,30 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define ASSET_NAME_COMPONENT	1
 #define SNAPSHOT_ID_COMPONENT	2
 
+/**
+ * A class that holds the requests to the reading API in the request queue
+ */
+class ReadingRequest {
+	public:
+		typedef enum Operation {
+			ReadingAppend,
+			ReadingFetch,
+			ReadingPurge,
+			ReadingQuery
+		} OperationType;
+	public:
+		ReadingRequest(ReadingRequest::Operation operation,
+				shared_ptr<HttpServer::Response> response,
+	                          shared_ptr<HttpServer::Request> request) :
+			m_operation(operation), m_response(response), m_request(request)
+		{
+		};
+	public:
+		ReadingRequest::Operation 		m_operation;
+		shared_ptr<HttpServer::Response>	m_response;
+		shared_ptr<HttpServer::Request> 	m_request;
+};
+
 
 /**
  * The Storage API class - this class is responsible for the registration of all API
@@ -65,7 +91,7 @@ public:
 	void	initResources();
 	void	setPlugin(StoragePlugin *);
 	void	setReadingPlugin(StoragePlugin *);
-	void	start();
+	void	start(int n_workers);
 	void	startServer();
 	void	wait();
 	void	stopServer();
@@ -100,9 +126,8 @@ public:
 
 	void	printList();
 	bool	createSchema(const std::string& schema);
-
-public:
-	std::atomic<int>        m_workers_count;
+	void	queueRequest(ReadingRequest request);
+	void	worker();
 
 private:
         static StorageApi       *m_instance;
@@ -123,6 +148,11 @@ private:
 	void			internalError(shared_ptr<HttpServer::Response>, const exception&);
 	void			mapError(string&, PLUGIN_ERROR *);
 	StreamHandler		*streamHandler;
+	std::mutex		m_requestQueueMutex;
+	std::condition_variable	m_workerCV;
+	std::queue<ReadingRequest>
+				m_requestQueue;
+	std::thread		**m_workers;
 };
 
 #endif

@@ -267,7 +267,8 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	api->initResources();
 	logger->info("Starting service...");
-	api->start();
+	int nWorkers = atoi(config->getValue("threads"));
+	api->start(nWorkers);
 	management.registerService(this);
 
 	management.start();

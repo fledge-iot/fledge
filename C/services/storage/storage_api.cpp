@@ -44,6 +44,11 @@ using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
+static void workerThread(void *arg)
+{
+	StorageApi *api = (StorageApi *)arg;
+	api->worker();
+}
 /**
  * The following are a set of wrapper C functions that are registered with the HTTP Server
  * for each of the API entry points. These must be outside if a class as the library has no
@@ -122,30 +127,7 @@ void readingAppendWrapper(shared_ptr<HttpServer::Response> response,
 {
 	StorageApi *api = StorageApi::getInstance();
 #if WORKER_THREADS
-	std::atomic<int>* cnt = &(api->m_workers_count);
-	// Check rurrent number of workers and log if threshold value is hit
-	int tVal = std::atomic_load(cnt);
-	if (tVal >= MAX_WORKER_THREADS)
-	{
-		Logger::getLogger()->warn("Storage API: readingAppend() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
-					  tVal,
-					  MAX_WORKER_THREADS);
-	}
-
-	// Start a new thread
-	thread work_thread([api, cnt, response, request]
-	{
-		// Increase count
-		std::atomic_fetch_add(cnt, 1);
-
-		api->readingAppend(response, request);
-
-		// Decrease counter 
-		std::atomic_fetch_sub(cnt, 1);
-	});
-	// Detach the new thread
-	work_thread.detach();
+	api->queueRequest(ReadingRequest(ReadingRequest::ReadingAppend, response, request));
 #else
 	api->readingAppend(response, request);
 #endif
@@ -159,30 +141,7 @@ void readingFetchWrapper(shared_ptr<HttpServer::Response> response,
 {
 	StorageApi *api = StorageApi::getInstance();
 #if WORKER_THREADS
-	std::atomic<int>* cnt = &(api->m_workers_count);
-	// Check rurrent number of workers and log if threshold value is hit
-	int tVal = std::atomic_load(cnt);
-	if (tVal >= MAX_WORKER_THREADS)
-	{
-		Logger::getLogger()->warn("Storage API: readingFetch() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
-					  tVal,
-					  MAX_WORKER_THREADS);
-	}
-
-	// Start a new thread
-	thread work_thread([api, cnt, response, request]
-	{
-		// Increase count
-		std::atomic_fetch_add(cnt, 1);
-
-		api->readingFetch(response, request);
-
-		// Decrease counter 
-		std::atomic_fetch_sub(cnt, 1);
-	});
-	// Detach the new thread
-	work_thread.detach();
+	api->queueRequest(ReadingRequest(ReadingRequest::ReadingFetch, response, request));
 #else
 	api->readingFetch(response, request);
 #endif
@@ -195,7 +154,11 @@ void readingQueryWrapper(shared_ptr<HttpServer::Response> response,
 			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
+#if WORKER_THREADS
+	api->queueRequest(ReadingRequest(ReadingRequest::ReadingQuery, response, request));
+#else
 	api->readingQuery(response, request);
+#endif
 }
 
 /**
@@ -206,29 +169,7 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response,
 {
 	StorageApi *api = StorageApi::getInstance();
 #if WORKER_THREADS
-	std::atomic<int>* cnt = &(api->m_workers_count);
-	// Check rurrent number of workers and log if threshold value is hit
-	int tVal = std::atomic_load(cnt);
-	if (tVal >= MAX_WORKER_THREADS)
-	{
-		Logger::getLogger()->warn("Storage API: readingPurge() is being run by a new thread. "
-					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
-					  tVal,
-					  MAX_WORKER_THREADS);
-	}
-
-	// Start a new thread
-	thread work_thread([api, cnt, response, request]
-	{
-		// Increase count
-		std::atomic_fetch_add(cnt, 1);
-
-		api->readingPurge(response, request);
-		// Decrease counter 
-		std::atomic_fetch_sub(cnt, 1);
-	});
-	// Detach the new thread
-	work_thread.detach();
+	api->queueRequest(ReadingRequest(ReadingRequest::ReadingPurge, response, request));
 #else
 	api->readingPurge(response, request);
 #endif
@@ -440,9 +381,6 @@ unsigned short StorageApi::getListenerPort()
  */
 void StorageApi::initResources()
 {
-	// Initialise workers threads counter
-	m_workers_count = ATOMIC_VAR_INIT(0);
-
 	// Initialise the API entry points
 	m_server->resource[COMMON_ACCESS]["POST"] = commonInsertWrapper;
 	m_server->resource[COMMON_ACCESS]["GET"] = commonSimpleQueryWrapper;
@@ -491,10 +429,18 @@ void startService()
 }
 
 /**
- * Start the HTTP server
+ * Start the HTTP server and any worker threads
  */
-void StorageApi::start() {
+void StorageApi::start(int threads) {
 	m_thread = new thread(startService);
+#if WORKER_THREADS
+	Logger::getLogger()->warn("Starting %d worker threads", threads);
+	m_workers = (thread **)malloc(sizeof(thread *) * (unsigned int)threads);
+	for (int i = 0; i < threads; i++)
+	{
+		m_workers[i] = new thread(workerThread, this);
+	}
+#endif
 }
 
 void StorageApi::startServer() {
@@ -586,7 +532,7 @@ string  responsePayload;
 			mapError(responsePayload, plugin->lastError());
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -664,7 +610,7 @@ string	responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 		}
 }
@@ -715,7 +661,7 @@ string payload;
 			mapError(responsePayload, plugin->lastError());
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -751,7 +697,7 @@ string	payload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -788,7 +734,7 @@ string  responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -863,7 +809,7 @@ string  responsePayload;
 		}
 
 		//respond(response, responsePayload);
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -919,7 +865,7 @@ unsigned long			   count = 0;
 		respond(response, res);
 		// Free plugin data
 		free(responsePayload);
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -943,7 +889,7 @@ string	payload;
 
 		respond(response, res);
 		free(resultSet);
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 	}
 }
@@ -1076,7 +1022,7 @@ static std::atomic<bool> already_running(false);
 		return;
 	}
 	/** Handle general exception */
-	catch (exception ex) {
+	catch (exception& ex) {
 		internalError(response, ex);
 		already_running.store(false);
 		return;
@@ -1268,7 +1214,7 @@ string	responsePayload;
 			respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
 		}
 
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		internalError(response, ex);
 		}
 }
@@ -1505,7 +1451,7 @@ string   payload;
 				SimpleWeb::StatusCode::client_error_bad_request,
 				responsePayload);
 		}
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex);
         }
 }
@@ -1537,7 +1483,7 @@ string  responsePayload;
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
 
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex);
         }
 }
@@ -1575,7 +1521,7 @@ string  responsePayload;
                         mapError(responsePayload, plugin->lastError());
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex);
         }
 }
@@ -1655,7 +1601,7 @@ string  responsePayload;
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
 
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex);
                 }
 }
@@ -1694,7 +1640,7 @@ string  responsePayload;
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
 
-	}catch (exception ex) {
+	}catch (exception& ex) {
                	internalError(response, ex);
         }
 }
@@ -1746,7 +1692,7 @@ string payload;
                         mapError(responsePayload, plugin->lastError());
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex);
         }
 }
@@ -1784,8 +1730,62 @@ string  payload;
                         respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
                 }
 
-        } catch (exception ex) {
+        } catch (exception& ex) {
                 internalError(response, ex); 
         }
 }
 
+/**
+ * Queue a request to be run by a worker thread
+ *
+ * @param request	The request to be executed by a worker thread
+ */
+void StorageApi::queueRequest(ReadingRequest request)
+{
+	unique_lock<mutex> lck(m_requestQueueMutex);
+	m_requestQueue.push(request);
+	m_workerCV.notify_one();
+}
+
+/**
+ * Called by worker threads to collect and execute requests
+ */
+void StorageApi::worker()
+{
+	unique_lock<mutex> lck(m_requestQueueMutex);
+	while (1)
+	{
+		try {
+			if (m_requestQueue.empty())
+			{
+				m_workerCV.wait(lck);
+			}
+			if (! m_requestQueue.empty())
+			{
+				ReadingRequest req = m_requestQueue.front();
+				m_requestQueue.pop();
+				lck.unlock();
+				switch (req.m_operation)
+				{
+					case ReadingRequest::ReadingAppend:
+						readingAppend(req.m_response, req.m_request);
+						break;
+					case ReadingRequest::ReadingFetch:
+						readingFetch(req.m_response, req.m_request);
+						break;
+					case ReadingRequest::ReadingPurge:
+						readingPurge(req.m_response, req.m_request);
+						break;
+					case ReadingRequest::ReadingQuery:
+						readingQuery(req.m_response, req.m_request);
+						break;
+				}
+				lck.lock();
+			}
+		} catch (exception& e) {
+			Logger::getLogger()->error("Storage worker thread exception: %s", e.what());
+		} catch (...) {
+			Logger::getLogger()->error("Storage worker thread exception");
+		}
+	}
+}

@@ -52,6 +52,37 @@ typedef struct
 } STORAGE_CONFIGURATION;
 
 /**
+ * Class used to store table references
+ */
+class TableReference {
+	public:
+		TableReference(int dbId, int tableId) : m_dbId(dbId), m_tableId(tableId)
+				{
+					m_issued = time(0);
+				};
+		time_t		lastIssued()
+	       			{
+					return m_issued;
+				};
+		int		getTable()
+				{
+					return m_tableId;
+				};
+		int		getDatabase()
+				{
+					return m_dbId;
+				};
+		void		issue()
+				{
+					m_issued = time(0);
+				};
+	private:
+		int		m_dbId;
+		int		m_tableId;
+		time_t		m_issued;
+};
+
+/**
  * Implements the handling of multiples readings tables stored among multiple SQLite databases.
  *
  * The databases are named using the format readings_<dbid>, like for example readings_1.db
@@ -228,7 +259,7 @@ private:
   		      m_ReadingsGlobalId;       // Global row id shared among all the readings table
 	int
  		      m_nReadingsAvailable = 0; // Number of readings tables available
-	std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is stored
+	std::map <std::string, TableReference>   m_AssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is stored
 
 		// asset_code  - reading Table Id, Db Id
 		// {"",         ,{1               ,1 }}

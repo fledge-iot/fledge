@@ -159,10 +159,10 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 	m_AFMap = AFMap;
 
 	// OCS configurations
-	OCSNamespace    = OCSNamespace;
-	OCSTenantId     = OCSTenantId;
-	OCSClientId     = OCSClientId;
-	OCSClientSecret = OCSClientSecret;
+	m_OCSNamespace    = OCSNamespace;
+	m_OCSTenantId     = OCSTenantId;
+	m_OCSClientId     = OCSClientId;
+	m_OCSClientSecret = OCSClientSecret;
 
 	// PI Web API end-point - evaluates the authentication method requested
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
@@ -461,6 +461,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		{
 			// Created a new sender after a connection failure
 			m_omf->setSender(*m_sender);
+			m_omf->setConnected(false);
 		}
 	}
 
@@ -536,6 +537,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		Logger::getLogger()->warn("Connection to PI Web API at %s has been lost", m_hostAndPort.c_str());
 	}
 	m_connected = updatedConnected;
+
 	
 #if INSTRUMENT
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);

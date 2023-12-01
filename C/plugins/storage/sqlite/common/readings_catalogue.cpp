@@ -278,15 +278,15 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 	{
 		for (auto &item : m_AssetReadingCatalogue)
 		{
-			if (item.second.first != 0)
+			if (item.second.getTable() != 0)
 			{
 				if (!firstRow)
 				{
 					sql_cmd += " UNION ";
 				}
 
-				dbName = generateDbName(item.second.second);
-				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+				dbName = generateDbName(item.second.getDatabase());
+				dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
 
 				sql_cmd += " SELECT max(id) id FROM " + dbName + "." + dbReadingsName + " ";
 				firstRow = false;
@@ -372,15 +372,15 @@ int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 		{
 			for (auto &item : m_AssetReadingCatalogue)
 			{
-				if (item.second.first != 0)
+				if (item.second.getTable() != 0)
 				{
 					if (!firstRow)
 					{
 						sql_cmd += " UNION ";
 					}
 
-					dbName = generateDbName(item.second.second);
-					dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+					dbName = generateDbName(item.second.getDatabase());
+					dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
 
 					sql_cmd += " SELECT min(id) id FROM " + dbName + "." + dbReadingsName + " ";
 					firstRow = false;
@@ -483,8 +483,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 
 			Logger::getLogger()->debug("loadAssetReadingCatalogue - thread '%s' reading Id %d dbId %d asset name '%s' max db Id %d", threadId.str().c_str(), tableId, dbId,  asset_name, maxDbID);
 
-			auto newItem = make_pair(tableId,dbId);
-			auto newMapValue = make_pair(asset_name,newItem);
+			auto newMapValue = make_pair(asset_name,TableReference(dbId, tableId));
 			m_AssetReadingCatalogue.insert(newMapValue);
 			if (tableId == 0 && dbId > m_maxOverflowUsed)	// Overflow
 			{
@@ -609,7 +608,7 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList)
 
 	for (auto &item : m_AssetReadingCatalogue) {
 
-		dbId = item.second.second;
+		dbId = item.second.getDatabase();
 		if (dbId > 1)
 		{
 			if (std::find(dbIdList.begin(), dbIdList.end(), dbId) ==  dbIdList.end() )
@@ -720,12 +719,7 @@ char	*zErrMsg = NULL;
 	// See if the overflow table exists and if not create it
 	// This is a workaround as the schema update mechanism can't cope
 	// with multiple readings tables
-	sqlCmd = "select count(*) from " + alias + ".readings_overflow;";
-	rc = SQLExec(dbHandle, sqlCmd.c_str(), &zErrMsg);
-	if (rc != SQLITE_OK)
-	{
-		createReadingsOverflowTable(dbHandle, id);
-	}
+	createReadingsOverflowTable(dbHandle, id);
 
 	return result;
 }
@@ -1404,8 +1398,8 @@ int  ReadingsCatalogue::calcMaxReadingUsed()
 
 	for (auto &item : m_AssetReadingCatalogue)
 	{
-		if (item.second.first > maxReading)
-			maxReading = item.second.first;
+		if (item.second.getTable() > maxReading)
+			maxReading = item.second.getTable();
 	}
 
 	return (maxReading);
@@ -1715,7 +1709,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 		m_nReadingsAvailable = readingsToAllocate;
 	}
 
-	// Create the overflow table in the new database
+	// Create the overflow table in the new database if it was not previosuly created
 	createReadingsOverflowTable(dbHandle, newDbId);
 
 	if (attachAllDb == NEW_DB_DETACH)
@@ -1847,6 +1841,15 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 	dbReadingsName = string(READINGS_TABLE) + "_" + to_string(dbId);
        	dbReadingsName.append("_overflow");
 
+	string sqlCmd = "select count(*) from " + dbName + "." + dbReadingsName + ";";
+	char *errMsg;
+	int rc = SQLExec(dbHandle, sqlCmd.c_str(), &errMsg);
+	if (rc == SQLITE_OK)
+	{
+		logger->debug("Overflow table %s already exists, not attempting creation", dbReadingsName.c_str());
+		return true;
+	}
+
 	string createReadings = R"(
 		CREATE TABLE IF NOT EXISTS )" + dbName + "." + dbReadingsName + R"( (
 			id         INTEGER                     PRIMARY KEY AUTOINCREMENT,
@@ -1869,7 +1872,7 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 
 	logger->info(" Creating table '%s' sql cmd '%s'", dbReadingsName.c_str(), createReadings.c_str());
 
-	int rc = SQLExec(dbHandle, createReadings.c_str());
+	rc = SQLExec(dbHandle, createReadings.c_str());
 	if (rc != SQLITE_OK)
 	{
 		raiseError("creating overflow table", sqlite3_errmsg(dbHandle));
@@ -2040,8 +2043,9 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 	if (item != m_AssetReadingCatalogue.end())
 	{
 		//# The asset is already allocated to a table
-		ref.tableId = item->second.first;
-		ref.dbId = item->second.second;
+		ref.tableId = item->second.getTable();
+		ref.dbId = item->second.getDatabase();
+		item->second.issue();
 	}
 	else
 	{
@@ -2055,8 +2059,9 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
-			ref.tableId = item->second.first;
-			ref.dbId = item->second.second;
+			ref.tableId = item->second.getTable();
+			ref.dbId = item->second.getDatabase();
+			item->second.issue();
 		}
 		else
 		{
@@ -2138,8 +2143,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				{
 					m_EmptyAssetReadingCatalogue.erase(emptyAsset);
 					m_AssetReadingCatalogue.erase(emptyAsset);
-					auto newItem = make_pair(ref.tableId, ref.dbId);
-					auto newMapValue = make_pair(asset_code, newItem);
+					auto newMapValue = make_pair(asset_code, TableReference(ref.dbId, ref.tableId));
 					m_AssetReadingCatalogue.insert(newMapValue);
 				}
 
@@ -2183,8 +2187,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 			{
 				// Assign to overflow
 				Logger::getLogger()->info("Assign asset %s to the overflow table", asset_code);
-				auto newItem = make_pair(0, m_nextOverflow);
-				auto newMapValue = make_pair(asset_code, newItem);
+				auto newMapValue = make_pair(asset_code, TableReference(m_nextOverflow, 0));
 				m_AssetReadingCatalogue.insert(newMapValue);
 				sql_cmd =
 					"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ( 0,"
@@ -2207,6 +2210,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 					m_nextOverflow = 1;
 
 			}
+			Logger::getLogger()->debug("Assign: '%s' to %d, %d", asset_code, ref.dbId, ref.tableId);
 		}
 		attachSync->unlock();
 	}
@@ -2244,13 +2248,14 @@ bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue(bool clean)
 	connection->setUsage(usage);
 #endif
 	dbHandle = connection->getDbHandle();
+	time_t issueThreshold = time(0) - 600;		// More than 10 minutes since it was last ussed
 	for (auto &item : m_AssetReadingCatalogue)
 	{
 		string asset_name = item.first; // Asset
-		int tableId = item.second.first; // tableId;
-		int dbId = item.second.second; // dbId;
+		int tableId = item.second.getTable(); // tableId;
+		int dbId = item.second.getDatabase(); // dbId;
 
-		if (tableId > 0)
+		if (tableId > 0 && item.second.lastIssued() < issueThreshold)
 		{
 			
 			sql_cmd = "SELECT COUNT(*) FROM readings_" + to_string(dbId) + ".readings_" + to_string(dbId) + "_" + to_string(tableId) + " ;";
@@ -2304,7 +2309,7 @@ ReadingsCatalogue::tyReadingReference ReadingsCatalogue::getEmptyReadingTableRef
 }
 
 /**
- * Retrieve the maximum readings id for the provided database id
+ * Retrieve the maximum table id for the provided database id
  *
  * @param dbId Database id for which the maximum reading id must be retrieved
  * @return     Maximum readings for the requested database id
@@ -2316,8 +2321,8 @@ int ReadingsCatalogue::getMaxReadingsId(int dbId)
 
 	for (auto &item : m_AssetReadingCatalogue)
 	{
-		if (item.second.second == dbId && item.second.first > maxId)
-			maxId = item.second.first;
+		if (item.second.getDatabase() == dbId && item.second.getTable() > maxId)
+			maxId = item.second.getTable();
 	}
 
 	return (maxId);
@@ -2372,7 +2377,7 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 
 	for (auto &item : m_AssetReadingCatalogue)
 	{
-		if (item.second.first != 0 && item.second.second == dbId)
+		if (item.second.getTable() != 0 && item.second.getDatabase() == dbId)
 			count++;
 	}
 
@@ -2423,8 +2428,8 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 			}
 			sqlCmdTmp = sqlCmdBase;
 
-			dbName = generateDbName(item.second.second);
-			dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+			dbName = generateDbName(item.second.getDatabase());
+			dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
 
 			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
 			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
@@ -2510,7 +2515,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 			}
 
 			// Exclude the overflow table
-			if (item.second.first == 0)
+			if (item.second.getTable() == 0)
 			{
 				continue;
 			}
@@ -2535,8 +2540,8 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 					sqlCmd += " UNION ALL ";
 				}
 
-				dbName = generateDbName(item.second.second);
-				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+				dbName = generateDbName(item.second.getDatabase());
+				dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
@@ -2759,9 +2764,9 @@ int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
 	for (auto &item : m_AssetReadingCatalogue)
 	{
 
-		if (item.second.first == tableId)
+		if (item.second.getTable() == tableId)
 		{
-			dbId = item.second.second;
+			dbId = item.second.getDatabase();
 			break;
 		}
 	}
@@ -2782,9 +2787,9 @@ string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 	for (auto &item : m_AssetReadingCatalogue)
 	{
 
-		if (item.second.first == tableId)
+		if (item.second.getTable() == tableId)
 		{
-			dbName = READINGS_DB_NAME_BASE "_" + to_string(item.second.second);
+			dbName = READINGS_DB_NAME_BASE "_" + to_string(item.second.getDatabase());
 			break;
 		}
 	}

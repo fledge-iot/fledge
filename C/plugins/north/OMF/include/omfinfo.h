@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "string_utils.h"
 #include <version.h>
+#include <linkedlookup.h>
 
 #include "crypto.hpp"
 

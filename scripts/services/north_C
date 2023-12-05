@@ -27,11 +27,44 @@ if [ "$VALGRIND_NORTH" != "" ]; then
 	done
 fi
 
+runstrace=n
+if [ "$STRACE_NORTH" != "" ]; then
+	for i in "$@"; do
+		case $i in
+			--name=*)
+				name="`echo $i | sed -e s/--name=//`"
+				;;
+		esac
+	done
+	services=$(echo $STRACE_NORTH | tr ";" "\n")
+	for service in $services; do
+		if [ "$service" = "$name" ]; then
+			runstrace=y
+		fi
+	done
+fi
+
 cd "${FLEDGE_ROOT}/services"
 if [ "$runvalgrind" = "y" ]; then
 	file=${HOME}/north.${name}.valgrind.out
 	rm -f $file
-	valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file ./fledge.services.north "$@"
+	logger "Running north service $name under valgrind"
+	if [ "$VALGRIND_MASSIF" != "" ]; then
+		valgrind  --tool=massif  --detailed-freq=1 --pages-as-heap=yes  ./fledge.services.north "$@"
+	else
+		valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file ./fledge.services.north "$@"
+	fi
+elif [ "$runstrace" = "y" ]; then
+	file=${HOME}/north.${name}.strace.out
+	logger "Running north service $name under strace"
+	rm -f $file
+	strace -e 'trace=%memory,%process,%file' -f -o $file ./fledge.services.north "$@"
+elif [ "$INTERPOSE_NORTH" != "" ]; then
+	LD_PRELOAD=${INTERPOSE_NORTH}
+	logger "Running north service with interpose library $INTERPOSE_NORTH"
+	export LD_PRELOAD
+	./fledge.services.north "$@"
+ 	unset LD_PRELOAD
 else
 	./fledge.services.north "$@"
 fi

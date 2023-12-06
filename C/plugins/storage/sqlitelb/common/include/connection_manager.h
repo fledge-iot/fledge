@@ -44,7 +44,7 @@ class ConnectionManager {
 					  }
 		bool			  persist() { return m_persist; };
 		std::string		  filename() { return m_filename; };
-		void			  setPurgeBlockSize(unsigned long purgeBlickSize);
+		void			  setPurgeBlockSize(unsigned long purgeBlockSize);
 	protected:
 		ConnectionManager();
 

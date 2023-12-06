@@ -331,10 +331,12 @@ The dispatcher can also be instructed to run a local automation script, these ar
 | |north_map4| |
 +--------------+
 
-Note, this is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
+.. note::
 
-API Control Invoction
----------------------
+  This is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
+
+API Control Invocation
+----------------------
 
 Fledge allows the administer of the system to extend to REST API of Fledge to encompass custom defined entry point for invoking control operations within the Fledge instance. These configured API Control entry points can be called with a PUT operations to a URL of the form
 
@@ -343,7 +345,7 @@ Fledge allows the administer of the system to extend to REST API of Fledge to en
   /fledge/control/request/{name}
 
 
-Where {name} is a symbolic name that is defined by the user who configures the API request.
+Where *{name}* is a symbolic name that is defined by the user who configures the API request.
 
 A payload can be passed as a JSON document that may be processed into the request that will be sent to the control dispatcher. This process is discussed below.
 
@@ -359,15 +361,16 @@ A control entry point has the following attributes
   - The destination for the control. This is the ultimate destination, all control requests will be routed via the control dispatcher. The destination may be one of service, asset, script or broadcast.
 
   - The operation name if the type is operation.
-A set of constant key/value pairs that are sent either as the items to be written or as parameters if the type of the entry point is operation. Constants are always passed to the dispatcher call with the values defined here.
+
+  - A set of constant key/value pairs that are sent either as the items to be written or as parameters if the type of the entry point is operation. Constants are always passed to the dispatcher call with the values defined here.
 
   - A set of key/value pairs that define the variables that may be passed into the control entry point in the request. The value given here represents a default value to use if no corresponding key is given in the request made via the public API.
 
   - A set of usernames for the users that are allowed to make requests to this entry point. If this is empty then no users are permitted to call the API entry point unless anonymous access has been enabled. See below.
 
-  - A flag, with the key anonymous, that states if the entry point is open to all users, including where users are not authenticated with the API. It may take the values “reject” or “allow”.
+  - A flag, with the key anonymous, that states if the entry point is open to all users, including where users are not authenticated with the API. It may take the values “true” or “false”.
 
-  - The anonymous flag is really intended for situations when no user is logged into the system, i.e. authentication is not mandatory. It also serves a double purpose to allow a control API call to be open to all users. It is not recommended that this flag is set to “allow” in production environments.
+  - The anonymous flag is really intended for situations when no user is logged into the system, i.e. authentication is not mandatory. It also serves a double purpose to allow a control API call to be open to all users. It is **not** recommended that this flag is set to “true” in production environments.
 
   
 To define a new control entry point a POST request is made to the URL
@@ -382,20 +385,20 @@ With a payload such as
 .. code-block:: JSON
 
   {
-        "name"        : "FocusCamera1",
-        "description" : "Perform a focus operation on camera 1",
-        "type"        : "operation",
-        "operation"   : "focus",
-        "destination" : "service",
-        "service"     : "camera1",
-        "constants"   : {
+        "name"           : "FocusCamera1",
+        "description"    : "Perform a focus operation on camera 1",
+        "type"           : "operation",
+        "operation_name" : "focus",
+        "destination"    : "service",
+        "service"        : "camera1",
+        "constants"      : {
                                 "units"    : "cm"
-                        },
-        "variables"   : {
+                           },
+        "variables"      : {
                                 "distance" : "100"
-                        },
-        "allow"       : [ "john", "fred" ],
-        "anonymous"   : "reject"
+                           },
+        "allow"          : [ "john", "fred" ],
+        "anonymous"      : "false"
   }
 
 
@@ -407,53 +410,53 @@ The above will define an API entry point that can be called with a PUT request t
 
 The payload of the request is defined by the set of variables that was created when the entry point was defined. Only keys given as variable names in the definition can be included in the payload of this call. If any variable is omitted from the payload of this call, then the default value that was defined when the entry point was defined will be used as the value of the variable that is passed in the payload to the dispatcher call that will action the request.
 
-The payload sent to the dispatcher will always contain all of the variables and constants defined in the API entry point. The values for the contents are always from the original definition, whereas the values of the variables can be given in the public API or if omitted the defaults defined when the entry point was defined will be used.
+The payload sent to the dispatcher will always contain all of the variables and constants defined in the API entry point. The values for the constants are always from the original definition, whereas the values of the variables can be given in the public API or if omitted the defaults defined when the entry point was defined will be used.
 
 Alternatively new entry points can be created using the Fledge Graphical User Interface.
 
 The GUI functionality is accessed via the *API Entry Points* sub-menu of the *Control* menu in the left-hand menu pane. Selecting this option will display a screen that appears as follows.
 
-+-------------------+
-| | control_api_1 | |
-+-------------------+
++-----------------+
+| |control_api_1 ||
++-----------------+
 
 Clicking on the *Add* item in the top right corner will allow a new entry point to be defined. 
 
-+-------------------+
-| | control_api_2 | |
-+-------------------+
++-----------------+
+| |control_api_2| |
++-----------------+
 
-Following the above example we can add the name of the entry point and select the type type of control request we wish to make from the drop down menu.
+Following the above example we can add the name of the entry point and select the type of control request we wish to make from the drop down menu.
 
-+-------------------+
-| | control_api_3 | |
-+-------------------+
++-----------------+
+| |control_api_3| |
++-----------------+
 
 We then enter destination, in this case service, by selecting it from the drop down. We can also enter the service name.
 
-+-------------------+
-| | control_api_4 | |
-+-------------------+
++-----------------+
+| |control_api_4| |
++-----------------+
 
 We can add constant and variable parameters to the entry point via the *Parameters* pane of the add entry page
 
-+-------------------+
-| | control_api_5 | |
-+-------------------+
++-----------------+
+| |control_api_5| |
++-----------------+
 
 Clicking on the *+ Add new variable* or *+Add new constant* items will add a pair of entry fields to allow you to enter the name and value for the variable or constant.
 
-+-------------------+
-| | control_api_6 | |
-+-------------------+
++-----------------+
+| |control_api_6| |
++-----------------+
 
 You may delete a variable or constant by clicking on the *x* icon next to the entry.
 
 The *Execution Access* pane allows control of who may execute the endpoint. Select the *Anonymous* toggle button will allow any user to execute the API. This is not recommended in a production environment.
 
-+-------------------+
-| | control_api_7 | |
-+-------------------+
++-----------------+
+| |control_api_7| |
++-----------------+
 
 The *Allow Users* drop down will provides a means to allow limited users to run the entry point and provides a list of defined users within the system to choose from.
 
@@ -461,21 +464,21 @@ Finally a textual description of the operation may be given in the *Description*
 
 Clicking on *Save* will save an enable the new API entry point. The new entry point will be displayed on the resultant screen along with any others that have been defined previously.
 
-+-------------------+
-| | control_api_8 | |
-+-------------------+
++-----------------+
+| |control_api_8| |
++-----------------+
 
 Clicking on the three vertical dots will display a menu that allows the details of the entry point to be viewed and updated or to delete the new entry point.
 
-+-------------------+
-| | control_api_9 | |
-+-------------------+
++-----------------+
+| |control_api_9| |
++-----------------+
 
 It is also possible to execute the entry point from the GUI by clicking on the name of the entry point. You will be prompted to enter values for any variables that have been defined.
 
-+--------------------+
-| | control_api_10 | |
-+--------------------+
++------------------+
+| |control_api_10| |
++------------------+
 
 Control Dispatcher Service
 ==========================

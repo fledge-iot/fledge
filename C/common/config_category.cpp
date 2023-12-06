@@ -1621,6 +1621,12 @@ ostringstream convert;
 	return convert.str();
 }
 
+/**
+ * Parse BucketItem value in JSON dict format and return the key value pairs within that
+ *
+ * @param json	JSON string representing the BucketItem value
+ * @return		Vector with pairs of found key/value string pairs in BucketItem value
+ */
 vector<pair<string,string>>* ConfigCategory::parseBucketItemValue(const string & json)
 {
 	Document document;

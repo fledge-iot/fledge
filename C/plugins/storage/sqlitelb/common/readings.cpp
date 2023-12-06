@@ -718,6 +718,13 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
 
 #if INSTRUMENT
 	gettimeofday(&t2, NULL);
@@ -1117,6 +1124,13 @@ int sleep_time_ms = 0;
 		if (sqlite3_finalize(stmt) != SQLITE_OK)
 		{
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
 

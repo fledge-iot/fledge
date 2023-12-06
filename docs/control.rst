@@ -398,7 +398,7 @@ With a payload such as
                                 "distance" : "100"
                            },
         "allow"          : [ "john", "fred" ],
-        "anonymous"      : "false"
+        "anonymous"      : false
   }
 
 
@@ -417,7 +417,7 @@ Alternatively new entry points can be created using the Fledge Graphical User In
 The GUI functionality is accessed via the *API Entry Points* sub-menu of the *Control* menu in the left-hand menu pane. Selecting this option will display a screen that appears as follows.
 
 +-----------------+
-| |control_api_1 ||
+| |control_api_1| |
 +-----------------+
 
 Clicking on the *Add* item in the top right corner will allow a new entry point to be defined. 

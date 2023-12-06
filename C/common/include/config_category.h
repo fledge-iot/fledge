@@ -179,7 +179,7 @@ class ConfigCategory {
 				std::string	m_validity;
 				std::string	m_group;
 				std::string	m_rule;
-				std::string	m_bucketProperies;
+				std::string	m_bucketProperties;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

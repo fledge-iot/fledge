@@ -477,7 +477,7 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 				case RULE_ATTR:
 					return m_items[i]->m_rule;
 				case BUCKET_PROPERTIES_ATTR:
-					return m_items[i]->m_bucketProperies;
+					return m_items[i]->m_bucketProperties;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -544,7 +544,7 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					m_items[i]->m_rule = value;
 					return true;
 				case BUCKET_PROPERTIES_ATTR:
-					m_items[i]->m_bucketProperies = value;
+					m_items[i]->m_bucketProperties = value;
 					return true;
 				default:
 					return false;
@@ -1094,14 +1094,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 
 	if (item.HasMember("properties"))
 	{
-		m_bucketProperies = item["properties"].GetString();
+		m_bucketProperties = item["properties"].GetString();
 	}
 	else
 	{
-		m_bucketProperies = "";
+		m_bucketProperties = "";
 	}
 	
-	if (m_itemType == BucketItem && m_bucketProperies.empty())
+	if (m_itemType == BucketItem && m_bucketProperties.empty())
 	{
 		throw new runtime_error("Bucket configuration item is missing the \"properties\" attribute");
 	}
@@ -1400,7 +1400,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_validity = rhs.m_validity;
 	m_group = rhs.m_group;
 	m_rule = rhs.m_rule;
-	m_bucketProperies = rhs.m_bucketProperies;
+	m_bucketProperties = rhs.m_bucketProperties;
 }
 
 /**
@@ -1491,9 +1491,9 @@ ostringstream convert;
 			convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 		}
 
-		if (!m_bucketProperies.empty())
+		if (!m_bucketProperties.empty())
 		{
-			convert << ", \"properties\" : \"" << JSONescape(m_bucketProperies) << "\"";
+			convert << ", \"properties\" : \"" << JSONescape(m_bucketProperties) << "\"";
 		}
 
 		if (!m_group.empty())
@@ -1567,9 +1567,9 @@ ostringstream convert;
 		convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 	}
 
-	if (!m_bucketProperies.empty())
+	if (!m_bucketProperties.empty())
 	{
-		convert << ", \"properties\" : \"" << JSONescape(m_bucketProperies) << "\"";
+		convert << ", \"properties\" : \"" << JSONescape(m_bucketProperties) << "\"";
 	}
 
 	if (!m_group.empty())

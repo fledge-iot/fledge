@@ -305,7 +305,7 @@ OMFBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 }
 
 /**
- * Construct a large buffer, passing the size of buffer required. THis is useful
+ * Construct a large buffer, passing the size of buffer required. This is useful
  * if you know your buffer requirements are large and you wish to reduce the amount
  * of allocation required.
  *

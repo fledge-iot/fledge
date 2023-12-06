@@ -141,6 +141,7 @@ int SimpleHttps::sendRequest(
 		{
 			exception_raised = none;
 			http_code = 0;
+			std::chrono::high_resolution_clock::time_point tStart;
 
 			if (m_log)
 			{
@@ -152,6 +153,7 @@ int SimpleHttps::sendRequest(
 				}
 				m_ofs << "Payload:" << endl;
 				m_ofs << payload << endl;
+				tStart = std::chrono::high_resolution_clock::now();
 			}
 
 			// Call HTTPS method
@@ -163,8 +165,15 @@ int SimpleHttps::sendRequest(
 
 			if (m_log)
 			{
+				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
+				time_t now = time(NULL);
+				struct tm timeinfo;
+				gmtime_r(&now, &timeinfo);
+				char timeString[20];
+				strftime(timeString, sizeof(timeString), "%F %T", &timeinfo);
 				m_ofs << "Response:" << endl;
 				m_ofs << "   Code: " << res->status_code << endl;
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << timeString << endl;
 				m_ofs << "   Content: " << res->content.string() << endl << endl;
 			}
 

@@ -318,6 +318,7 @@ int LibcurlHttps::sendRequest(
 			httpCode = 0;
 			httpResponseText = "";
 			httpHeaderBuffer[0] = '\0';
+			std::chrono::high_resolution_clock::time_point tStart;
 
 			// It is needed to handle the call back header to retrieve the text message
 			// in response to an HTTP request
@@ -334,6 +335,7 @@ int LibcurlHttps::sendRequest(
 				}
 				m_ofs << "Payload:" << endl;
 				m_ofs << payload << endl;
+				tStart = std::chrono::high_resolution_clock::now();
 			}
 
 			// Execute the HTTP method
@@ -346,8 +348,15 @@ int LibcurlHttps::sendRequest(
 			httpResponseText = httpHeaderBuffer;
 			if (m_log)
 			{
+				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
+				time_t now = time(NULL);
+				struct tm timeinfo;
+				gmtime_r(&now, &timeinfo);
+				char timeString[20];
+				strftime(timeString, sizeof(timeString), "%F %T", &timeinfo);
 				m_ofs << "Response:" << endl;
 				m_ofs << "   Code: " << httpCode << endl;
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << timeString << endl;
 				m_ofs << "   Content: " << httpResponseText << endl << endl;
 			}
 			StringStripCRLF(httpResponseText);

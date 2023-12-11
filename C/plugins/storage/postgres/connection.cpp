@@ -4369,9 +4369,18 @@ int Connection::create_schema(const std::string &payload)
 										{
 											auto itr = dbCol->find(v);
 											//Check if the column matches exactly with that present in db , if not same , the reject the request
-											if ( itr->type != v.type || itr->sz != v.sz || itr->key != v.key )
+											// We ignore size for integer columns
+											if (v.type.compare("integer") == 0)
 											{
-                                                                        			raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+											       	if (itr->type != v.type || itr->key != v.key)
+												{
+													raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+													return -1;
+												}
+											}
+											else if (itr->type != v.type || itr->sz != v.sz || itr->key != v.key)
+											{
+												raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
 												return -1;
 											}
 										}

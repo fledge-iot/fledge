@@ -1303,32 +1303,35 @@ class Server:
         :Example:
             curl -X PUT  http://localhost:<core mgt port>/fledge/service/dc9bfc01-066a-4cc0-b068-9c35486db87f/restart
         """
-
         try:
             service_id = request.match_info.get('service_id', None)
-
             try:
                 services = ServiceRegistry.get(idx=service_id)
             except service_registry_exceptions.DoesNotExist:
                 raise ValueError('Service with {} does not exist'.format(service_id))
 
             ServiceRegistry.restart(service_id)
-
             if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})
                 except Exception as ex:
                     _logger.exception(ex)
-
-            _resp = {'id': str(service_id), 'message': 'Service restart requested'}
-
-            return web.json_response(_resp)
-        except ValueError as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+                """ Special Case:
+                    For BucketStorage type we have used proxy map for interfacing REST API endpoints 
+                    to Microservice service API endpoints. Therefore we need to clear the proxy map on restart.
+                """
+                if services[0]._type == "BucketStorage":
+                    cls._API_PROXIES = {}
+        except ValueError as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            _resp = {'id': str(service_id), 'message': 'Service restart requested'}
+            return web.json_response(_resp)
 
     @classmethod
     async def get_service(cls, request):

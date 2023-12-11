@@ -36,7 +36,7 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::string& value);
-bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[]);
+bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER *parameters[]);
 
 
 /**
@@ -271,7 +271,7 @@ bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::s
  * @param    parameterCount	Number of parameters in Parameter list
  * @param    parameters		Parameter list
  */
-bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[])
+bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER *parameters[])
 {
 	bool rv = false;
 	if (!handle)
@@ -346,7 +346,7 @@ bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCo
 	PyObject *paramsList = PyList_New(parameterCount);
 	for (int i=0; i<parameterCount; i++)
 	{
-		PyList_SetItem(paramsList, i, Py_BuildValue("(ss)", parameters[i].name.c_str(), parameters[i].value.c_str()) );
+		PyList_SetItem(paramsList, i, Py_BuildValue("(ss)", parameters[i]->name.c_str(), parameters[i]->value.c_str()) );
 	}
 	
 	// Call Python method passing an object and 2 C-style strings

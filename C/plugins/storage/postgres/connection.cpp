@@ -3678,10 +3678,6 @@ bool Connection::appendTables(const string& schema,
 				raiseError("commonRetrieve", "Joining table name is not a string");
 				return false;
 			}
-			//sql.append(", fledge.");
-			//sql.append(name.GetString());
-			//sql.append(" ");
-			//sql.append(tag);
 
 			sql.append(", ");
                         sql.append(schema);

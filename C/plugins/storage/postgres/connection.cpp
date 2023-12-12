@@ -2951,7 +2951,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			sql.append(prefix);
 
 
-		sql.append(whereClause["column"].GetString());
+		sql.append(whereColumnName);
 
 		if (prefix.empty())
 		{
@@ -3078,8 +3078,18 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			} else if (whereClause["value"].IsString())
 			{
 				sql.append('\'');
-				sql.append(escape(whereClause["value"].GetString()));
+				string value = whereClause["value"].GetString();
+				sql.append(escape(value));
 				sql.append('\'');
+
+				// Identify a specific operation to restrinct the tables involved
+				if (whereColumnName.compare("asset_code") == 0)
+				{
+					if ( cond.compare("=") == 0)
+					{
+						asset_codes.push_back(value);
+					}
+				}
 			}
 		}
 	}

@@ -377,7 +377,10 @@ Connection::~Connection()
  * Perform a query against a common table
  *
  */
-bool Connection::retrieve(const string& schema, const string& table, const string& condition, string& resultSet)
+bool Connection::retrieve(const string& schema,
+			const string& table,
+			const string& condition,
+			string& resultSet)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
@@ -2912,7 +2915,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 bool Connection::jsonWhereClause(const Value& whereClause,
 				SQLBuffer& sql,
 				vector<string>  &asset_codes,
-				bool convertLocaltime,
+				bool convertLocaltime, // not in use
 				const string prefix)
 {
 
@@ -3712,9 +3715,13 @@ bool Connection::appendTables(const string& schema,
  *
  * @param query	The JSON query
  * @param sql	The SQLBuffer we are writing the data to
- * @param level	The nestign level of the joined table
+ * @param asset_codes   The asset codes
+ * @param level	The nesting level of the joined table
  */
-bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level)
+bool Connection::processJoinQueryWhereClause(const Value& query,
+						SQLBuffer& sql,
+						std::vector<std::string> &asset_codes,
+						int level)
 {
 	string tag = "t" + to_string(level) + ".";
 	if (!jsonWhereClause(query["where"], sql, asset_codes, false, tag))

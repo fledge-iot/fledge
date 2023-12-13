@@ -2941,34 +2941,31 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	double converted = strtod(whereColumnName.c_str(), &p);
 	if (*p)
 	{
-		// Single or Double quote column name
+		// Double quote column name
 		if (prefix.empty())
 		{
 			sql.append("\"");
 		}
-		else
-		{
-			sql.append("\'");
-		}
+
+		// Add prefix
 		if (!prefix.empty())
+		{
 			sql.append(prefix);
 
+		}
 
 		sql.append(whereColumnName);
 
+		// Double quote column name
 		if (prefix.empty())
 		{
 			sql.append("\"");
-		}
-		else
-		{
-			sql.append("\'");
 		}
 	}
 	else
 	{
-		// Use converted numeric value
-		sql.append(whereClause["column"].GetString());
+		// Use numeric value
+		sql.append(whereColumnName);
 	}
 
 	sql.append(' ');

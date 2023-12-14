@@ -1065,7 +1065,9 @@ vector<string>  asset_codes;
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			else if (document.HasMember("join"))
 			{
@@ -1173,7 +1175,9 @@ vector<string>  asset_codes;
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			else
 			{
@@ -1183,7 +1187,9 @@ vector<string>  asset_codes;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM fledge.");
+				sql.append(" * FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			if (document.HasMember("join"))
 			{
@@ -1248,7 +1254,7 @@ vector<string>  asset_codes;
 				}
 				else if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql, asset_codes, true))
+					if (!jsonWhereClause(document["where"], sql, asset_codes, false))
 					{
 						raiseError("retrieve", "Failed to add where clause");
 						return false;
@@ -2945,7 +2951,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}
@@ -2953,7 +2959,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}

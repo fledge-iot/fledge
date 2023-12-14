@@ -3098,7 +3098,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	{
 		sql.append(" AND ");
 		vector<string>  asset_codes;
-		if (!jsonWhereClause(whereClause["and"], sql, asset_codes))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, false, prefix))
 		{
 			return false;
 		}
@@ -3107,7 +3107,7 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	{
 		vector<string>  asset_codes;
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, asset_codes))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, false, prefix))
 		{
 			return false;
 		}

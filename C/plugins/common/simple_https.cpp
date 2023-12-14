@@ -19,6 +19,21 @@
 
 using namespace std;
 
+/**
+ * Creates a UTC time string for the current time
+ *
+ * @return		      Current UTC time
+ */
+static std::string CurrentTimeString()
+{
+	time_t now = time(NULL);
+	struct tm timeinfo;
+	gmtime_r(&now, &timeinfo);
+	char timeString[20];
+	strftime(timeString, sizeof(timeString), "%F %T", &timeinfo);
+	return std::string(timeString);
+}
+
 // Using https://github.com/eidheim/Simple-Web-Server
 using HttpsClient = SimpleWeb::Client<SimpleWeb::HTTPS>;
 
@@ -137,11 +152,11 @@ int SimpleHttps::sendRequest(
 
 	do
 	{
+		std::chrono::high_resolution_clock::time_point tStart;
 		try
 		{
 			exception_raised = none;
 			http_code = 0;
-			std::chrono::high_resolution_clock::time_point tStart;
 
 			if (m_log)
 			{
@@ -166,14 +181,9 @@ int SimpleHttps::sendRequest(
 			if (m_log)
 			{
 				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
-				time_t now = time(NULL);
-				struct tm timeinfo;
-				gmtime_r(&now, &timeinfo);
-				char timeString[20];
-				strftime(timeString, sizeof(timeString), "%F %T", &timeinfo);
 				m_ofs << "Response:" << endl;
 				m_ofs << "   Code: " << res->status_code << endl;
-				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << timeString << endl;
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << CurrentTimeString() << endl;
 				m_ofs << "   Content: " << res->content.string() << endl << endl;
 			}
 
@@ -188,7 +198,6 @@ int SimpleHttps::sendRequest(
 		{
 			exception_raised = typeBadRequest;
 			exception_message = ex.what();
-
 		}
 		catch (exception &ex)
 		{
@@ -231,6 +240,13 @@ int SimpleHttps::sendRequest(
 			}
 #endif
 
+			if (m_log && !exception_message.empty())
+			{
+				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << CurrentTimeString() << endl;
+				m_ofs << "   Exception: " << exception_message << endl;
+			}
+			
 			if (retry_count < m_max_retry)
 			{
 				this_thread::sleep_for(chrono::seconds(sleep_time));

@@ -904,17 +904,6 @@ def pytest_addoption(parser):
     parser.addoption("--exclude-packages-list", action="store", default="None",
                      help="Packages to be excluded from test e.g. --exclude-packages-list=fledge-south-sinusoid,fledge-filter-log")
 
-    # GCP config
-    parser.addoption("--gcp-project-id", action="store", default="nomadic-groove-264509", help="GCP Project ID")
-    parser.addoption("--gcp-registry-id", action="store", default="fl-nerd--registry", help="GCP Registry ID")
-    parser.addoption("--gcp-device-gateway-id", action="store", default="fl-nerd-gateway", help="GCP Device ID")
-    parser.addoption("--gcp-subscription-name", action="store", default="my-subscription", help="GCP Subscription name")
-    parser.addoption("--google-app-credentials", action="store", help="GCP JSON credentials file path")
-    parser.addoption("--gcp-cert-path", action="store", default="./data/gcp/rsa_private.pem",
-                     help="GCP certificate path")
-    parser.addoption("--gcp-logger-name", action="store", default="cloudfunctions.googleapis.com%2Fcloud-functions",
-                     help="GCP Logger name")
-
     # Config required for testing fledge under impaired network.
 
     parser.addoption("--south-service-wait-time", action="store", type=int, default=20,
@@ -1180,41 +1169,6 @@ def package_build_list(request):
 @pytest.fixture
 def package_build_source_list(request):
     return request.config.getoption("--package-build-source-list")
-
-
-@pytest.fixture
-def gcp_project_id(request):
-    return request.config.getoption("--gcp-project-id")
-
-
-@pytest.fixture
-def gcp_registry_id(request):
-    return request.config.getoption("--gcp-registry-id")
-
-
-@pytest.fixture
-def gcp_device_gateway_id(request):
-    return request.config.getoption("--gcp-device-gateway-id")
-
-
-@pytest.fixture
-def gcp_subscription_name(request):
-    return request.config.getoption("--gcp-subscription-name")
-
-
-@pytest.fixture
-def google_app_credentials(request):
-    return request.config.getoption("--google-app-credentials")
-
-
-@pytest.fixture
-def gcp_cert_path(request):
-    return request.config.getoption("--gcp-cert-path")
-
-
-@pytest.fixture
-def gcp_logger_name(request):
-    return request.config.getoption("--gcp-logger-name")
 
 
 @pytest.fixture

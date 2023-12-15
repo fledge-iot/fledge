@@ -121,7 +121,6 @@ Common Additional Libraries Package
 Below are the packages which created a part of the process of building Fledge that are commonly used in plugins.
 
 - **fledge-mqtt** which is a packaged version of the libpaho-mqtt library.
-- **fledge-gcp** which is a packaged version of the libjwt and libjansson libraries.
 - **fledge-iec** which is a packaged version of the IEC 60870 and IEC 61850 libraries.
 - **fledge-s2opcua** which is a packaged version of libexpat and libs2opc libraries.
 

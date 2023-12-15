@@ -383,7 +383,7 @@ JSONReading::JSONReading(const Value& json)
 {
 	if (json.HasMember("id"))
 	{
-		m_id = json["id"].GetUint();
+		m_id = json["id"].GetUint64();
 		m_has_id = true;
 	}
 	else

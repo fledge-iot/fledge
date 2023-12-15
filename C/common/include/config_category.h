@@ -64,7 +64,8 @@ class ConfigCategory {
 			DoubleItem,
 			ScriptItem,
 			CategoryType,
-			CodeItem
+			CodeItem,
+			BucketItem
 		};
 
 		ConfigCategory(const std::string& name, const std::string& json);
@@ -129,12 +130,16 @@ class ConfigCategory {
 					GROUP_ATTR,
 					DISPLAY_NAME_ATTR,
 					DEPRECATED_ATTR,
-					RULE_ATTR};
+					RULE_ATTR,
+					BUCKET_PROPERTIES_ATTR
+					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
 		bool				setItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute, const std::string& value);
+
+        std::vector<std::pair<std::string,std::string>>* parseBucketItemValue(const std::string &);
 
 	protected:
 		class CategoryItem {
@@ -174,6 +179,7 @@ class ConfigCategory {
 				std::string	m_validity;
 				std::string	m_group;
 				std::string	m_rule;
+				std::string	m_bucketProperties;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

@@ -116,7 +116,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		Logger::getLogger()->fatal("FIXME: no asset lookup item for %s.", assetName.c_str());
 		return "";
 	}
-	if (assetLookup->second.assetState() == false)
+	if (m_sendFullStructure && assetLookup->second.assetState() == false)
 	{
 		// Send the data message to create the asset instance
 		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
@@ -219,7 +219,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				skippedDatapoints.push_back(dpName);
 				continue;
 			}
-			if (dpLookup->second.linkState() == false)
+			if (m_sendFullStructure && dpLookup->second.linkState() == false)
 			{
 				outData.append("{ \"typeid\":\"__Link\",");
 				outData.append("\"values\":[ { \"source\" : {");

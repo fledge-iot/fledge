@@ -336,7 +336,7 @@ The dispatcher can also be instructed to run a local automation script, these ar
   This is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
 
 API Control Invocation
-----------------------
+======================
 
 Fledge allows the administer of the system to extend to REST API of Fledge to encompass custom defined entry point for invoking control operations within the Fledge instance. These configured API Control entry points can be called with a PUT operations to a URL of the form
 
@@ -352,7 +352,7 @@ A payload can be passed as a JSON document that may be processed into the reques
 This effectively adds a new entry point to the Fledge public API, calling this entry point will call the control dispatcher to effectively route a control operation from the public API to one or more south services. The definition of the Control API Entry point allows restrictions to be placed on what calls can be made, by whom and with what data.
 
 Defining API Control Entry Points
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------
 
 A control entry point has the following attributes
 
@@ -412,7 +412,8 @@ The payload of the request is defined by the set of variables that was created w
 
 The payload sent to the dispatcher will always contain all of the variables and constants defined in the API entry point. The values for the constants are always from the original definition, whereas the values of the variables can be given in the public API or if omitted the defaults defined when the entry point was defined will be used.
 
-Alternatively new entry points can be created using the Fledge Graphical User Interface.
+Graphical User Interface
+------------------------
 
 The GUI functionality is accessed via the *API Entry Points* sub-menu of the *Control* menu in the left-hand menu pane. Selecting this option will display a screen that appears as follows.
 
@@ -420,7 +421,11 @@ The GUI functionality is accessed via the *API Entry Points* sub-menu of the *Co
 | |control_api_1| |
 +-----------------+
 
-Clicking on the *Add* item in the top right corner will allow a new entry point to be defined. 
+Adding A Control API Entry Point
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Clicking on the *Add +* item in the top right corner will allow a new entry point to be defined.
 
 +-----------------+
 | |control_api_2| |

@@ -234,7 +234,7 @@ class Scheduler(object):
             task_process.process.pid,
             exit_code,
             len(self._task_processes) - 1,
-            self._process_scripts[schedule.process_name])
+            self._process_scripts[schedule.process_name][0])
 
         schedule_execution = self._schedule_executions[schedule.id]
         del schedule_execution.task_processes[task_process.task_id]
@@ -296,7 +296,7 @@ class Scheduler(object):
 
         # This check is necessary only if significant time can elapse between "await" and
         # the start of the awaited coroutine.
-        args = self._process_scripts[schedule.process_name]
+        args = self._process_scripts[schedule.process_name][0]
 
         # add core management host and port to process script args
         args_to_exec = args.copy()
@@ -674,18 +674,30 @@ class Scheduler(object):
             self._logger.debug('Database command: %s', "scheduled_processes")
             res = await self._storage_async.query_tbl("scheduled_processes")
             for row in res['rows']:
-                self._process_scripts[row.get('name')] = row.get('script')
+                self._process_scripts[row.get('name')] = (row.get('script'), row.get('priority'))
         except Exception:
             self._logger.exception('Query failed: %s', "scheduled_processes")
             raise
 
     async def _get_schedules(self):
+        def _get_schedule_by_priority(sch_list):
+            schedules_in_order = []
+            for sch in sch_list:
+                sch['priority'] = 999
+                for name, priority in self._process_scripts.items():
+                    if name == sch['process_name']:
+                        sch['priority'] = priority[1]
+                schedules_in_order.append(sch)
+            #schedules_in_order.sort(key=lambda x: x['priority'])
+            sort_sch = sorted(schedules_in_order, key=lambda k: ("priority" not in k, k.get("priority", None)))
+            self._logger.debug(sort_sch)
+            return sort_sch
+
         # TODO: Get processes first, then add to Schedule
         try:
             self._logger.debug('Database command: %s', 'schedules')
             res = await self._storage_async.query_tbl("schedules")
-
-            for row in res['rows']:
+            for row in _get_schedule_by_priority(res['rows']):
                 interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
                 interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
 
@@ -878,7 +890,7 @@ class Scheduler(object):
                     schedule.process_name,
                     task_id,
                     task_process.process.pid,
-                    self._process_scripts[schedule.process_name])
+                    self._process_scripts[schedule.process_name][0])
                 try:
                     # We need to terminate the child processes because now all tasks are started vide a script and
                     # this creates two unix processes. Scheduler can store pid of the parent shell script process only
@@ -935,7 +947,7 @@ class Scheduler(object):
         for (name, script) in self._process_scripts.items():
             process = ScheduledProcess()
             process.name = name
-            process.script = script
+            process.script = script[0]
             processes.append(process)
 
         return processes
@@ -1139,7 +1151,7 @@ class Scheduler(object):
                 self._logger.debug('Database command: %s', select_payload)
                 res = await self._storage_async.query_tbl_with_payload("scheduled_processes", select_payload)
                 for row in res['rows']:
-                    self._process_scripts[row.get('name')] = row.get('script')
+                    self._process_scripts[row.get('name')] = (row.get('script'), row.get('priority'))
             except Exception:
                 self._logger.exception('Select failed: %s', select_payload)
 
@@ -1305,7 +1317,7 @@ class Scheduler(object):
                     schedule.process_name,
                     task_id,
                     task_process.process.pid,
-                    self._process_scripts[schedule.process_name])
+                    self._process_scripts[schedule.process_name][0])
                 # TODO: FOGL-356 track the last time TERM was sent to each task
                 task_process.cancel_requested = time.time()
                 task_future = task_process.future
@@ -1588,7 +1600,7 @@ class Scheduler(object):
             schedule.process_name,
             task_id,
             task_process.process.pid,
-            self._process_scripts[schedule.process_name])
+            self._process_scripts[schedule.process_name][0])
 
         try:
             # We need to terminate the child processes because now all tasks are started vide a script and

@@ -1826,7 +1826,6 @@ struct timeval startTv, endTv;
 int blocks = 0;
 bool flag_retain;
 char *zErrMsg = NULL;
-
 vector<string>  assetCodes;
 
 	if (m_noReadings)
@@ -1859,13 +1858,17 @@ vector<string>  assetCodes;
 	{
 		flag_retain = true;
 	}
+
+
 	Logger::getLogger()->debug("%s - flags %X flag_retain %d sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	// Prepare empty result
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0, ";
+	result += " \"method\" : \"rows\", ";
+	result += " \"duration\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -1899,7 +1902,7 @@ vector<string>  assetCodes;
 		) as readings_1
 	)";
 
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, "readings",
 				 sql_cmd.c_str(),
 	     rowidCallback,
 	     &rowidLimit,
@@ -1938,7 +1941,7 @@ vector<string>  assetCodes;
 
 	Logger::getLogger()->debug("%s - SELECT MIN - '%s'", __FUNCTION__,  sql_cmd.c_str() );
 
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 sql_cmd.c_str(),
 	     rowidCallback,
 	     &minrowidLimit,
@@ -1993,7 +1996,7 @@ vector<string>  assetCodes;
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 			     query,
 			     selectCallback,
 			     &purge_readings,
@@ -2085,7 +2088,7 @@ vector<string>  assetCodes;
 			sqlBuffer.append(';');
 			const char *query = sqlBuffer.coalesce();
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 			query,
 			rowidCallback,
 			&midRowId,
@@ -2171,7 +2174,7 @@ vector<string>  assetCodes;
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 		     idQuery,
 	  	     rowidCallback,
 		     &lastPurgedId,
@@ -2297,17 +2300,20 @@ vector<string>  assetCodes;
 		unsentPurged = deletedRows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+    	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"age\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 
-	gettimeofday(&endTv, NULL);
-	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result '%s'", __FUNCTION__, age, flags, flag_retain, result.c_str() );
@@ -2331,6 +2337,7 @@ unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
 bool flag_retain;
+struct timeval startTv, endTv;
 
 
 	// rowidCallback expects unsigned long
@@ -2348,6 +2355,7 @@ bool flag_retain;
 		return 0;
 	}
 
+	gettimeofday(&startTv, NULL);
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2413,7 +2421,7 @@ bool flag_retain;
 				)";
 		}
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 sql_cmd.c_str(),
 					 rowidCallback,
 					 &rowcount,
@@ -2455,7 +2463,7 @@ bool flag_retain;
 
 		}
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 sql_cmd.c_str(),
 					 rowidCallback,
 					 &maxId,
@@ -2508,7 +2516,7 @@ bool flag_retain;
 				logger->debug("%s - SELECT MIN - sql_cmd '%s' ", __FUNCTION__, sql_cmd.c_str() );
 			}
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 						 sql_cmd.c_str(),
 						 rowidCallback,
 						 &minId,
@@ -2582,13 +2590,17 @@ bool flag_retain;
 		unsentRetained = numReadings - rows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+    	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"rows\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 

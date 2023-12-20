@@ -779,7 +779,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'USRRS', 'User Restored' ),
             ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
-            ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' )
+            ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
+            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' )
             ;
 
 --
@@ -849,7 +850,7 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 'purge',                                -- process_name
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
-                '01:00:00',                             -- schedule_interval (evey hour)
+                '00:10:00',                             -- schedule_interval (evey hour)
                 't',                                   -- exclusive
                 't'                                    -- enabled
               );

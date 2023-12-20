@@ -26,7 +26,7 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -52,10 +52,19 @@ DataLoad::~DataLoad()
 	m_cv.notify_all();
 	m_fetchCV.notify_all();
 	m_thread->join();
+	delete m_thread;
 	if (m_pipeline)
 	{
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
+	}
+	// Clear out the queue of readings
+	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
+	while (! m_queue.empty())
+	{
+		ReadingSet *readings = m_queue.front();
+		delete readings;
+		m_queue.pop_front();
 	}
 	Logger::getLogger()->info("Data load shutdown complete");
 }
@@ -148,6 +157,7 @@ void DataLoad::triggerRead(unsigned int blockSize)
 void DataLoad::readBlock(unsigned int blockSize)
 {
 ReadingSet *readings = NULL;
+int n_waits = 0;
 
 	do
 	{
@@ -181,10 +191,20 @@ ReadingSet *readings = NULL;
 		}
 		if (readings && readings->getCount())
 		{
-            Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
+			Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
+			if (m_perfMonitor)
+			{
+				m_perfMonitor->collect("No of waits for data", n_waits);
+				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+			}
 			return;
+		}
+		else if (readings)
+		{
+			// Delete the empty readings set
+			delete readings;
 		}
 		else
 		{
@@ -194,6 +214,7 @@ ReadingSet *readings = NULL;
 		{	
 			// TODO improve this
 			this_thread::sleep_for(chrono::milliseconds(250));
+			n_waits++;
 		}
 	} while (m_shutdown == false);
 }
@@ -293,7 +314,9 @@ unsigned long DataLoad::getLastSentId()
 			// Get column value
 			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
 			// Set found id
-			return (unsigned long)theVal->getInteger();
+			unsigned long rval = (unsigned long)theVal->getInteger();
+			delete lastObjectId;
+			return rval;
 		}
 	}
 	// Free result set
@@ -329,6 +352,15 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
+	if (m_perfMonitor)
+	{
+		m_perfMonitor->collect("Readings added to buffer", readings->getCount());
+		m_perfMonitor->collect("Reading sets buffered", m_queue.size());
+		long i = 0;
+		for (auto& set : m_queue)
+			i += set->getCount();
+		m_perfMonitor->collect("Total readings buffered", i);
+	}
 	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
 }
@@ -356,7 +388,10 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	triggerRead(m_blockSize);
+	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	{
+		triggerRead(m_blockSize);
+	}
 	return rval;
 }
 
@@ -569,7 +604,14 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 
 		if (m_storage->insertTable(table, values) != 1)
 		{
-			Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
+			{
+				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
+			}
+			else
+			{
+				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			}
 		}
 		else
 		{

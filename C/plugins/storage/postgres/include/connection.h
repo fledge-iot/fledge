@@ -21,13 +21,20 @@
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
-#define STORAGE_PURGE_SIZE	     0x0004U
+#define STORAGE_PURGE_SIZE	 0x0004U
+
+/**
+ * Maximum number of readings to insert in a single 
+ * insert statement
+ */
+#define INSERT_ROW_LIMIT	5000
 
 class Connection {
 	public:
 		Connection();
 		~Connection();
-		bool		retrieve(const std::string& table, const std::string& condition,
+		bool		retrieve(const std::string& schema,
+					const std::string& table, const std::string& condition,
 					std::string& resultSet);
     		bool 		retrieveReadings(const std::string& condition, std::string& resultSet);
 		int		insert(const std::string& table, const std::string& data);
@@ -53,15 +60,25 @@ class Connection {
 						const std::string &name,
 						std::string &resultSet);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		void		setMaxReadingRows(long rows)
+				{
+					m_maxReadingRows = rows;
+				}
 
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, const std::string& prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
-		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&, bool isTableReading = false);
+		bool		jsonAggregates(const rapidjson::Value&,
+						const rapidjson::Value&,
+						SQLBuffer&, SQLBuffer&,
+						bool isTableReading = false);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause,
+						SQLBuffer&, std::vector<std::string>  &asset_codes,
+						bool convertLocaltime = false,
+						std::string prefix = "");
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
 		char		*trim(char *str);
     		const std::string	escape_double_quotes(const std::string&);
@@ -70,11 +87,18 @@ class Connection {
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
                 bool            selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
-                bool            appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
-                bool            processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, int level);
+                bool            appendTables(const std::string &schema,
+						const rapidjson::Value& document,
+						SQLBuffer& sql,
+						int level);
+                bool            processJoinQueryWhereClause(const rapidjson::Value& query,
+							SQLBuffer& sql,
+							std::vector<std::string>  &asset_codes,
+							int level);
 
 		std::string getIndexName(std::string s);
 		bool 		checkValidDataType(const std::string &s);
+		long		m_maxReadingRows;
 
 
 		typedef	struct{

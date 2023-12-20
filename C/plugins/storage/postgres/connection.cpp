@@ -247,7 +247,9 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+
+	vector<string>  asset_codes;
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -329,7 +331,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 /**
  * Create a database connection
  */
-Connection::Connection()
+Connection::Connection() : m_maxReadingRows(INSERT_ROW_LIMIT)
 {
 	const char *defaultConninfo = "dbname = fledge";
 	char *connInfo = NULL;
@@ -375,11 +377,15 @@ Connection::~Connection()
  * Perform a query against a common table
  *
  */
-bool Connection::retrieve(const string& table, const string& condition, string& resultSet)
+bool Connection::retrieve(const string& schema,
+			const string& table,
+			const string& condition,
+			string& resultSet)
 {
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
 SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
+vector<string>  asset_codes;
 
 	try {
 		if (condition.empty())
@@ -408,6 +414,11 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				}
 				sql.append(" FROM ");
 			}
+			else if (document.HasMember("join"))
+                        {
+                                sql.append("SELECT ");
+                                selectColumns(document, sql, 0);
+                        }
 			else if (document.HasMember("return"))
 			{
 				int col = 0;
@@ -512,14 +523,70 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				}
 				sql.append(" * FROM ");
 			}
-			sql.append(table);
+
+			if (document.HasMember("join"))
+                        {
+                                sql.append(" FROM ");
+                                sql.append(table);
+                                sql.append(" t0");
+                                appendTables(schema, document, sql, 1);
+                        }
+                        else
+                        {
+                                sql.append(table);
+                        }
 			if (document.HasMember("where"))
 			{
 				sql.append(" WHERE ");
-			 
-				if (document.HasMember("where"))
+
+				if (document.HasMember("join"))
+                                {
+                                        if (!jsonWhereClause(document["where"], sql, asset_codes, false, "t0."))
+                                        {
+                                                return false;
+                                        }
+
+                                        // Now and the join condition itself
+                                        string col0, col1;
+                                        const Value& join = document["join"];
+                                        if (join.HasMember("on") && join["on"].IsString())
+                                        {
+                                                col0 = join["on"].GetString();
+                                        }
+                                        else
+                                        {
+
+                                                raiseError("rerieve", "Missing on item");
+                                                return false;
+                                        }
+                                        if (join.HasMember("table"))
+                                        {
+                                                const Value& table = join["table"];
+                                                if (table.HasMember("column") && table["column"].IsString())
+                                                {
+                                                        col1 = table["column"].GetString();
+                                                }
+                                                else
+                                                {
+                                                        raiseError("QueryTable", "Missing column in join table");
+                                                        return false;
+                                                }
+                                        }
+                                        sql.append(" AND t0.");
+                                        sql.append(col0);
+                                        sql.append(" = t1.");
+                                        sql.append(col1);
+                                        sql.append(" ");
+                                        if (join.HasMember("query") && join["query"].IsObject())
+                                        {
+                                                sql.append("AND  ");
+                                                const Value& query = join["query"];
+                                                processJoinQueryWhereClause(query, sql, asset_codes, 1);
+                                        }
+                                }
+				else if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -783,7 +850,8 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					vector<string>  asset_codes;
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -1279,15 +1347,17 @@ SQLBuffer	sql;
 			if ((*iter).HasMember("condition"))
 			{
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["condition"], sql))
+				vector<string>  asset_codes;
+				if (!jsonWhereClause((*iter)["condition"], sql, asset_codes))
 				{
 					return false;
 				}
 			}
 			else if ((*iter).HasMember("where"))
 			{
+				vector<string>  asset_codes;
 				sql.append(" WHERE ");
-				if (!jsonWhereClause((*iter)["where"], sql))
+				if (!jsonWhereClause((*iter)["where"], sql, asset_codes))
 				{
 					return false;
 				}
@@ -1354,7 +1424,8 @@ SQLBuffer	sql;
 		{
 			if (document.HasMember("where"))
 			{
-				if (!jsonWhereClause(document["where"], sql))
+				vector<string>  asset_codes;
+				if (!jsonWhereClause(document["where"], sql, asset_codes))
 				{
 					return -1;
 				}
@@ -1519,7 +1590,7 @@ bool 		add_row = false;
 	if (!doc.HasMember("readings"))
 	{
 		raiseError("appendReadings", "Payload is missing a readings array");
-	return -1;
+		return -1;
 	}
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
@@ -1528,10 +1599,32 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
+	const char *head = "INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ";
+	sql.append(head);
 
+	int count = 0;
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
+		if (count == m_maxReadingRows)
+		{
+			sql.append(';');
+
+			const char *query = sql.coalesce();
+			logSQL("ReadingsAppend", query);
+			PGresult *res = PQexec(dbConnection, query);
+			delete[] query;
+			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+			{
+				raiseError("appendReadings", PQerrorMessage(dbConnection));
+				PQclear(res);
+				return -1;
+			}
+			PQclear(res);
+
+			sql.clear();
+			sql.append(head);
+			count = 0;
+		}
 		if (!itr->IsObject())
 		{
 			raiseError("appendReadings",
@@ -1550,7 +1643,7 @@ bool 		add_row = false;
 		// Check if the string is a function
 		if (isFunction(str))
 		{
-			if (row)
+			if (count)
 				sql.append(", (");
 			else
 				sql.append('(');
@@ -1567,7 +1660,7 @@ bool 		add_row = false;
 			}
 			else
 			{
-				if (row)
+				if (count)
 				{
 					sql.append(", (");
 				}
@@ -1585,6 +1678,7 @@ bool 		add_row = false;
 		if (add_row)
 		{
 			row++;
+			count++;
 
 			// Handles - asset_code
 			sql.append(",\'");
@@ -1600,6 +1694,12 @@ bool 		add_row = false;
 
 			sql.append(')');
 		}
+	}
+
+	if (count == 0)
+	{
+		// No rows in final block
+		return 0;
 	}
 	sql.append(';');
 
@@ -1683,7 +1783,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0, ";
+	result += " \"method\" : \"age\", ";
+	result += " \"duration\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -1899,20 +2001,21 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	ostringstream convert;
 
+	unsigned long duration;
+	gettimeofday(&endTv, NULL);
+	duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	convert << "{ \"removed\" : "       << deletedRows    << ", ";
 	convert << " \"unsentPurged\" : "   << unsentPurged   << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : "       << numReadings    << " }";
+	convert << " \"readings\" : "       << numReadings    << ", ";
+	convert << " \"method\" : \"age\", ";
+	convert << " \"duration\" : "       << duration       << " }";
 
 	result = convert.str();
 
-	{ // Timing
-		unsigned long duration;
-		gettimeofday(&endTv, NULL);
-		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-		duration = duration / 1000; // milliseconds
-		logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
-	}
+	duration = duration / 1000; // milliseconds
+	logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
@@ -1984,6 +2087,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long rowcount, minId, maxId;
 	unsigned long rowsAffectedLastComand;
 	unsigned long deletePoint;
+	struct timeval startTv, endTv;
 
 	string sqlCommand;
 	bool flag_retain;
@@ -1992,6 +2096,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	Logger *logger = Logger::getLogger();
 
+	gettimeofday(&startTv, NULL);
 	flag_retain = false;
 
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
@@ -2084,12 +2189,17 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		unsentRetained = numReadings - rows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"rows\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 
@@ -2804,8 +2914,11 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  */
 bool Connection::jsonWhereClause(const Value& whereClause,
 				SQLBuffer& sql,
-				const string& prefix)
+				vector<string>  &asset_codes,
+				bool convertLocaltime, // not in use
+				const string prefix)
 {
+
 	if (!whereClause.IsObject())
 	{
 		raiseError("where clause", "The \"where\" property must be a JSON object");
@@ -2828,17 +2941,31 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	double converted = strtod(whereColumnName.c_str(), &p);
 	if (*p)
 	{
-		// Quote column name
-		sql.append("\"");
+		// Double quote column name
+		if (prefix.empty())
+		{
+			sql.append("\"");
+		}
+
+		// Add prefix
 		if (!prefix.empty())
+		{
 			sql.append(prefix);
-		sql.append(whereClause["column"].GetString());
-		sql.append("\"");
+
+		}
+
+		sql.append(whereColumnName);
+
+		// Double quote column name
+		if (prefix.empty())
+		{
+			sql.append("\"");
+		}
 	}
 	else
 	{
-		// Use converted numeric value
-		sql.append(whereClause["column"].GetString());
+		// Use numeric value
+		sql.append(whereColumnName);
 	}
 
 	sql.append(' ');
@@ -2951,8 +3078,18 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			} else if (whereClause["value"].IsString())
 			{
 				sql.append('\'');
-				sql.append(escape(whereClause["value"].GetString()));
+				string value = whereClause["value"].GetString();
+				sql.append(escape(value));
 				sql.append('\'');
+
+				// Identify a specific operation to restrinct the tables involved
+				if (whereColumnName.compare("asset_code") == 0)
+				{
+					if ( cond.compare("=") == 0)
+					{
+						asset_codes.push_back(value);
+					}
+				}
 			}
 		}
 	}
@@ -2960,15 +3097,17 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql))
+		vector<string>  asset_codes;
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, false, prefix))
 		{
 			return false;
 		}
 	}
 	if (whereClause.HasMember("or"))
 	{
+		vector<string>  asset_codes;
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, false, prefix))
 		{
 			return false;
 		}
@@ -3373,21 +3512,7 @@ SQLBuffer sql;
  */
 bool Connection::isFunction(const char *str) const
 {
-const char *p;
-
-	p = str + strlen(str) - 1;
-	// A function would have a closing bracket followed pnly by white space at the end
-	while (p > str && isspace(*p))
-		p--;
-	if (*p != ')')
-		return false;
-
-	// We found the closing bracket now check for the opening bracket
-	while (p > str && *p != '(')
-		p--;
-	if (*p == '(')
-		return true;
-	return false;
+	return strcmp(str, "now()") == 0;
 }
 
 /**
@@ -3527,7 +3652,10 @@ SQLBuffer	jsonConstraints;
  * @param sql		The SQLBuffer we are writing
  * @param level		The table number we are processing
  */
-bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
+bool Connection::appendTables(const string& schema,
+			const Value& document,
+			SQLBuffer& sql,
+			int level)
 {
 	string tag = "t" + to_string(level);
 	if (document.HasMember("join"))
@@ -3547,14 +3675,17 @@ bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
 				raiseError("commonRetrieve", "Joining table name is not a string");
 				return false;
 			}
-			sql.append(", fledge.");
-			sql.append(name.GetString());
-			sql.append(" ");
-			sql.append(tag);
+
+			sql.append(", ");
+                        sql.append(schema);
+                        sql.append('.');
+                        sql.append(name.GetString());
+                        sql.append(" ");
+                        sql.append(tag);
 			if (join.HasMember("query"))
 			{
 				const Value& query = join["query"];
-				appendTables(query, sql, ++level);
+				appendTables(schema, query, sql, ++level);
 			}
 			else
 			{
@@ -3577,12 +3708,16 @@ bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
  *
  * @param query	The JSON query
  * @param sql	The SQLBuffer we are writing the data to
- * @param level	The nestign level of the joined table
+ * @param asset_codes   The asset codes
+ * @param level	The nesting level of the joined table
  */
-bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql, int level)
+bool Connection::processJoinQueryWhereClause(const Value& query,
+						SQLBuffer& sql,
+						std::vector<std::string> &asset_codes,
+						int level)
 {
 	string tag = "t" + to_string(level) + ".";
-	if (!jsonWhereClause(query["where"], sql, tag))
+	if (!jsonWhereClause(query["where"], sql, asset_codes, false, tag))
 	{
 		return false;
 	}
@@ -3625,7 +3760,7 @@ bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql,
 		{
 			sql.append(" AND ");
 			const Value& query = join["query"];
-			processJoinQueryWhereClause(query, sql, level + 1);
+			processJoinQueryWhereClause(query, sql, asset_codes, level + 1);
 		}
 	}
 	return true;
@@ -4344,9 +4479,18 @@ int Connection::create_schema(const std::string &payload)
 										{
 											auto itr = dbCol->find(v);
 											//Check if the column matches exactly with that present in db , if not same , the reject the request
-											if ( itr->type != v.type || itr->sz != v.sz || itr->key != v.key )
+											// We ignore size for integer columns
+											if (v.type.compare("integer") == 0)
 											{
-                                                                        			raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+											       	if (itr->type != v.type || itr->key != v.key)
+												{
+													raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+													return -1;
+												}
+											}
+											else if (itr->type != v.type || itr->sz != v.sz || itr->key != v.key)
+											{
+												raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
 												return -1;
 											}
 										}

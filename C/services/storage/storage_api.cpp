@@ -385,7 +385,7 @@ void storageTableQueryWrapper(shared_ptr<HttpServer::Response> response,
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0), streamHandler(0)
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : m_thread(NULL), readingPlugin(0), streamHandler(0)
 {
 
 	m_port = port;
@@ -406,6 +406,11 @@ StorageApi::~StorageApi()
 	if (m_server)
 	{
 		delete m_server;
+	}
+	m_instance = NULL;
+	if (m_thread)
+	{
+		delete m_thread;
 	}
 }
 

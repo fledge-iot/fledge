@@ -22,6 +22,7 @@
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
+#include <config_category.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -43,6 +44,13 @@ const char *default_config = QUOTE({
                         "default" : "5",
                         "displayName" : "Pool Size",
                         "order" : "1"
+                        },
+                "maxReadingRows" : {
+                        "description" : "The maximum numebnr of readings to insert in a single statement",
+                        "type" : "integer",
+                        "default" : "5000",
+                        "displayName" : "Max. Insert Rows",
+                        "order" : "2"
                         }
                 });
 
@@ -71,11 +79,23 @@ PLUGIN_INFORMATION *plugin_info()
  * In the case of Postgres we also get a pool of connections
  * to use.
  */
-PLUGIN_HANDLE plugin_init()
+PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
+long poolSize = 5, maxReadingRows = 5000;
 
-	manager->growPool(5);
+	if (category->itemExists("poolSize"))
+	{
+		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+	}
+	if (category->itemExists("maxReadingRows"))
+	{
+		long val = strtol(category->getValue("maxReadingRows").c_str(), NULL, 10);
+		if (val > 0)
+			maxReadingRows = val;
+	}
+	manager->setMaxReadingRows(maxReadingRows);
+	manager->growPool(poolSize);
 	return manager;
 }
 
@@ -102,7 +122,7 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(query), results);
+	bool rval = connection->retrieve(schema, std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
 	{

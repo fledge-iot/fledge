@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import sys
 import uuid
@@ -83,6 +84,7 @@ class TestScriptManagement:
                     with patch.object(c_mgr, 'get_category_all_items', return_value=get_cat) as patch_get_all_items:
                         resp = await client.get('/fledge/control/script')
                         assert 200 == resp.status
+                        server.Server.scheduler = None
                         result = await resp.text()
                         json_response = json.loads(result)
                         assert 'scripts' in json_response
@@ -161,6 +163,7 @@ class TestScriptManagement:
                     with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                       return_value=get_sch) as patch_get_schedule_by_name:
                         resp = await client.get('/fledge/control/script/{}'.format(script_name))
+                        server.Server.scheduler = None
                         assert 200 == resp.status
                         result = await resp.text()
                         json_response = json.loads(result)
@@ -376,7 +379,7 @@ class TestScriptManagement:
         req_payload = {"steps": []}
         result = {"count": 0, "rows": []}
         value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
-        query_payload = {"return": ["steps", "acl"],
+        query_payload = {"return": ["name", "steps", "acl"],
                          "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "No such {} script found.".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -397,7 +400,7 @@ class TestScriptManagement:
         acl_name = "blah"
         payload = {"steps": [{"write": {"order": 1, "speed": 420}}], "acl": acl_name}
         script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
-        script_query_payload = {"return": ["steps", "acl"],
+        script_query_payload = {"return": ["name", "steps", "acl"],
                                 "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 0, "rows": []}
@@ -431,12 +434,14 @@ class TestScriptManagement:
     async def test_update_script(self, client, payload):
         script_name = "test"
         acl_name = "testACL"
+        new_script = copy.deepcopy(payload)
+        new_script['name'] = script_name
         script_result = {"count": 1, "rows": [{"steps": [{"write": {"order": 1, "speed": 420}}]}]}
         update_result = {"response": "updated", "rows_affected": 1}
         steps_payload = payload["steps"]
         update_value = await mock_coro(update_result) if sys.version_info >= (3, 8) else \
             asyncio.ensure_future(mock_coro(update_result))
-        script_query_payload = {"return": ["steps", "acl"],
+        script_query_payload = {"return": ["name", "steps", "acl"],
                                 "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
@@ -482,7 +487,7 @@ class TestScriptManagement:
                                        == json_response
                         args, _ = audit_info_patch.call_args
                         audit_info_patch.assert_called_once_with(
-                            'CTSCH', {"script": payload, "old_script": script_result['rows']})
+                            'CTSCH', {"script": new_script, "old_script": script_result['rows'][0]})
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_script' == update_args[0]
                 update_payload = {"values": payload,
@@ -580,6 +585,7 @@ class TestScriptManagement:
                                         with patch.object(AuditLogger, 'information',
                                                           return_value=arv) as audit_info_patch:
                                             resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                            server.Server.scheduler = None
                                             assert 200 == resp.status
                                             result = await resp.text()
                                             json_response = json.loads(result)
@@ -736,6 +742,7 @@ class TestScriptManagement:
                 with patch.object(server.Server.scheduler, 'get_schedules',
                                   return_value=get_sch) as patch_get_schedules:
                     resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
+                    server.Server.scheduler = None
                     assert 400 == resp.status
                     result = await resp.text()
                     json_response = json.loads(result)
@@ -785,6 +792,7 @@ class TestScriptManagement:
                                 with patch.object(server.Server.scheduler, 'queue_task',
                                                   return_value=queue) as patch_queue_task:
                                     resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
+                                    server.Server.scheduler = None
                                     assert 200 == resp.status
                                     result = await resp.text()
                                     json_response = json.loads(result)

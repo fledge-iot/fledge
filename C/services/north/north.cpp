@@ -189,6 +189,8 @@ bool		dryRun = false;
 	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
+
+	delete service;
 	return 0;
 }
 
@@ -277,6 +279,9 @@ int	size;
  */
 NorthService::NorthService(const string& myName, const string& token) :
 	m_dataLoad(NULL),
+	m_dataSender(NULL),
+	northPlugin(NULL),
+	m_assetTracker(NULL),
 	m_shutdown(false),
 	m_storage(NULL),
 	m_pluginData(NULL),
@@ -284,7 +289,9 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_token(token),
 	m_allowControl(true),
 	m_dryRun(false),
-	m_requestRestart()
+	m_requestRestart(),
+	m_auditLogger(NULL),
+	m_perfMonitor(NULL)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -296,8 +303,25 @@ NorthService::NorthService(const string& myName, const string& token) :
  */
 NorthService::~NorthService()
 {
+	if (m_perfMonitor)
+		delete m_perfMonitor;
+	if (northPlugin)
+		delete northPlugin;
 	if (m_storage)
 		delete m_storage;
+	if (m_dataLoad)
+		delete m_dataLoad;
+	if (m_dataSender)
+		delete m_dataSender;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_assetTracker)
+		delete m_assetTracker;
+	if (m_auditLogger)
+		delete m_auditLogger;
+	if (m_mgtClient)
+		delete m_mgtClient;
+	delete logger;
 }
 
 /**
@@ -336,6 +360,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		northConfig.setDescription("North");
 		m_mgtClient->addCategory(northConfig, true);
 
+		// Fetch Configuration
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -381,7 +406,18 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_storage->registerManagement(m_mgtClient);
 
-		// Fetch Confguration
+		// Setup the performance monitor
+		m_perfMonitor = new PerformanceMonitor(m_name, m_storage);
+
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
+
 		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
@@ -423,6 +459,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 		logger->debug("Create threads for stream %d", streamId);
 		m_dataLoad = new DataLoad(m_name, streamId, m_storage);
+		m_dataLoad->setPerfMonitor(m_perfMonitor);
 		if (m_config.itemExists("source"))
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
@@ -439,6 +476,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
+		m_dataSender->setPerfMonitor(m_perfMonitor);
 
 		if (!m_dryRun)
 		{
@@ -465,8 +503,10 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		m_dataSender = NULL;
 		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		m_dataLoad = NULL;
 		logger->debug("North service shutting down plugin");
 
 
@@ -493,9 +533,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		
 		if (!m_dryRun)
 		{
-			// Clean shutdown, unregister the storage service
-			logger->info("Unregistering service");
-			m_mgtClient->unregisterService();
+			if (m_requestRestart)
+			{
+				// Request core to restart this service
+				m_mgtClient->restartService();
+			} 
+			else
+			{
+				// Clean shutdown, unregister the storage service
+				logger->info("Unregistering service");
+				m_mgtClient->unregisterService();
+			}
 		}
 	}
 	management.stop();
@@ -650,7 +698,7 @@ bool NorthService::loadPlugin()
 
 			return true;
 		}
-	} catch (exception e) {
+	} catch (exception &e) {
 		logger->fatal("Failed to load north plugin: %s\n", e.what());
 	}
 	return false;
@@ -676,12 +724,13 @@ void NorthService::shutdown()
  */
 void NorthService::restart()
 {
-	/* Stop recieving new requests and allow existing
-	 * requests to drain.
-	 */
+	logger->info("North service restart in progress.");
+
+	// Set restart action
 	m_requestRestart = true;
+
+	// Set shutdown action
 	m_shutdown = true;
-	logger->info("North service shutdown in progress.");
 
 	// Signal main thread to shutdown
 	m_cv.notify_all();
@@ -761,6 +810,14 @@ void NorthService::configChange(const string& categoryName, const string& catego
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
 	}
 
 	// Update the  Security category
@@ -803,6 +860,7 @@ void NorthService::restartPlugin()
 	}
 
 	delete northPlugin;
+	northPlugin = NULL;
 	loadPlugin();
 	// Deal with persisted data and start the plugin
 	if (northPlugin->persistData())
@@ -863,6 +921,9 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(DEFAULT_BLOCK_SIZE),
 		std::to_string(DEFAULT_BLOCK_SIZE));
 	defaultConfig.setItemDisplayName("blockSize", "Data block size");
+	defaultConfig.addItem("perfmon", "Track and store performance counters",
+			"boolean", "false", "false");
+	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
 }
 
 /**

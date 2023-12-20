@@ -150,7 +150,7 @@ bool StorageConfiguration::setValue(const string& key, const string& value)
 		const char *cstr = value.c_str();
 		item["value"].SetString(cstr, strlen(cstr), document->GetAllocator());
 		return true;
-	} catch (exception e) {
+	} catch (...) {
 		return false;
 	}
 }
@@ -211,7 +211,7 @@ string	cachefile;
 					GetParseError_En(document->GetParseError()),
 					document->GetErrorOffset());
 		}
-	} catch (exception ex) {
+	} catch (exception& ex) {
 		logger->error("Configuration cache failed to read %s.", ex.what());
 	}
 }

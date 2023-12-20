@@ -262,7 +262,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	}
 
 	Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
-
+	
 	// Create a readingList of readings to be filtered
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
 	PyObject* readingsList = pyReadingSet->toPython();
@@ -282,8 +282,11 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		logErrorMessage();
 	}
 
-	PythonReadingSet *filteredReadingSet = NULL;
+	data->removeAll();
+	delete data;
 
+#if 0
+	PythonReadingSet *filteredReadingSet = NULL;
 	if (pReturn)
 	{
 		// Check we have a list of readings
@@ -316,6 +319,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						   Py_TYPE(readingsList)->tp_name);
 		}
 	}
+#endif
 	
 	// Remove readings to dict
 	Py_CLEAR(readingsList);

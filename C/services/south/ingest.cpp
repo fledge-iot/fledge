@@ -52,6 +52,7 @@ static void statsThread(Ingest *ingest)
  * The key checked/created in the table is "<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
+ * @return int		Return -1 on error, 0 if not required or 1 if the entry exists
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
@@ -100,7 +101,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, statistics_key.c_str());
 		return -1;
 	}
-	return 0;
+	return 1;
 }
 
 /**
@@ -177,8 +178,10 @@ void Ingest::updateStats()
 	{
 		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
 		{
-			createStatsDbEntry(it->first);
-			statsDbEntriesCache.insert(it->first);
+			if (createStatsDbEntry(it->first) > 0)
+			{
+				statsDbEntriesCache.insert(it->first);
+			}
 		}
 		
 		if (it->second)
@@ -353,7 +356,30 @@ Ingest::~Ingest()
 	m_statsCv.notify_one();
 	m_statsThread->join();
 	updateStats();
+	// Cleanup and readings left in the various queues
+	for (auto& reading : *m_queue)
+	{
+		delete reading;
+	}
 	delete m_queue;
+	for (auto& q : m_resendQueues)
+	{
+		for (auto& rq : *q)
+		{
+			delete rq;
+		}
+		delete q;
+	}
+	while (m_fullQueues.size() > 0)
+	{
+		vector<Reading *> *q = m_fullQueues.front();
+		for (auto& rq : *q)
+		{
+			delete rq;
+		}
+		delete q;
+		m_fullQueues.pop();
+	}
 	delete m_thread;
 	delete m_statsThread;
 
@@ -544,6 +570,7 @@ void Ingest::processQueue()
 						q->erase(q->begin());
 						logDiscardedStat();
 					}
+					m_performance->collect("removedFromQueue", 5);
 					if (q->size() == 0)
 					{
 						delete q;
@@ -555,6 +582,7 @@ void Ingest::processQueue()
 			else
 			{
 
+				m_performance->collect("storedReadings", (long int)(q->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
@@ -736,7 +764,6 @@ void Ingest::processQueue()
 			}
 		}
 
-
 		/*
 		 * Check the first reading in the list to see if we are meeting the
 		 * latency configuration we have been set
@@ -777,7 +804,7 @@ void Ingest::processQueue()
 		 *	2- some readings removed
 		 *	3- New set of readings
 		 */
-		if (m_data && !m_data->empty())
+		if (m_data && m_data->size())
 		{
 			if (m_storage.readingAppend(*m_data) == false)
 			{
@@ -785,12 +812,14 @@ void Ingest::processQueue()
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_storageFailed = true;
 				m_storesFailed++;
+				m_performance->collect("resendQueued", (long int)(m_data->size()));
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
 				m_failCnt = 1;
 			}
 			else
 			{
+				m_performance->collect("storedReadings", (long int)(m_data->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
@@ -806,6 +835,7 @@ void Ingest::processQueue()
 				string lastAsset;
 				int *lastStat = NULL;
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
+
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 		               	        Reading *reading = *it;
@@ -867,9 +897,14 @@ void Ingest::processQueue()
                                           {
                                                   (*lastStat)++;
                                           }
-                                          delete reading;
+                                          // delete reading;
 
 				}
+				for( auto & rdng : *m_data)
+				{
+					delete rdng;
+				}
+				m_data->clear();
 
 				for (auto itr : assetDatapointMap)
 				{
@@ -973,6 +1008,7 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
+
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -1002,11 +1038,18 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
+
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		if (ingest->m_data)
+		if (ingest->m_data && ingest->m_data->size())
 		{
-			ingest->m_data->clear();// Remove any pointers still in the vector
+			// Remove the readings in the vector
+			for(auto & rdng : *(ingest->m_data))
+				delete rdng;
+			ingest->m_data->clear();// Remove the pointers still in the vector
+			
+			
+			// move reading vector to ingest
 			*(ingest->m_data) = readingSet->getAllReadings();
 		}
 		else
@@ -1015,6 +1058,12 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
+	else
+	{
+		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	}
+	
 	readingSet->clear();
 	delete readingSet;
 }

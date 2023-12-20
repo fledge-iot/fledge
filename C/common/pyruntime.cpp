@@ -45,6 +45,15 @@ PythonRuntime::PythonRuntime()
 }
 
 /**
+ * Destructor
+ */
+PythonRuntime::~PythonRuntime()
+{
+	PyGILState_STATE gstate = PyGILState_Ensure();
+	Py_Finalize();
+}
+
+/**
  * Don't allow a copy constructor to be used
  */
 PythonRuntime::PythonRuntime(const PythonRuntime& rhs)
@@ -318,4 +327,18 @@ PyObject *PythonRuntime::importModule(const string& name)
 	}
 	PyGILState_Release(state);
 	return module;
+}
+
+/**
+ * Shutdown an instance of a Python runtime if one
+ * has been started
+ */
+void PythonRuntime::shutdown()
+{
+	if (!m_instance)
+	{
+		return;
+	}
+	delete m_instance;
+	m_instance = NULL;
 }

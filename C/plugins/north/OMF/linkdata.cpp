@@ -25,6 +25,14 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+/**
+ * In order to cut down on the number of string copies made whilst building
+ * the OMF message for a reading we reseeve a number of bytes in a string and
+ * each time we get close to filling the string we reserve mode. The value below
+ * defines the increment we use to grow the string reservation.
+ */
+#define RESERVE_INCREMENT	100
+
 using namespace std;
 
 /**
@@ -63,6 +71,8 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 {
 	string outData;
 	bool changed;
+	int reserved = RESERVE_INCREMENT * 2;
+	outData.reserve(reserved);
 
 
 	string assetName = reading.getAssetName();
@@ -96,8 +106,17 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
+	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
 	bool needDelim = false;
-	if (m_assetSent->find(assetName) == m_assetSent->end())
+	auto assetLookup = m_linkedAssetState->find(assetName + ".");
+	if (assetLookup == m_linkedAssetState->end())
+	{
+		// Panic Asset lookup not created
+		Logger::getLogger()->fatal("FIXME: no asset lookup item for %s.", assetName.c_str());
+		return "";
+	}
+	if (m_sendFullStructure && assetLookup->second.assetState() == false)
 	{
 		// Send the data message to create the asset instance
 		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
@@ -105,7 +124,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
             	outData.append(assetName + "\"");
          	outData.append("} ] }");
 		needDelim = true;
-		m_assetSent->insert(pair<string, bool>(assetName, true));
+		assetLookup->second.assetSent();
 	}
 
 	/**
@@ -114,13 +133,20 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
-		string dpName = (*it)->getName();
+		Datapoint *dp = *it;
+		if (reserved - outData.size() < RESERVE_INCREMENT / 2)
+		{
+			reserved += RESERVE_INCREMENT;
+			outData.reserve(reserved);
+		}
+		string dpName = dp->getName();
 		if (dpName.compare(OMF_HINT) == 0)
 		{
 			// Don't send the OMF Hint to the PI Server
 			continue;
 		}
-		if (!isTypeSupported((*it)->getData()))
+		dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
+		if (!isTypeSupported(dp->getData()))
 		{
 			skippedDatapoints.push_back(dpName);
 			continue;
@@ -157,28 +183,34 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
-			string baseType = getBaseType(*it, format);
-			auto container = m_containerSent->find(link);
-			if (container == m_containerSent->end())
+			auto dpLookup = m_linkedAssetState->find(link);
+
+			string baseType = getBaseType(dp, format);
+			if (dpLookup == m_linkedAssetState->end())
 			{
-				sendContainer(link, *it, hints, baseType);
-				m_containerSent->insert(pair<string, string>(link, baseType));
+				Logger::getLogger()->error("Trying to send a link for a datapoint for which we have not created a base type");
 			}
-			else if (baseType.compare(container->second) != 0)
+			else if (dpLookup->second.containerState() == false)
 			{
-				if (container->second.compare(0, 6, "Double") == 0 &&
+				sendContainer(link, dp, hints, baseType);
+				dpLookup->second.containerSent(baseType);
+			}
+			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
+			{
+				string bt = dpLookup->second.getBaseTypeString();
+				if (bt.compare(0, 6, "Double") == 0 &&
 						(baseType.compare(0, 7, "Integer") == 0
 						 || baseType.compare(0, 8, "UInteger") == 0))
 				{
 					string msg = "Asset " + assetName + " data point " + dpName 
 				       		+ " conversion from floating point to integer is being ignored";
 					OMF::reportAsset(assetName, "warn", msg);
-					baseType = container->second;
+					baseType = bt;
 				}
 				else
 				{
-					sendContainer(link, *it, hints, baseType);
-					(*m_containerSent)[link] = baseType;
+					sendContainer(link, dp, hints, baseType);
+					dpLookup->second.containerSent(baseType);
 				}
 			}
 			if (baseType.empty())
@@ -187,7 +219,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				skippedDatapoints.push_back(dpName);
 				continue;
 			}
-			if (m_linkSent->find(link) == m_linkSent->end())
+			if (m_sendFullStructure && dpLookup->second.linkState() == false)
 			{
 				outData.append("{ \"typeid\":\"__Link\",");
 				outData.append("\"values\":[ { \"source\" : {");
@@ -197,8 +229,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				outData.append("\"containerid\" : \"");
 				outData.append(link);
 				outData.append("\" } } ] },");
-
-				m_linkSent->insert(pair<string, bool>(link, true));
+				dpLookup->second.linkSent();
 			}
 
 			// Convert reading data into the OMF JSON string
@@ -208,7 +239,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			// Base type we are using for this data point
 			outData.append("\"" + baseType + "\": ");
 			// Add datapoint Value
-		       	outData.append((*it)->getData().toString());
+		       	outData.append(dp->getData().toString());
 			outData.append(", ");
 			// Append Z to getAssetDateTime(FMT_STANDARD)
 			outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
@@ -235,6 +266,54 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	}
 	Logger::getLogger()->debug("Created data messages %s", outData.c_str());
 	return outData;
+}
+
+/**
+ * If the entries are needed in the lookup table for this bblock of readings then create them
+ *
+ * @param readings	A block of readings to process
+ */
+void OMFLinkedData::buildLookup(const vector<Reading *>& readings)
+{
+
+	for (const Reading *reading : readings)
+	{
+		string assetName = reading->getAssetName();
+		assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
+		// Apply any TagName hints to modify the containerid
+		LALookup empty;
+
+		string assetKey = assetName + ".";
+		if (m_linkedAssetState->count(assetKey) == 0)
+			m_linkedAssetState->insert(pair<string, LALookup>(assetKey, empty));
+
+		// Get reading data
+		const vector<Datapoint*> data = reading->getReadingData();
+
+		/**
+		 * This loop creates the data values for each of the datapoints in the
+		 * reading.
+		 */
+		for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
+		{
+			Datapoint *dp = *it;
+			string dpName = dp->getName();
+			if (dpName.compare(OMF_HINT) == 0)
+			{
+				// Don't send the OMF Hint to the PI Server
+				continue;
+			}
+			dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
+			if (!isTypeSupported(dp->getData()))
+			{
+				continue;
+			}
+			string link = assetName + "." + dpName;
+			if (m_linkedAssetState->count(link) == 0)
+				m_linkedAssetState->insert(pair<string, LALookup>(link, empty));
+		}
+	}
 }
 
 /**
@@ -482,4 +561,74 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 		return false;
 	}
 	return true;
+}
+
+/**
+ * Set the base type by passing the string of the base type
+ */
+void LALookup::setBaseType(const string& baseType)
+{
+	if (baseType.compare("Double64") == 0)
+		m_baseType = OMFBT_DOUBLE64;
+	else if (baseType.compare("Double32") == 0)
+		m_baseType = OMFBT_DOUBLE32;
+	else if (baseType.compare("Integer16") == 0)
+		m_baseType = OMFBT_INTEGER16;
+	else if (baseType.compare("Integer32") == 0)
+		m_baseType = OMFBT_INTEGER32;
+	else if (baseType.compare("Integer64") == 0)
+		m_baseType = OMFBT_INTEGER64;
+	else if (baseType.compare("UInteger16") == 0)
+		m_baseType = OMFBT_UINTEGER16;
+	else if (baseType.compare("UInteger32") == 0)
+		m_baseType = OMFBT_UINTEGER32;
+	else if (baseType.compare("UInteger64") == 0)
+		m_baseType = OMFBT_UINTEGER64;
+	else if (baseType.compare("String") == 0)
+		m_baseType = OMFBT_STRING;
+	else if (baseType.compare("FledgeAsset") == 0)
+		m_baseType = OMFBT_FLEDGEASSET;
+	else
+		Logger::getLogger()->fatal("Unable to map base type '%s'", baseType.c_str());
+}
+
+/**
+ * The container has been sent with the specific base type
+ */
+void LALookup::containerSent(const std::string& baseType)
+{
+	setBaseType(baseType);
+	m_sentState |= LAL_CONTAINER_SENT;
+}
+
+/**
+ * Get a string representation of the base type that was sent
+ */
+string LALookup::getBaseTypeString()
+{
+	switch (m_baseType)
+	{
+		case OMFBT_UNKNOWN:
+			return "Unknown";
+		case OMFBT_DOUBLE64:
+			return "Double64";
+		case OMFBT_DOUBLE32:
+			return "Double32";
+		case OMFBT_INTEGER16:
+			return "Integer16";
+		case OMFBT_INTEGER32:
+			return "Integer32";
+		case OMFBT_INTEGER64:
+			return "Integer64";
+		case OMFBT_UINTEGER16:
+			return "UInteger16";
+		case OMFBT_UINTEGER32:
+			return "UInteger32";
+		case OMFBT_UINTEGER64:
+			return "UInteger64";
+		case OMFBT_STRING:
+			return "String";
+		default:
+			return "Unknown";
+	}
 }

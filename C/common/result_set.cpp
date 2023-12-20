@@ -104,8 +104,10 @@ ResultSet::ResultSet(const std::string& json)
 							rowValue->append(new ColumnValue(item->value));
 							break;
 						case BOOL_COLUMN:
-							// TODO Add support
-							rowValue->append(new ColumnValue(string("TODO")));
+							if (item->value.IsString())
+								rowValue->append(new ColumnValue(string(item->value.GetString())));
+							else
+								rowValue->append(new ColumnValue(item->value.IsTrue() ? "true" : "false"));
 							break;
 						}
 						colNo++;

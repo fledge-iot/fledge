@@ -268,7 +268,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'properties': 0}
+                                     'group': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -308,10 +308,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
                                             'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                            type(entry_val)))
-                elif 'type' in item_val and entry_val == 'bucket':
+                # Validate bucket type and mandatory properties item_name
+                elif 'type' in item_val and get_entry_val("type") == 'bucket':
                     if 'properties' not in item_val:
                         raise KeyError('For {} category, properties KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if entry_name == 'properties':
+                        prop_val = get_entry_val('properties')
+                        if not isinstance(prop_val, dict):
+                            raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
+                                             .format(category_name, item_name, type(entry_val)))
+                        if not prop_val:
+                            raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
+                                             ''.format(category_name, item_name))
+                        if 'key' not in prop_val:
+                            raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -335,7 +349,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                                                          entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'properties'):
+                    elif entry_name in ('displayName', 'group', 'rule', 'validity'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))

@@ -326,6 +326,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              ''.format(category_name, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
+                    else:
+                        if type(entry_val) is not str:
+                            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                           type(entry_val)))
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '

@@ -565,6 +565,9 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": {"k": "v"}}},
          ValueError, "For {} category, key KV pair must exist in properties for item name {}".format(
             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": {}, "properties": {"key": "v"}}},
+         TypeError, "For {} category, entry value must be a string for item name {} and entry name default; "
+                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_bucket_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

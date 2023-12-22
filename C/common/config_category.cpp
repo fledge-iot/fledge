@@ -476,6 +476,8 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_deprecated;
 				case RULE_ATTR:
 					return m_items[i]->m_rule;
+				case BUCKET_PROPERTIES_ATTR:
+					return m_items[i]->m_bucketProperties;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -540,6 +542,9 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case RULE_ATTR:
 					m_items[i]->m_rule = value;
+					return true;
+				case BUCKET_PROPERTIES_ATTR:
+					m_items[i]->m_bucketProperties = value;
 					return true;
 				default:
 					return false;
@@ -1038,6 +1043,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_itemType = CodeItem;
 	}
+	if (m_type.compare("bucket") == 0)
+	{
+		m_itemType = BucketItem;
+	}
 
 	if (item.HasMember("deprecated"))
 	{
@@ -1083,6 +1092,33 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_rule = "";
 	}
 
+	if (item.HasMember("properties"))
+	{
+		Logger::getLogger()->debug("item['properties'].IsString()=%s, item['properties'].IsObject()=%s", 
+										item["properties"].IsString()?"true":"false",
+										item["properties"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["properties"].Accept(writer);
+		m_bucketProperties = item["properties"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_bucketProperties=%s", m_bucketProperties.c_str());
+	}
+	else
+	{
+		m_bucketProperties = "";
+	}
+	
+	if (m_itemType == BucketItem && m_bucketProperties.empty())
+	{
+		throw new runtime_error("Bucket configuration item is missing the \"properties\" attribute");
+	}
+
 	if (item.HasMember("options"))
 	{
 		const Value& options = item["options"];
@@ -1095,7 +1131,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
-	std:string m_typeUpperCase = m_type;
+	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
 
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
@@ -1377,6 +1413,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_validity = rhs.m_validity;
 	m_group = rhs.m_group;
 	m_rule = rhs.m_rule;
+	m_bucketProperties = rhs.m_bucketProperties;
 }
 
 /**
@@ -1467,6 +1504,11 @@ ostringstream convert;
 			convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 		}
 
+		if (!m_bucketProperties.empty())
+		{
+			convert << ", \"properties\" : " << m_bucketProperties;
+		}
+
 		if (!m_group.empty())
 		{
 			convert << ", \"group\" : \"" << m_group << "\"";
@@ -1538,6 +1580,11 @@ ostringstream convert;
 		convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 	}
 
+	if (!m_bucketProperties.empty())
+	{
+		convert << ", \"properties\" : " << m_bucketProperties;
+	}
+
 	if (!m_group.empty())
 	{
 		convert << ", \"group\" : \"" << m_group << "\"";
@@ -1586,6 +1633,31 @@ ostringstream convert;
 	}
 	return convert.str();
 }
+
+/**
+ * Parse BucketItem value in JSON dict format and return the key value pairs within that
+ *
+ * @param json	JSON string representing the BucketItem value
+ * @return		Vector with pairs of found key/value string pairs in BucketItem value
+ */
+vector<pair<string,string>>* ConfigCategory::parseBucketItemValue(const string & json)
+{
+	Document document;
+	if (document.Parse(json.c_str()).HasParseError())
+	{
+		Logger::getLogger()->error("parseBucketItemValue(): The provided JSON string has a parse error: %s",
+				GetParseError_En(document.GetParseError()));
+		return NULL;
+	}
+	
+	vector<pair<string,string>> *vec = new vector<pair<string,string>>;
+	
+	for (const auto & m : document.GetObject())
+		vec->emplace_back(make_pair<string,string>(m.name.GetString(), m.value.GetString()));
+
+	return vec;
+}
+
 
 // DefaultConfigCategory constructor
 DefaultConfigCategory::DefaultConfigCategory(const string& name, const string& json) :

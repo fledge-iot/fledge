@@ -593,6 +593,25 @@ void ServiceAuthHandler::refreshBearerToken()
 	}
 	else
 	{
+		if (k >= max_retries)
+		{
+			string msg = "Bearer token not found for service '" + this->getName() +
+					" refresh thread exits after " + std::to_string(max_retries) + " retries";	
+			Logger::getLogger()->error(msg.c_str());
+
+			// Shutdown service
+			if (m_refreshRunning)
+			{
+				Logger::getLogger()->warn("Service is being restarted " \
+						"due to bearer token refresh error");
+				this->restart();
+				break;
+			}
+		}
+
+		if (!tokenVerified)
+		{
+			// Fetch current bearer token
 			BearerToken bToken(m_mgtClient->getRegistrationBearerToken());
 			if (bToken.exists() && m_mgtClient->verifyBearerToken(bToken))
 			{

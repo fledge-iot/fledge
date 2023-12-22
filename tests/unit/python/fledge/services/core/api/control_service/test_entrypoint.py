@@ -478,7 +478,19 @@ class TestEntrypoint:
          'destination': 'service', 'service': 'Camera', 'constants': {'unit': 'cm'}, 'variables': {'aperture': 'f/11'}},
         {'name': 'FocusCamera', 'description': 'Perform focus on camera', 'type': 'operation',
          'operation_name': 'OP', 'destination': 'script', 'script': 'S1', 'anonymous': False,
-         'constants': {'unit': 'cm'}, 'variables': {'aperture': 'f/16'}}
+         'constants': {'unit': 'cm'}, 'variables': {'aperture': 'f/16'}},
+        {'name': 'EP1', 'description': 'Entry Point', 'type': 'write', 'destination': 'broadcast',
+         'constants': {'seed': '100'}, 'anonymous': True},
+        {'name': 'EP2', 'description': 'Entry Point', 'type': 'write', 'destination': 'broadcast',
+         'variables': {'seed': '100'}, 'anonymous': True},
+        {'name': 'EP3', 'description': 'Entry Point', 'type': 'write', 'destination': 'broadcast',
+         'constants': {'seed': '100', 'param2': "foo"}, 'anonymous': False, 'allow': []},
+        {'name': 'EP4', 'description': 'Entry Point', 'type': 'write', 'destination': 'broadcast',
+         'variables': {'seed': '100', 'param2': "foo"}, 'anonymous': False, 'allow': []},
+        {'name': 'EP #5', 'description': 'Entry Point', 'type': 'write', 'destination': 'asset', "asset": "Random",
+         'variables': {'seed': '100', 'param2': "foo"}, 'anonymous': True},
+        {'name': 'EP-123', 'description': 'Entry Point', 'type': 'write', 'destination': 'service', "service": "S1",
+         'variables': {'seed': '100', 'param2': "foo"}, 'anonymous': False, 'allow': []}
     ])
     async def test__check_parameters(self, payload):
         cols = await entrypoint._check_parameters(payload)
@@ -527,13 +539,16 @@ class TestEntrypoint:
          "Control entrypoint destination argument cannot be empty."),
         ({"anonymous": "t"}, ValueError, "anonymous should be a bool."),
         ({"constants": "t"}, ValueError, "constants should be a dictionary."),
-        ({"type": "write", "constants": {}}, ValueError, "constants should not be empty."),
-        ({"type": "write", "constants": None}, ValueError,
-         "For type write constants must have passed in payload and cannot have empty value."),
         ({"variables": "t"}, ValueError, "variables should be a dictionary."),
-        ({"type": "write", "constants": {"unit": "cm"}, "variables": {}}, ValueError, "variables should not be empty."),
-        ({"type": "write", "constants": {"unit": "cm"}, "variables": None}, ValueError,
-         "For type write variables must have passed in payload and cannot have empty value."),
+        ({"type": "write"}, ValueError, "For write type either variables or constants should not be empty."),
+        ({"type": "write", "constants": {}}, ValueError,
+         "For write type either variables or constants should not be empty."),
+        ({"type": "write", "variables": {}}, ValueError,
+         "For write type either variables or constants should not be empty."),
+        ({"type": "write", "constants": None}, ValueError,
+         "For write type either variables or constants should not be empty."),
+        ({"type": "write", "variables": None}, ValueError,
+         "For write type either variables or constants should not be empty."),
         ({"allow": "user"}, ValueError, "allow should be an array of list of users.")
     ])
     async def test_bad__check_parameters(self, payload, exception_name, error_msg):

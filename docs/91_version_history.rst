@@ -25,6 +25,41 @@ Version History
 Fledge v2
 ==========
 
+v2.3.0
+-------
+
+Release Date: 2023-12-28
+
+- **Fledge Core**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
 v2.2.0
 -------
 

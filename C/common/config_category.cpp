@@ -1094,7 +1094,20 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 
 	if (item.HasMember("properties"))
 	{
-		m_bucketProperties = item["properties"].GetString();
+		Logger::getLogger()->debug("item['properties'].IsString()=%s, item['properties'].IsObject()=%s", 
+										item["properties"].IsString()?"true":"false",
+										item["properties"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["properties"].Accept(writer);
+		m_bucketProperties = item["properties"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_bucketProperties=%s", m_bucketProperties.c_str());
 	}
 	else
 	{
@@ -1493,7 +1506,7 @@ ostringstream convert;
 
 		if (!m_bucketProperties.empty())
 		{
-			convert << ", \"properties\" : \"" << JSONescape(m_bucketProperties) << "\"";
+			convert << ", \"properties\" : " << m_bucketProperties;
 		}
 
 		if (!m_group.empty())
@@ -1569,7 +1582,7 @@ ostringstream convert;
 
 	if (!m_bucketProperties.empty())
 	{
-		convert << ", \"properties\" : \"" << JSONescape(m_bucketProperties) << "\"";
+		convert << ", \"properties\" : " << m_bucketProperties;
 	}
 
 	if (!m_group.empty())

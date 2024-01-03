@@ -434,7 +434,8 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 	container += "\", \"typeid\" : \"";
 	container += baseType;
 	container += "\", \"name\" : \"";
-	container += dp->getName();
+	string dpName = OMF::ApplyPIServerNamingRulesObj(dp->getName(), NULL);
+	container += dpName;
 	container += "\", \"datasource\" : \"" + dataSource + "\"";
 
 	if (propertyOverrides)

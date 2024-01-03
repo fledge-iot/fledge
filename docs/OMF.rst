@@ -132,7 +132,7 @@ The *Default Configuration* tab contains the most commonly modified items
 
     - *Edge Data Store* - The OSISoft Edge Data Store 
 
-  - **Send full structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
+  - **Create AF Structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
      
   - **Naming scheme**: Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
 

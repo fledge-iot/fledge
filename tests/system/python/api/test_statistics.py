@@ -122,7 +122,7 @@ class TestStatistics:
         assert 1 == len(jdoc['statistics'])
         assert Counter(keys) == Counter(jdoc['statistics'][0].keys())
 
-    def test_statistics_history_with_service_enabled(self, start_south_coap, fledge_url, wait_time):
+    def test_statistics_history_with_service_enabled(self, start_south_coap, update_stat_collection, fledge_url, wait_time):
         # Allow CoAP listener to start
         time.sleep(wait_time)
 

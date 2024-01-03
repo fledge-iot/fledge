@@ -121,7 +121,7 @@ class TestE2ePiEgressWithScalesetFilter:
         remove_directories("/tmp/fledge-south-{}".format(ASSET_NAME.lower()))
         remove_directories("/tmp/fledge-filter-{}".format(FILTER_PLUGIN))
 
-    def test_end_to_end(self, start_south_north_with_filter, read_data_from_pi, fledge_url, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north_with_filter, update_stat_collection, read_data_from_pi, fledge_url, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
         subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]

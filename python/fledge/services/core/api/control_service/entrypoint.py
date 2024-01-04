@@ -164,23 +164,17 @@ async def _check_parameters(payload, skip_required=False):
     if constants is not None:
         if not isinstance(constants, dict):
             raise ValueError('constants should be a dictionary.')
-        if not constants and _type == EntryPointType.WRITE.name.lower():
-            raise ValueError('constants should not be empty.')
         final['constants'] = constants
-    else:
-        if _type == EntryPointType.WRITE.name.lower():
-            raise ValueError("For type write constants must have passed in payload and cannot have empty value.")
 
     variables = payload.get('variables', None)
     if variables is not None:
         if not isinstance(variables, dict):
             raise ValueError('variables should be a dictionary.')
-        if not variables and _type == EntryPointType.WRITE.name.lower():
-            raise ValueError('variables should not be empty.')
         final['variables'] = variables
-    else:
-        if _type == EntryPointType.WRITE.name.lower():
-            raise ValueError("For type write variables must have passed in payload and cannot have empty value.")
+
+    if _type == EntryPointType.WRITE.name.lower():
+        if not variables and not constants:
+            raise ValueError('For write type either variables or constants should not be empty.')
 
     allow = payload.get('allow', None)
     if allow is not None:

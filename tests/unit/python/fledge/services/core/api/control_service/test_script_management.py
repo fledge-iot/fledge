@@ -84,6 +84,7 @@ class TestScriptManagement:
                     with patch.object(c_mgr, 'get_category_all_items', return_value=get_cat) as patch_get_all_items:
                         resp = await client.get('/fledge/control/script')
                         assert 200 == resp.status
+                        server.Server.scheduler = None
                         result = await resp.text()
                         json_response = json.loads(result)
                         assert 'scripts' in json_response
@@ -162,6 +163,7 @@ class TestScriptManagement:
                     with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                       return_value=get_sch) as patch_get_schedule_by_name:
                         resp = await client.get('/fledge/control/script/{}'.format(script_name))
+                        server.Server.scheduler = None
                         assert 200 == resp.status
                         result = await resp.text()
                         json_response = json.loads(result)
@@ -583,6 +585,7 @@ class TestScriptManagement:
                                         with patch.object(AuditLogger, 'information',
                                                           return_value=arv) as audit_info_patch:
                                             resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                            server.Server.scheduler = None
                                             assert 200 == resp.status
                                             result = await resp.text()
                                             json_response = json.loads(result)
@@ -739,6 +742,7 @@ class TestScriptManagement:
                 with patch.object(server.Server.scheduler, 'get_schedules',
                                   return_value=get_sch) as patch_get_schedules:
                     resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
+                    server.Server.scheduler = None
                     assert 400 == resp.status
                     result = await resp.text()
                     json_response = json.loads(result)
@@ -788,6 +792,7 @@ class TestScriptManagement:
                                 with patch.object(server.Server.scheduler, 'queue_task',
                                                   return_value=queue) as patch_queue_task:
                                     resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
+                                    server.Server.scheduler = None
                                     assert 200 == resp.status
                                     result = await resp.text()
                                     json_response = json.loads(result)

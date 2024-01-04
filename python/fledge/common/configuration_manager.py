@@ -35,7 +35,7 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
-                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL'])
+                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
                           'validity', 'mandatory', 'group'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
@@ -277,7 +277,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             def get_entry_val(k):
                 v = [val for name, val in item_val.items() if name == k]
                 return v[0]
-
             for entry_name, entry_val in item_val.copy().items():
                 if type(entry_name) is not str:
                     raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
@@ -304,6 +303,29 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         else:
                             d = {entry_name: entry_val}
                             expected_item_entries.update(d)
+                    else:
+                        if type(entry_val) is not str:
+                            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                           type(entry_val)))
+                # Validate bucket type and mandatory properties item_name
+                elif 'type' in item_val and get_entry_val("type") == 'bucket':
+                    if 'properties' not in item_val:
+                        raise KeyError('For {} category, properties KV pair must be required '
+                                       'for item name {}.'.format(category_name, item_name))
+                    if entry_name == 'properties':
+                        prop_val = get_entry_val('properties')
+                        if not isinstance(prop_val, dict):
+                            raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
+                                             .format(category_name, item_name, type(entry_val)))
+                        if not prop_val:
+                            raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
+                                             ''.format(category_name, item_name))
+                        if 'key' not in prop_val:
+                            raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                     else:
                         if type(entry_val) is not str:
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -968,14 +990,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     return
             # Validate optional types only when new_value_entry not empty; otherwise set empty value
             if new_value_entry:
-                if optional_entry_name == 'readonly' or optional_entry_name == 'deprecated' or optional_entry_name == 'mandatory':
+                if optional_entry_name == "properties":
+                    raise ValueError('For {} category, optional item name properties cannot be updated.'.format(
+                        category_name))
+                elif optional_entry_name in ('readonly', 'deprecated', 'mandatory'):
                     if self._validate_type_value('boolean', new_value_entry) is False:
                         raise ValueError(
                             'For {} category, entry value must be boolean for optional item name {}; got {}'
                             .format(category_name, optional_entry_name, type(new_value_entry)))
-                elif optional_entry_name == 'minimum' or optional_entry_name == 'maximum':
-                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value('float',
-                                                                                                           new_value_entry)) is False:
+                elif optional_entry_name in ('minimum', 'maximum'):
+                    if (self._validate_type_value('integer', new_value_entry) or self._validate_type_value(
+                            'float', new_value_entry)) is False:
                         raise ValueError('For {} category, entry value must be an integer or float for optional item '
                                          '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
                 elif optional_entry_name in ('displayName', 'group', 'rule', 'validity'):

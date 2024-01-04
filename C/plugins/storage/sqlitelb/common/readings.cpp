@@ -149,6 +149,8 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
+	vector<string>  asset_codes;
+
 	if (!payload.HasMember("where") ||
 	    !payload.HasMember("timebucket"))
 	{
@@ -300,7 +302,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -718,6 +720,13 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
 
 #if INSTRUMENT
 	gettimeofday(&t2, NULL);
@@ -1119,6 +1128,13 @@ int sleep_time_ms = 0;
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
 
 	if (readingsCopy)
 	{
@@ -1254,6 +1270,7 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 const char	*timezone = "utc";
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -1531,7 +1548,7 @@ const char	*timezone = "utc";
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -1649,7 +1666,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	{
 		char *zErrMsg = NULL;
 		int rc;
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 "select max(rowid) from " READINGS_DB_NAME_BASE "."  READINGS_TABLE ";",
 			rowidCallback,
 			&rowidLimit,
@@ -1667,7 +1684,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	{
 		char *zErrMsg = NULL;
 		int rc;
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 "select min(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 			rowidCallback,
 			&minrowidLimit,
@@ -1697,7 +1714,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 query,
 					 selectCallback,
 					 &purge_readings,
@@ -1813,7 +1830,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 						 query,
 						 rowidCallback,
 						 &rowidLimit,
@@ -1849,7 +1866,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 idQuery,
 					 rowidCallback,
 					 &lastPurgedId,
@@ -2060,7 +2077,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	int rc;
 	sqlite3_stmt *stmt;
 	sqlite3_stmt *idStmt;
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 "select count(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
 		&rowcount,
@@ -2073,7 +2090,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		return 0;
 	}
 
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 "select max(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
 		&maxId,
@@ -2267,7 +2284,7 @@ unsigned int rowsAffected = 0;
 
 	START_TIME;
 	// Exec DELETE query: no callback, no resultset
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 			query,
 			NULL,
 			NULL,

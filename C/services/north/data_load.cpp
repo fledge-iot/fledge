@@ -26,7 +26,7 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -156,10 +156,10 @@ void DataLoad::triggerRead(unsigned int blockSize)
  */
 void DataLoad::readBlock(unsigned int blockSize)
 {
-ReadingSet *readings = NULL;
-
+	int n_waits = 0;
 	do
 	{
+		ReadingSet* readings = nullptr;
 		try
 		{
 			switch (m_dataSource)
@@ -177,22 +177,30 @@ ReadingSet *readings = NULL;
 				default:
 					Logger::getLogger()->fatal("Bad source for data to send");
 					break;
-
 			}
 		}
-	       	catch (ReadingSetException* e)
+		catch (ReadingSetException* e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
-	       	catch (exception& e)
+		catch (exception& e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
 		if (readings && readings->getCount())
 		{
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
+			if (m_perfMonitor)
+			{
+				m_perfMonitor->collect("No of waits for data", n_waits);
+				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+			}
 			return;
 		}
 		else if (readings)
@@ -205,9 +213,10 @@ ReadingSet *readings = NULL;
 			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
-		{	
+		{
 			// TODO improve this
 			this_thread::sleep_for(chrono::milliseconds(250));
+			n_waits++;
 		}
 	} while (m_shutdown == false);
 }
@@ -345,6 +354,15 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
+	if (m_perfMonitor)
+	{
+		m_perfMonitor->collect("Readings added to buffer", readings->getCount());
+		m_perfMonitor->collect("Reading sets buffered", m_queue.size());
+		long i = 0;
+		for (auto& set : m_queue)
+			i += set->getCount();
+		m_perfMonitor->collect("Total readings buffered", i);
+	}
 	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
 }
@@ -588,7 +606,14 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 
 		if (m_storage->insertTable(table, values) != 1)
 		{
-			Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
+			{
+				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
+			}
+			else
+			{
+				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			}
 		}
 		else
 		{

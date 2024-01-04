@@ -10,6 +10,7 @@
 #include <reading.h>
 #include <filter_pipeline.h>
 #include <service_handler.h>
+#include <perfmonitors.h>
 
 #define DEFAULT_BLOCK_SIZE 100
 
@@ -47,6 +48,7 @@ class DataLoad : public ServiceHandler {
 					{
 						m_blockSize = blockSize;
 					};
+		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
 
 	private:
 		void			readBlock(unsigned int blockSize);
@@ -77,5 +79,6 @@ class DataLoad : public ServiceHandler {
 		FilterPipeline		*m_pipeline;
 		std::mutex		m_pipelineMutex;
 		unsigned long		m_blockSize;
+		PerformanceMonitor	*m_perfMonitor;
 };
 #endif

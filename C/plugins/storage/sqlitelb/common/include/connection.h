@@ -15,6 +15,7 @@
 #include <rapidjson/document.h>
 #include <sqlite3.h>
 #include <mutex>
+#include <vector>
 #include <reading_stream.h>
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
@@ -27,9 +28,9 @@
 #define READINGS_TABLE            "readings"
 #define READINGS_TABLE_MEM       READINGS_TABLE
 
-#define MAX_RETRIES				80	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
-#define RETRY_BACKOFF_EXEC	   1000	// Multipler to backoff DB retry on lock
+#define MAX_RETRIES		80	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF		100	// Multipler to backoff DB retry on lock
+#define RETRY_BACKOFF_EXEC   	1000	// Multipler to backoff DB retry on lock
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -131,7 +132,8 @@ class Connection {
 		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
-		int 		SQLexec(sqlite3 *db, const char *sql,
+		std::string	operation(const char *sql);
+		int 		SQLexec(sqlite3 *db, const std::string& table, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
 		int		SQLstep(sqlite3_stmt *statement);
@@ -139,7 +141,10 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause,
+						SQLBuffer&, std::vector<std::string> &asset_codes,
+						bool convertLocaltime = false,
+						std::string prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
 		bool		jsonAggregates(const rapidjson::Value&,
 					       const rapidjson::Value&,
@@ -154,5 +159,11 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+		bool		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool		processJoinQueryWhereClause(const rapidjson::Value& query,
+							SQLBuffer& sql,
+							std::vector<std::string> &asset_codes,
+							int level);
+		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 };
 #endif

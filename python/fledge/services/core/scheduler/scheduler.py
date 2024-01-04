@@ -293,6 +293,16 @@ class Scheduler(object):
         Raises:
             EnvironmentError: If the process could not start
         """
+        def _get_delay_in_sec(pname):
+            if pname == 'dispatcher_c':
+                val = 3
+            elif pname == 'notification_c':
+                val = 5
+            elif pname in ('south_c', 'north_C'):
+                val = 7
+            else:
+                val = 10
+            return val
 
         # This check is necessary only if significant time can elapse between "await" and
         # the start of the awaited coroutine.
@@ -319,7 +329,12 @@ class Scheduler(object):
             startToken = ServiceRegistry.issueStartupToken(schedule.name)
             # Add startup token to args for services
             args_to_exec.append("--token={}".format(startToken))
-        
+
+            # Delay
+            self._logger.error("{}-{}".format(schedule.name, schedule.process_name))
+            res = _get_delay_in_sec(self._process_scripts[schedule.process_name][0][0].split("/")[1])
+            args_to_exec.append("--delay={}".format(res))
+
         args_to_exec.append("--name={}".format(schedule.name))
         if dryrun:
             args_to_exec.append("--dryrun")
@@ -688,7 +703,6 @@ class Scheduler(object):
                     if name == sch['process_name']:
                         sch['priority'] = priority[1]
                 schedules_in_order.append(sch)
-            #schedules_in_order.sort(key=lambda x: x['priority'])
             sort_sch = sorted(schedules_in_order, key=lambda k: ("priority" not in k, k.get("priority", None)))
             self._logger.debug(sort_sch)
             return sort_sch

@@ -15,6 +15,7 @@
 #include <rapidjson/document.h>
 #include <sqlite3.h>
 #include <mutex>
+#include <vector>
 #include <reading_stream.h>
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
@@ -145,7 +146,10 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause,
+						SQLBuffer&, std::vector<std::string> &asset_codes,
+						bool convertLocaltime = false,
+						std::string prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
 		bool		jsonAggregates(const rapidjson::Value&,
 					       const rapidjson::Value&,
@@ -160,5 +164,11 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+		bool		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool		processJoinQueryWhereClause(const rapidjson::Value& query,
+							SQLBuffer& sql,
+							std::vector<std::string> &asset_codes,
+							int level);
+		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 };
 #endif

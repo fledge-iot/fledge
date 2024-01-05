@@ -1163,6 +1163,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	// Create the class that deals with the linked data generation
 	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
+	linkedData.setSendFullStructure(m_sendFullStructure);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
 
 	// Create the lookup data for this block of readings
@@ -2301,6 +2302,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	long typeId = getAssetTypeId(assetName);
 
+
 	string lData = "{\"typeid\": \"__Link\", \"values\": [";
 
 	// Handles the structure for the Connector Relay
@@ -2353,8 +2355,31 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		}
 		else
 		{
+			// Get the new asset name after hints are applied for the linked data messages
+			string newAssetName = assetName;
+			if (hints)
+			{
+				const std::vector<OMFHint *> omfHints = hints->getHints();
+				for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+				{
+					if (typeid(**it) == typeid(OMFTagNameHint))
+					{
+						string hintValue = (*it)->getHint();
+						Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+							       hintValue.c_str(), assetName.c_str());
+						newAssetName = hintValue;
+					}
+					if (typeid(**it) == typeid(OMFTagHint))
+					{
+						string hintValue = (*it)->getHint();
+						Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+							       hintValue.c_str(), assetName.c_str());
+						newAssetName = hintValue;
+					}
+				}
+			}
 			StringReplace(tmpStr, "_placeholder_tgt_type_", "FledgeAsset");
-			StringReplace(tmpStr, "_placeholder_tgt_idx_", assetName);
+			StringReplace(tmpStr, "_placeholder_tgt_idx_", newAssetName);
 		}
 
 		lData.append(tmpStr);

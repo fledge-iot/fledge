@@ -19,7 +19,7 @@ for i in "$@";
       PARAM_LENGTH=${#PARAM}
       VALUE="${i:$PARAM_LENGTH+1}"
       sleep $VALUE
-      #break
+      break
     fi
 done
 

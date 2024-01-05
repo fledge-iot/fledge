@@ -28,20 +28,53 @@ typedef enum {
 class LALookup {
 	public:
 		LALookup()	{ m_sentState = 0; m_baseType = OMFBT_UNKNOWN; };
-		bool		assetState() { return (m_sentState & LAL_ASSET_SENT) != 0; };
-		bool		linkState() { return (m_sentState & LAL_LINK_SENT) != 0; };
-		bool		containerState() { return (m_sentState & LAL_CONTAINER_SENT) != 0; };
+		bool		assetState(const std::string& tagName)
+				{
+					return ((m_sentState & LAL_ASSET_SENT) != 0)
+						&& (m_tagName.compare(tagName) == 0);
+				};
+		bool		linkState(const std::string& tagName)
+				{
+					return ((m_sentState & LAL_LINK_SENT) != 0)
+						&& (m_tagName.compare(tagName) == 0);
+				};
+		bool		containerState(const std::string& tagName)
+	       			{
+				       	return ((m_sentState & LAL_CONTAINER_SENT) != 0)
+						&& (m_tagName.compare(tagName) == 0);
+				};
 		bool		afLinkState() { return (m_sentState & LAL_AFLINK_SENT) != 0; };
 		void		setBaseType(const std::string& baseType);
 		OMFBaseType	getBaseType() { return m_baseType; };
 		std::string	getBaseTypeString();
-		void		assetSent() { m_sentState |= LAL_ASSET_SENT; };
-		void		linkSent() { m_sentState |= LAL_LINK_SENT; };
+		void		assetSent(const std::string& tagName)
+				{
+					if (m_tagName.compare(tagName))
+					{
+						m_sentState = LAL_ASSET_SENT;
+						m_tagName = tagName;
+					}
+					else
+					{
+						m_sentState |= LAL_ASSET_SENT;
+					}
+				};
+		void		linkSent(const std::string& tagName)
+				{
+					if (m_tagName.compare(tagName))
+					{
+						// Force the container to resend if the tagName changes
+						m_tagName = tagName;
+						m_sentState &= ~LAL_CONTAINER_SENT;
+					}
+					m_sentState |= LAL_LINK_SENT;
+				};
 		void		afLinkSent() {  m_sentState |= LAL_AFLINK_SENT; };
-		void		containerSent(const std::string& baseType);
-		void		containerSent(OMFBaseType baseType) { m_baseType = baseType; };
+		void		containerSent(const std::string& tagName, const std::string& baseType);
+		void		containerSent(const std::string& tagName, OMFBaseType baseType);
 	private:
 		uint8_t		m_sentState;
 		OMFBaseType	m_baseType;
+		std::string	m_tagName;
 };
 #endif

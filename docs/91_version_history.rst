@@ -34,30 +34,60 @@ Release Date: 2023-12-28
 
     - New Features:
 
-
+       - A new REST API has been added to the public API to allow performance counters to be fetched and reset. This API is intended for diagnostic purposes only.
+       - Improvements have been made to the way load issues on the storage service are logged. 
+       - Documentation has been added that describes how to extend the API to include custom URLs for executing control functions. This documentation also shows how these are then called using the graphical user interface.
 
     - Bug Fix:
 
+       - An issue with the PostgreSQL storage plugin when very large numbers of readings are ingested, more than 4294967296, has now been resolved.
+       - An issue with services shutting down rather than restarting when they fail to get a valid bearer token has been resolved.
+       - The user interface for creating write API endpoints was incorrectly requiring both a constant and a variable when only one is required, this is now resolved.
+       - A problem that meant parameters to set point control operations were not correctly sent to south plugins written in Python has been resolved.
 
 
 - **GUI**
 
     - New Features:
 
+       - The user interface has been upgraded to use Angular version 16.
+       - The configuration section of the user interface that allows for instance wide configuration has been improved with a single tree navigation item and improved visual feedback.
+       - A link to the documentation has been added to the Control API pages of the user interface.
 
 
     - Bug Fix:
 
+       - An issue that could cause some datapoint to display incorrectly in the user interface graph when multiple assets are displayed and those assets have data points with the same name in both assets has been resolved.
+       - An issue in the user interface that meant exporting data as a CSV file created incorrect files if any of the data point names contained a comma has been fixed.
+       - A broken link to the documentation in the control pipeline user interface page of the user interface has been fixed.
 
 
 - **Plugins**
 
     - New Features:
 
+       - The benchmark south plugin has been enhanced to increase the load that can be placed during testing.
+       - The S2 OPCUA south plugin has been enhanced to allow filtering of nodes using regular expressions on the name of the nodes.
+       - The OMF north plugin has been updated to improve both the time and space efficiency of the lookup data used to map to PI Server objects.
+       - OMF North plugin documentation has been updated to show which version of the OMF specification the plugin will adopt when communicating with different versions of AVEVA products: PI Web API, Edge Data Store (EDS) and AVEVA Data Hub (ADH).
 
 
     - Bug Fix:
 
+       - An issue that meant some OPCUA nodes stored in the root of the hierarchy were not correctly ingested in the S2OPCUA south plugin has been resolved.
+       - A memory leak in the SQLite In Memory storage plugin has been resolved.
+       - The SQLite storage plugin had an issue that caused it to create overflow tables multiple times. This was not a problem in itself, but did cause the database to become looked for excessive periods of time, creating contention and delays for data ingestions in progress at the time.
+       - A problem that, in rare circumstances, could result in data being added to the incorrect asset in the SQLite plugin has been resolved. 
+       - An issue with assets containing bracket characters not being stored in the PostgreSQL storage plugin has been resolved.
+       - A memory leak in the OMF north plugin has been resolved.
+       - An issue that could cause data to fail to send using the OMF plugin when the names of data points contain special characters has now been resolved.
+       - When the "Send full structure" configuration boolean was false, OMF North would create an AF structure anyways. All AF Elements were at the root of the AF database, with every AF Element having a single AF Attribute mapped to a PI Point. Creation of this AF structure would take a long time for large databases which would lead to PI Web API POST timeouts. This has been fixed. If the configuration boolean is false, OMF North will create PI Points only. In the configuration page, Send full structure has been renamed to _Create AF Structure_.
+       - The OMF North plugin was unable to connect to AVEVA Data Hub (ADH) and OSIsoft Cloud Services (OCS) endpoints. This has been fixed.
+       - An issue with using an OMF Hint that defines a specific name to us with a tag has been resolved. The issue would show itself as the data not being sent to PI or ADH in some circumstances.
+       - An issue with string type parameters to control operations having extra pairs of quotes added has been resolved.
+       - The control dispatcher service was previously advertising itself before it had completed initialisation. This meant that a request could be received when it was partially configured, resulting in a crash of the service. Registration now takes place only once the service is completely ready to accept requests.
+       - The control dispatcher was not always using the correct source information when looking for matching pipelines. This has now been resolved.
+       - Control pipelines were previously still being executed if the entire pipeline was disabled, this has now been resolved.
 
 
 v2.2.0

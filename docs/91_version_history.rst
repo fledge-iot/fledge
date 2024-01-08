@@ -62,7 +62,7 @@ Release Date: 2023-12-28
        - A broken link to the documentation in the control pipeline user interface page of the user interface has been fixed.
 
 
-- **Plugins**
+- **Services & Plugins**
 
     - New Features:
 

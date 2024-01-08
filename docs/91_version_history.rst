@@ -41,6 +41,7 @@ Release Date: 2023-12-28
     - Bug Fix:
 
        - An issue with the PostgreSQL storage plugin when very large numbers of readings are ingested, more than 4294967296, has now been resolved.
+       - A problem that caused the dispatcher service to log messages regarding incorrect bearer tokens has been resolved.
        - An issue with services shutting down rather than restarting when they fail to get a valid bearer token has been resolved.
        - The user interface for creating write API endpoints was incorrectly requiring both a constant and a variable when only one is required. This is now resolved.
        - A problem that meant parameters to set point control operations were not correctly sent to south plugins written in Python has been resolved.
@@ -59,6 +60,7 @@ Release Date: 2023-12-28
 
        - An issue that could cause some datapoint to display incorrectly in the user interface graph when multiple assets are displayed and those assets have data points with the same name in both assets has been resolved.
        - An issue in the user interface that meant exporting data as a CSV file created incorrect files if any of the data point names contained a comma has been fixed.
+       - An issue with the user interface not always correctly showing the information for the dispatcher service as been resolved.
        - A broken link to the documentation in the control pipeline user interface page of the user interface has been fixed.
 
 

@@ -60,7 +60,7 @@ Release Date: 2023-12-28
 
        - An issue that could cause some datapoint to display incorrectly in the user interface graph when multiple assets are displayed and those assets have data points with the same name in both assets has been resolved.
        - An issue in the user interface that meant exporting data as a CSV file created incorrect files if any of the data point names contained a comma has been fixed.
-       - An issue with the user interface not always correctly showing the information for the dispatcher service as been resolved.
+       - An issue with the user interface not always correctly showing the information for the dispatcher service has been resolved.
        - A broken link to the documentation in the control pipeline user interface page of the user interface has been fixed.
 
 

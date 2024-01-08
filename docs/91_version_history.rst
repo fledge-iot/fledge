@@ -41,7 +41,6 @@ Release Date: 2023-12-28
     - Bug Fix:
 
        - An issue with the PostgreSQL storage plugin when very large numbers of readings are ingested, more than 4294967296, has now been resolved.
-       - A problem that caused the dispatcher service to log messages regarding incorrect bearer tokens has been resolved.
        - An issue with services shutting down rather than restarting when they fail to get a valid bearer token has been resolved.
        - The user interface for creating write API endpoints was incorrectly requiring both a constant and a variable when only one is required. This is now resolved.
        - A problem that meant parameters to set point control operations were not correctly sent to south plugins written in Python has been resolved.
@@ -87,6 +86,7 @@ Release Date: 2023-12-28
        - A problem that, in rare circumstances, could result in data being added to the incorrect asset in the SQLite plugin has been resolved. 
        - An issue with assets containing bracket characters not being stored in the PostgreSQL storage plugin has been resolved.
        - An issue with string type parameters to control operations having extra pairs of quotes added has been resolved.
+       - A problem that caused the dispatcher service to log messages regarding incorrect bearer tokens has been resolved.
        - The control dispatcher service was previously advertising itself before it had completed initialisation. This meant that a request could be received when it was partially configured, resulting in a crash of the service. Registration now takes place only once the service is completely ready to accept requests.
        - The control dispatcher was not always using the correct source information when looking for matching pipelines. This has now been resolved.
        - Control pipelines were previously still being executed if the entire pipeline was disabled, this has now been resolved.

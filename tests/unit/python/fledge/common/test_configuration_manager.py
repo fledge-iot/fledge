@@ -35,7 +35,7 @@ class TestConfigurationManager:
 
     def test_supported_validate_type_strings(self):
         expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string', 'ACL']
+                'northTask', 'password', 'script', 'string', 'ACL', 'bucket']
         assert len(expected_types) == len(_valid_type_strings)
         assert sorted(expected_types) == _valid_type_strings
 
@@ -533,28 +533,80 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
+    @pytest.mark.skip(reason="FOGL-8281")
+    @pytest.mark.parametrize("config", [
+    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
+    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": "{}"}}),
+    ({"item": {"description": "test description", "type": "string", "default": "A"},
+      ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
+    ])
+    async def test__validate_category_val_bucket_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        c_return_value = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=True)
+        assert isinstance(c_return_value, dict)
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, KeyError,
+         "'For {} category, properties KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "property": '{"a": 1}'}},
+         KeyError, "'For {} category, properties KV pair must be required for item name {}.'".format(
+            CAT_NAME, ITEM_NAME)),
+        ({"item": {"description": "test description", "type": "string", "default": "A", "value": "B"},
+          ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, KeyError,
+         "'For {} category, properties KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": '{"a": 1}'}},
+         ValueError, "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": {}}},
+         ValueError, "For {} category, properties JSON object cannot be empty for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": {"k": "v"}}},
+         ValueError, "For {} category, key KV pair must exist in properties for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": {}, "properties": {"key": "v"}}},
+         TypeError, "For {} category, entry value must be a string for item name {} and entry name default; "
+                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME))
+    ])
+    async def test__validate_category_val_bucket_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+        
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
         ("string", "", False),
         ("string", " ", False),
         ("JSON", "", False),
         ("JSON", " ", False),
+        ("bucket", "", False),
+        ("bucket", " ", False),
         ("integer", " ", True),
         ("string", "", True),
         ("string", " ", True),
         ("JSON", "", True),
-        ("JSON", " ", True)
+        ("JSON", " ", True),
+        ("bucket", "", True),
+        ("bucket", " ", True)
     ])
     async def test__validate_category_val_with_optional_mandatory(self, _type, value, from_default_val):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         test_config = {ITEM_NAME: {"description": "test description", "type": _type, "default": value,
                                    "mandatory": "true"}}
+        if _type == "bucket":
+            test_config[ITEM_NAME]['properties'] = {"key": "foo"}
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
                                                set_value_val_from_default_val=from_default_val)
         assert excinfo.type is ValueError
-        assert "For {} category, A default value must be given for {}".format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
+        assert ("For {} category, A default value must be given for {}"
+                "").format(CAT_NAME, ITEM_NAME) == str(excinfo.value)
 
     async def test__validate_category_val_with_enum_type(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3476,7 +3528,8 @@ class TestConfigurationManager:
         (None, 'group', 5,
          "For catname category, entry value must be string for optional item group; got <class 'int'>"),
         (None, 'group', True,
-         "For catname category, entry value must be string for optional item group; got <class 'bool'>")
+         "For catname category, entry value must be string for optional item group; got <class 'bool'>"),
+        (None, 'properties', {"key": "Bot"}, 'For catname category, optional item name properties cannot be updated.')
     ])
     async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name,
                                                        new_value_entry, exc_msg):
@@ -3497,7 +3550,8 @@ class TestConfigurationManager:
         storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6',
                                'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4',
                                'description': 'Test Optional', 'minimum': minimum, 'value': '13', 'maximum': maximum,
-                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false', 'group': 'Security'}
+                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false', 'group': 'Security',
+                               'properties': {"key": "model"}}
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -3509,6 +3563,7 @@ class TestConfigurationManager:
             with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
+
                 assert excinfo.type is ValueError
                 assert exc_msg == str(excinfo.value)
             readpatch.assert_called_once_with(category_name, item_name)

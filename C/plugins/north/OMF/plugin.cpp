@@ -107,11 +107,11 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"validity" : "PIServerEndpoint == \"AVEVA Data Hub\" || PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
 		"SendFullStructure": {
-			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
+			"description": "If true, create an AF structure to organize the data. If false, create PI Points only.",
 			"type": "boolean",
 			"default": "true",
 			"order": "3",
-			"displayName": "Send full structure",
+			"displayName": "Create AF structure",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"NamingScheme": {

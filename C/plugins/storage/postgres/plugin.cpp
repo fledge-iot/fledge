@@ -122,7 +122,7 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(query), results);
+	bool rval = connection->retrieve(schema, std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
 	{

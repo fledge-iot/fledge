@@ -156,11 +156,10 @@ void DataLoad::triggerRead(unsigned int blockSize)
  */
 void DataLoad::readBlock(unsigned int blockSize)
 {
-ReadingSet *readings = NULL;
-int n_waits = 0;
-
+	int n_waits = 0;
 	do
 	{
+		ReadingSet* readings = nullptr;
 		try
 		{
 			switch (m_dataSource)
@@ -178,16 +177,19 @@ int n_waits = 0;
 				default:
 					Logger::getLogger()->fatal("Bad source for data to send");
 					break;
-
 			}
 		}
-	       	catch (ReadingSetException* e)
+		catch (ReadingSetException* e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
-	       	catch (exception& e)
+		catch (exception& e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
 		if (readings && readings->getCount())
 		{
@@ -211,7 +213,7 @@ int n_waits = 0;
 			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
-		{	
+		{
 			// TODO improve this
 			this_thread::sleep_for(chrono::milliseconds(250));
 			n_waits++;
@@ -604,7 +606,14 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 
 		if (m_storage->insertTable(table, values) != 1)
 		{
-			Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
+			{
+				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
+			}
+			else
+			{
+				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
+			}
 		}
 		else
 		{

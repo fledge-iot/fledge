@@ -149,6 +149,8 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
+	vector<string>  asset_codes;
+
 	if (!payload.HasMember("where") ||
 	    !payload.HasMember("timebucket"))
 	{
@@ -300,7 +302,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -718,6 +720,13 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
 
 #if INSTRUMENT
 	gettimeofday(&t2, NULL);
@@ -1119,6 +1128,13 @@ int sleep_time_ms = 0;
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
 
 	if (readingsCopy)
 	{
@@ -1254,6 +1270,7 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 const char	*timezone = "utc";
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -1531,7 +1548,7 @@ const char	*timezone = "utc";
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}

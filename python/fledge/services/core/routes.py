@@ -5,7 +5,7 @@
 # FLEDGE_END
 
 from fledge.services.core import proxy
-from fledge.services.core.api import asset_tracker, auth, backup_restore, browser, certificate_store, filters, health, notification, north, package_log, python_packages, south, support, service, task, update
+from fledge.services.core.api import asset_tracker, auth, backup_restore, browser, certificate_store, filters, health, notification, north, package_log, performance_monitor, python_packages, south, support, service, task, update
 from fledge.services.core.api import audit as api_audit
 from fledge.services.core.api import common as api_common
 from fledge.services.core.api import configuration as api_configuration
@@ -263,6 +263,9 @@ def setup(app):
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)
+
+    # Performance Monitor
+    performance_monitor.setup(app)
 
     # enable cors support
     enable_cors(app)

@@ -533,9 +533,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		
 		if (!m_dryRun)
 		{
-			// Clean shutdown, unregister the storage service
-			logger->info("Unregistering service");
-			m_mgtClient->unregisterService();
+			if (m_requestRestart)
+			{
+				// Request core to restart this service
+				m_mgtClient->restartService();
+			} 
+			else
+			{
+				// Clean shutdown, unregister the storage service
+				logger->info("Unregistering service");
+				m_mgtClient->unregisterService();
+			}
 		}
 	}
 	management.stop();
@@ -716,12 +724,13 @@ void NorthService::shutdown()
  */
 void NorthService::restart()
 {
-	/* Stop recieving new requests and allow existing
-	 * requests to drain.
-	 */
+	logger->info("North service restart in progress.");
+
+	// Set restart action
 	m_requestRestart = true;
+
+	// Set shutdown action
 	m_shutdown = true;
-	logger->info("North service shutdown in progress.");
 
 	// Signal main thread to shutdown
 	m_cv.notify_all();
@@ -923,6 +932,7 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  * @param name		Name of the variable to write
  * @param value		Value to write to the variable
  * @param destination	Where to write the value
+ * @return true if write was succesfully sent to dispatcher, else false
  */
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination)
 {
@@ -952,6 +962,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
  * @param value		Value to write to the variable
  * @param destination	Where to write the value
  * @param arg		Argument used to determine destination
+ * @return true if write was succesfully sent to dispatcher, else false
  */
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination, const string& arg)
 {
@@ -999,6 +1010,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
  * @param paramCount	The number of parameters
  * @param parameters	The parameters to the operation
  * @param destination	Where to write the value
+ * @return -1 in case of error on operation destination, 1 if operation was succesfully sent to dispatcher, else 0
  */
 int  NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination)
 {
@@ -1030,8 +1042,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 			payload += ",";
 	}
 	payload += " } } }";
-	sendToDispatcher("/dispatch/operation", payload);
-	return -1;
+	return static_cast<int>(sendToDispatcher("/dispatch/operation", payload));
 }
 
 /**
@@ -1042,6 +1053,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
  * @param parameters	The parameters to the operation
  * @param destination	Where to write the value
  * @param arg		Argument used to determine destination
+ * @return 1 if operation was succesfully sent to dispatcher, else 0
  */
 int NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination, const string& arg)
 {
@@ -1090,8 +1102,7 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 			payload += ",";
 	}
 	payload += "} } }";
-	sendToDispatcher("/dispatch/operation", payload);
-	return -1;
+	return static_cast<int>(sendToDispatcher("/dispatch/operation", payload));
 }
 
 /**

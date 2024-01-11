@@ -47,6 +47,7 @@ class OMFLinkedData
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
 		void		buildLookup(const std::vector<Reading *>& reading);
+		void		setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{
@@ -70,6 +71,8 @@ class OMFLinkedData
 				};
 
 	private:
+		bool m_sendFullStructure;
+
 		/**
 		 * The container for this asset and data point has been sent in
 		 * this session. The key is the asset followed by the datapoint name

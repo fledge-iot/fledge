@@ -470,8 +470,8 @@ CREATE INDEX fki_user_asset_permissions_fk2
 
 -- List of scheduled Processes
 CREATE TABLE fledge.scheduled_processes (
-             name        character varying(255)  NOT NULL,   -- Name of the process
-             script      JSON,                               -- Full path of the process
+             name        character varying(255)  NOT NULL,             -- Name of the process
+             script      JSON,                                         -- Full path of the process
              priority    INTEGER                 NOT NULL DEFAULT 999, -- priority to run for STARTUP
              CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
 

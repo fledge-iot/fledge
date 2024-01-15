@@ -76,6 +76,8 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 
 	string assetName = reading.getAssetName();
+	string originalAssetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
 	// Apply any TagName hints to modify the containerid
 	if (hints)
 	{
@@ -109,14 +111,14 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
 
 	bool needDelim = false;
-	auto assetLookup = m_linkedAssetState->find(assetName + ".");
+	auto assetLookup = m_linkedAssetState->find(originalAssetName + ".");
 	if (assetLookup == m_linkedAssetState->end())
 	{
 		// Panic Asset lookup not created
-		Logger::getLogger()->fatal("FIXME: no asset lookup item for %s.", assetName.c_str());
+		Logger::getLogger()->error("Internal error: No asset lookup item for %s.", assetName.c_str());
 		return "";
 	}
-	if (m_sendFullStructure && assetLookup->second.assetState() == false)
+	if (m_sendFullStructure && assetLookup->second.assetState(assetName) == false)
 	{
 		// Send the data message to create the asset instance
 		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
@@ -124,7 +126,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
             	outData.append(assetName + "\"");
          	outData.append("} ] }");
 		needDelim = true;
-		assetLookup->second.assetSent();
+		assetLookup->second.assetSent(assetName);
 	}
 
 	/**
@@ -183,17 +185,18 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
-			auto dpLookup = m_linkedAssetState->find(link);
+			string dpLookupName = originalAssetName + "." + dpName;
+			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
 			string baseType = getBaseType(dp, format);
 			if (dpLookup == m_linkedAssetState->end())
 			{
 				Logger::getLogger()->error("Trying to send a link for a datapoint for which we have not created a base type");
 			}
-			else if (dpLookup->second.containerState() == false)
+			else if (dpLookup->second.containerState(assetName) == false)
 			{
 				sendContainer(link, dp, hints, baseType);
-				dpLookup->second.containerSent(baseType);
+				dpLookup->second.containerSent(assetName, baseType);
 			}
 			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
 			{
@@ -210,7 +213,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				else
 				{
 					sendContainer(link, dp, hints, baseType);
-					dpLookup->second.containerSent(baseType);
+					dpLookup->second.containerSent(assetName, baseType);
 				}
 			}
 			if (baseType.empty())
@@ -219,7 +222,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				skippedDatapoints.push_back(dpName);
 				continue;
 			}
-			if (m_sendFullStructure && dpLookup->second.linkState() == false)
+			if (m_sendFullStructure && dpLookup->second.linkState(assetName) == false)
 			{
 				outData.append("{ \"typeid\":\"__Link\",");
 				outData.append("\"values\":[ { \"source\" : {");
@@ -229,7 +232,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				outData.append("\"containerid\" : \"");
 				outData.append(link);
 				outData.append("\" } } ] },");
-				dpLookup->second.linkSent();
+				dpLookup->second.linkSent(assetName);
 			}
 
 			// Convert reading data into the OMF JSON string
@@ -434,7 +437,8 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 	container += "\", \"typeid\" : \"";
 	container += baseType;
 	container += "\", \"name\" : \"";
-	container += dp->getName();
+	string dpName = OMF::ApplyPIServerNamingRulesObj(dp->getName(), NULL);
+	container += dpName;
 	container += "\", \"datasource\" : \"" + dataSource + "\"";
 
 	if (propertyOverrides)
@@ -594,10 +598,37 @@ void LALookup::setBaseType(const string& baseType)
 
 /**
  * The container has been sent with the specific base type
+ *
+ * @param tagName	The name of the tag we are using
+ * @param baseType	The baseType we resolve to
  */
-void LALookup::containerSent(const std::string& baseType)
+void LALookup::containerSent(const std::string& tagName, OMFBaseType baseType)
+{
+	if (m_tagName.compare(tagName))
+	{
+		// Force a new Link and AF Link to be sent for the new tag name
+		m_sentState &= ~(LAL_LINK_SENT | LAL_AFLINK_SENT);
+	}
+	m_baseType = baseType;
+	m_tagName = tagName;
+	m_sentState |= LAL_CONTAINER_SENT;
+}
+
+/**
+ * The container has been sent with the specific base type
+ *
+ * @param tagName	The name of the tag we are using
+ * @param baseType	The baseType we resolve to
+ */
+void LALookup::containerSent(const std::string& tagName, const std::string& baseType)
 {
 	setBaseType(baseType);
+	if (m_tagName.compare(tagName))
+	{
+		// Force a new Link and AF Link to be sent for the new tag name
+		m_sentState &= ~(LAL_LINK_SENT | LAL_AFLINK_SENT);
+	}
+	m_tagName = tagName;
 	m_sentState |= LAL_CONTAINER_SENT;
 }
 

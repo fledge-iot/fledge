@@ -66,7 +66,7 @@ static std::string DataPointNamesAsString(const Reading& reading)
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
- * @param delin		    Add a delimiter before outputtign anything
+ * @param delim		    Add a delimiter before outputting anything
  *
  */
 bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)

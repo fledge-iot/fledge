@@ -820,10 +820,10 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 
 -- South, Notification, North Tasks
 --
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',         100 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',         100  );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',    30 );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_c',           '["tasks/north_c"]',             200 );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',             '["tasks/north"]'               );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north',             '["tasks/north"]'                    );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',      20 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]',  10 );

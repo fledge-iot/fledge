@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Run a Fledge notification service written in C/C++
 if [ "${FLEDGE_ROOT}" = "" ]; then
 	FLEDGE_ROOT=/usr/local/fledge
@@ -10,5 +10,17 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 fi
 
 cd "${FLEDGE_ROOT}/services"
+
+# startup with delay
+for i in "$@";
+  do
+    PARAM=$(echo $i | cut -f1 -d=)
+    if [ $PARAM = '--delay' ]; then
+      PARAM_LENGTH=${#PARAM}
+      VALUE="${i:$PARAM_LENGTH+1}"
+      sleep $VALUE
+      break
+    fi
+done
 
 ./fledge.services.notification "$@"

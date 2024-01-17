@@ -104,6 +104,8 @@ class Scheduler(object):
     """Maximum age of rows in the task table that have finished, in days"""
     _DELETE_TASKS_LIMIT = 500
     """The maximum number of rows to delete in the tasks table in a single transaction"""
+    _DEFAULT_PROCESS_SCRIPT_PRIORITY = 999
+    """Priority order for process scripts"""
 
     _HOUR_SECONDS = 3600
     _DAY_SECONDS = 3600 * 24
@@ -293,6 +295,18 @@ class Scheduler(object):
         Raises:
             EnvironmentError: If the process could not start
         """
+        def _get_delay_in_sec(pname):
+            if pname == 'dispatcher_c':
+                val = 3
+            elif pname == 'notification_c':
+                val = 5
+            elif pname == 'south_c':
+                val = 7
+            elif pname == 'north_C':
+                val = 9
+            else:
+                val = 12
+            return val
 
         # This check is necessary only if significant time can elapse between "await" and
         # the start of the awaited coroutine.
@@ -319,7 +333,12 @@ class Scheduler(object):
             startToken = ServiceRegistry.issueStartupToken(schedule.name)
             # Add startup token to args for services
             args_to_exec.append("--token={}".format(startToken))
-        
+
+            if self._process_scripts[schedule.process_name][1] != self._DEFAULT_PROCESS_SCRIPT_PRIORITY:
+                # With startup Delay
+                res = _get_delay_in_sec(self._process_scripts[schedule.process_name][0][0].split("/")[1])
+                args_to_exec.append("--delay={}".format(res))
+
         args_to_exec.append("--name={}".format(schedule.name))
         if dryrun:
             args_to_exec.append("--dryrun")
@@ -683,12 +702,11 @@ class Scheduler(object):
         def _get_schedule_by_priority(sch_list):
             schedules_in_order = []
             for sch in sch_list:
-                sch['priority'] = 999
+                sch['priority'] = self._DEFAULT_PROCESS_SCRIPT_PRIORITY
                 for name, priority in self._process_scripts.items():
                     if name == sch['process_name']:
                         sch['priority'] = priority[1]
                 schedules_in_order.append(sch)
-            #schedules_in_order.sort(key=lambda x: x['priority'])
             sort_sch = sorted(schedules_in_order, key=lambda k: ("priority" not in k, k.get("priority", None)))
             self._logger.debug(sort_sch)
             return sort_sch
@@ -1659,3 +1677,9 @@ class Scheduler(object):
                                                      ) if old_row.time else '00:00:00'
             old_schedule["day"] = old_row.day if old_row.day else 0
         await audit.information('SCHCH', {'schedule': new_row.toDict(), 'old_schedule': old_schedule})
+
+    def reset_process_script_priority(self):
+        for k,v in self._process_scripts.items():
+            if isinstance(v, tuple):
+                updated_tuple = (v[0], self._DEFAULT_PROCESS_SCRIPT_PRIORITY)
+                self._process_scripts[k] = updated_tuple

@@ -486,6 +486,9 @@ async def add_service(request):
             #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
             schedule.enabled = False
 
+            # Reset startup priority order
+            server.Server.scheduler.reset_process_script_priority()
+
             # Save schedule
             await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=dryrun)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)

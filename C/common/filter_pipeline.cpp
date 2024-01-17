@@ -261,6 +261,11 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			// Fetch up to date filter configuration
 			updatedCfg = mgtClient->getCategory(filterCategoryName);
 
+			// Pass Management client IP:Port to filter so that it may connect to bucket service
+			updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
+								"string", "127.0.0.1:0",
+								mgtClient->getUrlbase());
+
 			// Add filter category name under service/process config name
 			children.push_back(filterCategoryName);
 			mgtClient->addChildCategories(serviceName, children);

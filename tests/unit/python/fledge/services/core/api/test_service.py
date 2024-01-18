@@ -1161,7 +1161,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                        assert {'name': 'management', 'priority': 300, 'script': '["services/management"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_management_service_schedule(self, client):
@@ -1221,7 +1221,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                        assert {'name': 'management', 'priority': 300, 'script': '["services/management"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     @pytest.mark.parametrize("param", [

@@ -1907,6 +1907,9 @@ class Server:
                 if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
                     _logger.info("Dispatcher service found but not in enabled state. "
                                  "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
+                    # reset process_script priority for the service
+                    update_tuple = (cls.scheduler._process_scripts['dispatcher_c'][0], 999)
+                    cls.scheduler._process_scripts['dispatcher_c'] = update_tuple
                     await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
                     return True
                 elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':

@@ -9,18 +9,20 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 	exit 1
 fi
 
-cd "${FLEDGE_ROOT}/services"
-
 # startup with delay
-for i in "$@";
-  do
-    PARAM=$(echo $i | cut -f1 -d=)
-    if [ $PARAM = '--delay' ]; then
-      PARAM_LENGTH=${#PARAM}
-      VALUE="${i:$PARAM_LENGTH+1}"
-      sleep $VALUE
-      break
-    fi
-done
+delay() {
+    for ARG in "$@";
+      do
+        PARAM=$(echo $ARG | cut -f1 -d=)
+        if [ $PARAM = '--delay' ]; then
+          PARAM_LENGTH=${#PARAM}
+          VALUE="${ARG:$PARAM_LENGTH+1}"
+          sleep $VALUE
+          break
+        fi
+    done
+}
 
+cd "${FLEDGE_ROOT}/services"
+delay "$@"
 ./fledge.services.dispatcher "$@"

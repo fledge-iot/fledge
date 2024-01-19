@@ -1681,5 +1681,4 @@ class Scheduler(object):
     def reset_process_script_priority(self):
         for k,v in self._process_scripts.items():
             if isinstance(v, tuple):
-                updated_tuple = (v[0], self._DEFAULT_PROCESS_SCRIPT_PRIORITY)
-                self._process_scripts[k] = updated_tuple
+                self._process_scripts[k] = (v[0], self._DEFAULT_PROCESS_SCRIPT_PRIORITY)

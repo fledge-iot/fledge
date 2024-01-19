@@ -40,7 +40,6 @@ _LOGGER = FLCoreLogger().get_logger(__name__)
 async def create_filter(request: web.Request) -> web.Response:
     """
     Create a new filter with a specific plugin
-    
     :Example:
      curl -X POST http://localhost:8081/fledge/filter -d '{"name": "North_Readings_to_PI_scale_stage_1Filter", "plugin": "scale"}'
      curl -X POST http://localhost:8081/fledge/filter -d '{"name": "North_Readings_to_PI_scale_stage_1Filter", "plugin": "scale", "filter_config": {"offset":"1","enable":"true"}}'
@@ -78,7 +77,6 @@ async def create_filter(request: web.Request) -> web.Response:
             raise ValueError("This '{}' filter already exists".format(filter_name))
 
         # Load C/Python filter plugin info
-        #loaded_plugin_info = apiutils.get_plugin_info(plugin_name, dir='filter')
         try:
             # Try fetching Python filter
             plugin_module_path = "{}/python/fledge/plugins/filter/{}".format(_FLEDGE_ROOT, plugin_name)
@@ -154,21 +152,18 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     Add filter names to "filter" item in {user_name}
 
     PUT /fledge/filter/{user_name}/pipeline
- 
+
     'pipeline' is the array of filter category names to set
     into 'filter' default/value properties
 
     :Example: set 'pipeline' for user 'NorthReadings_to_PI'
-    curl -X PUT http://localhost:8081/fledge/filter/NorthReadings_to_PI/pipeline -d 
-    '{
-        "pipeline": ["Scale10Filter", "Python_assetCodeFilter"],
-    }'
+    curl -X PUT http://localhost:8081/fledge/filter/NorthReadings_to_PI/pipeline -d '["Scale10Filter", "Python_assetCodeFilter"]'
 
     Configuration item 'filter' is added to {user_name}
     or updated with the pipeline list
 
     Returns the filter pipeline on success:
-    {"pipeline": ["Scale10Filter", "Python_assetCodeFilter"]} 
+    {"pipeline": ["Scale10Filter", "Python_assetCodeFilter"]}
 
     Query string parameters:
     - append_filter=true|false       Default false
@@ -189,7 +184,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     }'
 
     Delete pipeline:
-    curl -X PUT -d '{"pipeline": []}' http://localhost:8081/fledge/filter/NorthReadings_to_PI/pipeline 
+    curl -X PUT -d '{"pipeline": []}' http://localhost:8081/fledge/filter/NorthReadings_to_PI/pipeline
 
     NOTE: the method also adds the filters category names under
     parent category {user_name}
@@ -227,13 +222,19 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         if category_info is None:
             raise ValueError("No such '{}' category found.".format(user_name))
 
+        async def _get_filter(f_name):
+            payload = PayloadBuilder().WHERE(['name', '=', f_name]).payload()
+            f_result = await storage.query_tbl_with_payload("filters", payload)
+            if len(f_result["rows"]) == 0:
+                raise ValueError("No such '{}' filter found in filters table.".format(f_name))
+
         # Check and validate if all filters in the list exists in filters table
         for _filter in filter_list:
-            payload = PayloadBuilder().WHERE(['name', '=', _filter]).payload()
-            result = await storage.query_tbl_with_payload("filters", payload)
-            if len(result["rows"]) == 0:
-                raise ValueError("No such '{}' filter found in filters table.".format(_filter))
-
+            if isinstance(_filter, list):
+                for f in _filter:
+                    await _get_filter(f)
+            else:
+                await _get_filter(_filter)
         config_item = "filter"
 
         if config_item in category_info:  # Check if config_item key has already been added to the category config
@@ -254,7 +255,8 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             # Config update for filter pipeline and a change callback after category children creation
             await cf_mgr.set_category_item_value_entry(user_name, config_item, {'pipeline': new_list})
         else:  # No existing filters, hence create new item 'config_item' and add the "pipeline" array as a string
-            new_item = dict({config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': {}, 'readonly':'true'}})
+            new_item = dict(
+                {config_item: {'description': 'Filter pipeline', 'type': 'JSON', 'default': {}, 'readonly': 'true'}})
             new_item[config_item]['default'] = json.dumps({'pipeline': filter_list})
             await _add_child_filters(storage, cf_mgr, user_name, filter_list)
             await cf_mgr.create_category(category_name=user_name, category_value=new_item, keep_original_items=True)
@@ -267,15 +269,26 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         else:
             # Create Parent-child relation for standalone filter category with service/username
             # And that way we have the ability to remove the category when we delete the service
-            await cf_mgr.create_child_category(user_name, filter_list)
+            f_c = []
+            f_c2 = []
+            for _filter in filter_list:
+                if isinstance(_filter, list):
+                    for f in _filter:
+                        f_c.append(f)
+                else:
+                    f_c2.append(_filter)
+                if f_c:
+                    await cf_mgr.create_child_category(user_name, f_c)
+                if f_c2:
+                    await cf_mgr.create_child_category(user_name, f_c2)
             return web.json_response(
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as err:
         msg = str(err)
-        raise web.HTTPNotFound(reason=msg)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except TypeError as err:
         msg = str(err)
-        raise web.HTTPBadRequest(reason=msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as e:
         msg = e.error
         _LOGGER.exception("Add filters pipeline, caught storage error: {}".format(msg))
@@ -500,7 +513,8 @@ def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: 
         try:
             if parent is not None:
                 if dict_del['type'] == 'JSON':
-                    i_val = json.loads(dict_del[k]) if isinstance(dict_del[k], str) else json.loads(json.dumps(dict_del[k]))
+                    i_val = json.loads(dict_del[k]) if isinstance(dict_del[k], str) else json.loads(
+                        json.dumps(dict_del[k]))
                 else:
                     i_val = dict_del[k]
                 deleted_values.update({parent: i_val})
@@ -518,47 +532,79 @@ async def _delete_child_filters(storage: StorageClientAsync, cf_mgr: Configurati
                                 new_list: List[str], old_list: List[str] = []) -> None:
     # Difference between pipeline and value from storage lists and then delete relationship as per diff
     delete_children = _diff(new_list, old_list)
-    for child in delete_children:
+    async def _delete_relationship(cat_name):
         try:
-            filter_child_category_name = "{}_{}".format(user_name, child)
+            filter_child_category_name = "{}_{}".format(user_name, cat_name)
             await cf_mgr.delete_child_category(user_name, filter_child_category_name)
             await cf_mgr.delete_child_category("{} Filters".format(user_name), filter_child_category_name)
         except:
             pass
-        await _delete_configuration_category(storage, "{}_{}".format(user_name, child))
-        payload = PayloadBuilder().WHERE(['name', '=', child]).AND_WHERE(['user', '=', user_name]).payload()
+        await _delete_configuration_category(storage, "{}_{}".format(user_name, cat_name))
+        payload = PayloadBuilder().WHERE(['name', '=', cat_name]).AND_WHERE(['user', '=', user_name]).payload()
         await storage.delete_from_tbl("filter_users", payload)
 
+    for child in delete_children:
+        if isinstance(child, list):
+            for c in child:
+                await _delete_relationship(c)
+        else:
+            await _delete_relationship(child)
 
 async def _add_child_filters(storage: StorageClientAsync, cf_mgr: ConfigurationManager, user_name: str,
                              filter_list: List[str], old_list: List[str] = []) -> None:
     # Create children categories. Since create_category() does not expect "value" key to be
     # present in the payload, we need to remove all "value" keys BUT need to add back these
     # "value" keys to the new configuration.
-    for filter_name in filter_list:
-        filter_config = await cf_mgr.get_category_all_items(category_name="{}_{}".format(user_name, filter_name))
+
+    async def _create_filter_category(filter_cat_name):
+        filter_config = await cf_mgr.get_category_all_items(category_name="{}_{}".format(
+            user_name, filter_cat_name))
         # If "username_filter" category does not exist
         if filter_config is None:
-            filter_config = await cf_mgr.get_category_all_items(category_name=filter_name)
+            filter_config = await cf_mgr.get_category_all_items(category_name=filter_cat_name)
 
-            filter_desc = "Configuration of {} filter for user {}".format(filter_name, user_name)
-            new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'], deleted_values={}, parent=None)
-            await cf_mgr.create_category(category_name="{}_{}".format(user_name, filter_name),
+            filter_desc = "Configuration of {} filter for user {}".format(filter_cat_name, user_name)
+            new_filter_config, deleted_values = _delete_keys_from_dict(filter_config, ['value'],
+                                                                       deleted_values={}, parent=None)
+            await cf_mgr.create_category(category_name="{}_{}".format(user_name, filter_cat_name),
                                          category_description=filter_desc,
                                          category_value=new_filter_config,
                                          keep_original_items=True)
             if deleted_values != {}:
-                await cf_mgr.update_configuration_item_bulk("{}_{}".format(user_name, filter_name), deleted_values)
+                await cf_mgr.update_configuration_item_bulk("{}_{}".format(
+                    user_name, filter_cat_name), deleted_values)
 
         # Remove cat from cache
-        if filter_name in cf_mgr._cacheManager.cache:
-            cf_mgr._cacheManager.remove(filter_name)
+        if filter_cat_name in cf_mgr._cacheManager.cache:
+            cf_mgr._cacheManager.remove(filter_cat_name)
+
+    # Create filter category
+    for _fn in filter_list:
+        if isinstance(_fn, list):
+            for f in _fn:
+                await _create_filter_category(f)
+        else:
+            await _create_filter_category(_fn)
 
     # Create children categories in category_children table
-    children = ["{}_{}".format(user_name, _filter) for _filter in filter_list]
-    await cf_mgr.create_child_category(category_name=user_name, children=children)
+    children = []
+    for _filter in filter_list:
+        if isinstance(_filter, list):
+            for f in _filter:
+                child_cat_name = "{}_{}".format(user_name, f)
+                children.append(child_cat_name)
+        else:
+            child_cat_name = "{}_{}".format(user_name, _filter)
+            children.append(child_cat_name)
+        await cf_mgr.create_child_category(category_name=user_name, children=children)
     # Add entries to filter_users table
     new_added = _diff(old_list, filter_list)
     for filter_name in new_added:
-        payload = PayloadBuilder().INSERT(name=filter_name, user=user_name).payload()
-        await storage.insert_into_tbl("filter_users", payload)
+        payload = None
+        if isinstance(filter_name, list):
+            for f in filter_name:
+                payload = PayloadBuilder().INSERT(name=f, user=user_name).payload()
+        else:
+            payload = PayloadBuilder().INSERT(name=filter_name, user=user_name).payload()
+        if payload is not None:
+            await storage.insert_into_tbl("filter_users", payload)

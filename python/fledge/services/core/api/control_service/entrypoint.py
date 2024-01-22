@@ -443,9 +443,9 @@ async def update_request(request: web.Request) -> web.Response:
         constant_dict = {key: data.get(key, ep_info["constants"][key]) for key in ep_info["constants"]}
         variables_dict = {key: data.get(key, ep_info["variables"][key]) for key in ep_info["variables"]}
         params = {**constant_dict, **variables_dict}
-        if not params:
-            raise ValueError("Nothing to update as given entrypoint do not have the parameters.")
         if ep_info['type'] == 'write':
+            if not params:
+                raise ValueError("Nothing to update as given entrypoint do not have the parameters.")
             url = "dispatch/write"
             dispatch_payload["write"] = params
         else:

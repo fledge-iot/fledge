@@ -1,5 +1,4 @@
-#!/bin/sh
-
+#!/bin/bash
 # Run a Fledge north service written in C/C++
 if [ "${FLEDGE_ROOT}" = "" ]; then
 	FLEDGE_ROOT=/usr/local/fledge
@@ -44,6 +43,20 @@ if [ "$STRACE_NORTH" != "" ]; then
 	done
 fi
 
+# startup with delay
+delay() {
+    for ARG in "$@";
+      do
+        PARAM=$(echo $ARG | cut -f1 -d=)
+        if [ $PARAM = '--delay' ]; then
+          PARAM_LENGTH=${#PARAM}
+          VALUE="${ARG:$PARAM_LENGTH+1}"
+          sleep $VALUE
+          break
+        fi
+    done
+}
+
 cd "${FLEDGE_ROOT}/services"
 if [ "$runvalgrind" = "y" ]; then
 	file=${HOME}/north.${name}.valgrind.out
@@ -66,6 +79,7 @@ elif [ "$INTERPOSE_NORTH" != "" ]; then
 	./fledge.services.north "$@"
  	unset LD_PRELOAD
 else
-	./fledge.services.north "$@"
+  delay "$@"
+  ./fledge.services.north "$@"
 fi
 

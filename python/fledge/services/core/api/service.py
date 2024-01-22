@@ -413,7 +413,10 @@ async def add_service(request):
         count = await check_scheduled_processes(storage, process_name, script)
         if count == 0:
             # Now first create the scheduled process entry for the new service
-            payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
+            column_name = {"name": process_name, "script": script}
+            if service_type == 'management':
+                column_name["priority"] = 300
+            payload = PayloadBuilder().INSERT(**column_name).payload()
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
@@ -485,6 +488,9 @@ async def add_service(request):
             schedule.exclusive = True
             #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
             schedule.enabled = False
+
+            # Reset startup priority order
+            server.Server.scheduler.reset_process_script_priority()
 
             # Save schedule
             await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=dryrun)

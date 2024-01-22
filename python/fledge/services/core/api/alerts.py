@@ -17,15 +17,17 @@ __version__ = "${VERSION}"
 
 _help = """
     ----------------------------------------------------------------
-    | GET            | /fledge/alert                               |
-    | DELETE         | /fledge/alert/acknowledge                   |
+    | GET    DELETE        | /fledge/alert                         |
+    | DELETE               | /fledge/alert/{key}                   |
     ----------------------------------------------------------------
 """
 _LOGGER = FLCoreLogger().get_logger(__name__)
 
 def setup(app):
     app.router.add_route('GET', '/fledge/alert', get_all)
-    app.router.add_route('DELETE', '/fledge/alert/acknowledge', delete)
+    app.router.add_route('DELETE', '/fledge/alert', delete)
+    app.router.add_route('DELETE', '/fledge/alert/{key}', delete)
+
 
 
 async def get_all(request: web.Request) -> web.Response:
@@ -47,13 +49,21 @@ async def delete(request: web.Request) -> web.Response:
     """ DELETE all alerts
 
     :Example:
-        curl -sX DELETE http://localhost:8081/fledge/alert/acknowledge
+        curl -sX DELETE http://localhost:8081/fledge/alert
+        curl -sX DELETE http://localhost:8081/fledge/alert/{key}
     """
+    key = request.match_info.get('key', None)
     try:
-        response = await server.Server._alert_manager.acknowledge_alert()
+        if key:
+            response = await server.Server._alert_manager.delete(key=key)
+        else:
+            response = await server.Server._alert_manager.delete()
+    except KeyError:
+        msg = '{} alert not found.'.format(key)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error(ex, "Failed to acknowledge alerts.")
+        _LOGGER.error(ex, "Failed to delete alerts.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": response})

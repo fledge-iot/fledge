@@ -47,15 +47,31 @@ class AlertManager(AlertManagerSingleton):
         else:
             return self.alerts
 
-    async def acknowledge_alert(self):
+
+    async def delete(self, key=None):
         """ Delete an entry from storage """
-        message = "Noting to acknowledge an alert!"
         try:
-            result = await self.storage_client.delete_from_tbl("alerts")
+            payload = {}
+            message = "Nothing to delete."
+            key_exists = -1
+            if key is not None:
+                key_exists = [index for index, item in enumerate(self.alerts) if item['key'] == key]
+                if key_exists:
+                    payload = PayloadBuilder().WHERE(["key", "=", key]).payload()
+                else:
+                    raise KeyError
+            result = await self.storage_client.delete_from_tbl("alerts", payload)
             if 'rows_affected' in result:
                 if result['response'] == "deleted" and result['rows_affected']:
-                    message = "Acknowledge all alerts!"
-                    self.alerts = []
+                    if key is None:
+                        message = "Delete all alerts."
+                        self.alerts = []
+                    else:
+                        message = "{} alert is deleted.".format(key)
+                        if key_exists:
+                            del self.alerts[key_exists[0]]
+        except KeyError:
+            raise KeyError
         except Exception as ex:
             raise Exception(ex)
         else:

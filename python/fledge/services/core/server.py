@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from fledge.common import logger
+from fledge.common.alert_manager import AlertManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.exceptions import *
@@ -320,6 +321,9 @@ class Server:
 
     _asset_tracker = None
     """ Asset tracker """
+
+    _alert_manager = None
+    """ Alert Manager """
 
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
@@ -818,6 +822,11 @@ class Server:
         await cls._asset_tracker.load_asset_records()
 
     @classmethod
+    async def _get_alerts(cls):
+        cls._alert_manager = AlertManager(cls._storage_client_async)
+        await cls._alert_manager.get_all()
+
+    @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
             _logger.info("Starting in SAFE MODE ...")
@@ -927,6 +936,10 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+
+                # Start Alert Manager
+                loop.run_until_complete(cls._get_alerts())
+
                 # If dispatcher installation:
                 # a) not found then add it as a StartUp service
                 # b) found then check the status of its schedule and take action

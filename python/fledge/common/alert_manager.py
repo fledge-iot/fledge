@@ -39,7 +39,6 @@ class AlertManager(AlertManagerSingleton):
             q_payload = PayloadBuilder().SELECT("key", "message", "urgency", "ts").ALIAS(
                 "return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
             results = await self.storage_client.query_tbl_with_payload('alerts', q_payload)
-            _logger.error("results: {}".format(results))
             if 'rows' in results:
                 if results['rows']:
                     self.alerts = results['rows']

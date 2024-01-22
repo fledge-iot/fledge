@@ -18,14 +18,14 @@ __version__ = "${VERSION}"
 _help = """
     ----------------------------------------------------------------
     | GET            | /fledge/alert                               |
-    | DELETE            | /fledge/alert/acknowledge                |
+    | DELETE         | /fledge/alert/acknowledge                   |
     ----------------------------------------------------------------
 """
 _LOGGER = FLCoreLogger().get_logger(__name__)
 
 def setup(app):
     app.router.add_route('GET', '/fledge/alert', get_all)
-    app.router.add_route('DELETE', '/fledge/alert/acknowledge', acknowledge_alert)
+    app.router.add_route('DELETE', '/fledge/alert/acknowledge', delete)
 
 
 async def get_all(request: web.Request) -> web.Response:
@@ -43,7 +43,7 @@ async def get_all(request: web.Request) -> web.Response:
     else:
         return web.json_response({"alerts": alerts})
 
-async def acknowledge_alert(request: web.Request) -> web.Response:
+async def delete(request: web.Request) -> web.Response:
     """ DELETE all alerts
 
     :Example:

@@ -125,5 +125,9 @@ class AlertManager(AlertManagerSingleton):
             return message
 
     def _urgency_name_by_value(self, value):
-        return list(self.urgency.keys())[list(self.urgency.values()).index(value)]
+        try:
+            name = list(self.urgency.keys())[list(self.urgency.values()).index(value)]
+        except:
+            name = "UNKNOWN"
+        return name
 

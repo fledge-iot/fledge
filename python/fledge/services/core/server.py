@@ -2012,6 +2012,10 @@ class Server:
         except KeyError as err:
             msg = str(err.args[0])
             return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to get an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
         else:
             return web.json_response({"alert": alert})
 
@@ -2029,7 +2033,6 @@ class Server:
                 msg = 'key or message KV pair should be passed as string.'
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             urgency = urgency.lower().capitalize()
-            _logger.error("{}-{}-{}".format(key, message, urgency))
             if urgency not in cls._alert_manager.urgency:
                 msg = 'Urgency value should be from list {}'.format(list(cls._alert_manager.urgency.keys()))
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

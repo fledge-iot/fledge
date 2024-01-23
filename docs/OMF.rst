@@ -673,10 +673,10 @@ These are the OMF versions the plugin will use to post data:
 |           |- 2021 SP3|                     |
 |           |- 2023    |                     |
 +-----------+----------+---------------------+
-|        1.1|- 2019    |                     |
-|           |- 2019 SP1|                     |
+|        1.1|          |                     |
 +-----------+----------+---------------------+
-|        1.0|          |- 2020               |
+|        1.0|- 2019    |- 2020               |
+|           |- 2019 SP1|                     |
 +-----------+----------+---------------------+
 
 The AVEVA Data Hub (ADH) is cloud-deployed and is always at the latest version of OMF support which is 1.2.

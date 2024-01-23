@@ -28,6 +28,17 @@ Writing and Using Plugins
 
 A plugin has a small set of external entry points that must exist in order for Fledge to load and execute that plugin. Currently plugins may be written in either Python or C/C++, the set of entry points is the same for both languages. The entry points detailed here will be presented for both languages, a more in depth discussion of writing plugins in C/C++ will then follow.
 
+General Guidance
+----------------
+
+Before delving into the detail of how to write plugins, what entry points have to be provided and how to build and test them, a few notes of general guidance that all plugin developers should consider that will prevent the plugin writer difficulty.
+
+  - The ethos of Fledge is to provide data pipelines that promote easy building of applications through re-use of small, focused processing components. Always try to make use of existing plugins when at all possible. When writing new plugins do not be tempted to make them too specific to a single application. This will mean it is more likely that at some point in the future you will have all the components in your toolbox that you need to create the next application without having to write new plugins.
+
+  - Filters within Fledge are run within a single process which may be a south or north service, they do not run as separate executable. Therefore make sure that when you write a new plugin service that you do not make use of global variables. Global variables will be shared between all the plugins in a service and may clash with other plugins and will prevent the same plugin being used multiple times within a pipeline.
+
+  - Do not make assumptions about how the data you are processing in your plugin will be used, or by how many upstream components it will be used. For example do not put anything in a south plugin or a filter plugin that assumes the data will be consumed by a particular north plugin or will only be consumed by one north plugin. An example of this might be a south plugin that adds OMF AF Location hints to the data it produces. Whilst this works well if the data is sent to OMF, it does not help if the data is sent to a different destination that also requires location information. Adding options for different destinations only compounds the problem, consider for example that the data might be sent to multiple destinations. A better approach would be to add generic location meta data to the data and have the hints filters for each of the destinations perform the destination specific work.
+
 Common Fledge Plugin API
 -------------------------
 
@@ -200,7 +211,7 @@ Plugin Initialization
 
 The plugin initialization is called after the service that has loaded the plugin has collected the plugin information and resolved the configuration of the plugin but before any other calls will be made to the plugin. The initialization routine is called with the resolved configuration of the plugin, this includes values as opposed to the defaults that were returned in the *plugin_info* call.
 
-This call is used by the plugin to do any initialization or state creation it needs to do. The call returns a handle which will be passed into each subsequent call of the plugin. The handle allows the plugin to have state information that is maintained and passed to it whilst allowing for multiple instances of the same plugin to be loaded by a service if desired. It is equivalent to a this or self pointer for the plugin, although the plugin is not defined as a class.
+This call is used by the plugin to do any initialization or state creation it needs to do. The call returns a handle which will be passed into each subsequent call of the plugin. The handle allows the plugin to create state information that is maintained and passed to it whilst allowing for multiple instances of the same plugin to be loaded by a service if desired. It is equivalent to a this or self pointer for the plugin, although the plugin is not defined as a class. The handle is the only way in which the plugin should retain information between calls to a given entry point and also the only way information should be passed between entry points.
 
 In Python a simple example of a sensor that reads a GPIO pin for data, we might choose to use that configured GPIO pin as the handle we pass to other calls. 
 

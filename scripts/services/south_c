@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Run a Fledge south service written in C/C++
 if [ "${FLEDGE_ROOT}" = "" ]; then
 	FLEDGE_ROOT=/usr/local/fledge
@@ -8,6 +8,21 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 	logger "Fledge home directory missing or incorrectly set environment"
 	exit 1
 fi
+
+
+# startup with delay
+delay() {
+    for ARG in "$@";
+      do
+        PARAM=$(echo $ARG | cut -f1 -d=)
+        if [ $PARAM = '--delay' ]; then
+          PARAM_LENGTH=${#PARAM}
+          VALUE="${ARG:$PARAM_LENGTH+1}"
+          sleep $VALUE
+          break
+        fi
+    done
+}
 
 cd "${FLEDGE_ROOT}/services"
 
@@ -33,6 +48,7 @@ if [ "$runvalgrind" = "y" ]; then
 	rm -f "$file"
 	valgrind  --leak-check=full --trace-children=yes --log-file="$file" ./fledge.services.south "$@"
 else
-	./fledge.services.south "$@"
+  delay "$@"
+  ./fledge.services.south "$@"
 fi
 

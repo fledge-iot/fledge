@@ -2003,3 +2003,47 @@ class Server:
         request.is_core_mgt = True
         res = await acl_management.get_acl(request)
         return res
+
+    @classmethod
+    async def get_alert(cls, request):
+        name = request.match_info.get('key', None)
+        try:
+            alert = await cls._alert_manager.get_by_key(name)
+        except KeyError as err:
+            msg = str(err.args[0])
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response({"alert": alert})
+
+    @classmethod
+    async def add_alert(cls, request):
+        try:
+            data = await request.json()
+            key = data.get("key")
+            message = data.get("message")
+            urgency = data.get("urgency")
+            if any(elem is None for elem in [key, message, urgency]):
+                msg = 'key, message, urgency post params are required to raise an alert.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            if not all(isinstance(i, str) for i in [key, message, urgency]):
+                msg = 'key or message KV pair should be passed as string.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            urgency = urgency.lower().capitalize()
+            _logger.error("{}-{}-{}".format(key, message, urgency))
+            if urgency not in cls._alert_manager.urgency:
+                msg = 'Urgency value should be from list {}'.format(list(cls._alert_manager.urgency.keys()))
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            key_exists = [a for a in cls._alert_manager.alerts if a['key'] == key]
+            if key_exists:
+                # Delete existing key
+                await cls._alert_manager.delete(key)
+            param = {"key": key, "message": message, "urgency": cls._alert_manager.urgency[urgency]}
+            response = await cls._alert_manager.add(param)
+            if response is None:
+                raise Exception
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to add an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response(response)

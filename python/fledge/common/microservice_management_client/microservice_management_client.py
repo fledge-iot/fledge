@@ -390,3 +390,34 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.close()
         response = json.loads(res)
         return response
+
+    def get_alert_by_key(self, key):
+        url = "/fledge/alert/{}".format(key)
+        self._management_client_conn.request(method='GET', url=url)
+        r = self._management_client_conn.getresponse()
+        if r.status != 404:
+            if r.status in range(400, 500):
+                _logger.error("For URL: %s, Client error code: %d, Reason: %s", url, r.status, r.reason)
+                raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("For URL: %s, Server error code: %d, Reason: %s", url, r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
+    def add_alert(self, params):
+        url = '/fledge/alert'
+        self._management_client_conn.request(method='POST', url=url, body=json.dumps(params))
+        r = self._management_client_conn.getresponse()
+        if r.status in range(401, 500):
+            _logger.error("For URL: %s, Client error code: %d, Reason: %s", url, r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("For URL: %s, Server error code: %d, Reason: %s", url, r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response

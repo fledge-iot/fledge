@@ -2030,7 +2030,7 @@ class Server:
                 msg = 'key, message, urgency post params are required to raise an alert.'
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             if not all(isinstance(i, str) for i in [key, message, urgency]):
-                msg = 'key or message KV pair should be passed as string.'
+                msg = 'key, message, urgency KV pair must be passed as string.'
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             urgency = urgency.lower().capitalize()
             if urgency not in cls._alert_manager.urgency:

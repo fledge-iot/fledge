@@ -77,7 +77,8 @@ class AlertManager(AlertManagerSingleton):
             if not alert:
                 raise KeyError('{} alert not found.'.format(name))
         except KeyError as err:
-            raise KeyError(err)
+            msg = str(err.args[0])
+            raise KeyError(msg)
         else:
             return alert
 

@@ -1095,10 +1095,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
-	string varValue;
-	string varDefault;
-	bool variablePresent;
-
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1160,8 +1156,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string OMFHintAFHierarchyTmp;
 	string OMFHintAFHierarchy;
 
-	bool legacyType = m_legacy;
-
 	// Create the class that deals with the linked data generation
 	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setSendFullStructure(m_sendFullStructure);
@@ -1197,14 +1191,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					Logger::getLogger()->info("Using OMF Tag hint: %s", (*it)->getHint().c_str());
 					keyComplete.append("_" + (*it)->getHint());
 					usingTagHint = true;
-					break;
 				}
-
-				varValue="";
-				varDefault="";
-				variablePresent=false;
-
-				if (typeid(**it) == typeid(OMFAFLocationHint))
+				else if (typeid(**it) == typeid(OMFAFLocationHint))
 				{
 					OMFHintAFHierarchyTmp = (*it)->getHint();
 					OMFHintAFHierarchy = variableValueHandle(*reading, OMFHintAFHierarchyTmp);
@@ -1214,14 +1202,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						,OMFHintAFHierarchyTmp.c_str()
 						,OMFHintAFHierarchy.c_str() );
 				}
-			}
-			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
-			{
-				if (typeid(**it) == typeid(OMFLegacyTypeHint))
+				else if (typeid(**it) == typeid(OMFLegacyTypeHint))
 				{
-					Logger::getLogger()->info("Using OMF Legacy Type hint: %s", (*it)->getHint().c_str());
-					legacyType = true;
-					break;
+					Logger::getLogger()->warn("OMFHint LegacyType has been deprecated. The hint value '%s' will be ignored.", (*it)->getHint().c_str());
 				}
 			}
 		}
@@ -1279,7 +1262,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Use old style complex types if the user has forced it via configuration,
 		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
 		// asset already
-		if (legacyType || m_PIServerEndpoint == ENDPOINT_EDS || 
+		if (m_legacy || m_PIServerEndpoint == ENDPOINT_EDS || 
 		        m_PIServerEndpoint == ENDPOINT_CR ||
 				m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
 		{

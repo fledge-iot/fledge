@@ -24,6 +24,7 @@ class AlertManagerSingleton(object):
 class AlertManager(AlertManagerSingleton):
     storage_client = None
     alerts = []
+    urgency = {"Critical": 1, "High": 2, "Normal": 3, "Low": 4}
 
     def __init__(self, storage_client=None):
         AlertManagerSingleton.__init__(self)
@@ -38,15 +39,62 @@ class AlertManager(AlertManagerSingleton):
         try:
             q_payload = PayloadBuilder().SELECT("key", "message", "urgency", "ts").ALIAS(
                 "return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
-            results = await self.storage_client.query_tbl_with_payload('alerts', q_payload)
-            if 'rows' in results:
-                if results['rows']:
-                    self.alerts = results['rows']
+            storage_result = await self.storage_client.query_tbl_with_payload('alerts', q_payload)
+            result = []
+            if 'rows' in storage_result:
+                for row in storage_result['rows']:
+                    tmp = {"key": row['key'],
+                             "message": row['message'],
+                             "urgency": self._urgency_name_by_value(row['urgency']),
+                             "timestamp": row['timestamp']
+                             }
+                    result.append(tmp)
+            self.alerts = result
         except Exception as ex:
             raise Exception(ex)
         else:
             return self.alerts
 
+    async def get_by_key(self, name):
+        """ Get an alert by key """
+        key_found = [a for a in self.alerts if a['key'] == name]
+        if key_found:
+            return key_found[0]
+        try:
+            q_payload = PayloadBuilder().SELECT("key", "message", "urgency", "ts").ALIAS(
+                "return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).WHERE(
+                ["key", "=", name]).payload()
+            results = await self.storage_client.query_tbl_with_payload('alerts', q_payload)
+            alert = {}
+            if 'rows' in results:
+                if len(results['rows']) > 0:
+                    row = results['rows'][0]
+                    alert = {"key": row['key'],
+                           "message": row['message'],
+                           "urgency": self._urgency_name_by_value(row['urgency']),
+                           "timestamp": row['timestamp']
+                           }
+            if not alert:
+                raise KeyError('{} alert not found.'.format(name))
+        except KeyError as err:
+            msg = str(err.args[0])
+            raise KeyError(msg)
+        else:
+            return alert
+
+    async def add(self, params):
+        """ Add an alert """
+        response = None
+        try:
+            payload = PayloadBuilder().INSERT(**params).payload()
+            insert_api_result = await self.storage_client.insert_into_tbl('alerts', payload)
+            if insert_api_result['response'] == 'inserted' and insert_api_result['rows_affected'] == 1:
+                response = {"alert": params}
+                self.alerts.append(params)
+        except Exception as ex:
+            raise Exception(ex)
+        else:
+            return response
 
     async def delete(self, key=None):
         """ Delete an entry from storage """
@@ -76,3 +124,11 @@ class AlertManager(AlertManagerSingleton):
             raise Exception(ex)
         else:
             return message
+
+    def _urgency_name_by_value(self, value):
+        try:
+            name = list(self.urgency.keys())[list(self.urgency.values()).index(value)]
+        except:
+            name = "UNKNOWN"
+        return name
+

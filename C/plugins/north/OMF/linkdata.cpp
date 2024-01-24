@@ -62,17 +62,17 @@ static std::string DataPointNamesAsString(const Reading& reading)
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
+ * @param payload	    The buffer into which to populate the payload
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
+ * @param delim		    Add a delimiter before outputting anything
  *
  */
-string OMFLinkedData::processReading(const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
+bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
 {
-	string outData;
+	bool rval = false;
 	bool changed;
-	int reserved = RESERVE_INCREMENT * 2;
-	outData.reserve(reserved);
 
 
 	string assetName = reading.getAssetName();
@@ -110,7 +110,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
 
-	bool needDelim = false;
+	bool needDelim = delim;
 	auto assetLookup = m_linkedAssetState->find(originalAssetName + ".");
 	if (assetLookup == m_linkedAssetState->end())
 	{
@@ -120,11 +120,14 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	}
 	if (m_sendFullStructure && assetLookup->second.assetState(assetName) == false)
 	{
+		if (needDelim)
+			payload.append(',');
 		// Send the data message to create the asset instance
-		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
-		outData.append(assetName + "\",\"Name\":\"");
-            	outData.append(assetName + "\"");
-         	outData.append("} ] }");
+		payload.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
+		payload.append(assetName + "\",\"Name\":\"");
+            	payload.append(assetName + "\"");
+         	payload.append("} ] }");
+		rval = true;
 		needDelim = true;
 		assetLookup->second.assetSent(assetName);
 	}
@@ -136,11 +139,6 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
 		Datapoint *dp = *it;
-		if (reserved - outData.size() < RESERVE_INCREMENT / 2)
-		{
-			reserved += RESERVE_INCREMENT;
-			outData.reserve(reserved);
-		}
 		string dpName = dp->getName();
 		if (dpName.compare(OMF_HINT) == 0)
 		{
@@ -157,7 +155,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		{
 			if (needDelim)
 			{
-				outData.append(",");
+				payload.append(',');
 			}
 			else
 			{
@@ -224,29 +222,32 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			}
 			if (m_sendFullStructure && dpLookup->second.linkState(assetName) == false)
 			{
-				outData.append("{ \"typeid\":\"__Link\",");
-				outData.append("\"values\":[ { \"source\" : {");
-				outData.append("\"typeid\": \"FledgeAsset\",");
-				outData.append("\"index\":\"" + assetName);
-				outData.append("\" }, \"target\" : {");
-				outData.append("\"containerid\" : \"");
-				outData.append(link);
-				outData.append("\" } } ] },");
+				payload.append("{ \"typeid\":\"__Link\",");
+				payload.append("\"values\":[ { \"source\" : {");
+				payload.append("\"typeid\": \"FledgeAsset\",");
+				payload.append("\"index\":\"" + assetName);
+				payload.append("\" }, \"target\" : {");
+				payload.append("\"containerid\" : \"");
+				payload.append(link);
+				payload.append("\" } } ] },");
+
+				rval = true;
 				dpLookup->second.linkSent(assetName);
 			}
 
 			// Convert reading data into the OMF JSON string
-			outData.append("{\"containerid\": \"" + link);
-			outData.append("\", \"values\": [{");
+			payload.append("{\"containerid\": \"" + link);
+			payload.append("\", \"values\": [{");
 
 			// Base type we are using for this data point
-			outData.append("\"" + baseType + "\": ");
+			payload.append("\"" + baseType + "\": ");
 			// Add datapoint Value
-		       	outData.append(dp->getData().toString());
-			outData.append(", ");
+		       	payload.append(dp->getData().toString());
+			payload.append(", ");
 			// Append Z to getAssetDateTime(FMT_STANDARD)
-			outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
-			outData.append("} ] }");
+			payload.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
+			payload.append("} ] }");
+			rval = true;
 		}
 	}
 	if (skippedDatapoints.size() > 0)
@@ -267,8 +268,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
 		OMF::reportAsset(assetName, "warn", msg);
 	}
-	Logger::getLogger()->debug("Created data messages %s", outData.c_str());
-	return outData;
+	return rval;
 }
 
 /**

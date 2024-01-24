@@ -13,6 +13,7 @@
 #include <map>
 #include <reading.h>
 #include <OMFHint.h>
+#include <omfbuffer.h>
 #include <linkedlookup.h>
 
 /**
@@ -42,7 +43,7 @@ class OMFLinkedData
        					m_doubleFormat("float64"),
 					m_integerFormat("int64")
 					{};
-		std::string 	processReading(const Reading& reading,
+		bool		processReading(OMFBuffer& payload, bool needDelim, const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
 		void		buildLookup(const std::vector<Reading *>& reading);

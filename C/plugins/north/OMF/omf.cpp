@@ -252,7 +252,6 @@ OMF::OMF(const string& name,
 	m_changeTypeId = false;
 	m_OMFDataTypes = NULL;
 	m_OMFVersion = "1.0";
-	m_connected = false;
 }
 
 /**
@@ -280,7 +279,6 @@ OMF::OMF(const string& name,
 
 	m_lastError = false;
 	m_changeTypeId = false;
-	m_connected = false;
 }
 
 // Destructor
@@ -429,7 +427,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		string msg = "An error occurred sending the dataType message for the asset " + assetName
 				+ ". " + errorMsg;
 		reportAsset(assetName, "error", msg);
-		m_connected = false;
 		return false;
 	}
 
@@ -496,10 +493,9 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	{
 		string errorMsg = errorMessageHandler(e.what());
 
-		string msg = "An error occurred sending the dataType message for the asset " + assetName
+		string msg = "An error occurred sending the dataType container message for the asset " + assetName
 				+ ". " + errorMsg;
 		reportAsset(assetName, "error", msg);
-		m_connected = false;
 		return false;
 	}
 
@@ -527,7 +523,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				return false;
 			}
 		}
-		// Exception raised fof HTTP 400 Bad Request
+		// Exception raised for HTTP 400 Bad Request
 		catch (const BadRequest& e)
 		{
 			OMFError error(m_sender.getHTTPResponse());
@@ -566,7 +562,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
 					+ ". " + errorMsg;
 			reportAsset(assetName, "debug", msg);
-			m_connected = false;
 			return false;
 		}
 
@@ -658,7 +653,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				{
 					string errorMsg = errorMessageHandler(e.what());
 
-					string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
+					string msg = "An error occurred sending the dataType link message for the asset " + assetName
 							+ ". " + errorMsg;
 					reportAsset(assetName, "debug", msg);
 					return false;
@@ -719,7 +714,6 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData, const 
 	{
 		success = false;
 		errorMessage = ex.what();
-		m_connected = false;
 	}
 
 	if (! success)
@@ -965,7 +959,7 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
  */
 bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &lastLevel) {
 
-	bool success;
+	bool success = true;
 	std::string level;
 	std::string previousLevel;
 
@@ -1009,10 +1003,14 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 			levelPath = StringSlashFix(levelPath);
 			prefixId = generateUniquePrefixId(levelPath);
 
-			success = sendAFHierarchyTypes(level, prefixId);
-			if (success)
+			if (!sendAFHierarchyTypes(level, prefixId))
 			{
-				success = sendAFHierarchyStatic(level, prefixId);
+				return false;
+			}
+
+			if (!sendAFHierarchyStatic(level, prefixId))
+			{
+				return false;
 			}
 
 			// Creates the link between the AF level
@@ -1021,7 +1019,10 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 				parentPathFixed = StringSlashFix(previousLevelPath);
 				prefixIdParent = generateUniquePrefixId(parentPathFixed);
 
-				sendAFHierarchyLink(previousLevel, level, prefixIdParent, prefixId);
+				if (!sendAFHierarchyLink(previousLevel, level, prefixIdParent, prefixId))
+				{
+					return false;
+				}
 			}
 			previousLevelPath = levelPath;
 			previousLevel = level;
@@ -1102,10 +1103,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
-	string varValue;
-	string varDefault;
-	bool variablePresent;
-
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1167,8 +1164,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string OMFHintAFHierarchyTmp;
 	string OMFHintAFHierarchy;
 
-	bool legacyType = m_legacy;
-
 	// Create the class that deals with the linked data generation
 	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setSendFullStructure(m_sendFullStructure);
@@ -1205,14 +1200,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					Logger::getLogger()->info("Using OMF Tag hint: %s", (*it)->getHint().c_str());
 					keyComplete.append("_" + (*it)->getHint());
 					usingTagHint = true;
-					break;
 				}
-
-				varValue="";
-				varDefault="";
-				variablePresent=false;
-
-				if (typeid(**it) == typeid(OMFAFLocationHint))
+				else if (typeid(**it) == typeid(OMFAFLocationHint))
 				{
 					OMFHintAFHierarchyTmp = (*it)->getHint();
 					OMFHintAFHierarchy = variableValueHandle(*reading, OMFHintAFHierarchyTmp);
@@ -1222,14 +1211,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						,OMFHintAFHierarchyTmp.c_str()
 						,OMFHintAFHierarchy.c_str() );
 				}
-			}
-			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
-			{
-				if (typeid(**it) == typeid(OMFLegacyTypeHint))
+				else if (typeid(**it) == typeid(OMFLegacyTypeHint))
 				{
-					Logger::getLogger()->info("Using OMF Legacy Type hint: %s", (*it)->getHint().c_str());
-					legacyType = true;
-					break;
+					Logger::getLogger()->warn("OMFHint LegacyType has been deprecated. The hint value '%s' will be ignored.", (*it)->getHint().c_str());
 				}
 			}
 		}
@@ -1252,15 +1236,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// hint is present it will override any default AFLocation or AF Location rules defined in the north plugin configuration.
 		if ( ! createAFHierarchyOmfHint(m_assetName, OMFHintAFHierarchy) )
 		{
-			if (m_connected)
-			{
-				if (!evaluateAFHierarchyRules(m_assetName, *reading))
-				{
-					m_lastError = true;
-					return 0;
-				}
-			}
-			else
+			if (!evaluateAFHierarchyRules(m_assetName, *reading))
 			{
 				m_lastError = true;
 				return 0;
@@ -1295,7 +1271,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Use old style complex types if the user has forced it via configuration,
 		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
 		// asset already
-		if (legacyType || m_PIServerEndpoint == ENDPOINT_EDS || 
+		if (m_legacy || m_PIServerEndpoint == ENDPOINT_EDS || 
 		        m_PIServerEndpoint == ENDPOINT_CR ||
 				m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
 		{
@@ -1650,7 +1626,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		// Failure
 		m_lastError = true;
-		m_connected = false;
 		delete[] omfData;
 		return 0;
 	}
@@ -1773,7 +1748,6 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 					   m_path.c_str(),
 					   omfData);
 
-		m_connected = false;
 		delete[] omfData;
 		return false;
 	}
@@ -1870,7 +1844,6 @@ uint32_t OMF::sendToServer(const Reading* reading,
 					   m_path.c_str() );
 
 		delete[] omfData;
-		m_connected = false;
 		return false;
 	}
 
@@ -2824,6 +2797,10 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 								,path.c_str()
 								,it->second.c_str());
 					}
+					else
+					{
+						return false;
+					}
 				} else {
 					Logger::getLogger()->debug(
 						"%s - m_NamesRules skipped pathInitial :%s: path :%s: stored :%s:"
@@ -2875,6 +2852,10 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 						{
 							m_AssetNamePrefix[assetName].push_back(item);
 							Logger::getLogger()->debug("%s - m_MetadataRulesExist asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
+						else
+						{
+							return false;
 						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesExist already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
@@ -2928,6 +2909,10 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 						{
 							m_AssetNamePrefix[assetName].push_back(item);
 							Logger::getLogger()->debug("%s - m_MetadataRulesNonExist - asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
+						else
+						{
+							return false;
 						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesNonExist -  already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
@@ -2993,6 +2978,10 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 						{
 							m_AssetNamePrefix[assetName].push_back(item);
 							Logger::getLogger()->debug("%s - m_MetadataRulesEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
+						else
+						{
+							return false;
 						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
@@ -3061,6 +3050,10 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 						{
 							m_AssetNamePrefix[assetName].push_back(item);
 							Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
+						else
+						{
+							return false;
 						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
@@ -4831,7 +4824,6 @@ bool OMF::sendBaseTypes()
 									errorMsg.c_str(),
 									m_sender.getHostPort().c_str(),
 									m_path.c_str());
-		m_connected = false;
 		return false;
 	}
 	Logger::getLogger()->debug("Base types successfully sent");
@@ -4919,27 +4911,4 @@ void OMF::reportAsset(const string& asset, const string& level, const string& ms
 		else
 			Logger::getLogger()->debug(msg);
 	}
-}
-
-/**
- * Set the connection state
- *
- * @param connectionStatus	The target connection status
- */
-void OMF::setConnected(const bool connectionStatus)
-{
-	if (connectionStatus != m_connected)
-	{
-		// Send an audit event for the change of state
-		string data = "{ \"plugin\" : \"OMF\", \"service\" : \"" + m_name + "\" }";
-		if (!connectionStatus)
-		{
-			AuditLogger::auditLog("NHDWN", "ERROR", data);
-		}
-		else
-		{
-			AuditLogger::auditLog("NHAVL", "INFORMATION", data);
-		}
-	}
-	m_connected = connectionStatus;
 }

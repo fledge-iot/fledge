@@ -85,6 +85,7 @@ class TestCommon:
         assert jdoc['authenticationOptional'] is True
         assert jdoc['safeMode'] is False
         assert re.match(SEMANTIC_VERSIONING_REGEX, jdoc['version']) is not None
+        assert jdoc['alerts'] == 0
 
     def test_ping_when_auth_mandatory_allow_ping_true(self, fledge_url, wait_time, retries):
         conn = http.client.HTTPConnection(fledge_url)

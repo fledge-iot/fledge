@@ -134,31 +134,46 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 				// Try loading all filter plugins: abort on any error
 				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
 				{
-					// Get "plugin" item fromn filterCategoryName
-					string filterCategoryName = itr->GetString();
-					ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-					if (!filterDetails.itemExists("plugin"))
+					if (itr->IsString())
 					{
-						string errMsg("loadFilters: 'plugin' item not found ");
-						errMsg += "in " + filterCategoryName + " category";
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
+						// Get "plugin" item fromn filterCategoryName
+						string filterCategoryName = itr->GetString();
+						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+						if (!filterDetails.itemExists("plugin"))
+						{
+							string errMsg("loadFilters: 'plugin' item not found ");
+							errMsg += "in " + filterCategoryName + " category";
+							Logger::getLogger()->fatal(errMsg.c_str());
+							throw runtime_error(errMsg);
+						}
+						string filterName = filterDetails.getValue("plugin");
+						PLUGIN_HANDLE filterHandle;
+						// Load filter plugin only: we don't call any plugin method right now
+						filterHandle = loadFilterPlugin(filterName);
+						if (!filterHandle)
+						{
+							string errMsg("Cannot load filter plugin '" + filterName + "'");
+							Logger::getLogger()->fatal(errMsg.c_str());
+							throw runtime_error(errMsg);
+						}
+						else
+						{
+							// Save filter handler: key is filterCategoryName
+							filterInfo.push_back(pair<string,PLUGIN_HANDLE>
+									     (filterCategoryName, filterHandle));
+						}
 					}
-					string filterName = filterDetails.getValue("plugin");
-					PLUGIN_HANDLE filterHandle;
-					// Load filter plugin only: we don't call any plugin method right now
-					filterHandle = loadFilterPlugin(filterName);
-					if (!filterHandle)
+					else if (itr->IsArray())
 					{
-						string errMsg("Cannot load filter plugin '" + filterName + "'");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
+						// Sub pipeline
+					}
+					else if (itr->IsObject())
+					{
+						// An object, probably the write destination
 					}
 					else
 					{
-						// Save filter handler: key is filterCategoryName
-						filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-								     (filterCategoryName, filterHandle));
+						Logger::getLogger()->error("Unexpected object in  pipeline definition %s, ignoring", categoryName.c_str());
 					}
 				}
 

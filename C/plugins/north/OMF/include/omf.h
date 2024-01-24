@@ -146,7 +146,7 @@ class OMF
 
 		// Method with vector (by reference) of readings
 		uint32_t sendToServer(const std::vector<Reading>& readings,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Method with vector (by reference) of reading pointers
 		uint32_t sendToServer(const std::vector<Reading *>& readings,
@@ -154,11 +154,11 @@ class OMF
 
 		// Send a single reading (by reference)
 		uint32_t sendToServer(const Reading& reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Send a single reading pointer
 		uint32_t sendToServer(const Reading* reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Set saved OMF formats
 		void setFormatType(const std::string &key, std::string &value);
@@ -230,9 +230,6 @@ class OMF
 
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
-
-		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus);
 
 		void setLegacyMode(bool legacy) { m_legacy = legacy; };
 
@@ -395,7 +392,6 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
-		bool            m_connected;  // true if calls to PI Web API are working 
 
 		vector<std::string>  m_afhHierarchyAlreadyCreated={
 

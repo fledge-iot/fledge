@@ -699,6 +699,7 @@ CREATE INDEX fki_user_asset_permissions_fk2
 CREATE TABLE fledge.scheduled_processes (
              name   character varying(255)  NOT NULL, -- Name of the process
              script jsonb,                            -- Full path of the process
+             priority INTEGER NOT NULL DEFAULT 999,   -- priority to run for STARTUP
   CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
 
 
@@ -947,6 +948,15 @@ CREATE TABLE fledge.monitors (
 CREATE INDEX monitors_ix1
     ON fledge.monitors(service, monitor);
 
+-- Create alerts table
+
+CREATE TABLE fledge.alerts (
+       key         character varying(80)       NOT NULL,                                 -- Primary key
+       message     character varying(255)      NOT NULL,                                 -- Alert Message
+       urgency     smallint                    NOT NULL,                                 -- 1 Critical - 2 High - 3 Normal - 4 Low
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                   -- Timestamp, updated at every change
+       CONSTRAINT  alerts_pkey                 PRIMARY KEY (key) );
+
 
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
@@ -1063,13 +1073,13 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 
 -- South, Notification, North Tasks
 --
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',           '["services/south_c"]'          );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c',    '["services/notification_c"]'   );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',           '["tasks/north_c"]'             );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',             '["tasks/north"]'               );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',           '["services/north_C"]'          );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]'     );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]' );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',          100 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',   30  );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north',             '["tasks/north"]'                    );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',     20  );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]', 10  );
 
 -- Automation script tasks
 --

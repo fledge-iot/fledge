@@ -5,6 +5,8 @@
 #include <rapidjson/document.h>
 #include <simple_https.h>
 #include <OMFHint.h>
+#include <omfbuffer.h>
+
 /*
  * Fledge Readings to OMF translation unit tests
  *
@@ -240,9 +242,10 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(two_readings);
 
-        ostringstream jsonData;
-        jsonData << "[";
+	OMFBuffer payload;
+        payload.append("[");
 
+	bool sep = false;
 	// Iterate over Readings via readingSet.getAllReadings()
 	for (vector<Reading *>::const_iterator elem = readingSet.getAllReadings().begin();
 							elem != readingSet.getAllReadings().end();
@@ -251,13 +254,17 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 		measurementId = to_string(TYPE_ID) + "measurement_luxometer";
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, measurementId).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		if (OMFData(payload, **elem, measurementId, sep).hasData())
+			sep = true;
 	}
 
-	jsonData << "]";
+	payload.append("]");
+	const char *data = payload.coalesce();
+	string json(data);
+	delete[] data;
 
 	// Compare translation
-	ASSERT_EQ(0, jsonData.str().compare(two_translated_readings));
+	ASSERT_EQ(0, json.compare(two_translated_readings));
 }
 
 // Create ONE reading, convert it and run checks
@@ -265,7 +272,6 @@ TEST(OMF_transation, OneReading)
 {
 	string measurementId;
 
-	ostringstream jsonData;
 	string strVal("printer");
         DatapointValue value(strVal);
 	// ONE reading
@@ -277,17 +283,22 @@ TEST(OMF_transation, OneReading)
 
 	measurementId = "dummy";
 
+	OMFBuffer payload;
 	// Create the OMF Json data
-	jsonData << "[";
-	jsonData << OMFData(lab, measurementId).OMFdataVal();
-	jsonData << "]";
+	payload.append("[");
+	OMFData(payload, lab, measurementId, false);
+	payload.append("]");
+
+	const char *data = payload.coalesce();
+	string json(data);
+	delete[] data;
 
 	// "values" key is in the output
-	ASSERT_NE(jsonData.str().find(string("\"values\" : { ")), 0);
+	ASSERT_NE(json.find(string("\"values\" : { ")), 0);
 
 	// Parse JSON of translated data
         Document doc;
-        doc.Parse(jsonData.str().c_str());
+        doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
 		ASSERT_FALSE(true);
@@ -349,8 +360,8 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(all_readings_with_unsupported_datapoints_types);
 
-	ostringstream jsonData;
-	jsonData << "[";
+	OMFBuffer payload;
+	payload.append("[");
 
 	bool pendingSeparator = false;
 	// Iterate over Readings via readingSet.getAllReadings()
@@ -360,19 +371,19 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 	{
 		measurementId = "dummy";
 
-		string rData =  OMFData(**elem, measurementId).OMFdataVal();
-		// Add into JSON string the OMF transformed Reading data
-		if (!rData.empty())
-		{
-			jsonData << (pendingSeparator ? ", " : "") << rData;
+		if (OMFData(payload, **elem, measurementId, pendingSeparator).hasData())
 			pendingSeparator = true;
-		}
+		// Add into JSON string the OMF transformed Reading data
 	}
 
-	jsonData << "]";
+	payload.append("]");
+
+	const char *data = payload.coalesce();
+	string json(data);
+	delete[] data;
 
 	Document doc;
-	doc.Parse(jsonData.str().c_str());
+	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
 		ASSERT_FALSE(true);
@@ -394,8 +405,8 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(readings_with_unsupported_datapoints_types);
 
-	ostringstream jsonData;
-	jsonData << "[";
+	OMFBuffer payload;
+	payload.append("[");
 
 	bool pendingSeparator = false;
 	// Iterate over Readings via readingSet.getAllReadings()
@@ -405,21 +416,19 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 	{
 		measurementId = "dummy";
 
-		string rData =  OMFData(**elem, measurementId).OMFdataVal();
-		// Add into JSON string the OMF transformed Reading data
-		if (!rData.empty())
-		{
-			jsonData << (pendingSeparator ? ", " : "") << rData;
+		if (OMFData(payload, **elem, measurementId, pendingSeparator).hasData())
 			pendingSeparator = true;
-		}
+		// Add into JSON string the OMF transformed Reading data
 	}
 
-	jsonData << "]";
+	payload.append("]");
 
+	const char *data = payload.coalesce();
 	Document doc;
-	doc.Parse(jsonData.str().c_str());
+	doc.Parse(data);
 	if (doc.HasParseError())
 	{
+		cout << data << "\n";
 		ASSERT_FALSE(true);
 	}
 	else
@@ -429,6 +438,7 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 		// Array size is 1
 		ASSERT_EQ(doc.Size(), 2);
 	}
+	delete[] data;
 }
 
 // Test the Asset Framework hierarchy fucntionlities

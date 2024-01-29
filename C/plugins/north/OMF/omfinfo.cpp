@@ -461,7 +461,6 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		{
 			// Created a new sender after a connection failure
 			m_omf->setSender(*m_sender);
-			m_omf->setConnected(false);
 		}
 	}
 
@@ -479,7 +478,6 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		m_omf = new OMF(m_name, *m_sender, m_path, m_assetsDataTypes,
 				m_producerToken);
 
-		m_omf->setConnected(m_connected);
 		m_omf->setSendFullStructure(m_sendFullStructure);
 
 		// Set PIServerEndpoint configuration
@@ -529,15 +527,6 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 					  TYPE_ID_KEY,
 					  m_typeId);
 	}
-
-	// Write a warning if the connection to PI Web API has been lost
-	bool updatedConnected = m_omf->getConnected();
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API && m_connected && !updatedConnected)
-	{
-		Logger::getLogger()->warn("Connection to PI Web API at %s has been lost", m_hostAndPort.c_str());
-	}
-	m_connected = updatedConnected;
-
 	
 #if INSTRUMENT
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);
@@ -1339,51 +1328,52 @@ double OMFInformation::GetElapsedTime(struct timeval *startTime)
 }
 
 /**
- * Check if the PI Web API server is available by reading the product version
+ * Check if the PI Web API server is available by reading the product version every 60 seconds.
+ * Log a message if the connection state changes.
  *
  * @return           Connection status
  */
 bool OMFInformation::IsPIWebAPIConnected()
 {
-	static std::chrono::steady_clock::time_point nextCheck;
-	static bool reported = false;	// Has the state been reported yet
-	static bool reportedState;	// What was the last reported state
+	static std::chrono::steady_clock::time_point nextCheck(std::chrono::steady_clock::time_point::duration::zero());
+	static bool lastConnected = m_connected;	// Previous value of m_connected
 
-	if (!m_connected && m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
 		if (now >= nextCheck)
 		{
 			int httpCode = PIWebAPIGetVersion(false);
-			if (httpCode >= 400)
+			Logger::getLogger()->debug("PIWebAPIGetVersion: %s HTTP Code: %d Connected: %s LastConnected: %s",
+				m_hostAndPort.c_str(),
+				httpCode,
+				m_connected ? "true" : "false",
+				lastConnected ? "true" : "false");
+
+			if ((httpCode < 200) || (httpCode >= 400))
 			{
 				m_connected = false;
-				now = std::chrono::steady_clock::now();
-				nextCheck = now + std::chrono::seconds(60);
-				Logger::getLogger()->debug("PI Web API %s is not available. HTTP Code: %d", m_hostAndPort.c_str(), httpCode);
-				if (reported == false || reportedState == true)
-				{
-					reportedState = false;
-					reported = true;
-					Logger::getLogger()->error("The PI Web API service %s is not available",
-							m_hostAndPort.c_str());
+				if (lastConnected == true)
+				{		
+					Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
+							m_hostAndPort.c_str(), httpCode);
+					lastConnected = false;
 				}
 			}
 			else
 			{
 				m_connected = true;
 				SetOMFVersion();
-				Logger::getLogger()->info("%s reconnected to %s OMF Version: %s",
-					m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
-				if (reported == true || reportedState == false)
+				if (lastConnected == false)
 				{
-					reportedState = true;
-					reported = true;
-					Logger::getLogger()->warn("The PI Web API service %s has become available",
-							m_hostAndPort.c_str());
+					Logger::getLogger()->warn("%s reconnected to %s OMF Version: %s",
+						m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
+					lastConnected = true;
 				}
 			}
+
+			nextCheck = now + std::chrono::seconds(60);
 		}
 	}
 	else

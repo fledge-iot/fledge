@@ -132,7 +132,7 @@ The *Default Configuration* tab contains the most commonly modified items
 
     - *Edge Data Store* - The OSISoft Edge Data Store 
 
-  - **Send full structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
+  - **Create AF Structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
      
   - **Naming scheme**: Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
 
@@ -522,17 +522,6 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 
    "OMFHint"  : { "tagName" : "AC1246" }
 
-Legacy Type Hint
-~~~~~~~~~~~~~~~~
-
-Use legacy style complex types for this reading rather that the newer linked data types.
-
-.. code-block:: console
-
-   "OMFHint" : { "LegacyType" : "true" }
-
-The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
-
 Source Hint
 ~~~~~~~~~~~
 
@@ -667,3 +656,28 @@ Versions of this plugin prior to 2.1.0 created a complex type within OMF for eac
 
 As of version 2.1.0 this linking approach is used for all new assets created, if assets exist within the PI Server from versions of the plugin prior to 2.1.0 then the older, complex types will be used. It is possible to force the plugin to use complex types for all assets, both old and new, using the configuration option. It is also to force a particular asset to use the complex type mechanism using an OMFHint.
 
+OMF Version Support
+-------------------
+
+To date, AVEVA has released three versions of the OSIsoft Message Format (OMF) specification: 1.0, 1.1 and 1.2.
+The OMF Plugin supports all three OMF versions.
+The plugin will determine the OMF version to use by reading product version information from the AVEVA data destination system.
+These are the OMF versions the plugin will use to post data:
+
++-----------+----------+---------------------+
+|OMF Version|PI Web API|Edge Data Store (EDS)|
++===========+==========+=====================+
+|        1.2|- 2021    |- 2023               |
+|           |- 2021 SP1|- 2023 Patch 1       |
+|           |- 2021 SP2|                     |
+|           |- 2021 SP3|                     |
+|           |- 2023    |                     |
++-----------+----------+---------------------+
+|        1.1|          |                     |
++-----------+----------+---------------------+
+|        1.0|- 2019    |- 2020               |
+|           |- 2019 SP1|                     |
++-----------+----------+---------------------+
+
+The AVEVA Data Hub (ADH) is cloud-deployed and is always at the latest version of OMF support which is 1.2.
+This includes the legacy OSIsoft Cloud Services (OCS) endpoints.

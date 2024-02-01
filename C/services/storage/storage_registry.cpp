@@ -868,12 +868,20 @@ void
 StorageRegistry::processDelete(char *tableName, char *payload)
 {
 	Document	doc;
+	bool allRows = false;
 
-	doc.Parse(payload);
-	if (doc.HasParseError())
+	if (! *payload) // Empty
 	{
-		Logger::getLogger()->error("Unable to parse table delete payload for table %s, request is %s", tableName, payload);
-		return;
+		allRows = true;
+	}
+	else
+	{
+		doc.Parse(payload);
+		if (doc.HasParseError())
+		{
+			Logger::getLogger()->error("Unable to parse table delete payload for table %s, request is %s", tableName, payload);
+			return;
+		}
 	}
 
 	lock_guard<mutex> guard(m_tableRegistrationsMutex);
@@ -889,7 +897,11 @@ StorageRegistry::processDelete(char *tableName, char *payload)
 		{
 			continue;
 		}
-		if (tblreg->key.empty())
+		if (allRows)
+		{
+			sendPayload(tblreg->url, payload);
+		}
+		else if (tblreg->key.empty())
 		{
 			// No key to match, send all updates to table
 			sendPayload(tblreg->url, payload);

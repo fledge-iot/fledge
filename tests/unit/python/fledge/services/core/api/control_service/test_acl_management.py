@@ -195,7 +195,42 @@ class TestACLManagement:
     @pytest.mark.parametrize("payload, message", [
         ({}, "Nothing to update for the given payload."),
         ({"service": 1}, "service must be a list."),
-        ({"url": 1}, "url must be a list.")
+        ({"url": 1}, "url must be a list."),
+        ({"service": [1]}, "service elements must be an object."),
+        ({"service": ["1"]}, "service elements must be an object."),
+        ({"service": ["1", {}]}, "service elements must be an object."),
+        ({"service": [{}]}, "service object cannot be empty."),
+        ({"service": [{"foo": "bar"}]}, "Either type or name Key-Value Pair is missing."),
+        ({"service": [{"type": 1}]}, "Value must be a string for type key."),
+        ({"service": [{"type": ""}]}, "Value cannot be empty for type key."),
+        ({"service": [{"name": 1}]}, "Value must be a string for name key."),
+        ({"service": [{"name": ""}]}, "Value cannot be empty for name key."),
+        ({"url": 1}, "url must be a list."),
+        ({"url": [{}]}, "url child Key-Value Pair is missing."),
+        ({"url": [{"url": []}]}, "Value must be a string for url key."),
+        ({"url": [{"url": ""}]}, "Value cannot be empty for url key."),
+        ({"url": [{"acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"acl": [1]}]}, "acl elements must be an object."),
+        ({"url": [{"acl": [{}]}]}, "acl object cannot be empty."),
+        ({"url": [{"acl": [{"type": "Core"}]}]}, "url child Key-Value Pair is missing."),
+        ({"url": [{"url": "URI/write", "acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"url": "URI/write", "acl": []}, 1]}, "url elements must be an object."),
+        ({"url": [{"url": "URI/write", "acl": []}, {"acl": []}]}, "url child Key-Value Pair is missing."),
+        ({"url": [{"url": "URI/write", "acl": []}, {"acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"url": "URI/write", "acl": []}, {"acl": [1]}]}, "acl elements must be an object."),
+        ({"url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]}, "acl object cannot be empty."),
+        ({"service": [{"foo": "bar"}], "url": []}, "Either type or name Key-Value Pair is missing."),
+        ({"url": [], "service": [{}]}, "service object cannot be empty."),
+        ({"url": [], "service": [{"type": 1}]}, "Value must be a string for type key."),
+        ({"url": [], "service": [{"type": ""}]}, "Value cannot be empty for type key."),
+        ({"url": [], "service": [{"name": 1}]}, "Value must be a string for name key."),
+        ({"url": [], "service": [{"name": ""}]}, "Value cannot be empty for name key."),
+        ({"service": [], "url": 1}, "url must be a list."),
+        ({"service": [{}], "url": 1}, "service object cannot be empty."),
+        ({"service": [], "url": [{"url": "URI/write", "acl": ""}]}, "Value must be an array for acl key."),
+        ({"service": [], "url": [{"url": "", "acl": ""}]}, "Value cannot be empty for url key."),
+        ({"service": [], "url": [{"blah": "", "acl": []}]}, "url child Key-Value Pair is missing."),
+        ({"service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]}, "acl object cannot be empty.")
     ])
     async def test_bad_update_acl(self, client, payload, message):
         acl_name = "testACL"
@@ -229,10 +264,10 @@ class TestACLManagement:
 
     @pytest.mark.parametrize("payload", [
         {"service": []},
-        {"service": [{"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]}]},
+        {"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]},
         {"service": [], "url": []},
         {"service": [], "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]},
-        {"service": [{"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]}],
+        {"service": [{"name": "Sinusoid"}, {"type": "Southbound"}],
          "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}
     ])
     async def test_update_acl(self, client, payload):

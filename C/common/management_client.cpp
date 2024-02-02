@@ -2059,3 +2059,67 @@ int ManagementClient::validateDatapoints(std::string dp1, std::string dp2)
 
 	return temp.compare(dp2);
 }
+
+/**
+ * Get an alert by specific key
+ *
+ * @param    key        Key to get alert
+ * @return   string     Alert
+ */
+std::string ManagementClient::getAlertByKey(const std::string& key)
+{
+	std::string response = "Status: 404 Not found";
+	try
+	{
+		std::string url = "/fledge/alert/" + urlEncode(key) ;
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching alert: %s\n",
+								httpError?"HTTP error while":"Failed to parse result of",
+								response.c_str());
+		}
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get alert failed %s.", e.what());
+	}
+	return response;
+}
+
+
+/**
+ * Raise an alert
+ *
+ * @param    payload        Alert payload
+ * @return   whether operation was successful
+ */
+bool ManagementClient::raiseAlert(const std::string& payload)
+{
+	try
+	{
+		std::string url = "/fledge/alert" ;
+		auto res = this->getHttpClient()->request("POST", url.c_str(), payload);
+		Document doc;
+		std::string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s raising alert: %s\n",
+								httpError?"HTTP error while":"Failed to parse result of",
+								response.c_str());
+			return false;
+		}
+
+		return true;
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Raise alert failed %s.", e.what());
+		return false;
+	}
+}
+

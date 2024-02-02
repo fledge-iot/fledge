@@ -61,6 +61,7 @@ CMAKE_SOUTH_BINARY            := $(CMAKE_SERVICES_DIR)/south/fledge.services.sou
 CMAKE_NORTH_SERVICE_BINARY    := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
 CMAKE_NORTH_BINARY            := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PURGE_SYSTEM_BINARY     := $(CMAKE_TASKS_DIR)/purge_system/purge_system
+CMAKE_UPDATE_ALERTS_BINARY    := $(CMAKE_TASKS_DIR)/update_alerts/update_alerts
 CMAKE_STATISTICS_BINARY       := $(CMAKE_TASKS_DIR)/statistics_history/statistics_history
 CMAKE_PLUGINS_DIR             := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR              := $(CURRENT_DIR)/services
@@ -71,6 +72,7 @@ SYMLINK_SOUTH_BINARY          := $(DEV_SERVICES_DIR)/fledge.services.south
 SYMLINK_NORTH_SERVICE_BINARY  := $(DEV_SERVICES_DIR)/fledge.services.north
 SYMLINK_NORTH_BINARY          := $(DEV_TASKS_DIR)/sending_process
 SYMLINK_PURGE_SYSTEM_BINARY   := $(DEV_TASKS_DIR)/purge_system
+SYMLINK_UPDATE_ALERTS_BINARY  := $(DEV_TASKS_DIR)/update_alerts
 SYMLINK_STATISTICS_BINARY     := $(DEV_TASKS_DIR)/statistics_history
 ASYNC_INGEST_PYMODULE         := $(CURRENT_DIR)/python/async_ingest.so*
 FILTER_INGEST_PYMODULE        := $(CURRENT_DIR)/python/filter_ingest.so*
@@ -132,6 +134,7 @@ DISPATCHER_C_SCRIPT_SRC     := scripts/services/dispatcher_c
 BUCKET_STORAGE_C_SCRIPT_SRC := scripts/services/bucket_storage_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
+UPDATE_ALERTS_SCRIPT_SRC    := scripts/tasks/update_alerts
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
@@ -168,7 +171,7 @@ PACKAGE_NAME=Fledge
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_STATISTICS_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_UPDATE_ALERTS_BINARY) $(SYMLINK_STATISTICS_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -291,6 +294,10 @@ $(SYMLINK_NORTH_BINARY) : $(DEV_TASKS_DIR)
 $(SYMLINK_PURGE_SYSTEM_BINARY) : $(DEV_TASKS_DIR)
 	$(LN) $(CMAKE_PURGE_SYSTEM_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY)
 
+# create symlink to update_alerts binary
+$(SYMLINK_UPDATE_ALERTS_BINARY) : $(DEV_TASKS_DIR) 
+	$(LN) $(CMAKE_UPDATE_ALERTS_BINARY) $(SYMLINK_UPDATE_ALERTS_BINARY)
+
 # create symlink to purge_system binary
 $(SYMLINK_STATISTICS_BINARY) : $(DEV_TASKS_DIR)
 	$(LN) $(CMAKE_STATISTICS_BINARY) $(SYMLINK_STATISTICS_BINARY)
@@ -354,6 +361,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_dispatcher_c_script \
 	install_bucket_storage_c_script \
 	install_purge_script \
+	install_update_alerts_script \
 	install_statistics_script \
 	install_storage_script \
 	install_backup_script \
@@ -424,6 +432,9 @@ install_bucket_storage_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(BUCKET_STORAGE
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 	$(CP) $(PURGE_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_update_alerts_script : $(SCRIPT_TASKS_INSTALL_DIR) $(UPDATE_ALERTS_SCRIPT_SRC)
+	$(CP) $(UPDATE_ALERTS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

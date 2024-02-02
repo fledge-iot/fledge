@@ -1035,7 +1035,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
-            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' )
+            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
+            ( 'UPALT', 'Update Alerts' )
             ;
 
 --
@@ -1065,6 +1066,7 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge_system',
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update alerts',       '["tasks/update_alerts"]' );
 
 -- Storage Tasks
 --
@@ -1139,6 +1141,18 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 true                                    -- enabled
               );
 
+-- Update alerts
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '852cd8e4-3c29-440b-89ca-2c7691b0450d', -- id
+                'update alerts',                        -- schedule_name
+                'update alerts',                        -- process_name
+                2,                                      -- schedule_type (interval)
+                '00:05:00',                             -- schedule_time
+                '24:00:00',                             -- schedule_interval
+                't',                                   -- exclusive
+                't'                                    -- enabled
+              );
 
 -- Check for expired certificates
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,

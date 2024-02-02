@@ -522,17 +522,6 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 
    "OMFHint"  : { "tagName" : "AC1246" }
 
-Legacy Type Hint
-~~~~~~~~~~~~~~~~
-
-Use legacy style complex types for this reading rather that the newer linked data types.
-
-.. code-block:: console
-
-   "OMFHint" : { "LegacyType" : "true" }
-
-The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
-
 Source Hint
 ~~~~~~~~~~~
 

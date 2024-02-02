@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from fledge.common import logger
+from fledge.common.alert_manager import AlertManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.exceptions import *
@@ -320,6 +321,9 @@ class Server:
 
     _asset_tracker = None
     """ Asset tracker """
+
+    _alert_manager = None
+    """ Alert Manager """
 
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
@@ -818,6 +822,11 @@ class Server:
         await cls._asset_tracker.load_asset_records()
 
     @classmethod
+    async def _get_alerts(cls):
+        cls._alert_manager = AlertManager(cls._storage_client_async)
+        await cls._alert_manager.get_all()
+
+    @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
             _logger.info("Starting in SAFE MODE ...")
@@ -927,6 +936,10 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+
+                # Start Alert Manager
+                loop.run_until_complete(cls._get_alerts())
+
                 # If dispatcher installation:
                 # a) not found then add it as a StartUp service
                 # b) found then check the status of its schedule and take action
@@ -1990,3 +2003,50 @@ class Server:
         request.is_core_mgt = True
         res = await acl_management.get_acl(request)
         return res
+
+    @classmethod
+    async def get_alert(cls, request):
+        name = request.match_info.get('key', None)
+        try:
+            alert = await cls._alert_manager.get_by_key(name)
+        except KeyError as err:
+            msg = str(err.args[0])
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to get an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response({"alert": alert})
+
+    @classmethod
+    async def add_alert(cls, request):
+        try:
+            data = await request.json()
+            key = data.get("key")
+            message = data.get("message")
+            urgency = data.get("urgency")
+            if any(elem is None for elem in [key, message, urgency]):
+                msg = 'key, message, urgency post params are required to raise an alert.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            if not all(isinstance(i, str) for i in [key, message, urgency]):
+                msg = 'key, message, urgency KV pair must be passed as string.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            urgency = urgency.lower().capitalize()
+            if urgency not in cls._alert_manager.urgency:
+                msg = 'Urgency value should be from list {}'.format(list(cls._alert_manager.urgency.keys()))
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            key_exists = [a for a in cls._alert_manager.alerts if a['key'] == key]
+            if key_exists:
+                # Delete existing key
+                await cls._alert_manager.delete(key)
+            param = {"key": key, "message": message, "urgency": cls._alert_manager.urgency[urgency]}
+            response = await cls._alert_manager.add(param)
+            if response is None:
+                raise Exception
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to add an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response(response)

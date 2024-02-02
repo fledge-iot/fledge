@@ -86,6 +86,14 @@ async def add_acl(request: web.Request) -> web.Response:
          curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL",
          "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
          "acl": [{"type": "Northbound"}]}]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-2",
+         "service": [{"name": "IEC-104"}], "url": []}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-3",
+         "service": [{"type": "Notification"}], "url": []}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-4",
+         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
+         "acl": [{"type": "Northbound"}]}, {"url": "/fledge/south/write",
+         "acl": [{"type": "Northbound"}, {"type": "Southbound"}]}]}'
     """
     try:
         data = await request.json()
@@ -136,9 +144,12 @@ async def update_acl(request: web.Request) -> web.Response:
     Only the service and URL parameters can be updated.
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [],
-        "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+        -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+        -d '{"url": [{"url": "/fledge/south/write", "acl": []}]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+         -d '{"service": [{"type": "core"}], "url": [{"url": "/fledge/south/write", "acl": [{"type": "Northbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
@@ -442,31 +453,32 @@ async def _check_params(data, action):
         if action == "POST" or (action == "PUT" and service is not None):
             if not isinstance(service, list):
                 raise TypeError('service must be a list.')
-            if service:
-                is_type_seen = False
-                is_name_seen = False
-                for s in service:
-                    if not isinstance(s, dict):
-                        raise TypeError("service elements must be an object.")
-                    if not s:
-                        raise ValueError('service object cannot be empty.')
-                    if 'type' in list(s.keys()) and not is_type_seen:
-                        if not isinstance(s['type'], str):
-                            raise TypeError("Value must be a string for type key.")
-                        s['type'] = s['type'].strip()
-                        if s['type'] == "":
-                            raise ValueError('Value cannot be empty for type key.')
-                        is_type_seen = True
-                    if 'name' in list(s.keys()) and not is_name_seen:
-                        if not isinstance(s['name'], str):
-                            raise TypeError("Value must be a string for name key.")
-                        s['name'] = s['name'].strip()
-                        if s['name'] == "":
-                            raise ValueError('Value cannot be empty for name key.')
-                        is_name_seen = True
-                if not is_type_seen and not is_name_seen:
-                    raise ValueError('Either type or name Key-Value Pair is missing.')
-            final['service'] = service
+            if not service:
+                raise ValueError('service list cannot be empty.')
+            is_type_seen = False
+            is_name_seen = False
+            for s in service:
+                if not isinstance(s, dict):
+                    raise TypeError("service elements must be an object.")
+                if not s:
+                    raise ValueError('service object cannot be empty.')
+                if 'type' in list(s.keys()) and not is_type_seen:
+                    if not isinstance(s['type'], str):
+                        raise TypeError("Value must be a string for service type.")
+                    s['type'] = s['type'].strip()
+                    if s['type'] == "":
+                        raise ValueError('Value cannot be empty for service type.')
+                    is_type_seen = True
+                if 'name' in list(s.keys()) and not is_name_seen:
+                    if not isinstance(s['name'], str):
+                        raise TypeError("Value must be a string for service name.")
+                    s['name'] = s['name'].strip()
+                    if s['name'] == "":
+                        raise ValueError('Value cannot be empty for service name.')
+                    is_name_seen = True
+            if not is_type_seen and not is_name_seen:
+                raise ValueError('Either type or name Key-Value Pair is missing for service.')
+        final['service'] = service
 
         if action == "POST":
             if url is None:
@@ -481,14 +493,14 @@ async def _check_params(data, action):
                         raise TypeError("url elements must be an object.")
                     if 'url' in u:
                         if not isinstance(u['url'], str):
-                            raise TypeError("Value must be a string for url key.")
+                            raise TypeError("Value must be a string for url object.")
                         u['url'] = u['url'].strip()
                         if u['url'] == "":
-                            raise ValueError('Value cannot be empty for url key.')
+                            raise ValueError('Value cannot be empty for url object.')
                         is_url_seen = True
                     if 'acl' in u:
                         if not isinstance(u['acl'], list):
-                            raise TypeError("Value must be an array for acl key.")
+                            raise TypeError("Value must be an array for acl object.")
                         if u['acl']:
                             for uacl in u['acl']:
                                 if not isinstance(uacl, dict):

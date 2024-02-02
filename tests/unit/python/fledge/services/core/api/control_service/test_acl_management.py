@@ -97,35 +97,37 @@ class TestACLManagement:
         ({"name": ""}, "ACL name cannot be empty."),
         ({"name": "test"}, "service parameter is required."),
         ({"name": "test", "service": 1}, "service must be a list."),
+        ({"name": "test", "service": []}, "service list cannot be empty."),
         ({"name": "test", "service": [1]}, "service elements must be an object."),
         ({"name": "test", "service": ["1"]}, "service elements must be an object."),
         ({"name": "test", "service": ["1", {}]}, "service elements must be an object."),
         ({"name": "test", "service": [{}]}, "service object cannot be empty."),
-        ({"name": "test", "service": [{"foo": "bar"}]}, "Either type or name Key-Value Pair is missing."),
-        ({"name": "test", "service": [{"type": 1}]}, "Value must be a string for type key."),
-        ({"name": "test", "service": [{"type": ""}]}, "Value cannot be empty for type key."),
-        ({"name": "test", "service": [{"name": 1}]}, "Value must be a string for name key."),
-        ({"name": "test", "service": [{"name": ""}]}, "Value cannot be empty for name key."),
-        ({"name": "test", "service": []}, "url parameter is required."),
-        ({"name": "test", "service": [], "url": 1}, "url must be a list."),
-        ({"name": "test", "service": [], "url": [{}]}, "url child Key-Value Pair is missing."),
-        ({"name": "test", "service": [], "url": [{"url": []}]}, "Value must be a string for url key."),
-        ({"name": "test", "service": [], "url": [{"url": ""}]}, "Value cannot be empty for url key."),
-        ({"name": "test", "service": [], "url": [{"acl": ""}]}, "Value must be an array for acl key."),
-        ({"name": "test", "service": [], "url": [{"acl": [1]}]}, "acl elements must be an object."),
-        ({"name": "test", "service": [], "url": [{"acl": [{}]}]}, "acl object cannot be empty."),
-        ({"name": "test", "service": [], "url": [{"acl": [{"type": "Core"}]}]}, "url child Key-Value Pair is missing."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": ""}]},
-         "Value must be an array for acl key."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": []}, 1]},
-         "url elements must be an object."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": []}]},
+        ({"name": "test", "service": [{"foo": "bar"}]}, "Either type or name Key-Value Pair is missing for service."),
+        ({"name": "test", "service": [{"type": 1}]}, "Value must be a string for service type."),
+        ({"name": "test", "service": [{"type": ""}]}, "Value cannot be empty for service type."),
+        ({"name": "test", "service": [{"name": 1}]}, "Value must be a string for service name."),
+        ({"name": "test", "service": [{"name": ""}]}, "Value cannot be empty for service name."),
+        ({"name": "test", "service": [{"type": "T1"}]}, "url parameter is required."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": 1}, "url must be a list."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{}]}, "url child Key-Value Pair is missing."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"url": []}]}, "Value must be a string for url object."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"url": ""}]}, "Value cannot be empty for url object."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"acl": ""}]}, "Value must be an array for acl object."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"acl": [1]}]}, "acl elements must be an object."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"acl": [{}]}]}, "acl object cannot be empty."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"acl": [{"type": "Core"}]}]},
          "url child Key-Value Pair is missing."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": ""}]},
-         "Value must be an array for acl key."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": [1]}]},
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"url": "URI/write", "acl": ""}]},
+         "Value must be an array for acl object."),
+        ({"name": "test", "service": [{"type": "T1"}], "url": [{"url": "URI/write", "acl": []}, 1]},
+         "url elements must be an object."),
+        ({"name": "test", "service": [{"name": "S1"}], "url": [{"url": "URI/write", "acl": []}, {"acl": []}]},
+         "url child Key-Value Pair is missing."),
+        ({"name": "test", "service": [{"name": "S1"}], "url": [{"url": "URI/write", "acl": []}, {"acl": ""}]},
+         "Value must be an array for acl object."),
+        ({"name": "test", "service": [{"name": "S1"}], "url": [{"url": "URI/write", "acl": []}, {"acl": [1]}]},
          "acl elements must be an object."),
-        ({"name": "test", "service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]},
+        ({"name": "test", "service": [{"name": "S1"}], "url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]},
          "acl object cannot be empty.")
     ])
     async def test_bad_add_acl(self, client, payload, message):
@@ -138,7 +140,7 @@ class TestACLManagement:
 
     async def test_duplicate_add_acl(self, client):
         acl_name = "testACL"
-        request_payload = {"name": acl_name, "service": [], "url": []}
+        request_payload = {"name": acl_name, "service": [{'name': 'Fledge Storage'}], "url": []}
         result = {'count': 1, 'rows': [
             {'name': acl_name, 'service': [{'name': 'Fledge Storage'}, {'type': 'Southbound'}],
              'url': [{'url': '/fledge/south/operation', 'acl': [{'type': 'Southbound'}]}]}]}
@@ -160,7 +162,7 @@ class TestACLManagement:
     
     async def test_good_add_acl(self, client):
         acl_name = "testACL"
-        request_payload = {"name": acl_name, "service": [], "url": []}
+        request_payload = {"name": acl_name, "service": [{"type": "Notification"}], "url": []}
         result = {"count": 0, "rows": []}
         insert_result = {"response": "inserted", "rows_affected": 1}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
@@ -183,11 +185,11 @@ class TestACLManagement:
                             assert 200 == resp.status
                             result = await resp.text()
                             json_response = json.loads(result)
-                            assert {'name': acl_name, 'service': [], 'url': []} == json_response
+                            assert {'name': acl_name, 'service': [{"type": "Notification"}], 'url': []} == json_response
                         audit_info_patch.assert_called_once_with('ACLAD', request_payload)
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_acl' == args[0]
-                assert {'name': acl_name, 'service': '[]', 'url': '[]'} == json.loads(args[1])
+                assert {'name': acl_name, 'service': '[{"type": "Notification"}]', 'url': '[]'} == json.loads(args[1])
             args, _ = query_tbl_patch.call_args_list[0]
             assert 'control_acl' == args[0]
             assert acl_query_payload == json.loads(args[1])
@@ -196,41 +198,45 @@ class TestACLManagement:
         ({}, "Nothing to update for the given payload."),
         ({"service": 1}, "service must be a list."),
         ({"url": 1}, "url must be a list."),
+        ({"service": []}, "service list cannot be empty."),
         ({"service": [1]}, "service elements must be an object."),
         ({"service": ["1"]}, "service elements must be an object."),
         ({"service": ["1", {}]}, "service elements must be an object."),
         ({"service": [{}]}, "service object cannot be empty."),
-        ({"service": [{"foo": "bar"}]}, "Either type or name Key-Value Pair is missing."),
-        ({"service": [{"type": 1}]}, "Value must be a string for type key."),
-        ({"service": [{"type": ""}]}, "Value cannot be empty for type key."),
-        ({"service": [{"name": 1}]}, "Value must be a string for name key."),
-        ({"service": [{"name": ""}]}, "Value cannot be empty for name key."),
+        ({"service": [{"foo": "bar"}]}, "Either type or name Key-Value Pair is missing for service."),
+        ({"service": [{"type": 1}]}, "Value must be a string for service type."),
+        ({"service": [{"type": ""}]}, "Value cannot be empty for service type."),
+        ({"service": [{"name": 1}]}, "Value must be a string for service name."),
+        ({"service": [{"name": ""}]}, "Value cannot be empty for service name."),
         ({"url": 1}, "url must be a list."),
         ({"url": [{}]}, "url child Key-Value Pair is missing."),
-        ({"url": [{"url": []}]}, "Value must be a string for url key."),
-        ({"url": [{"url": ""}]}, "Value cannot be empty for url key."),
-        ({"url": [{"acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"url": []}]}, "Value must be a string for url object."),
+        ({"url": [{"url": ""}]}, "Value cannot be empty for url object."),
+        ({"url": [{"acl": ""}]}, "Value must be an array for acl object."),
         ({"url": [{"acl": [1]}]}, "acl elements must be an object."),
         ({"url": [{"acl": [{}]}]}, "acl object cannot be empty."),
         ({"url": [{"acl": [{"type": "Core"}]}]}, "url child Key-Value Pair is missing."),
-        ({"url": [{"url": "URI/write", "acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"url": "URI/write", "acl": ""}]}, "Value must be an array for acl object."),
         ({"url": [{"url": "URI/write", "acl": []}, 1]}, "url elements must be an object."),
         ({"url": [{"url": "URI/write", "acl": []}, {"acl": []}]}, "url child Key-Value Pair is missing."),
-        ({"url": [{"url": "URI/write", "acl": []}, {"acl": ""}]}, "Value must be an array for acl key."),
+        ({"url": [{"url": "URI/write", "acl": []}, {"acl": ""}]}, "Value must be an array for acl object."),
         ({"url": [{"url": "URI/write", "acl": []}, {"acl": [1]}]}, "acl elements must be an object."),
         ({"url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]}, "acl object cannot be empty."),
-        ({"service": [{"foo": "bar"}], "url": []}, "Either type or name Key-Value Pair is missing."),
+        ({"service": [{"foo": "bar"}], "url": []}, "Either type or name Key-Value Pair is missing for service."),
+        ({"url": [], "service": []}, "service list cannot be empty."),
         ({"url": [], "service": [{}]}, "service object cannot be empty."),
-        ({"url": [], "service": [{"type": 1}]}, "Value must be a string for type key."),
-        ({"url": [], "service": [{"type": ""}]}, "Value cannot be empty for type key."),
-        ({"url": [], "service": [{"name": 1}]}, "Value must be a string for name key."),
-        ({"url": [], "service": [{"name": ""}]}, "Value cannot be empty for name key."),
-        ({"service": [], "url": 1}, "url must be a list."),
+        ({"url": [], "service": [{"type": 1}]}, "Value must be a string for service type."),
+        ({"url": [], "service": [{"type": ""}]}, "Value cannot be empty for service type."),
+        ({"url": [], "service": [{"name": 1}]}, "Value must be a string for service name."),
+        ({"url": [], "service": [{"name": ""}]}, "Value cannot be empty for service name."),
+        ({"service": [{"name": "myService"}], "url": 1}, "url must be a list."),
         ({"service": [{}], "url": 1}, "service object cannot be empty."),
-        ({"service": [], "url": [{"url": "URI/write", "acl": ""}]}, "Value must be an array for acl key."),
-        ({"service": [], "url": [{"url": "", "acl": ""}]}, "Value cannot be empty for url key."),
-        ({"service": [], "url": [{"blah": "", "acl": []}]}, "url child Key-Value Pair is missing."),
-        ({"service": [], "url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]}, "acl object cannot be empty.")
+        ({"service": [{"name": "SVC"}], "url": [{"url": "URI/write", "acl": ""}]},
+         "Value must be an array for acl object."),
+        ({"service": [{"name": "SVC"}], "url": [{"url": "", "acl": ""}]}, "Value cannot be empty for url object."),
+        ({"service": [{"name": "SVC"}], "url": [{"blah": "", "acl": []}]}, "url child Key-Value Pair is missing."),
+        ({"service": [{"name": "SVC"}], "url": [{"url": "URI/write", "acl": []}, {"acl": [{}]}]},
+         "acl object cannot be empty.")
     ])
     async def test_bad_update_acl(self, client, payload, message):
         acl_name = "testACL"
@@ -243,7 +249,7 @@ class TestACLManagement:
 
     async def test_update_acl_not_found(self, client):
         acl_name = "testACL"
-        req_payload = {"service": []}
+        req_payload = {"service": [{"type": "Notification"}]}
         result = {"count": 0, "rows": []}
         value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
         query_payload = {"return": ["name", "service", "url"], "where": {
@@ -263,10 +269,10 @@ class TestACLManagement:
             assert query_payload == json.loads(args[1])
 
     @pytest.mark.parametrize("payload", [
-        {"service": []},
         {"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]},
-        {"service": [], "url": []},
-        {"service": [], "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]},
+        {"service": [{"name": "Sinusoid"}], "url": []},
+        {"service": [{"type": "Southbound"}], "url": [{"url": "/fledge/south/operation",
+                                                       "acl": [{"type": "Southbound"}]}]},
         {"service": [{"name": "Sinusoid"}, {"type": "Southbound"}],
          "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}
     ])

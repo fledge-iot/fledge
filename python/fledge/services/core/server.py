@@ -2049,4 +2049,5 @@ class Server:
             _logger.error(ex, "Failed to add an alert.")
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
         else:
+            response['alert']['urgency'] = cls._alert_manager._urgency_name_by_value(response['alert']['urgency'])
             return web.json_response(response)

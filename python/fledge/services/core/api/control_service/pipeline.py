@@ -593,11 +593,9 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters, db_filters=None):
     cf_mgr = ConfigurationManager(storage)
     new_filters = []
     children = []
-
-    insert_filters = set(cp_filters) - set(db_filters)
-    update_filters = set(cp_filters) & set(db_filters)
-    delete_filters = set(db_filters) - set(cp_filters)
-
+    insert_filters = list(filter(lambda x: x not in db_filters, cp_filters))
+    update_filters = list(filter(lambda x: x in cp_filters, db_filters))
+    delete_filters = list(filter(lambda x: x not in cp_filters, db_filters))
     if insert_filters:
         for fid, fname in enumerate(insert_filters, start=1):
             # get plugin config of filter

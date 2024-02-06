@@ -234,7 +234,7 @@ class TestService:
         assert len(jdoc), "No data found"
         assert 'Fledge restart has been scheduled.' == jdoc['message']
 
-        time.sleep(wait_time * 4)
+        time.sleep(wait_time * 7)
         jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 4 == len(jdoc['services'])

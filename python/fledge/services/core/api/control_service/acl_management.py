@@ -17,12 +17,10 @@ from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
 
-
 __author__ = "Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2021 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
 
 _help = """
     --------------------------------------------------------------
@@ -88,31 +86,21 @@ async def add_acl(request: web.Request) -> web.Response:
          curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL",
          "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
          "acl": [{"type": "Northbound"}]}]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-2",
+         "service": [{"name": "IEC-104"}], "url": []}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-3",
+         "service": [{"type": "Notification"}], "url": []}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL-4",
+         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
+         "acl": [{"type": "Northbound"}]}, {"url": "/fledge/south/write",
+         "acl": [{"type": "Northbound"}, {"type": "Southbound"}]}]}'
     """
     try:
         data = await request.json()
-        name = data.get('name', None)
-        service = data.get('service', None)
-        url = data.get('url', None)
-        if name is None:
-            raise ValueError('ACL name is required.')
-        else:
-            if not isinstance(name, str):
-                raise TypeError('ACL name must be a string.')
-            name = name.strip()
-            if name == "":
-                raise ValueError('ACL name cannot be empty.')
-        if service is None:
-            raise ValueError('service parameter is required.')
-        if not isinstance(service, list):
-            raise TypeError('service must be a list.')
-        # check each item in list is an object of, either 'type'|<service type> or 'name'|<service name> value pair
-        if url is None:
-            raise ValueError('url parameter is required.')
-        if not isinstance(url, list):
-            raise TypeError('url must be a list.')
-        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of
-        # 'type'|<service type> value pair
+        columns = await _check_params(data, action="POST")
+        name = columns['name']
+        service = columns['service']
+        url = columns['url']
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
@@ -153,26 +141,23 @@ async def add_acl(request: web.Request) -> web.Response:
 @has_permission("admin")
 async def update_acl(request: web.Request) -> web.Response:
     """ Update an access control list
-    Only the service and URL parameters can be updated. 
+    Only the service and URL parameters can be updated.
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [],
-        "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+        -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+        -d '{"url": [{"url": "/fledge/south/write", "acl": []}]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL
+         -d '{"service": [{"type": "core"}], "url": [{"url": "/fledge/south/write", "acl": [{"type": "Northbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
-        
+
         data = await request.json()
         service = data.get('service', None)
         url = data.get('url', None)
-        if service is None and url is None:
-            raise ValueError("Nothing to update for the given payload.")
-
-        if service is not None and not isinstance(service, list):
-            raise TypeError('service must be a list.')
-        if url is not None and not isinstance(url, list):
-            raise TypeError('url must be a list.')
+        await _check_params(data, action="PUT")
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
@@ -185,7 +170,7 @@ async def update_acl(request: web.Request) -> web.Response:
                     set_values["service"] = json.dumps(service)
                 if url is not None:
                     set_values["url"] = json.dumps(url)
-                
+
                 update_query.SET(**set_values).WHERE(['name', '=', name])
                 update_result = await storage.update_tbl("control_acl", update_query.payload())
                 if 'response' in update_result:
@@ -248,7 +233,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
                 if services or scripts:
                     message = "{} is associated with an entity. So cannot delete." \
-                                 " Make sure to remove all the usages of this ACL.".format(name)
+                              " Make sure to remove all the usages of this ACL.".format(name)
                     _logger.warning(message)
                     return web.HTTPConflict(reason=message, body=json.dumps({"message": message}))
 
@@ -343,7 +328,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
                     'displayName': 'Service ACL',
                     'default': ''
                 }
-            }
+        }
         # Create category content with ACL default set to ''
         await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
                                      category_value=category_value)
@@ -367,7 +352,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         # Call service security endpoint with attachACL = acl_name
         data = {'ACL': acl_name}
         await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
-        
+
         return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
             acl_name, svc_name)})
 
@@ -408,10 +393,10 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                 ,
                 'ACL':
                     {
-                     'description': 'Service ACL for {}'.format(svc_name),
-                     'type': 'ACL',
-                     'displayName': 'Service ACL',
-                     'default': ''
+                        'description': 'Service ACL for {}'.format(svc_name),
+                        'type': 'ACL',
+                        'displayName': 'Service ACL',
+                        'default': ''
                     }
             }
             # Call service security endpoint with detachACL = ''
@@ -441,3 +426,88 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
+
+async def _check_params(data, action):
+        final = {}
+        name = data.get('name', None)
+        service = data.get('service', None)
+        url = data.get('url', None)
+
+        if action == "PUT":
+            if service is None and url is None:
+                raise ValueError("Nothing to update for the given payload.")
+
+        if action == "POST":
+            if name is None:
+                raise ValueError('ACL name is required.')
+            else:
+                if not isinstance(name, str):
+                    raise TypeError('ACL name must be a string.')
+                name = name.strip()
+                if name == "":
+                    raise ValueError('ACL name cannot be empty.')
+            final['name'] = name
+        if action == "POST":
+            if service is None:
+                raise ValueError('service parameter is required.')
+        if action == "POST" or (action == "PUT" and service is not None):
+            if not isinstance(service, list):
+                raise TypeError('service must be a list.')
+            if not service:
+                raise ValueError('service list cannot be empty.')
+            is_type_seen = False
+            is_name_seen = False
+            for s in service:
+                if not isinstance(s, dict):
+                    raise TypeError("service elements must be an object.")
+                if not s:
+                    raise ValueError('service object cannot be empty.')
+                if 'type' in list(s.keys()) and not is_type_seen:
+                    if not isinstance(s['type'], str):
+                        raise TypeError("Value must be a string for service type.")
+                    s['type'] = s['type'].strip()
+                    if s['type'] == "":
+                        raise ValueError('Value cannot be empty for service type.')
+                    is_type_seen = True
+                if 'name' in list(s.keys()) and not is_name_seen:
+                    if not isinstance(s['name'], str):
+                        raise TypeError("Value must be a string for service name.")
+                    s['name'] = s['name'].strip()
+                    if s['name'] == "":
+                        raise ValueError('Value cannot be empty for service name.')
+                    is_name_seen = True
+            if not is_type_seen and not is_name_seen:
+                raise ValueError('Either type or name Key-Value Pair is missing for service.')
+        final['service'] = service
+
+        if action == "POST":
+            if url is None:
+                raise ValueError('url parameter is required.')
+        if action == "POST" or (action == "PUT" and url is not None):
+            if not isinstance(url, list):
+                raise TypeError('url must be a list.')
+            if url:
+                for u in url:
+                    is_url_seen = False
+                    if not isinstance(u, dict):
+                        raise TypeError("url elements must be an object.")
+                    if 'url' in u:
+                        if not isinstance(u['url'], str):
+                            raise TypeError("Value must be a string for url object.")
+                        u['url'] = u['url'].strip()
+                        if u['url'] == "":
+                            raise ValueError('Value cannot be empty for url object.')
+                        is_url_seen = True
+                    if 'acl' in u:
+                        if not isinstance(u['acl'], list):
+                            raise TypeError("Value must be an array for acl object.")
+                        if u['acl']:
+                            for uacl in u['acl']:
+                                if not isinstance(uacl, dict):
+                                    raise TypeError("acl elements must be an object.")
+                                if not uacl:
+                                    raise ValueError('acl object cannot be empty.')
+                    if not is_url_seen:
+                        raise ValueError('url child Key-Value Pair is missing.')
+            final['url'] = url
+        return final

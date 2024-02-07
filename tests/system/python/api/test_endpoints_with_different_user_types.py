@@ -222,7 +222,9 @@ class TestAPIEndpointsWithViewUserType:
         ("POST", "/fledge/notification", 403), ("PUT", "/fledge/notification/N1", 403),
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 404),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # alerts
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -372,7 +374,9 @@ class TestAPIEndpointsWithDataViewUserType:
         ("POST", "/fledge/notification", 403), ("PUT", "/fledge/notification/N1", 403),
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 403),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 403),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # alerts
+        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -527,7 +531,9 @@ class TestAPIEndpointsWithControlUserType:
         ("POST", "/fledge/notification", 404), ("PUT", "/fledge/notification/N1", 404),
         ("DELETE", "/fledge/notification/N1", 404), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 400), ("GET", "/fledge/notification/N1/delivery/C1", 404),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 404)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 404),
+        # alerts
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)

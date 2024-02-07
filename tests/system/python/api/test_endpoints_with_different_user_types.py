@@ -223,6 +223,10 @@ class TestAPIEndpointsWithViewUserType:
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 404),
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # performance monitors
+        ("GET", "/fledge/monitors", 200), ("GET", "/fledge/monitors/SVC", 200),
+        ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 403),
+        ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
         ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
@@ -375,6 +379,10 @@ class TestAPIEndpointsWithDataViewUserType:
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 403),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 403),
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # performance monitors
+        ("GET", "/fledge/monitors", 403), ("GET", "/fledge/monitors/SVC", 403),
+        ("GET", "/fledge/monitors/Svc/Counter", 403), ("DELETE", "/fledge/monitors", 403),
+        ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
         ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
@@ -532,6 +540,10 @@ class TestAPIEndpointsWithControlUserType:
         ("DELETE", "/fledge/notification/N1", 404), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 400), ("GET", "/fledge/notification/N1/delivery/C1", 404),
         ("DELETE", "/fledge/notification/N1/delivery/C1", 404),
+        # performance monitors
+        ("GET", "/fledge/monitors", 200), ("GET", "/fledge/monitors/SVC", 200),
+        ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 200),
+        ("DELETE", "/fledge/monitors/SVC", 200), ("DELETE", "/fledge/monitors/Svc/Counter", 200),
         # alerts
         ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404)
     ])

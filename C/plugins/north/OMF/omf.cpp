@@ -1097,6 +1097,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			   bool compression, bool skipSentDataTypes)
 {
 	bool AFHierarchySent = false;
+	bool sendLinkedTypes = false;
 	bool sendDataTypes;
 	string keyComplete;
 	string AFHierarchyPrefix;
@@ -1267,7 +1268,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			setAFHierarchy();
 		}
 
-
 		// Use old style complex types if the user has forced it via configuration,
 		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
 		// asset already
@@ -1333,7 +1333,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				{
 					// The AF hierarchy is created/recreated if an OMF type message is sent
 					// it sends the hierarchy once
-					if (sendDataTypes and ! AFHierarchySent)
+					if (sendDataTypes and !AFHierarchySent)
 					{
 						if (!handleAFHierarchy())
 						{
@@ -1387,6 +1387,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			{
 				pendingSeparator = true;
 			}
+
+			sendLinkedTypes = false;
 		}
 		else
 		{
@@ -1396,27 +1398,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// Send data for this reading using the new mechanism
 			if (linkedData.processReading(payload, pendingSeparator, *reading, AFHierarchyPrefix, hints))
 				pendingSeparator = true;
-			if (m_sendFullStructure && lookup->second.afLinkState() == false)
-			{
-				// If the hierarchy has not already been sent then send it
-				if (! AFHierarchySent)
-				{
-					if (!handleAFHierarchy())
-					{
-						m_lastError = true;
-						return 0;
-					}
-					AFHierarchySent = true;
-				}
 
-				string af = createAFLinks(*reading, hints);
-				if (! af.empty())
-				{
-					payload.append(',');
-					payload.append(af);
-				}
-				lookup->second.afLinkSent();
-			}
+			sendLinkedTypes = true;
 		}
 
 		if (hints)
@@ -1519,8 +1502,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 
 		delete[] omfData;
-		// Return number of sent readings to the caller
-		return readings.size();
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
@@ -1629,6 +1610,50 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		delete[] omfData;
 		return 0;
 	}
+
+	// Create the AF Links between assets if AF structure creation with linked types is requested
+	if (sendLinkedTypes && m_sendFullStructure)
+	{
+		for (Reading *reading : readings)
+		{
+			OMFHints *hints = NULL;
+			Datapoint *hintsdp = reading->getDatapoint("OMFHint");
+			if (hintsdp)
+			{
+				hints = new OMFHints(hintsdp->getData().toString());
+			}
+
+			m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
+			auto lookup = m_linkedAssetState.find(m_assetName + ".");
+			if (lookup->second.afLinkState() == false)
+			{
+				// If the hierarchy has not already been sent then send it
+				if (!AFHierarchySent)
+				{
+					if (!handleAFHierarchy())
+					{
+						m_lastError = true;
+						delete hints;
+						return 0;
+					}
+					AFHierarchySent = true;
+				}
+
+				if (!sendAFLinks(*reading, hints))
+				{
+					m_lastError = true;
+					delete hints;
+					return 0;
+				}
+				lookup->second.afLinkSent();
+			}
+
+			delete hints;
+		}
+	}
+
+	// Return number of sent readings to the caller
+	return readings.size();
 }
 
 /**
@@ -2111,8 +2136,8 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 /**
  * Generate the container id for the given asset
  *
- * @param assetName  Asset for quick the container id should be generated
- * @return           Container it for the requested asset
+ * @param assetName  Asset for which the container id should be generated
+ * @return           Container id for the requested asset
  */
 std::string OMF::generateMeasurementId(const string& assetName)
 {
@@ -2165,7 +2190,7 @@ std::string OMF::generateMeasurementId(const string& assetName)
 /**
  * Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
  *
- * @param assetName  Asset for quick the suffix should be generated
+ * @param assetName  Asset for which the suffix should be generated
  * @param typeId     Type id of the asset
  * @return           Suffix to be used for the given asset
  */
@@ -2275,8 +2300,8 @@ const std::string OMF::createStaticData(const Reading& reading)
  * Note: type is 'Data'
  *
  * @param reading    A reading data
- * @param AFHierarchyLevel	The AF eleemnt we are placing the reading in
- * @param AFHierarchyPrefix	The prefix we use for thr AF Eleement
+ * @param AFHierarchyLevel	The AF element we are placing the reading in
+ * @param AFHierarchyPrefix	The prefix we use for the AF Element
  * @param objectPrefix	The object prefix we are using for this asset
  * @param legacy     We are using legacy, complex types for this reading
  * @return           Type JSON message as string
@@ -2498,7 +2523,7 @@ void OMF::retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string
 }
 
 /**
- * Handle the OMF hint AFLocation to defined a position of the asset into the AF hierarchy
+ * Handle the OMF hint AFLocation to define a position of the asset into the AF hierarchy
  *
  * @param assetName              AssetName to handle
  * @param OmfHintHierarchy		 Position of the asset into the AF hierarchy
@@ -2659,12 +2684,12 @@ bool OMF::extractVariable(string &strToHandle, string &variable, string &value, 
 }
 
 /**
- * Evaulate the AF hierarchy provided and expand the variables in the form ${room:unknown}
+ * Evaluate the AF hierarchy provided and expand the variables in the form ${room:unknown}
  *
- * @param reading       Asset reading that should be considered from which extract the metadata values
+ * @param reading       Asset reading that should be considered from which to extract the metadata values
  * @param AFHierarchy   AF hierarchy containing the variable to be expanded
  *
- * @return              True if variable were found and expanded
+ * @return              True if variables were found and expanded
  */
 std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHierarchy) {
 
@@ -3872,7 +3897,7 @@ long OMF::getAssetTypeId(const string& assetName)
  * Retrieve the naming scheme for the given asset in relation to the end point selected the default naming scheme selected
  * and the naming scheme of the asset itself
  *
- * @param assetName  Asset for quick the naming schema should be retrieved
+ * @param assetName  Asset for which the naming schema should be retrieved
  * @return           Naming schema of the given asset
  */
 long OMF::getNamingScheme(const string& assetName)
@@ -3935,7 +3960,7 @@ long OMF::getNamingScheme(const string& assetName)
 /**
  * Retrieve the hash for the given asset in relation to the end point selected
  *
- * @param assetName  Asset for quick the hash should be retrieved
+ * @param assetName  Asset for which the hash should be retrieved
  * @return           Hash of the given asset
  */
 string OMF::getHashStored(const string& assetName)
@@ -3990,7 +4015,7 @@ string OMF::getHashStored(const string& assetName)
 /**
  * Retrieve the current AF hierarchy for the given asset
  *
- * @param assetName  Asset for quick the path should be retrieved
+ * @param assetName  Asset for which the path should be retrieved
  * @return           Path of the given asset
  */
 string OMF::getPathStored(const string& assetName)
@@ -4044,7 +4069,7 @@ string OMF::getPathStored(const string& assetName)
 /**
  * Retrieve the AF hierarchy in which given asset was created
  *
- * @param assetName  Asset for quick the path should be retrieved
+ * @param assetName  Asset for which the path should be retrieved
  * @return           Path of the given asset
  */
 string OMF::getPathOrigStored(const string& assetName)
@@ -4099,7 +4124,7 @@ string OMF::getPathOrigStored(const string& assetName)
 /**
  * Stores the current AF hierarchy for the given asset
  *
- * @param assetName    Asset for quick the path should be retrieved
+ * @param assetName    Asset for which the path should be retrieved
  * @param afHierarchy  Current AF hierarchy of the asset
  *
  * @return             True if the operation has success
@@ -4644,11 +4669,6 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 
 	nameFixed = StringTrim(objName);
 
-	if (objName.compare(nameFixed) != 0)
-	{
-		Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
-	}
-
 	if (nameFixed.empty ()) {
 
 		Logger::getLogger()->debug("%s - object name empty", __FUNCTION__);
@@ -4681,7 +4701,10 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
 			*changed = true;
 	}
 
-	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+	if (objName.compare(nameFixed) != 0)
+	{
+		Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	}
 
 	return (nameFixed);
 }
@@ -4699,7 +4722,7 @@ std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *c
  * Names on PI-Server side are not case sensitive
  *
  * @param    objName  The object name to verify
- * @param    changed  if not null, it is set to true if a change occur
+ * @param    changed  if not null, it is set to true if a change occurred
  * @return			  Object name following the PI Server naming rules
  */
 std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed)
@@ -4710,8 +4733,6 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 		*changed = false;
 
 	nameFixed = StringTrim(objName);
-
-	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
 
 	if (nameFixed.empty ()) {
 
@@ -4752,11 +4773,13 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 
 	}
 
-	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+	if (objName.compare(nameFixed) != 0)
+	{
+		Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+	}
 
 	return (nameFixed);
 }
-
 
 /**
  * Send the base types that we use to define all the data point values
@@ -4831,10 +4854,80 @@ bool OMF::sendBaseTypes()
 }
 
 /**
- * Create the messages to link the asset into the right place in the AF structure
+ * Send a message to link the asset into the right place in the AF structure
  *
  * @param reading	The reading being sent
  * @param hints		OMF Hints for this reading
+ * @return			true if the message was sent correctly, otherwise false.
+ */
+bool OMF::sendAFLinks(Reading &reading, OMFHints *hints)
+{
+	bool success = true;
+	std::string afLinks = createAFLinks(reading, hints);
+	if (afLinks.empty())
+	{
+		return success;
+	}
+
+	try
+	{
+		std::string action = (this->m_OMFVersion.compare("1.2") == 0) ? "update" : "create";
+		vector<pair<string, string>> messageHeader = OMF::createMessageHeader("Data", action);
+		afLinks = "[" + afLinks + "]";
+
+		int res = m_sender.sendRequest("POST",
+									   m_path,
+									   messageHeader,
+									   afLinks);
+		if (res >= 200 && res <= 299)
+		{
+			Logger::getLogger()->debug("AF Link message sent successfully: %s", afLinks.c_str());
+			success = true;
+		}
+		else
+		{
+			Logger::getLogger()->error("Sending AF Link Data message, HTTP code %d - %s %s",
+									   res,
+									   m_sender.getHostPort().c_str(),
+									   m_path.c_str());
+			success = false;
+		}
+	}
+	catch (const BadRequest &e) // HTTP 400
+	{
+		OMFError error(m_sender.getHTTPResponse());
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending AF Link: %d messages",
+									  error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+										  i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+		success = false;
+	}
+	catch (const std::exception &e)
+	{
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("AF Link send message exception, %s - %s %s",
+								   errorMsg.c_str(),
+								   m_sender.getHostPort().c_str(),
+								   m_path.c_str());
+		success = false;
+	}
+
+	return success;
+}
+
+/**
+ * Create the messages to link the asset holding the container to its parent asset
+ *
+ * @param reading	The reading being sent
+ * @param hints		OMF Hints for this reading
+ * @return			OMF JSON snippet to create the AF Link
  */
 string OMF::createAFLinks(Reading& reading, OMFHints *hints)
 {
@@ -4877,12 +4970,11 @@ string AFDataMessage;
 
 				// Create data for Static Data message
 				AFDataMessage = OMF::createLinkData(reading, AFHierarchyLevel, prefix, objectPrefix, hints, false);
-
 			}
 		}
 		else
 		{
-			Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|", assetName.c_str());
+			Logger::getLogger()->error("AF hierarchy is not defined for the asset Name |%s|", assetName.c_str());
 		}
 	}
 	return AFDataMessage;

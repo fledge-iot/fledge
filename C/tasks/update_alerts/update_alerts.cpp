@@ -73,14 +73,11 @@ void UpdateAlerts::updateAlets()
 	m_logger->info("updateAlets running");
 	try
 	{
-		for (auto m: getUpgradablePackageList())
+		for (auto key: getUpgradablePackageList())
 		{
-			ostringstream   payload;
-			payload << "\"key\":\"" << m  << "\","
-						<< "\"message\":\"A new update is available for " << m << "\","
-						<< "\"urgency\":\"normal\"";
-			
-			if (!m_mgtClient->raiseAlert(payload.str()))
+			std::string message = "new update is available for " + key;
+			std::string urgency = "normal";
+			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{
 				m_logger->error("Failed to raise alert");
 			}
@@ -172,3 +169,4 @@ std::vector<std::string> UpdateAlerts::getUpgradablePackageList()
 
 	return packageList;
 }
+

@@ -905,7 +905,7 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 'update alerts',                        -- process_name
                 2,                                      -- schedule_type (interval)
                 '00:05:00',                             -- schedule_time
-                '24:00:00',                             -- schedule_interval
+                '00:00:00',                             -- schedule_interval
                 't',                                   -- exclusive
                 't'                                    -- enabled
               );

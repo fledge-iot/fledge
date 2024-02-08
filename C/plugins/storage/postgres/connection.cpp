@@ -2517,6 +2517,7 @@ bool Connection::jsonAggregates(const Value& payload,
 					sql.append(column_name);
 					sql.append("\"");
 				}
+				sql.append(") AS \"");
 			}
 			else if (itr->HasMember("json"))
 			{
@@ -2586,8 +2587,9 @@ bool Connection::jsonAggregates(const Value& payload,
 					sql.append(")::float");
 
 				}
+				sql.append(" END) AS \"");
 			}
-			sql.append(" END) AS \"");
+
 			if (itr->HasMember("alias"))
 			{
 				sql.append((*itr)["alias"].GetString());
@@ -3078,10 +3080,25 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				sql.append(whereClause["value"].GetInt());
 			} else if (whereClause["value"].IsString())
 			{
-				sql.append('\'');
+				if (whereColumnName != "history_ts")
+				{
+					sql.append('\'');
+				}
+				else
+				{
+					sql.append("TO_TIMESTAMP('");
+				}
+
 				string value = whereClause["value"].GetString();
 				sql.append(escape(value));
-				sql.append('\'');
+				if (whereColumnName != "history_ts")
+				{
+					sql.append('\'');
+				}
+				else
+				{
+					sql.append("')");
+				}
 
 				// Identify a specific operation to restrinct the tables involved
 				if (whereColumnName.compare("asset_code") == 0)

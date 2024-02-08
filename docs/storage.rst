@@ -1,6 +1,5 @@
 .. Images
 .. |storage_01| image:: images/storage_01.jpg
-.. |storage_02| image:: images/storage_02.jpg
 .. |storage_03| image:: images/storage_03.jpg
 .. |sqlite_01| image:: images/sqlite_storage_configuration.jpg
 .. |purge_01| image:: images/purge_01.jpg
@@ -56,14 +55,10 @@ user interface to set the storage engine and its options.
 
   - Using the user interface to configuration the storage, select the *Configuration* item in the left hand menu bar.
 
-    +--------------+
-    | |storage_01| |
-    +--------------+
-   
-  - In the category pull down menu select *Advanced*.
+  - In the category category tree select *Advanced* and under that select *Storage*.
 
     +--------------+
-    | |storage_02| |
+    | |storage_01| |
     +--------------+
   
  - To change the storage plugin to use for both configuration and readings enter the name of the new plugin in the *Storage Plugin* entry field. If *Readings Plugin* is left empty then the storage plugin will also be used to store reading data. The default set of plugins installed with Fledge that can be used as *Storage Plugin* values are:
@@ -80,15 +75,20 @@ user interface to set the storage engine and its options.
 
   - The *Management Port* and *Service Port* options allow fixed ports to be assigned to the storage service. These settings are for debugging purposes only and the values should be set to 0 in normal operation.
 
-Note: Additional storage engines may be installed to extend the set
-that is delivered with the standard Fledge installation. These will be
-documented in the packages that provide the storage plugin.
 
-Storage plugin configurations are not dynamic and Fledge *must* be
-restarted after changing these values. Changing the plugin used to store
-readings will *not* cause the data in the previous storage system to be
-migrated to the new storage system and this data may be lost if it has
-not been sent onward from Fledge.
+.. note::
+
+   Additional storage engines may be installed to extend the set
+   that is delivered with the standard Fledge installation. These will be
+   documented in the packages that provide the storage plugin.
+
+   Storage plugin configurations are not dynamic and Fledge *must* be
+   restarted after changing these values. Changing the plugin used to store
+   readings will *not* cause the data in the previous storage system to be
+   migrated to the new storage system and this data may be lost if it has
+   not been sent onward from Fledge.
+
+   If selecting the Postgres storeage engine then postgress must be installed and running with a fledge user created in order for Fledge to start succesfully.
 
 SQLite Plugin Configuration
 ---------------------------

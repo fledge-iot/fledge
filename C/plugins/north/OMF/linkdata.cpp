@@ -28,7 +28,7 @@
 /**
  * In order to cut down on the number of string copies made whilst building
  * the OMF message for a reading we reseeve a number of bytes in a string and
- * each time we get close to filling the string we reserve mode. The value below
+ * each time we get close to filling the string we reserve more. The value below
  * defines the increment we use to grow the string reservation.
  */
 #define RESERVE_INCREMENT	100
@@ -378,7 +378,7 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 }
 
 /**
- * Send the container message for the linked datapoint
+ * Create a container message for the linked datapoint
  *
  * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
@@ -490,7 +490,7 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 /**
  * Flush the container definitions that have been built up
  *
- * @return 	true if the containers where succesfully flushed
+ * @return 	true if the containers were successfully flushed
  */
 bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header)
 {
@@ -558,7 +558,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const std::exception& e)
 	{
 
-		Logger::getLogger()->error("An exception occurred when sending container information the OMF endpoint, %s - %s %s",
+		Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());

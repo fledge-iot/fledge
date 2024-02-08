@@ -522,7 +522,7 @@ def _validate_steps_and_convert_to_str(payload: list) -> str:
           so that any client can use from there itself.
           For example:
           GUI client has also prepared this list by their own to show down in the dropdown.
-          Therefore if any new/update type is introduced with the current scenario both sides needs to be changed
+          Therefore, if any new/update type is introduced with the current scenario both sides needs to be changed
     """
     steps_supported_types = ["configure", "delay", "operation", "script", "write"]
     unique_order_items = []
@@ -539,6 +539,10 @@ def _validate_steps_and_convert_to_str(payload: list) -> str:
                                 raise ValueError('order key is missing for {} step.'.format(k))
                             else:
                                 if isinstance(v['order'], int):
+                                    if v['order'] < 1:
+                                        if v['order'] == 0:
+                                            raise ValueError('order cannot be zero.')
+                                        raise ValueError('order should be a positive number.')
                                     if v['order'] not in unique_order_items:
                                         unique_order_items.append(v['order'])
                                     else:

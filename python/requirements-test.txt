@@ -7,7 +7,7 @@ pytest-cov==2.5.1
 pytest-aiohttp==0.3.0
 
 # Common - REST interface
-requests==2.20.0
+requests==2.31.0
 
 # For RTU serial test
 pyserial==3.4

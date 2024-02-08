@@ -2073,16 +2073,15 @@ std::string ManagementClient::getAlertByKey(const std::string& key)
 	{
 		std::string url = "/fledge/alert/" + urlEncode(key) ;
 		auto res = this->getHttpClient()->request("GET", url.c_str());
-		Document doc;
-		response = res->content.string();
-		doc.Parse(response.c_str());
-		if (doc.HasParseError())
+		std::string statusCode = res->status_code;
+		if (statusCode.compare("200 OK"))
 		{
-			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
-			m_logger->error("%s fetching alert: %s\n",
-								httpError?"HTTP error while":"Failed to parse result of",
-								response.c_str());
+			m_logger->error("Get alert failed %s.", statusCode.c_str());
+			response = "Status: " + statusCode;
+			return response;
 		}
+
+		response = res->content.string();
 	}
 	catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get alert failed %s.", e.what());
@@ -2094,24 +2093,26 @@ std::string ManagementClient::getAlertByKey(const std::string& key)
 /**
  * Raise an alert
  *
- * @param    payload        Alert payload
+ * @param    key        Alert key
+ * @param    message    Alert message
+ * @param    urgency    Alert urgency
  * @return   whether operation was successful
  */
-bool ManagementClient::raiseAlert(const std::string& payload)
+bool ManagementClient::raiseAlert(const std::string& key, const std::string& message, const std::string& urgency)
 {
 	try
 	{
 		std::string url = "/fledge/alert" ;
-		auto res = this->getHttpClient()->request("POST", url.c_str(), payload);
-		Document doc;
-		std::string response = res->content.string();
-		doc.Parse(response.c_str());
-		if (doc.HasParseError())
+		ostringstream   payload;
+		payload << "{\"key\":\"" << key  << "\","
+					<< "\"message\":\"" << message  << "\","
+					<< "\"urgency\":\"" << urgency  << "\"}";
+
+		auto res = this->getHttpClient()->request("POST", url.c_str(), payload.str());
+		std::string statusCode = res->status_code;
+		if (statusCode.compare("200 OK"))
 		{
-			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
-			m_logger->error("%s raising alert: %s\n",
-								httpError?"HTTP error while":"Failed to parse result of",
-								response.c_str());
+			m_logger->error("Raise alert failed %s.", statusCode.c_str());
 			return false;
 		}
 

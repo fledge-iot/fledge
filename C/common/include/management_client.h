@@ -118,7 +118,7 @@ class ManagementClient {
 		int 			validateDatapoints(std::string dp1, std::string dp2);
 		AssetTrackingTable	*getDeprecatedAssetTrackingTuples();
 		std::string		getAlertByKey(const std::string& key);
-		bool			raiseAlert(const std::string& payload);
+		bool			raiseAlert(const std::string& key, const std::string& message, const std::string& urgency="normal");
 
 	private:
 		std::ostringstream 			m_urlbase;

@@ -155,10 +155,10 @@ std::vector<std::string> UpdateAlerts::getUpgradablePackageList()
 	if(!packageManager.empty())
 	{
 		std::string packageListFile = "/tmp/fledge.upgrade.list";
-		std::string command = "sudo apt update; apt list --upgradeable | grep fledge | cut -d'/' -f1 > " + packageListFile;
+		std::string command = "sudo apt update && sudo apt list --upgradeable | grep fledge | cut -d'/' -f1 > " + packageListFile;
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "sudo yum list updates | grep fledge | cut -d'/' -f1 > " + packageListFile;
+			command = "sudo yum check-update && sudo yum list updates | grep fledge | cut -d'/' -f1 > " + packageListFile;
 			system(command.c_str());
 			std::ifstream file(packageListFile);
 			if(!file.is_open())

@@ -19,21 +19,22 @@ int main(int argc, char** argv)
 
 	try
 	{
-		UpdateAlerts PurgeSystem(argc, argv);
+		UpdateAlerts updateAlerts(argc, argv);
 
-		PurgeSystem.run();
-	}
-	catch (const std::exception& e)
-	{
-		logger->error("An error occurred during the execution, :%s: ", e.what());
-		exit(1);
+		updateAlerts.run();
 	}
 	catch (...)
 	{
-		std::exception_ptr p = std::current_exception();
-		string name = (p ? p.__cxa_exception_type()->name() : "null");
+		try
+                {
+                        std::exception_ptr p = std::current_exception();
+                        std::rethrow_exception(p);
+                }
+                catch(const std::exception& e)
+                {
+                        logger->error("An error occurred during the execution : %s", e.what());
+                }
 
-		logger->error("An error occurred during the execution, :%s: ", name.c_str() );
 		exit(1);
 	}
 

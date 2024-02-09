@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run a Fledge task written in C
 
-# Bash Script to check for expired certificates and repalce with temporary certificates
+# Bash Script to check for new updates and raise alerts
 
 if [ -z ${FLEDGE_ROOT+x} ]; then
     # Set FLEDGE_ROOT as the default directory
@@ -12,13 +12,11 @@ fi
 # Check if the default directory exists
 if [[ ! -d "${FLEDGE_ROOT}" ]]; then
     echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FLEDGE_ROOT before using check_certs."
+    echo "Create the enviroment variable FLEDGE_ROOT before using update_alerts."
     echo "Specify the base directory for Fledge and set the variable with:"
     echo "export FLEDGE_ROOT=<basedir>"
     exit 1
 fi
-
-. $FLEDGE_ROOT/scripts/common/write_log.sh
 
 
 cd "${FLEDGE_ROOT}"

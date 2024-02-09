@@ -15,6 +15,7 @@
 #include <thread>
 #include <csignal>
 #include <fstream>
+#include <errno.h>
 
 using namespace std;
 
@@ -60,17 +61,17 @@ void UpdateAlerts::run()
 
 	if (!m_dryRun)
 	{
-		updateAlets();
+		raiseAlerts();
 	}
 	processEnd();
 }
 
 /**
- * Execute the updateAlets, create an alert for all the packages for which update is available
+ * Execute the raiseAlerts, create an alert for all the packages for which update is available
  */
-void UpdateAlerts::updateAlets()
+void UpdateAlerts::raiseAlerts()
 {
-	m_logger->info("updateAlets running");
+	m_logger->info("raiseAlerts running");
 	try
 	{
 		for (auto key: getUpgradablePackageList())
@@ -79,7 +80,7 @@ void UpdateAlerts::updateAlets()
 			std::string urgency = "normal";
 			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{
-				m_logger->error("Failed to raise alert");
+				m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
 			}
 
 		}
@@ -87,10 +88,16 @@ void UpdateAlerts::updateAlets()
 	}
 	catch (...)
 	{
-		std::exception_ptr p = std::current_exception();
-		string errorInfo = (p ? p.__cxa_exception_type()->name() : "null");
+		try
+		{
+			std::exception_ptr p = std::current_exception();
+			std::rethrow_exception(p);
+		}
+		catch(const std::exception& e)
+		{
+			m_logger->error("Failed to raise alert : %s", e.what());
+		}
 
-		m_logger->error("Failed to raise alert : %s",errorInfo.c_str());
 	}
 }
 
@@ -100,7 +107,7 @@ void UpdateAlerts::updateAlets()
 
 void UpdateAlerts::processEnd()
 {
-	m_logger->info("UpateAlerts completed");
+	m_logger->info("raiseAlerts completed");
 }
 
 /**
@@ -117,7 +124,7 @@ std::string UpdateAlerts::getPackageManager()
 	FILE* pipe = popen(command.c_str(), "r");
 	if (!pipe)
 	{
-		m_logger->debug("getPackageManager: popen call failed");
+		m_logger->error("getPackageManager: popen call failed : %s",strerror(errno));
 		return "";
 	}
 	// read till end of process:

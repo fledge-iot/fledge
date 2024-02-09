@@ -1,5 +1,4 @@
 --- Insert update alerts schedule and process entry
-DELETE FROM fledge.schedules           WHERE id   = '852cd8e4-3c29-440b-89ca-2c7691b0450d';
 DELETE FROM fledge.scheduled_processes WHERE name = 'update alerts';
 
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update alerts', '["tasks/update_alerts"]' );

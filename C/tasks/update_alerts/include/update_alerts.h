@@ -14,6 +14,11 @@
 #include <process.h>
 
 #define LOG_NAME "update_alerts"
+
+/**
+ * UpdateAlerts class
+ */
+
 class UpdateAlerts : public FledgeProcess
 {
 	public:
@@ -25,8 +30,7 @@ class UpdateAlerts : public FledgeProcess
 		Logger *m_logger;
 		ManagementClient *m_mgtClient;
 
-		void raiseError(const char *reason, ...);
-		void updateAlets();
+		void raiseAlerts();
 		std::string getPackageManager();
 		std::vector<std::string> getUpgradablePackageList();
 		void processEnd();

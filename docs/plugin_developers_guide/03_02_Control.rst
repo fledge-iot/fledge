@@ -1,3 +1,11 @@
+.. Links in new tabs
+
+.. |fledge South Random| raw:: html
+
+   <a href="https://github.com/fledge-iot/fledge-south-random" target="_blank">https://github.com/fledge-iot/fledge-south-random</a>
+   <br />
+
+
 Set Point Control
 -----------------
 
@@ -57,7 +65,7 @@ The plugin write entry point is defined as follows
 
 .. code-block:: C
 
-     bool plugin_write(PLUGIN_HANDLE *handle, string name, string value)
+     bool plugin_write(PLUGIN_HANDLE handle, string name, string value)
 
 Where the parameters are;
 
@@ -71,9 +79,9 @@ The return value defines if the write was successful or not. True is returned fo
 
 .. code-block:: C
 
-  bool plugin_write(PLUGIN_HANDLE *handle, string& name, string& value)
+  bool plugin_write(PLUGIN_HANDLE handle, string& name, string& value)
   {
-  Random *random = (Random *)handle;
+  	Random *random = static_cast<Random *>(handle);
 
   	return random->write(operation, name, value);
   }
@@ -120,7 +128,7 @@ The plugin write operation entry point is defined as follows
 
 .. code-block:: C
 
-     bool plugin_operation(PLUGIN_HANDLE *handle, string& operation, int count, PLUGIN_PARAMETER **params)
+     bool plugin_operation(PLUGIN_HANDLE handle, string& operation, int count, PLUGIN_PARAMETER **params)
 
 Where the parameters are;
 
@@ -140,9 +148,9 @@ The following example shows the implementation of the plugin operation entry poi
 
 .. code-block:: C
 
-  bool plugin_operation(PLUGIN_HANDLE *handle, string& operation, int count, PLUGIN_PARAMETER **params)
+  bool plugin_operation(PLUGIN_HANDLE handle, string& operation, int count, PLUGIN_PARAMETER **params)
   {
-  Random *random = (Random *)handle;
+  	Random *random = static_cast<Random *>(handle);
 
   	return random->operation(operation, count, params);
   }
@@ -184,5 +192,7 @@ In this case the implementation in the plugin class is as follows:
   }
 
 In this example, the operation method checks the name of the operation to perform, only a single operation is supported by this plugin. If this operation name differs the method will log an error and return false. If the operation is recognized it will check for any arguments passed in, retrieve and use it. In this case an optional *seed* argument may be passed.
+
+The full source code, including the *Random* class can be found in GitHub |fledge South Random|
 
 There is no actual machine connected here, therefore the operation occurs within the plugin. In the case of a real machine the operation would most likely cause an action on a machine, for example a request to the machine to re-calibrate itself.

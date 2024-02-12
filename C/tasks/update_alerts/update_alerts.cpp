@@ -76,7 +76,7 @@ void UpdateAlerts::raiseAlerts()
 	{
 		for (auto key: getUpgradablePackageList())
 		{
-			std::string message = "A newer version of " + key + "is available for upgrade";
+			std::string message = "A newer version of " + key + " is available for upgrade";
 			std::string urgency = "normal";
 			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{

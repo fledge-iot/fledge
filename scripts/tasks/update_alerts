@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run a Fledge task written in C
 
-# Bash Script to check for new updates and raise alerts
+# Bash Script to invoke Installed packages available upgrade checks binary and raise alerts
 
 if [ -z ${FLEDGE_ROOT+x} ]; then
     # Set FLEDGE_ROOT as the default directory

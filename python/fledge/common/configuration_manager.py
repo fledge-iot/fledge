@@ -35,7 +35,7 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
-                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket'])
+                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket', 'list'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
                           'validity', 'mandatory', 'group'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
@@ -331,6 +331,42 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
                                             'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                            type(entry_val)))
+                # Validate list type and mandatory items
+                elif 'type' in item_val and get_entry_val("type") == 'list':
+                    if not isinstance(entry_val, str):
+                        raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                        'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                       type(entry_val)))
+                    if 'items' not in item_val:
+                        raise KeyError('For {} category, items KV pair must be required '
+                                       'for item name {}.'.format(category_name, item_name))
+                    if entry_name == 'items':
+                        if entry_val not in ("string", "float", "integer"):
+                            raise ValueError("For {} category, items value should either be in string, "
+                                             "float or integer for item name {}".format(category_name, item_name))
+                        default_val = get_entry_val("default")
+                        try:
+                            eval_default_val = ast.literal_eval(default_val)
+                        except:
+                            raise ValueError("For {} category, default value should be passed an array list in "
+                                             "string format for item name {}".format(category_name, item_name))
+                        type_check = str
+                        if entry_val == 'integer':
+                            type_check = int
+                        elif entry_val == 'float':
+                            type_check = float
+                        type_mismatched_message = ("For {} category, all elements should be of same {} type "
+                                                   "in default value for item name {}").format(category_name,
+                                                                                               type_check, item_name)
+                        for s in eval_default_val:
+                            try:
+                                eval_s = s if entry_val == "string" else ast.literal_eval(s)
+                            except:
+                                raise ValueError(type_mismatched_message)
+                            if not isinstance(eval_s, type_check):
+                                raise ValueError(type_mismatched_message)
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '

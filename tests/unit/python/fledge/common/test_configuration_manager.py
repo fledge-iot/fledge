@@ -35,7 +35,7 @@ class TestConfigurationManager:
 
     def test_supported_validate_type_strings(self):
         expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string', 'ACL', 'bucket']
+                'northTask', 'password', 'script', 'string', 'ACL', 'bucket', 'list']
         assert len(expected_types) == len(_valid_type_strings)
         assert sorted(expected_types) == _valid_type_strings
 
@@ -577,7 +577,61 @@ class TestConfigurationManager:
                                                set_value_val_from_default_val=False)
         assert excinfo.type is exc_name
         assert reason == str(excinfo.value)
-        
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A"}}, KeyError,
+         "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": []}}, TypeError,
+         "For {} category, entry value must be a string for item name {} and entry name items; "
+         "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "str"}}, ValueError,
+         "For {} category, items value should either be in string, float or integer for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, ValueError,
+         "For {} category, default value should be passed an array list in string format for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"AJ\"]", "items": "float"}}, ValueError,
+        "For {} category, all elements should be of same <class 'float'> type in default value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"AJ\"]", "items": "integer"}},
+         ValueError, "For {} category, all elements should be of same <class 'int'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"1.04\"]", "items": "integer"}},
+         ValueError, "For {} category, all elements should be of same <class 'int'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({"include": {"description": "multiple", "type": "list", "default": "[\"135\", \"1111\"]", "items": "integer",
+                      "value": "1"},
+        ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"1\"]", "items": "float"}},
+         ValueError, "For {} category, all elements should be of same <class 'float'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+    ])
+    async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
+    @pytest.mark.parametrize("config", [
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[\"first\", \"second\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
+                     "default": "[\"1\", \"0\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "float",
+                     "default": "[\"0.5\", \"123.57\"]"}}
+    ])
+    async def test__validate_category_val_list_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                 set_value_val_from_default_val=True)
+        assert config['include']['default'] == res['include']['default']
+        assert config['include']['default'] == res['include']['value']
+
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
         ("string", "", False),

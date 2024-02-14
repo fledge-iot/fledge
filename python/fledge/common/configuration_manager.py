@@ -1752,21 +1752,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         def in_range(n, start, end):
             return start <= n <= end  # start and end inclusive
 
-        config_item_type = storage_value_entry['type']
-        if config_item_type == 'string':
+        def _validate_length(val):
             if 'length' in storage_value_entry:
-                if len(new_value_entry) > int(storage_value_entry['length']):
+                if len(val) > int(storage_value_entry['length']):
                     raise TypeError('For config item {} you cannot set the new value, beyond the length {}'.format(
                         item_name, storage_value_entry['length']))
 
-        if config_item_type == 'integer' or config_item_type == 'float':
+        def _validate_min_max(_type, val):
             if 'minimum' in storage_value_entry and 'maximum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _min_value = int(storage_value_entry['minimum'])
                     _max_value = int(storage_value_entry['maximum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _min_value = float(storage_value_entry['minimum'])
                     _max_value = float(storage_value_entry['maximum'])
 
@@ -1774,25 +1773,34 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise TypeError('For config item {} you cannot set the new value, beyond the range ({},{})'.format(
                         item_name, storage_value_entry['minimum'], storage_value_entry['maximum']))
             elif 'minimum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _min_value = int(storage_value_entry['minimum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _min_value = float(storage_value_entry['minimum'])
                 if _new_value < _min_value:
                     raise TypeError('For config item {} you cannot set the new value, below {}'.format(item_name,
                                                                                                        _min_value))
             elif 'maximum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _max_value = int(storage_value_entry['maximum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _max_value = float(storage_value_entry['maximum'])
                 if _new_value > _max_value:
                     raise TypeError('For config item {} you cannot set the new value, above {}'.format(item_name,
                                                                                                        _max_value))
+
+
+        config_item_type = storage_value_entry['type']
+        if config_item_type == 'string':
+            _validate_length(new_value_entry)
+
+        if config_item_type == 'integer' or config_item_type == 'float':
+            _validate_min_max(config_item_type, new_value_entry)
+
         if config_item_type == "list":
             eval_new_val = ast.literal_eval(new_value_entry)
             if len(eval_new_val) > len(set(eval_new_val)):
@@ -1814,7 +1822,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             for s in eval_new_val:
                 try:
-                    eval_s = s if storage_value_entry['items'] == "string" else ast.literal_eval(s)
+                    eval_s = s
+                    if storage_value_entry['items'] in ("integer", "float"):
+                        eval_s = ast.literal_eval(s)
+                        _validate_min_max(storage_value_entry['items'], eval_s)
+                    elif storage_value_entry['items'] == 'string':
+                        _validate_length(eval_s)
+                except TypeError as err:
+                    raise ValueError(err)
                 except:
                     raise ValueError(type_mismatched_message)
                 if not isinstance(eval_s, type_check):

@@ -3714,7 +3714,40 @@ class TestConfigurationManager:
          "For config item {} all elements should be of same string type", ValueError),
         ("[\"1\", \"2\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
                                   'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'},
-         "For config item {} all elements should be of same float type", ValueError)
+         "For config item {} all elements should be of same float type", ValueError),
+        ("[\"100\", \"2\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]', 'order': '2',
+                              'items': 'integer', 'listSize': '2', 'value': '[\"34\", \"48\"]', 'minimum': '20'},
+         "For config item {} you cannot set the new value, below 20", ValueError),
+        ("[\"50\", \"49\", \"51\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]',
+                                       'order': '2', 'items': 'integer', 'listSize': '3',
+                                       'value': '[\"34\", \"48\"]', 'maximum': '50'},
+         "For config item {} you cannot set the new value, above 50", ValueError),
+        ("[\"50\", \"49\", \"46\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'},
+         "For config item {} you cannot set the new value, beyond the range (47,50)", ValueError),
+        ("[\"50\", \"49\", \"51\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'},
+         "For config item {} you cannot set the new value, beyond the range (47,50)", ValueError),
+        ("[\"foo\", \"bars\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a1\", \"c1\"]',
+                                 'order': '2', 'items': 'string', 'value': '[\"ab\", \"de\"]', 'listSize': '2',
+                                 'length': '3'},
+         "For config item {} you cannot set the new value, beyond the length 3", ValueError),
+        ("[\"2.6\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"5.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"2.5\"]', 'minimum': '2.5',
+                                  'listSize': '2'}, "For config item {} you cannot set the new value, below 2.5",
+         ValueError),
+        ("[\"2.6\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"1.67\", \"2.5\"]', 'maximum': '2.5',
+                                  'listSize': '2'}, "For config item {} you cannot set the new value, above 2.5",
+         ValueError),
+        ("[\"2.6\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError),
+        ("[\"1.999\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError)
     ])
     def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg, exc_type):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3759,7 +3792,31 @@ class TestConfigurationManager:
         ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
                               'items': 'string', 'listSize': "0", 'value': '[\"abc\", \"def\"]'}),
         ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
-                             'order': '2', 'items': 'float', 'listSize': "0", 'value': '[\"5.67\", \"12.0\"]'})
+                             'order': '2', 'items': 'float', 'listSize': "0", 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[\"100\", \"20\"]", {'description': 'SL', 'type': 'list', 'default': '[\"34\", \"48\"]', 'order': '2',
+                               'items': 'integer', 'listSize': '2', 'value': '[\"34\", \"48\"]', 'minimum': '20'}),
+        ("[\"50\", \"49\", \"0\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"34\", \"48\"]', 'maximum': '50'}),
+        ("[\"50\", \"49\", \"47\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'}),
+        ("[\"50\", \"49\", \"48\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'}),
+        ("[\"foo\", \"bar\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a1\", \"c1\"]',
+                                 'order': '2', 'items': 'string', 'value': '[\"ab\", \"de\"]', 'listSize': '2',
+                                 'length': '3'}),
+        ("[\"2.6\", \"13.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"5.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"2.5\"]', 'minimum': '2.5',
+                                  'listSize': '2'}),
+        ("[\"2.4\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"1.67\", \"2.5\"]', 'maximum': '2.5',
+                                  'listSize': '2'}),
+        ("[\"2.0\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
+        ("[\"2.5\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                         'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'})
     ])
     def test_good__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

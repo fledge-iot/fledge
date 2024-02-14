@@ -37,7 +37,7 @@ _logger = FLCoreLogger().get_logger(__name__)
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket', 'list'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group'])
+                          'validity', 'mandatory', 'group', 'listSize'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -268,7 +268,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0}
+                                     'group': 0, 'listSize': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -345,10 +345,30 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError("For {} category, items value should either be in string, "
                                              "float or integer for item name {}".format(category_name, item_name))
                         default_val = get_entry_val("default")
+                        list_size = -1
+                        if 'listSize' in item_val:
+                            list_size = item_val['listSize']
+                            if not isinstance(list_size, str):
+                                raise TypeError('For {} category, listSize type must be a string for item name {}; '
+                                                'got {}'.format(category_name, item_name, type(list_size)))
+                            if self._validate_type_value('listSize', list_size) is False:
+                                raise ValueError('For {} category, listSize value must be an integer value '
+                                                 'for item name {}'.format(category_name, item_name))
+                            list_size = int(item_val['listSize'])
                         try:
                             eval_default_val = ast.literal_eval(default_val)
+                            if len(eval_default_val) > len(set(eval_default_val)):
+                                raise ArithmeticError("For {} category, default value array elements are not "
+                                                 "unique for item name {}".format(category_name, item_name))
+                            if list_size >= 0:
+                                if len(eval_default_val) != list_size:
+                                    raise ArithmeticError("For {} category, default value array list size limit to "
+                                                          "{} for item name {}".format(category_name,
+                                                                                       list_size, item_name))
+                        except ArithmeticError as err:
+                            raise ValueError(err)
                         except:
-                            raise ValueError("For {} category, default value should be passed an array list in "
+                            raise TypeError("For {} category, default value should be passed an array list in "
                                              "string format for item name {}".format(category_name, item_name))
                         type_check = str
                         if entry_val == 'integer':
@@ -386,8 +406,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         'For {} category, A default value must be given for {}'.format(category_name,
                                                                                                        item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
-                        if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float',
-                                                                                                         entry_val)) is False:
+                        if (self._validate_type_value('integer', entry_val) or
+                            self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
                     elif entry_name in ('displayName', 'group', 'rule', 'validity'):
@@ -395,7 +415,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
                     else:
-                        if self._validate_type_value('integer', entry_val) is False:
+                        if (self._validate_type_value('integer', entry_val) or
+                                self._validate_type_value('listSize', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
 
@@ -1659,7 +1680,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         if _type == 'boolean':
             return _str_to_bool(_value)
-        elif _type == 'integer':
+        elif _type in ('integer', 'listSize'):
             return _str_to_int(_value)
         elif _type == 'float':
             return _str_to_float(_value)
@@ -1772,3 +1793,29 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if _new_value > _max_value:
                     raise TypeError('For config item {} you cannot set the new value, above {}'.format(item_name,
                                                                                                        _max_value))
+        if config_item_type == "list":
+            eval_new_val = ast.literal_eval(new_value_entry)
+            if len(eval_new_val) > len(set(eval_new_val)):
+                raise ValueError("For config item {} elements are not unique".format(item_name))
+            if 'listSize' in storage_value_entry:
+                list_size = int(storage_value_entry['listSize'])
+                if list_size >= 0:
+                    if len(eval_new_val) != list_size:
+                        raise TypeError("For config item {} value array list size limit to {}".format(
+                            item_name, list_size))
+
+            type_mismatched_message = "For config item {} all elements should be of same {} type".format(
+                item_name, storage_value_entry['items'])
+            type_check = str
+            if storage_value_entry['items'] == 'integer':
+                type_check = int
+            elif storage_value_entry['items'] == 'float':
+                type_check = float
+
+            for s in eval_new_val:
+                try:
+                    eval_s = s if storage_value_entry['items'] == "string" else ast.literal_eval(s)
+                except:
+                    raise ValueError(type_mismatched_message)
+                if not isinstance(eval_s, type_check):
+                    raise ValueError(type_mismatched_message)

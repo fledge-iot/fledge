@@ -40,9 +40,10 @@ class TestConfigurationManager:
         assert sorted(expected_types) == _valid_type_strings
 
     def test_supported_optional_items(self):
-        assert 11 == len(_optional_items)
-        assert ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
-                'readonly', 'rule', 'validity'] == _optional_items
+        expected_types = ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
+                          'readonly', 'rule', 'validity', 'listSize']
+        assert len(expected_types) == len(_optional_items)
+        assert sorted(expected_types) == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -587,7 +588,7 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "str"}}, ValueError,
          "For {} category, items value should either be in string, float or integer for item name {}".format(
              CAT_NAME, ITEM_NAME)),
-        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, ValueError,
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
          "For {} category, default value should be passed an array list in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"AJ\"]", "items": "float"}}, ValueError,
@@ -604,6 +605,27 @@ class TestConfigurationManager:
         ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"1\"]", "items": "float"}},
          ValueError, "For {} category, all elements should be of same <class 'float'> type in default "
                      "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "float", "listSize": 1}},
+         TypeError, "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "float", "listSize": ""}},
+         ValueError, "For {} category, listSize value must be an integer value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "float", "listSize": "1"}},
+         ValueError, "For {} category, default value array list size limit to 1 for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1\"]", "items": "integer",
+                      "listSize": "0"}}, ValueError, "For {} category, default value array list size limit to 0 "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"6e7777\", \"1.79e+308\"]",
+                      "items": "float", "listSize": "3"}}, ValueError,
+         "For {} category, default value array list size limit to 3 for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1\", \"2\", \"1\"]", "items": "integer",
+                      "listSize": "3"}}, ValueError, "For {} category, default value array elements are not unique "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"a\", \"b\", \"ab\", \"a\"]",
+                      "items": "string"}}, ValueError, "For {} category, default value array elements are not unique "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -622,7 +644,13 @@ class TestConfigurationManager:
         {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
                      "default": "[\"1\", \"0\"]"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "float",
-                     "default": "[\"0.5\", \"123.57\"]"}}
+                     "default": "[\"0.5\", \"123.57\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "float",
+                     "default": "[\".5\", \"1.79e+308\"]", "listSize": "2"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[\"var1\", \"var2\"]", "listSize": "2"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
+                     "default": "[\"10\", \"100\", \"200\", \"300\"]", "listSize": "4"}},
     ])
     async def test__validate_category_val_list_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -640,13 +668,17 @@ class TestConfigurationManager:
         ("JSON", " ", False),
         ("bucket", "", False),
         ("bucket", " ", False),
+        ("list", "", False),
+        ("list", " ", False),
         ("integer", " ", True),
         ("string", "", True),
         ("string", " ", True),
         ("JSON", "", True),
         ("JSON", " ", True),
         ("bucket", "", True),
-        ("bucket", " ", True)
+        ("bucket", " ", True),
+        ("list", "", True),
+        ("list", " ", True)
     ])
     async def test__validate_category_val_with_optional_mandatory(self, _type, value, from_default_val):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -655,6 +687,9 @@ class TestConfigurationManager:
                                    "mandatory": "true"}}
         if _type == "bucket":
             test_config[ITEM_NAME]['properties'] = {"key": "foo"}
+        elif _type == "list":
+            test_config[ITEM_NAME]['items'] = "string"
+
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
                                                set_value_val_from_default_val=from_default_val)
@@ -3251,7 +3286,9 @@ class TestConfigurationManager:
         ("URL", "coaps://host:6683", True),
         ("password", "not implemented", None),
         ("X509 certificate", "not implemented", None),
-        ("northTask", "valid_north_task", True)
+        ("northTask", "valid_north_task", True),
+        ("listSize", "5", True),
+        ("listSize", "0", True)
     ])
     async def test__validate_type_value(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3283,7 +3320,9 @@ class TestConfigurationManager:
         ("JSON", None),
         ("URL", "blah"),
         ("URL", "example.com"),
-        ("URL", "123:80")
+        ("URL", "123:80"),
+        ("listSize", "Blah"),
+        ("listSize", "None")
         # TODO: can not use urlopen hence we may want to check
         # result.netloc with some regex, but limited
         # ("URL", "http://somevalue.a"),
@@ -3624,34 +3663,67 @@ class TestConfigurationManager:
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_key_name, 'catname', 'itemname', new_value_entry)
 
-    @pytest.mark.parametrize("new_value_entry, storage_value_entry, exc_msg", [
+    @pytest.mark.parametrize("new_value_entry, storage_value_entry, exc_msg, exc_type", [
         ("Fledge", {'default': 'FOG', 'length': '3', 'displayName': 'Length Test', 'value': 'fog', 'type': 'string',
-                    'description': 'Test value '}, 'beyond the length 3'),
+                    'description': 'Test value '},
+         'For config item {} you cannot set the new value, beyond the length 3', TypeError),
         ("0", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMin Test',
-               'value': '15', 'type': 'integer', 'description': 'Test value'}, 'beyond the range (10,19)'),
+               'value': '15', 'type': 'integer', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, beyond the range (10,19)', TypeError),
         ("20", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
-                'value': '19', 'type': 'integer', 'description': 'Test value'}, 'beyond the range (10,19)'),
+                'value': '19', 'type': 'integer', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, beyond the range (10,19)', TypeError),
         ("1", {'order': '5', 'default': '2', 'minimum': '2', 'displayName': 'MIN', 'value': '10', 'type': 'integer',
-               'description': 'Test value '}, 'below 2'),
+               'description': 'Test value '}, 'For config item {} you cannot set the new value, below 2', TypeError),
         ("11", {'default': '10', 'maximum': '10', 'displayName': 'MAX', 'value': '10', 'type': 'integer',
-                'description': 'Test value'}, 'above 10'),
+                'description': 'Test value'}, 'For config item {} you cannot set the new value, above 10', TypeError),
         ("19.0", {'default': '19.3', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMin Test',
-                  'value': '19.1', 'type': 'float', 'description': 'Test val'}, 'beyond the range (19.1,19.5)'),
+                  'value': '19.1', 'type': 'float', 'description': 'Test val'},
+         'For config item {} you cannot set the new value, beyond the range (19.1,19.5)', TypeError),
         ("19.6", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMax Test',
-                  'value': '19.5', 'type': 'float', 'description': 'Test val'}, 'beyond the range (19.1,19.5)'),
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'},
+         'For config item {} you cannot set the new value, beyond the range (19.1,19.5)', TypeError),
         ("20", {'order': '8', 'default': '10.1', 'maximum': '19.8', 'displayName': 'MAX Test', 'value': '10.1',
-                'type': 'float', 'description': 'Test value'}, 'above 19.8'),
+                'type': 'float', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, above 19.8', TypeError),
         ("0.7", {'order': '9', 'default': '0.9', 'minimum': '0.8', 'displayName': 'MIN Test', 'value': '0.9',
-                 'type': 'float', 'description': 'Test value'}, 'below 0.8')
+                 'type': 'float', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, below 0.8', TypeError),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"1\"]', 'order': '2',
+                'items': 'integer', 'listSize': '2', 'value': '[\"1\", \"2\"]'},
+         "For config item {} value array list size limit to 2", TypeError),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"foo\"]', 'order': '2',
+                'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
+         "For config item {} value array list size limit to 1", TypeError),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.4\", \".03\", \"50.67\"]', 'order': '2',
+                'items': 'float', 'listSize': '3', 'value': '[\"1.4\", \".03\", \"50.67\"]'},
+         "For config item {} value array list size limit to 3", TypeError),
+        ("[\"10\", \"10\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                'items': 'integer', 'value': '[\"3\", \"4\"]'}, "For config item {} elements are not unique", ValueError),
+        ("[\"foo\", \"foo\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                              'items': 'string', 'value': '[\"abc\", \"def\"]'},
+         "For config item {} elements are not unique", ValueError),
+        ("[\".002\", \".002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'},
+         "For config item {} elements are not unique", ValueError),
+        ("[\"10\", \"foo\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                              'items': 'integer', 'value': '[\"3\", \"4\"]'},
+         "For config item {} all elements should be of same integer type", ValueError),
+        ("[\"foo\", 1]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'value': '[\"abc\", \"def\"]'},
+         "For config item {} all elements should be of same string type", ValueError),
+        ("[\"1\", \"2\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'},
+         "For config item {} all elements should be of same float type", ValueError)
     ])
-    def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg):
-        message = "For config item {} you cannot set the new value, {}".format(ITEM_NAME, exc_msg)
+    def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg, exc_type):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(Exception) as exc_info:
             c_mgr._validate_value_per_optional_attribute(ITEM_NAME, storage_value_entry, new_value_entry)
-        assert excinfo.type is TypeError
-        assert message == str(excinfo.value)
+        assert exc_info.type is exc_type
+        msg = exc_msg.format(ITEM_NAME)
+        assert msg == str(exc_info.value)
 
     @pytest.mark.parametrize("new_value_entry, storage_value_entry", [
         ("Fledge", {'default': 'FOG', 'length': '7', 'displayName': 'Length Test', 'value': 'fledge',
@@ -3669,7 +3741,25 @@ class TestConfigurationManager:
         ("19", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
                 'value': '15', 'type': 'integer', 'description': 'Test value'}),
         ("15", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'Range Test',
-                'value': '15', 'type': 'integer', 'description': 'Test value'})
+                'value': '15', 'type': 'integer', 'description': 'Test value'}),
+        ("[\"10\", \"20\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                              'items': 'integer', 'value': '[\"3\", \"4\"]'}),
+        ("[\"foo\", \"bar\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'value': '[\"abc\", \"def\"]'}),
+        ("[\".002\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[\"10\", \"20\", \"30\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': "3", 'value': '[\"3\", \"4\"]'}),
+        ("[\"new string\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'listSize': "1", 'value': '[\"abc\", \"def\"]'}),
+        ("[\"6.523e-07\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                   'order': '2', 'items': 'float', 'listSize': "1", 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': "0", 'value': '[\"3\", \"4\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                              'items': 'string', 'listSize': "0", 'value': '[\"abc\", \"def\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                             'order': '2', 'items': 'float', 'listSize': "0", 'value': '[\"5.67\", \"12.0\"]'})
     ])
     def test_good__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

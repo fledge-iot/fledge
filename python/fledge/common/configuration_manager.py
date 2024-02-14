@@ -1802,7 +1802,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _validate_min_max(config_item_type, new_value_entry)
 
         if config_item_type == "list":
-            eval_new_val = ast.literal_eval(new_value_entry)
+            try:
+                eval_new_val = ast.literal_eval(new_value_entry)
+            except:
+                raise TypeError("For config item {} value should be passed an array list in string format".format(
+                    item_name))
             if len(eval_new_val) > len(set(eval_new_val)):
                 raise ValueError("For config item {} elements are not unique".format(item_name))
             if 'listSize' in storage_value_entry:

@@ -1815,20 +1815,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         if config_item_type == 'integer' or config_item_type == 'float':
             _validate_min_max(config_item_type, new_value_entry)
 
-        if config_item_type == "list":
+        if config_item_type in ("list", "kvlist"):
+            msg = "array" if config_item_type == 'list' else "KV pair"
             try:
                 eval_new_val = ast.literal_eval(new_value_entry)
             except:
-                raise TypeError("For config item {} value should be passed an array list in string format".format(
-                    item_name))
+                raise TypeError("For config item {} value should be passed {} list in string format".format(
+                    item_name, msg))
             if len(eval_new_val) > len(set(eval_new_val)):
                 raise ValueError("For config item {} elements are not unique".format(item_name))
             if 'listSize' in storage_value_entry:
                 list_size = int(storage_value_entry['listSize'])
                 if list_size >= 0:
                     if len(eval_new_val) != list_size:
-                        raise TypeError("For config item {} value array list size limit to {}".format(
-                            item_name, list_size))
+                        raise TypeError("For config item {} value {} list size limit to {}".format(
+                            item_name, msg, list_size))
 
             type_mismatched_message = "For config item {} all elements should be of same {} type".format(
                 item_name, storage_value_entry['items'])
@@ -1838,17 +1839,36 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             elif storage_value_entry['items'] == 'float':
                 type_check = float
 
-            for s in eval_new_val:
-                try:
-                    eval_s = s
-                    if storage_value_entry['items'] in ("integer", "float"):
-                        eval_s = ast.literal_eval(s)
-                        _validate_min_max(storage_value_entry['items'], eval_s)
-                    elif storage_value_entry['items'] == 'string':
-                        _validate_length(eval_s)
-                except TypeError as err:
-                    raise ValueError(err)
-                except:
-                    raise ValueError(type_mismatched_message)
-                if not isinstance(eval_s, type_check):
-                    raise ValueError(type_mismatched_message)
+            if config_item_type == 'kvlist':
+                if not isinstance(eval_new_val, dict):
+                    raise TypeError("For config item {} KV pair invalid".format(item_name))
+                for k, v in eval_new_val.items():
+                    try:
+                        eval_s = v
+                        if storage_value_entry['items'] in ("integer", "float"):
+                            eval_s = ast.literal_eval(v)
+                            _validate_min_max(storage_value_entry['items'], eval_s)
+                        elif storage_value_entry['items'] == 'string':
+                            _validate_length(eval_s)
+                    except TypeError as err:
+                        raise ValueError(err)
+                    except:
+                        raise ValueError(type_mismatched_message)
+                    if not isinstance(eval_s, type_check):
+                        raise ValueError(type_mismatched_message)
+            else:
+                for s in eval_new_val:
+                    try:
+                        eval_s = s
+                        if storage_value_entry['items'] in ("integer", "float"):
+                            eval_s = ast.literal_eval(s)
+                            _validate_min_max(storage_value_entry['items'], eval_s)
+                        elif storage_value_entry['items'] == 'string':
+                            _validate_length(eval_s)
+                    except TypeError as err:
+                        raise ValueError(err)
+                    except:
+                        raise ValueError(type_mismatched_message)
+                    if not isinstance(eval_s, type_check):
+                        raise ValueError(type_mismatched_message)
+

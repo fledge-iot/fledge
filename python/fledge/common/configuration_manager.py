@@ -35,7 +35,8 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
-                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket', 'list'])
+                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
+                              'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
                           'validity', 'mandatory', 'group', 'listSize'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
@@ -332,7 +333,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                             'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                            type(entry_val)))
                 # Validate list type and mandatory items
-                elif 'type' in item_val and get_entry_val("type") == 'list':
+                elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
                     if not isinstance(entry_val, str):
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
@@ -355,21 +356,22 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 raise ValueError('For {} category, listSize value must be an integer value '
                                                  'for item name {}'.format(category_name, item_name))
                             list_size = int(item_val['listSize'])
+                        msg = "array" if item_val['type'] == 'list' else "KV pair"
                         try:
                             eval_default_val = ast.literal_eval(default_val)
                             if len(eval_default_val) > len(set(eval_default_val)):
-                                raise ArithmeticError("For {} category, default value array elements are not "
-                                                 "unique for item name {}".format(category_name, item_name))
+                                raise ArithmeticError("For {} category, default value {} elements are not "
+                                                 "unique for item name {}".format(category_name, msg, item_name))
                             if list_size >= 0:
                                 if len(eval_default_val) != list_size:
-                                    raise ArithmeticError("For {} category, default value array list size limit to "
-                                                          "{} for item name {}".format(category_name,
+                                    raise ArithmeticError("For {} category, default value {} list size limit to "
+                                                          "{} for item name {}".format(category_name, msg,
                                                                                        list_size, item_name))
                         except ArithmeticError as err:
                             raise ValueError(err)
                         except:
-                            raise TypeError("For {} category, default value should be passed an array list in "
-                                             "string format for item name {}".format(category_name, item_name))
+                            raise TypeError("For {} category, default value should be passed {} list in string "
+                                            "format for item name {}".format(category_name, msg, item_name))
                         type_check = str
                         if entry_val == 'integer':
                             type_check = int
@@ -378,13 +380,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         type_mismatched_message = ("For {} category, all elements should be of same {} type "
                                                    "in default value for item name {}").format(category_name,
                                                                                                type_check, item_name)
-                        for s in eval_default_val:
-                            try:
-                                eval_s = s if entry_val == "string" else ast.literal_eval(s)
-                            except:
-                                raise ValueError(type_mismatched_message)
-                            if not isinstance(eval_s, type_check):
-                                raise ValueError(type_mismatched_message)
+                        if item_val['type'] == 'kvlist':
+                            if not isinstance(eval_default_val, dict):
+                                raise TypeError("For {} category, KV pair invalid in default value for item name {}"
+                                                "".format(category_name, item_name))
+                            for k, v in eval_default_val.items():
+                                try:
+                                    eval_s = v if entry_val == "string" else ast.literal_eval(v)
+                                except:
+                                    raise ValueError(type_mismatched_message)
+                                if not isinstance(eval_s, type_check):
+                                    raise ValueError(type_mismatched_message)
+                        else:
+                            for s in eval_default_val:
+                                try:
+                                    eval_s = s if entry_val == "string" else ast.literal_eval(s)
+                                except:
+                                    raise ValueError(type_mismatched_message)
+                                if not isinstance(eval_s, type_check):
+                                    raise ValueError(type_mismatched_message)
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
                 else:

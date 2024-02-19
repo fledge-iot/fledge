@@ -334,7 +334,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                            type(entry_val)))
                 # Validate list type and mandatory items
                 elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
-                    if not isinstance(entry_val, str):
+                    if entry_name != 'properties' and not isinstance(entry_val, str):
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
@@ -342,9 +342,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
                     if entry_name == 'items':
-                        if entry_val not in ("string", "float", "integer"):
-                            raise ValueError("For {} category, items value should either be in string, "
-                                             "float or integer for item name {}".format(category_name, item_name))
+                        if entry_val not in ("string", "float", "integer", "object"):
+                            raise ValueError("For {} category, items value should either be in string, float, integer "
+                                             "or object for item name {}".format(category_name, item_name))
+                        if entry_val == 'object':
+                            if 'properties' not in item_val:
+                                raise KeyError('For {} category, properties KV pair must be required for item name {}'.format(category_name, item_name))
+                            prop_val = get_entry_val('properties')
+                            if not isinstance(prop_val, dict):
+                                raise ValueError(
+                                    'For {} category, properties must be JSON object for item name {}; got {}'
+                                    .format(category_name, item_name, type(prop_val)))
+                            if not prop_val:
+                                raise ValueError(
+                                    'For {} category, properties JSON object cannot be empty for item name {}'
+                                    ''.format(category_name, item_name))
                         default_val = get_entry_val("default")
                         list_size = -1
                         if 'listSize' in item_val:
@@ -357,68 +369,72 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                  'for item name {}'.format(category_name, item_name))
                             list_size = int(item_val['listSize'])
                         msg = "array" if item_val['type'] == 'list' else "KV pair"
-                        try:
-                            eval_default_val = ast.literal_eval(default_val)
-                            if item_val['type'] == 'list':
-                                if len(eval_default_val) > len(set(eval_default_val)):
-                                    raise ArithmeticError("For {} category, default value {} elements are not "
-                                                          "unique for item name {}".format(category_name, msg,
-                                                                                           item_name))
-                            else:
-                                if isinstance(eval_default_val, dict) and eval_default_val:
-                                    nv = default_val.replace("{", "")
-                                    unique_list = []
-                                    for pair in nv.split(','):
-                                        if pair:
-                                            k, v = pair.split(':')
-                                            ks = k.strip()
-                                            if ks not in unique_list:
-                                                unique_list.append(ks)
+                        if entry_name == 'items' and entry_val != "object":
+                            try:
+                                eval_default_val = ast.literal_eval(default_val)
+                                if item_val['type'] == 'list':
+                                    if len(eval_default_val) > len(set(eval_default_val)):
+                                        raise ArithmeticError("For {} category, default value {} elements are not "
+                                                              "unique for item name {}".format(category_name, msg,
+                                                                                               item_name))
+                                else:
+                                    if isinstance(eval_default_val, dict) and eval_default_val:
+                                        nv = default_val.replace("{", "")
+                                        unique_list = []
+                                        for pair in nv.split(','):
+                                            if pair:
+                                                k, v = pair.split(':')
+                                                ks = k.strip()
+                                                if ks not in unique_list:
+                                                    unique_list.append(ks)
+                                                else:
+                                                    raise ArithmeticError("For category {}, duplicate KV pair found "
+                                                                          "for item name {}".format(
+                                                        category_name, item_name))
                                             else:
-                                                raise ArithmeticError("For category {}, duplicate KV pair found for "
-                                                                      "item name {}".format(category_name,
-                                                                                             item_name))
-                                        else:
-                                            raise ArithmeticError("For {} category, KV pair invalid in default value "
-                                                                  "for item name {}".format(category_name,
-                                                                                            item_name))
-                            if list_size >= 0:
-                                if len(eval_default_val) != list_size:
-                                    raise ArithmeticError("For {} category, default value {} list size limit to "
-                                                          "{} for item name {}".format(category_name, msg,
-                                                                                       list_size, item_name))
-                        except ArithmeticError as err:
-                            raise ValueError(err)
-                        except:
-                            raise TypeError("For {} category, default value should be passed {} list in string "
-                                            "format for item name {}".format(category_name, msg, item_name))
-                        type_check = str
-                        if entry_val == 'integer':
-                            type_check = int
-                        elif entry_val == 'float':
-                            type_check = float
-                        type_mismatched_message = ("For {} category, all elements should be of same {} type "
-                                                   "in default value for item name {}").format(category_name,
-                                                                                               type_check, item_name)
-                        if item_val['type'] == 'kvlist':
-                            if not isinstance(eval_default_val, dict):
-                                raise TypeError("For {} category, KV pair invalid in default value for item name {}"
-                                                "".format(category_name, item_name))
-                            for k, v in eval_default_val.items():
-                                try:
-                                    eval_s = v if entry_val == "string" else ast.literal_eval(v)
-                                except:
-                                    raise ValueError(type_mismatched_message)
-                                if not isinstance(eval_s, type_check):
-                                    raise ValueError(type_mismatched_message)
-                        else:
-                            for s in eval_default_val:
-                                try:
-                                    eval_s = s if entry_val == "string" else ast.literal_eval(s)
-                                except:
-                                    raise ValueError(type_mismatched_message)
-                                if not isinstance(eval_s, type_check):
-                                    raise ValueError(type_mismatched_message)
+                                                raise ArithmeticError("For {} category, KV pair invalid in default "
+                                                                      "value for item name {}".format(
+                                                    category_name, item_name))
+                                if list_size >= 0:
+                                    if len(eval_default_val) != list_size:
+                                        raise ArithmeticError("For {} category, default value {} list size limit to "
+                                                              "{} for item name {}".format(category_name, msg,
+                                                                                           list_size, item_name))
+                            except ArithmeticError as err:
+                                raise ValueError(err)
+                            except:
+                                raise TypeError("For {} category, default value should be passed {} list in string "
+                                                "format for item name {}".format(category_name, msg, item_name))
+                            type_check = str
+                            if entry_val == 'integer':
+                                type_check = int
+                            elif entry_val == 'float':
+                                type_check = float
+                            type_mismatched_message = ("For {} category, all elements should be of same {} type "
+                                                       "in default value for item name {}").format(category_name,
+                                                                                                   type_check, item_name)
+                            if item_val['type'] == 'kvlist':
+                                if not isinstance(eval_default_val, dict):
+                                    raise TypeError("For {} category, KV pair invalid in default value for item name {}"
+                                                    "".format(category_name, item_name))
+                                for k, v in eval_default_val.items():
+                                    try:
+                                        eval_s = v if entry_val == "string" else ast.literal_eval(v)
+                                    except:
+                                        raise ValueError(type_mismatched_message)
+                                    if not isinstance(eval_s, type_check):
+                                        raise ValueError(type_mismatched_message)
+                            else:
+                                for s in eval_default_val:
+                                    try:
+                                        eval_s = s if entry_val == "string" else ast.literal_eval(s)
+                                    except:
+                                        raise ValueError(type_mismatched_message)
+                                    if not isinstance(eval_s, type_check):
+                                        raise ValueError(type_mismatched_message)
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
+                    if entry_name == 'properties':
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
                 else:
@@ -1835,75 +1851,76 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _validate_min_max(config_item_type, new_value_entry)
 
         if config_item_type in ("list", "kvlist"):
-            msg = "array" if config_item_type == 'list' else "KV pair"
-            try:
-                eval_new_val = ast.literal_eval(new_value_entry)
-            except:
-                raise TypeError("For config item {} value should be passed {} list in string format".format(
-                    item_name, msg))
+            if storage_value_entry['items'] != 'object':
+                msg = "array" if config_item_type == 'list' else "KV pair"
+                try:
+                    eval_new_val = ast.literal_eval(new_value_entry)
+                except:
+                    raise TypeError("For config item {} value should be passed {} list in string format".format(
+                        item_name, msg))
 
-            if config_item_type == 'list':
-                if len(eval_new_val) > len(set(eval_new_val)):
-                    raise ValueError("For config item {} elements are not unique".format(item_name))
-            else:
-                if isinstance(eval_new_val, dict) and eval_new_val:
-                    nv = new_value_entry.replace("{", "")
-                    unique_list = []
-                    for pair in nv.split(','):
-                        if pair:
-                            k, v = pair.split(':')
-                            ks = k.strip()
-                            if ks not in unique_list:
-                                unique_list.append(ks)
+                if config_item_type == 'list':
+                    if len(eval_new_val) > len(set(eval_new_val)):
+                        raise ValueError("For config item {} elements are not unique".format(item_name))
+                else:
+                    if isinstance(eval_new_val, dict) and eval_new_val:
+                        nv = new_value_entry.replace("{", "")
+                        unique_list = []
+                        for pair in nv.split(','):
+                            if pair:
+                                k, v = pair.split(':')
+                                ks = k.strip()
+                                if ks not in unique_list:
+                                    unique_list.append(ks)
+                                else:
+                                    raise TypeError("For config item {} duplicate KV pair found".format(item_name))
                             else:
-                                raise TypeError("For config item {} duplicate KV pair found".format(item_name))
-                        else:
-                            raise TypeError("For config item {} KV pair invalid".format(item_name))
-            if 'listSize' in storage_value_entry:
-                list_size = int(storage_value_entry['listSize'])
-                if list_size >= 0:
-                    if len(eval_new_val) != list_size:
-                        raise TypeError("For config item {} value {} list size limit to {}".format(
-                            item_name, msg, list_size))
+                                raise TypeError("For config item {} KV pair invalid".format(item_name))
+                if 'listSize' in storage_value_entry:
+                    list_size = int(storage_value_entry['listSize'])
+                    if list_size >= 0:
+                        if len(eval_new_val) != list_size:
+                            raise TypeError("For config item {} value {} list size limit to {}".format(
+                                item_name, msg, list_size))
 
-            type_mismatched_message = "For config item {} all elements should be of same {} type".format(
-                item_name, storage_value_entry['items'])
-            type_check = str
-            if storage_value_entry['items'] == 'integer':
-                type_check = int
-            elif storage_value_entry['items'] == 'float':
-                type_check = float
+                type_mismatched_message = "For config item {} all elements should be of same {} type".format(
+                    item_name, storage_value_entry['items'])
+                type_check = str
+                if storage_value_entry['items'] == 'integer':
+                    type_check = int
+                elif storage_value_entry['items'] == 'float':
+                    type_check = float
 
-            if config_item_type == 'kvlist':
-                if not isinstance(eval_new_val, dict):
-                    raise TypeError("For config item {} KV pair invalid".format(item_name))
-                for k, v in eval_new_val.items():
-                    try:
-                        eval_s = v
-                        if storage_value_entry['items'] in ("integer", "float"):
-                            eval_s = ast.literal_eval(v)
-                            _validate_min_max(storage_value_entry['items'], eval_s)
-                        elif storage_value_entry['items'] == 'string':
-                            _validate_length(eval_s)
-                    except TypeError as err:
-                        raise ValueError(err)
-                    except:
-                        raise ValueError(type_mismatched_message)
-                    if not isinstance(eval_s, type_check):
-                        raise ValueError(type_mismatched_message)
-            else:
-                for s in eval_new_val:
-                    try:
-                        eval_s = s
-                        if storage_value_entry['items'] in ("integer", "float"):
-                            eval_s = ast.literal_eval(s)
-                            _validate_min_max(storage_value_entry['items'], eval_s)
-                        elif storage_value_entry['items'] == 'string':
-                            _validate_length(eval_s)
-                    except TypeError as err:
-                        raise ValueError(err)
-                    except:
-                        raise ValueError(type_mismatched_message)
-                    if not isinstance(eval_s, type_check):
-                        raise ValueError(type_mismatched_message)
+                if config_item_type == 'kvlist':
+                    if not isinstance(eval_new_val, dict):
+                        raise TypeError("For config item {} KV pair invalid".format(item_name))
+                    for k, v in eval_new_val.items():
+                        try:
+                            eval_s = v
+                            if storage_value_entry['items'] in ("integer", "float"):
+                                eval_s = ast.literal_eval(v)
+                                _validate_min_max(storage_value_entry['items'], eval_s)
+                            elif storage_value_entry['items'] == 'string':
+                                _validate_length(eval_s)
+                        except TypeError as err:
+                            raise ValueError(err)
+                        except:
+                            raise ValueError(type_mismatched_message)
+                        if not isinstance(eval_s, type_check):
+                            raise ValueError(type_mismatched_message)
+                else:
+                    for s in eval_new_val:
+                        try:
+                            eval_s = s
+                            if storage_value_entry['items'] in ("integer", "float"):
+                                eval_s = ast.literal_eval(s)
+                                _validate_min_max(storage_value_entry['items'], eval_s)
+                            elif storage_value_entry['items'] == 'string':
+                                _validate_length(eval_s)
+                        except TypeError as err:
+                            raise ValueError(err)
+                        except:
+                            raise ValueError(type_mismatched_message)
+                        if not isinstance(eval_s, type_check):
+                            raise ValueError(type_mismatched_message)
 

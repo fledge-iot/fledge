@@ -587,7 +587,7 @@ class TestConfigurationManager:
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "str"}}, ValueError,
-         "For {} category, items value should either be in string, float or integer for item name {}".format(
+         "For {} category, items value should either be in string, float, integer or object for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
          "For {} category, default value should be passed array list in string format for item name {}".format(
@@ -627,13 +627,28 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"a\", \"b\", \"ab\", \"a\"]",
                       "items": "string"}}, ValueError, "For {} category, default value array elements are not unique "
                                                      "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                                                  "{}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": 1}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": ""}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {}}}, ValueError,
+         "For {} category, properties JSON object cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "str"}}, ValueError,
-         "For {} category, items value should either be in string, float or integer for item name {}".format(
+         "For {} category, items value should either be in string, float, integer or object for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "string"}}, TypeError,
          "For {} category, default value should be passed KV pair list in string format for item name {}".format(
@@ -690,7 +705,25 @@ class TestConfigurationManager:
                                                      " item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "float",
                       "listSize": "0"}}, ValueError, "For {} category, default value KV pair list size limit to 0 "
-                                                     "for item name {}".format(CAT_NAME, ITEM_NAME))
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object"
+                      }}, KeyError, "'For {} category, properties KV pair must be required for item name {}'".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                                                  "{}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": 1}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": ""}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {}}}, ValueError,
+         "For {} category, properties JSON object cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -716,6 +749,10 @@ class TestConfigurationManager:
                      "default": "[\"var1\", \"var2\"]", "listSize": "2"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
                      "default": "[\"10\", \"100\", \"200\", \"300\"]", "listSize": "4"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "object",
+                     "default": "[{\"datapoint\": \"voltage\"}]",
+                     "properties": {"datapoint": {"description": "The datapoint name to create", "displayName":
+                         "Datapoint", "type": "string", "default": ""}}}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
                     "default": "{}", "order": "1", "displayName": "labels"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
@@ -729,7 +766,11 @@ class TestConfigurationManager:
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "integer",
                      "default": "{\"key\": \"13\"}", "order": "1", "displayName": "labels", "listSize": "1"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
-                     "default": "{\"key\": \"13.13\"}", "order": "1", "displayName": "labels", "listSize": "1"}}
+                     "default": "{\"key\": \"13.13\"}", "order": "1", "displayName": "labels", "listSize": "1"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "object",
+                     "default": "{\"register\": {\"width\": \"2\"}}", "order": "1", "displayName": "labels",
+                     "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
+                                              "type": "integer", "maximum": "4", "default": "1"}}}}
     ])
     async def test__validate_category_val_list_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

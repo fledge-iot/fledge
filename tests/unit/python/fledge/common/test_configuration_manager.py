@@ -723,6 +723,38 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {}}}, ValueError,
          "For {} category, properties JSON object cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": 1}}}, TypeError,
+         "For {} category, Properties must be a JSON object for width key for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {}}}}, ValueError,
+         "For {} category, width properties cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object","properties": {"width": {"type": ""}}}}, ValueError,
+        "For {} category, width properties must have type, description, default keys for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"description": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"type": "", "description": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"type": "", "default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"description": "", "default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
              CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):

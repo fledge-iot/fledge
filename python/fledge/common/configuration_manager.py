@@ -347,7 +347,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              "or object for item name {}".format(category_name, item_name))
                         if entry_val == 'object':
                             if 'properties' not in item_val:
-                                raise KeyError('For {} category, properties KV pair must be required for item name {}'.format(category_name, item_name))
+                                raise KeyError('For {} category, properties KV pair must be required for item name {}'
+                                               ''.format(category_name, item_name))
                             prop_val = get_entry_val('properties')
                             if not isinstance(prop_val, dict):
                                 raise ValueError(
@@ -357,6 +358,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 raise ValueError(
                                     'For {} category, properties JSON object cannot be empty for item name {}'
                                     ''.format(category_name, item_name))
+                            for kp, vp in prop_val.items():
+                                if isinstance(vp, dict):
+                                    prop_keys = list(vp.keys())
+                                    if not prop_keys:
+                                        raise ValueError('For {} category, {} properties cannot be empty for '
+                                                         'item name {}'.format(category_name, kp, item_name))
+                                    diff = {'description', 'default', 'type'} - set(prop_keys)
+                                    if diff:
+                                        raise ValueError('For {} category, {} properties must have type, description, '
+                                                         'default keys for item name {}'.format(category_name,
+                                                                                                kp, item_name))
+                                else:
+                                    raise TypeError('For {} category, Properties must be a JSON object for {} key '
+                                                    'for item name {}'.format(category_name, kp, item_name))
+
                         default_val = get_entry_val("default")
                         list_size = -1
                         if 'listSize' in item_val:

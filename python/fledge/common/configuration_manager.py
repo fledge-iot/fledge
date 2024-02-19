@@ -359,9 +359,29 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         msg = "array" if item_val['type'] == 'list' else "KV pair"
                         try:
                             eval_default_val = ast.literal_eval(default_val)
-                            if len(eval_default_val) > len(set(eval_default_val)):
-                                raise ArithmeticError("For {} category, default value {} elements are not "
-                                                 "unique for item name {}".format(category_name, msg, item_name))
+                            if item_val['type'] == 'list':
+                                if len(eval_default_val) > len(set(eval_default_val)):
+                                    raise ArithmeticError("For {} category, default value {} elements are not "
+                                                          "unique for item name {}".format(category_name, msg,
+                                                                                           item_name))
+                            else:
+                                if isinstance(eval_default_val, dict) and eval_default_val:
+                                    nv = default_val.replace("{", "")
+                                    unique_list = []
+                                    for pair in nv.split(','):
+                                        if pair:
+                                            k, v = pair.split(':')
+                                            ks = k.strip()
+                                            if ks not in unique_list:
+                                                unique_list.append(ks)
+                                            else:
+                                                raise ArithmeticError("For category {}, duplicate KV pair found for "
+                                                                      "item name {}".format(category_name,
+                                                                                             item_name))
+                                        else:
+                                            raise ArithmeticError("For {} category, KV pair invalid in default value "
+                                                                  "for item name {}".format(category_name,
+                                                                                            item_name))
                             if list_size >= 0:
                                 if len(eval_default_val) != list_size:
                                     raise ArithmeticError("For {} category, default value {} list size limit to "
@@ -1807,7 +1827,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise TypeError('For config item {} you cannot set the new value, above {}'.format(item_name,
                                                                                                        _max_value))
 
-
         config_item_type = storage_value_entry['type']
         if config_item_type == 'string':
             _validate_length(new_value_entry)
@@ -1822,8 +1841,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             except:
                 raise TypeError("For config item {} value should be passed {} list in string format".format(
                     item_name, msg))
-            if len(eval_new_val) > len(set(eval_new_val)):
-                raise ValueError("For config item {} elements are not unique".format(item_name))
+
+            if config_item_type == 'list':
+                if len(eval_new_val) > len(set(eval_new_val)):
+                    raise ValueError("For config item {} elements are not unique".format(item_name))
+            else:
+                if isinstance(eval_new_val, dict) and eval_new_val:
+                    nv = new_value_entry.replace("{", "")
+                    unique_list = []
+                    for pair in nv.split(','):
+                        if pair:
+                            k, v = pair.split(':')
+                            ks = k.strip()
+                            if ks not in unique_list:
+                                unique_list.append(ks)
+                            else:
+                                raise TypeError("For config item {} duplicate KV pair found".format(item_name))
+                        else:
+                            raise TypeError("For config item {} KV pair invalid".format(item_name))
             if 'listSize' in storage_value_entry:
                 list_size = int(storage_value_entry['listSize'])
                 if list_size >= 0:

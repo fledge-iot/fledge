@@ -679,8 +679,7 @@ class TestConfigurationManager:
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listSize": "2"}},
-         ValueError, "For {} category, default value KV pair list size limit to 2 for item name {}".format(
-            CAT_NAME, ITEM_NAME)),
+         ValueError, "For category {}, duplicate KV pair found for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key1\": \"val2\"}", "items": "float", "listSize": "2"}},
          ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
@@ -3859,7 +3858,10 @@ class TestConfigurationManager:
         ("{}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
                 'items': 'float', 'listSize': '3', 'value': '{\"key\": \"val\"}'},
          "For config item {} value KV pair list size limit to 3", TypeError),
-        ("{\"key\": \"val\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}', 'order': '2',
+        ("{\"key\": \"1.2\", \"key\": \"1.23\"}", {'description': 'Simple list', 'type': 'kvlist', 'default': '{\"key\": \"11.12\"}',
+                                  'order': '2', 'items': 'float', 'value': '{\"key\": \"1.4\"}'},
+         "For config item {} duplicate KV pair found", TypeError),
+        ("{\"key\": \"val\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}',
                                'items': 'integer', 'value': '{\"key\": \"13\"}'},
          "For config item {} all elements should be of same integer type", ValueError),
         ("{\"key\": 1}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"a\": \"c\"}', 'order': '2',

@@ -176,6 +176,12 @@ async def delete_service(request):
 
         # Update deprecated timestamp in asset_tracker
         await update_deprecated_ts_in_asset_tracker(storage, svc)
+
+        # Delete user alerts
+        try:
+            await server.Server._alert_manager.delete(svc)
+        except:
+            pass
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:

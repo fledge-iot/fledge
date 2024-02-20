@@ -587,8 +587,8 @@ class TestConfigurationManager:
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "str"}}, ValueError,
-         "For {} category, items value should either be in string, float, integer or object for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
+         "For {} category, items value should either be in string, float, integer, object or enumeration for "
+         "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
          "For {} category, default value should be passed array list in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
@@ -642,14 +642,33 @@ class TestConfigurationManager:
                       "properties": {}}}, ValueError,
          "For {} category, properties JSON object cannot be empty for item name {}".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration"}}, KeyError,
+         "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": 1}}, TypeError,
+         "For {} category, entry value must be a list for item name {} and entry name items; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": []}}, ValueError,
+         "For {} category, options cannot be empty list for item_name {} and entry_name items".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": ["integer"], "listSize": 1}}, TypeError,
+         "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
+         "For {} category, listSize value must be an integer value for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "str"}}, ValueError,
-         "For {} category, items value should either be in string, float, integer or object for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
+         "For {} category, items value should either be in string, float, integer, object or enumeration for "
+         "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "string"}}, TypeError,
          "For {} category, default value should be passed KV pair list in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
@@ -755,6 +774,25 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
             "object", "properties": {"width": {"description": "", "default": ""}}}}, ValueError,
          "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration"}}, KeyError,
+         "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": 1}}, TypeError,
+         "For {} category, entry value must be a list for item name {} and entry name items; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": []}}, ValueError,
+         "For {} category, options cannot be empty list for item_name {} and entry_name items".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": ["integer"], "listSize": 1}}, TypeError,
+         "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
+         "For {} category, listSize value must be an integer value for item name {}".format(
              CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
@@ -785,6 +823,8 @@ class TestConfigurationManager:
                      "default": "[{\"datapoint\": \"voltage\"}]",
                      "properties": {"datapoint": {"description": "The datapoint name to create", "displayName":
                          "Datapoint", "type": "string", "default": ""}}}},
+        {"include": {"description": "A simple list", "type": "list", "default": "[\"integer\", \"float\"]",
+                     "items": "enumeration", "options": ["integer", "float"]}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
                     "default": "{}", "order": "1", "displayName": "labels"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
@@ -802,7 +842,9 @@ class TestConfigurationManager:
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "object",
                      "default": "{\"register\": {\"width\": \"2\"}}", "order": "1", "displayName": "labels",
                      "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
-                                              "type": "integer", "maximum": "4", "default": "1"}}}}
+                                              "type": "integer", "maximum": "4", "default": "1"}}}},
+        {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}}
     ])
     async def test__validate_category_val_list_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

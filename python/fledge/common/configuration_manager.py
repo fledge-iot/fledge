@@ -334,7 +334,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                            type(entry_val)))
                 # Validate list type and mandatory items
                 elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
-                    if entry_name != 'properties' and not isinstance(entry_val, str):
+                    if entry_name not in ('properties', 'options') and not isinstance(entry_val, str):
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
@@ -342,9 +342,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
                     if entry_name == 'items':
-                        if entry_val not in ("string", "float", "integer", "object"):
-                            raise ValueError("For {} category, items value should either be in string, float, integer "
-                                             "or object for item name {}".format(category_name, item_name))
+                        if entry_val not in ("string", "float", "integer", "object", "enumeration"):
+                            raise ValueError("For {} category, items value should either be in string, float, "
+                                             "integer, object or enumeration for item name {}".format(
+                                category_name, item_name))
                         if entry_val == 'object':
                             if 'properties' not in item_val:
                                 raise KeyError('For {} category, properties KV pair must be required for item name {}'
@@ -372,7 +373,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 else:
                                     raise TypeError('For {} category, Properties must be a JSON object for {} key '
                                                     'for item name {}'.format(category_name, kp, item_name))
-
+                        if entry_val == 'enumeration':
+                            if 'options' not in item_val:
+                                raise KeyError('For {} category, options required for item name {}'.format(
+                                    category_name, item_name))
+                            options = item_val['options']
+                            if type(options) is not list:
+                                raise TypeError('For {} category, entry value must be a list for item name {} and '
+                                                'entry name {}; got {}'.format(category_name, item_name,
+                                                                               entry_name, type(options)))
+                            if not options:
+                                raise ValueError(
+                                    'For {} category, options cannot be empty list for item_name {} and '
+                                    'entry_name {}'.format(category_name, item_name, entry_name))
                         default_val = get_entry_val("default")
                         list_size = -1
                         if 'listSize' in item_val:
@@ -385,7 +398,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                  'for item name {}'.format(category_name, item_name))
                             list_size = int(item_val['listSize'])
                         msg = "array" if item_val['type'] == 'list' else "KV pair"
-                        if entry_name == 'items' and entry_val != "object":
+                        if entry_name == 'items' and entry_val not in ("object", "enumeration"):
                             try:
                                 eval_default_val = ast.literal_eval(default_val)
                                 if item_val['type'] == 'list':
@@ -450,7 +463,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         raise ValueError(type_mismatched_message)
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
-                    if entry_name == 'properties':
+                    if entry_name in ('properties', 'options'):
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
                 else:
@@ -1867,7 +1880,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _validate_min_max(config_item_type, new_value_entry)
 
         if config_item_type in ("list", "kvlist"):
-            if storage_value_entry['items'] != 'object':
+            if storage_value_entry['items'] not in ('object', 'enumeration'):
                 msg = "array" if config_item_type == 'list' else "KV pair"
                 try:
                     eval_new_val = ast.literal_eval(new_value_entry)

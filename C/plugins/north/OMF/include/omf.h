@@ -17,6 +17,7 @@
 #include <http_sender.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include <omfbuffer.h>
 #include <linkedlookup.h>
 
 #define	OMF_HINT	"OMFHint"
@@ -353,6 +354,7 @@ private:
 
 		// Start of support for using linked containers
 		bool sendBaseTypes();
+		bool sendAFLinks(Reading& reading, OMFHints *hints);
 		// End of support for using linked containers
 		//
 		string createAFLinks(Reading &reading, OMFHints *hints);
@@ -516,19 +518,23 @@ private:
  * The OMFData class.
  * A reading is formatted with OMF specifications using the original
  * type creation scheme implemented by the OMF plugin
+ *
+ * There is no good reason to retain this class any more, it is here
+ * mostly to reduce the scope of the change when introducting the OMFBuffer
  */
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading,
+		OMFData(OMFBuffer & payload, 
+			const Reading& reading,
 			string measurementId,
+			bool needDelim,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);
-
-		const std::string& OMFdataVal() const;
+		bool	hasData() { return m_hasData; };
 	private:
-		std::string	m_value;
+		bool	m_hasData;
 };
 
 #endif

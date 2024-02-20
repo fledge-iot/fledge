@@ -105,7 +105,8 @@ async def ping(request):
                               'ipAddresses': ip_addresses,
                               'health': status_color,
                               'safeMode': safe_mode,
-                              'version': version
+                              'version': version,
+                              'alerts': len(server.Server._alert_manager.alerts)
                               })
 
 

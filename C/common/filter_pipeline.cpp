@@ -166,10 +166,12 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 					else if (itr->IsArray())
 					{
 						// Sub pipeline
+						Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
 					}
 					else if (itr->IsObject())
 					{
 						// An object, probably the write destination
+						Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
 					}
 					else
 					{

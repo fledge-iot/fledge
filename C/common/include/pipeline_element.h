@@ -35,11 +35,17 @@ class PipelineFilter : public PipelineElement {
 		FilterPlugin		*m_plugin;
 };
 
+/**
+ * A pipeline element that represents a branch in the pipeline
+ */
 class PipelineBranch : public PipelineElement {
 	public:
 		PipelineBranch();
 };
 
+/**
+ * A pipeline element that writes to a storage service or buffer
+ */
 class PipelineWriter : public PipelineElement {
 	public:
 		PipelineWriter();

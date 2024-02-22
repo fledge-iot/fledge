@@ -1,5 +1,5 @@
 /*
- * Fledge Update Alerts
+ * Fledge Check Updates
  *
  * Copyright (c) 2024 Dianomic Systems
  *
@@ -8,7 +8,7 @@
  * Author: Devki Nandan Ghildiyal
  */
 
-#include <update_alerts.h>
+#include <check_updates.h>
 #include <logger.h>
 
 #include <cstdlib>
@@ -20,7 +20,7 @@
 using namespace std;
 
 volatile std::sig_atomic_t signalReceived = 0;
-
+std::string packageListFile = "/tmp/fledge.upgrade.list";
 
 static void signalHandler(int signal)
 {
@@ -29,29 +29,29 @@ static void signalHandler(int signal)
 
 
 /**
- * Constructor for UpdateAlerts
+ * Constructor for CheckUpdates
  */
-UpdateAlerts::UpdateAlerts(int argc, char** argv) : FledgeProcess(argc, argv)
+CheckUpdates::CheckUpdates(int argc, char** argv) : FledgeProcess(argc, argv)
 {
 	std::string paramName;
 	paramName = getName();
 	m_logger = new Logger(paramName);
-	m_logger->info("UpdateAlerts starting - parameters name :%s:", paramName.c_str() );
+	m_logger->info("CheckUpdates starting - parameters name :%s:", paramName.c_str() );
 	m_mgtClient = this->getManagementClient();
 
 }
 
 /**
- * Destructor for UpdateAlerts
+ * Destructor for CheckUpdates
  */
-UpdateAlerts::~UpdateAlerts()
+CheckUpdates::~CheckUpdates()
 {
 }
 
 /**
- * UpdateAlerts run method, called by the base class to start the process and do the actual work.
+ * CheckUpdates run method, called by the base class to start the process and do the actual work.
  */
-void UpdateAlerts::run()
+void CheckUpdates::run()
 {
 	// We handle these signals, add more if needed
 	std::signal(SIGINT,  signalHandler);
@@ -69,7 +69,7 @@ void UpdateAlerts::run()
 /**
  * Execute the raiseAlerts, create an alert for all the packages for which update is available
  */
-void UpdateAlerts::raiseAlerts()
+void CheckUpdates::raiseAlerts()
 {
 	m_logger->info("raiseAlerts running");
 	try
@@ -82,8 +82,9 @@ void UpdateAlerts::raiseAlerts()
 			{
 				m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
 			}
-
 		}
+		std::string command = "sudo rm -f " + packageListFile;
+		system(command.c_str());
 
 	}
 	catch (...)
@@ -105,7 +106,7 @@ void UpdateAlerts::raiseAlerts()
  * Logs process end message
  */
 
-void UpdateAlerts::processEnd()
+void CheckUpdates::processEnd()
 {
 	m_logger->info("raiseAlerts completed");
 }
@@ -114,7 +115,7 @@ void UpdateAlerts::processEnd()
  * Fetch package manager name 
  */
 
-std::string UpdateAlerts::getPackageManager() 
+std::string CheckUpdates::getPackageManager() 
 {
 	std::string command = "command -v yum || command -v apt-get";
 	std::string result = "";
@@ -141,37 +142,37 @@ std::string UpdateAlerts::getPackageManager()
 	if (result.find("yum") != std::string::npos)
 		return "yum";
 
-	m_logger->debug("Unspported environment");
+	m_logger->warn("Unspported environment %s", result.c_str() );
 	return "";
 }
 
 /**
  * Fetch a list of all the package name for which upgrade is available
  */
-std::vector<std::string> UpdateAlerts::getUpgradablePackageList() 
+std::vector<std::string> CheckUpdates::getUpgradablePackageList() 
 {
 	std::string packageManager = getPackageManager();
 	std::vector<std::string> packageList;
 	if(!packageManager.empty())
 	{
-		std::string packageListFile = "/tmp/fledge.upgrade.list";
 		std::string command = "sudo apt update && sudo apt list --upgradeable | grep fledge | cut -d'/' -f1 > " + packageListFile;
 		if (packageManager.find("yum") != std::string::npos)
 		{
 			command = "sudo yum check-update && sudo yum list updates | grep fledge | cut -d'/' -f1 > " + packageListFile;
-			system(command.c_str());
-			std::ifstream file(packageListFile);
-			if(!file.is_open())
-			{
-				m_logger->debug("Couldnot read package list");
-				return packageList;
-			}
-			std::string packageName; 
-			while (std::getline(file, packageName))
-			{
-				packageList.emplace_back(packageName);
-			}
+		}	
+		system(command.c_str());
+		std::ifstream file(packageListFile);
+		if(!file.is_open())
+		{
+			m_logger->debug("Couldnot read package list");
+			return packageList;
 		}
+		std::string packageName; 
+		while (std::getline(file, packageName))
+		{
+			packageList.emplace_back(packageName);
+		}
+		
 	}
 
 	return packageList;

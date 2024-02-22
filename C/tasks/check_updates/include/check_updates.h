@@ -1,8 +1,8 @@
-#ifndef _UPDATE_ALERTS_H
-#define _UPDATE_ALERTS_H
+#ifndef _CHECK_UPDATES_H
+#define _CHECK_UPDATES_H
 
 /*
- * Fledge Update Alerts
+ * Fledge Check Updates
  *
  * Copyright (c) 2024 Dianomic Systems
  *
@@ -13,17 +13,17 @@
 
 #include <process.h>
 
-#define LOG_NAME "update_alerts"
+#define LOG_NAME "check_updates"
 
 /**
- * UpdateAlerts class
+ * CheckUpdates class
  */
 
-class UpdateAlerts : public FledgeProcess
+class CheckUpdates : public FledgeProcess
 {
 	public:
-		UpdateAlerts(int argc, char** argv);
-		~UpdateAlerts();
+		CheckUpdates(int argc, char** argv);
+		~CheckUpdates();
 		void run();
 
 	private:

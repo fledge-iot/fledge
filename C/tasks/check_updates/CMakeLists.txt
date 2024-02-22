@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8.8)
-project (update_alerts)
+project (check_updates)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
@@ -19,22 +19,22 @@ include_directories(../../thirdparty/Simple-Web-Server)
 include_directories(../../thirdparty/rapidjson/include)
 include_directories(../../common/include)
 
-file(GLOB update_alerts_src "*.cpp")
+file(GLOB check_updates_src "*.cpp")
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
-add_executable(${PROJECT_NAME} ${update_alerts_src} ${common_src})
+add_executable(${PROJECT_NAME} ${check_updates_src} ${common_src})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIB})
 
 
-install(TARGETS update_alerts RUNTIME DESTINATION fledge/tasks)
+install(TARGETS check_updates RUNTIME DESTINATION fledge/tasks)
 
 if(MSYS) #TODO: Is MSYS true when MSVC is true?
-    target_link_libraries(update_alerts ws2_32 wsock32)
+    target_link_libraries(check_updates ws2_32 wsock32)
     if(OPENSSL_FOUND)
-        target_link_libraries(update_alerts ws2_32 wsock32)
+        target_link_libraries(check_updates ws2_32 wsock32)
     endif()
 endif()

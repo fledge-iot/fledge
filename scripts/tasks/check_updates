@@ -12,7 +12,7 @@ fi
 # Check if the default directory exists
 if [[ ! -d "${FLEDGE_ROOT}" ]]; then
     echo "Fledge cannot be executed: ${FLEDGE_ROOT} is not a valid directory."
-    echo "Create the enviroment variable FLEDGE_ROOT before using update_alerts."
+    echo "Create the enviroment variable FLEDGE_ROOT before using check_updates."
     echo "Specify the base directory for Fledge and set the variable with:"
     echo "export FLEDGE_ROOT=<basedir>"
     exit 1
@@ -21,5 +21,5 @@ fi
 
 cd "${FLEDGE_ROOT}"
 
-./tasks/update_alerts "$@"
+./tasks/check_updates "$@"
 

@@ -1,5 +1,5 @@
 /*
- * Fledge Update Alerts
+ * Fledge Check Updates
  *
  * Copyright (c) 2024 Dianomic Systems
  *
@@ -8,7 +8,7 @@
  * Author: Devki Nandan Ghildiyal
  */
 
-#include <update_alerts.h>
+#include <check_updates.h>
 #include <logger.h>
 
 using namespace std;
@@ -19,9 +19,9 @@ int main(int argc, char** argv)
 
 	try
 	{
-		UpdateAlerts updateAlerts(argc, argv);
+		CheckUpdates check(argc, argv);
 
-		updateAlerts.run();
+		check.run();
 	}
 	catch (...)
 	{

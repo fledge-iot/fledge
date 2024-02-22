@@ -821,7 +821,7 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'purge_system',
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
-INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update alerts',       '["tasks/update_alerts"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update checker',      '["tasks/check_updates"]');
 
 -- Storage Tasks
 --
@@ -896,12 +896,12 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 't'                                    -- enabled
               );
 
--- Update alerts
+-- Check Updates
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                 schedule_time, schedule_interval, exclusive, enabled )
        VALUES ( '852cd8e4-3c29-440b-89ca-2c7691b0450d', -- id
-                'update alerts',                        -- schedule_name
-                'update alerts',                        -- process_name
+                'update checker',                       -- schedule_name
+                'update checker',                       -- process_name
                 2,                                      -- schedule_type (timed)
                 '00:05:00',                             -- schedule_time
                 '00:00:00',                             -- schedule_interval

@@ -235,6 +235,7 @@ Formats & Types
 ~~~~~~~~~~~~~~~
 
 The *Formats & Types* tab provides a means to specify the detail types that will be used and the way complex assets are mapped to OMF types to also be configured.
+See the section *Numeric Data Types* below for more information on configuring data types.
 
 +--------------+
 | |OMF_Format| |
@@ -464,6 +465,7 @@ Number Format Hints
 A number format hint tells the plugin what number format to use when inserting data
 into the PI Server. The following will cause all numeric data within
 the asset to be written using the format *float32*.
+See the section *Numeric Data Types* below.
 
 .. code-block:: console
 
@@ -477,10 +479,11 @@ Integer Format Hints
 An integer format hint tells the plugin what integer format to use when inserting
 data into the PI Server. The following will cause all integer data
 within the asset to be written using the format *integer32*.
+See the section *Numeric Data Types* below.
 
 .. code-block:: console
 
-   "OMFHint"  : { "number" : "integer32" }
+   "OMFHint"  : { "integer" : "integer32" }
 
 The value of the *number* hint may be any numeric format that is supported by the PI Server.
 
@@ -646,6 +649,68 @@ An OMF Hint is implemented as a string data point on a reading with
 the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
+
+Numeric Data Types
+------------------
+
+Configuring Numeric Data Types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to configure the exact data types used to send data to the PI Server using OMF.
+To configure the data types for all integers and numbers (that is, floating point values), you can use the *Formats & Types* tab in the Fledge GUI.
+To influence the data types for specific assets or datapoints, you can create an OMFHint of type *number* or *integer*.
+
+You must create your data type configurations before starting your OMF North plugin instance.
+After your plugin has run for the first time,
+OMF messages sent by the plugin to the PI Server will cause AF Attributes and PI Points to be created using data types defined by your configuration.
+The data types of the AF Attributes and PI Points will not change if you edit your OMF North plugin instance configuration.
+For example, if you disable an *integer* OMFHint,
+you will change the OMF messages sent to PI but the data in the messages will no longer match the AF Attributes and PI Points in your PI Server.
+
+Detecting the Data Type Mismatch Problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Editing your data type choices in OMF North will cause the following messages to appear in the System Log:
+
+.. code-block:: console
+
+   WARNING: The OMF endpoint reported a conflict when sending containers: 1 messages
+   WARNING: Message 0: Error, A container with the supplied ID already exists, but does not match the supplied container.,
+
+These errors will cause the plugin to retry sending container information a number of times determined the *Maximum Retry* count on the *Connection* tab in the Fledge GUI.
+The default is 3.
+The plugin will then send numeric data values to PI continuously.
+Unfortunately, the PI Web API returns no HTTP error when this happens so no messages are logged.
+In PI, you will see that timestamps are correct but all numeric values are zero.
+
+Recovering from the Data Type Mismatch Problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As you experiment with configurations, you may discover that your original assumptions about your data types were not correct and need to be changed.
+It is possible to repair your PI Server so that you do not need to discard your AF Database and start over.
+This is the procedure:
+
+- Shut down your OMF North instance.
+- Using PI System Explorer, locate the problematic PI Points.
+  These are points with a value of zero.
+  The PI Points are mapped to AF Attributes using the PI Point Data Reference.
+  For each AF Attribute, you can see the name of the PI Point in the Settings pane.
+- Using PI System Management Tools (PI SMT), open the Point Builder tool (under Points) and locate the problematic PI Points.
+- In the General tab in the Point Builder, locate the Extended Descriptor (*Exdesc*).
+  It will contain a long character string with several OMF tokens such as *OmfPropertyIndexer*, *OmfContainerId* and *OmfTypeId*.
+  Clear the *Excdesc* field completely and save your change.
+- Start up your OMF North instance.
+
+Clearing the Extended Descriptor will cause OMF to "adopt" the PI Point.
+OMF will update the Extended Descriptor with new values of the OMF tokens.
+Watch the System Log during startup to see if any problems occur.
+
+Further Troubleshooting
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are unable to locate your problematic PI Points using the PI System Explorer, or if there are simply too many of them, there are advanced techniques available to troubleshoot
+and repair your system.
+Contact Technical Support for assistance.
 
 .. _Linked_Types:
 

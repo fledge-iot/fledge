@@ -158,7 +158,7 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 		std::string command = "sudo apt update && sudo apt list --upgradeable | grep fledge | cut -d'/' -f1 > " + packageListFile;
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "sudo yum check-update && sudo yum list updates | grep fledge | cut -d'/' -f1 > " + packageListFile;
+			command = "(sudo yum check-update && sudo yum list updates) | grep fledge | cut -d' ' -f1 > " + packageListFile;
 		}	
 		system(command.c_str());
 		std::ifstream file(packageListFile);

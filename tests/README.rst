@@ -96,7 +96,7 @@ Code Coverage
 Python Tests
 ++++++++++++
 
-Fledge uses PyTest-cov Framework of Pytest as the code coverage measuring tool for python tests, For more information on pytest please refer to |pytest-cov docs|.
+Fledge uses PyTest-cov Framework of Pytest as the code coverage measuring tool for python tests, For more information on PyTest-cov please refer to |pytest-cov docs|.
 
 To install PyTest-cov Framework along with Pytest Framework use the following command:
 ::
@@ -104,7 +104,10 @@ To install PyTest-cov Framework along with Pytest Framework use the following co
 
 Running the python tests:
 
+- ``pytest --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` - This will execute all the python test files in the given directory and sub-directories and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
 - ``pytest test_filename.py --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` - This will execute all tests in the file named test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
+- ``pytest test_filename.py::TestClass --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` -  This will execute all test methods in a single class TestClass in file test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
+- ``pytest test_filename.py::TestClass::test_case --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` - This will execute test method test_case in class TestClass in file test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
 
 
 C Tests

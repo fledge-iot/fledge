@@ -235,7 +235,7 @@ Formats & Types
 ~~~~~~~~~~~~~~~
 
 The *Formats & Types* tab provides a means to specify the detail types that will be used and the way complex assets are mapped to OMF types to also be configured.
-See the section *Numeric Data Types* below for more information on configuring data types.
+See the section :ref:`Numeric Data Types` for more information on configuring data types.
 
 +--------------+
 | |OMF_Format| |
@@ -465,7 +465,7 @@ Number Format Hints
 A number format hint tells the plugin what number format to use when inserting data
 into the PI Server. The following will cause all numeric data within
 the asset to be written using the format *float32*.
-See the section *Numeric Data Types* below.
+See the section :ref:`Numeric Data Types`.
 
 .. code-block:: console
 
@@ -479,7 +479,7 @@ Integer Format Hints
 An integer format hint tells the plugin what integer format to use when inserting
 data into the PI Server. The following will cause all integer data
 within the asset to be written using the format *integer32*.
-See the section *Numeric Data Types* below.
+See the section :ref:`Numeric Data Types`.
 
 .. code-block:: console
 

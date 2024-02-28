@@ -20,7 +20,6 @@
 using namespace std;
 
 volatile std::sig_atomic_t signalReceived = 0;
-std::string packageListFile = "/tmp/fledge.upgrade.list";
 
 static void signalHandler(int signal)
 {
@@ -71,7 +70,7 @@ void CheckUpdates::run()
  */
 void CheckUpdates::raiseAlerts()
 {
-	m_logger->info("raiseAlerts running");
+	m_logger->debug("raiseAlerts running");
 	try
 	{
 		for (auto key: getUpgradablePackageList())
@@ -83,8 +82,6 @@ void CheckUpdates::raiseAlerts()
 				m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
 			}
 		}
-		std::string command = "sudo rm -f " + packageListFile;
-		system(command.c_str());
 
 	}
 	catch (...)
@@ -108,7 +105,7 @@ void CheckUpdates::raiseAlerts()
 
 void CheckUpdates::processEnd()
 {
-	m_logger->info("raiseAlerts completed");
+	m_logger->debug("raiseAlerts completed");
 }
 
 /**
@@ -155,24 +152,29 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	std::vector<std::string> packageList;
 	if(!packageManager.empty())
 	{
-		std::string command = "sudo apt update && sudo apt list --upgradeable | grep fledge | cut -d'/' -f1 > " + packageListFile;
+		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep '^fledge' | cut -d'/' -f1 ";
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "(sudo yum check-update && sudo yum list updates) | grep fledge | cut -d' ' -f1 > " + packageListFile;
+			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep '^fledge' | cut -d' ' -f1 ";
 		}	
-		system(command.c_str());
-		std::ifstream file(packageListFile);
-		if(!file.is_open())
+
+		FILE* pipe = popen(command.c_str(), "r");
+		if (!pipe)
 		{
-			m_logger->debug("Couldnot read package list");
+			m_logger->error("getUpgradablePackageList: popen call failed : %s",strerror(errno));
 			return packageList;
 		}
-		std::string packageName; 
-		while (std::getline(file, packageName))
+
+		char buffer[128];
+		while (!feof(pipe))
 		{
-			packageList.emplace_back(packageName);
+			if (fgets(buffer, 128, pipe) != NULL)
+			{
+				packageList.emplace_back(buffer);
+			}
 		}
 		
+		pclose(pipe);
 	}
 
 	return packageList;

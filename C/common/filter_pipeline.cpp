@@ -136,7 +136,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 				{
 					if (itr->IsString())
 					{
-						// Get "plugin" item fromn filterCategoryName
+						// Get "plugin" item from filterCategoryName
 						string filterCategoryName = itr->GetString();
 						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 						if (!filterDetails.itemExists("plugin"))

@@ -295,7 +295,7 @@ async def add_service(request):
                         return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
                 # Check If requested service is available for configured repository
-                services, log_path = await common.fetch_available_packages("service")
+                services, log_path = await common.fetch_available_packages()
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository'.format(name))
                 

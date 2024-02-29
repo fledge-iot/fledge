@@ -16,6 +16,7 @@
 #include <csignal>
 #include <fstream>
 #include <errno.h>
+#include <cstring>
 
 using namespace std;
 
@@ -170,7 +171,13 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 		{
 			if (fgets(buffer, 128, pipe) != NULL)
 			{
+				//strip out newline characher
+				int len = strlen(buffer) - 1;
+				if (*buffer && buffer[len] == '\n')
+					buffer[len] = '\0';
+
 				packageList.emplace_back(buffer);
+
 			}
 		}
 		

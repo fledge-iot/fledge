@@ -17,7 +17,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 class TestAlerts:
-    """ Alerts API tests """
+    """ Alerts API """
 
     @pytest.fixture
     def client(self, loop, test_client):
@@ -82,3 +82,4 @@ class TestAlerts:
                 assert 'message' in json_response
                 assert msg == json_response['message']
             assert log_count == patch_logger.call_count
+

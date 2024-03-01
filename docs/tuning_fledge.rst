@@ -102,7 +102,9 @@ Performance counters are collected in the service and a report is written once p
 
   - The number of samples of the counter collected within the current minute
 
-In the current release the performance counters can only be retrieved by director access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
+In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Or via the REST API. Future releases will include tools for the retrieval and analysis of these performance counters.
+
+To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitor/{service name} to retrieve counters for a single service.
 
 When collection is enabled the following counters will be collected for the south service that is enabled.
 
@@ -201,7 +203,133 @@ Performance counters are collected in the service and a report is written once p
 
   - The number of samples of the counter collected within the current minute
 
-In the current release the performance counters can only be retrieved by director access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
+In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
+
+To access the performance counters via the REST API use the entry point */fledge/monitors* to retrieve all counters, or */fledge/monitor/{service name}* to retrieve counters for a single service.
+
+.. code-block:: bash
+
+    $ curl -s http://localhost:8081/fledge/monitors | jq
+    {
+      "monitors": [
+        {
+          "monitor": "storedReadings",
+          "values": [
+            {
+              "average": 102,
+              "maximum": 102,
+              "minimum": 102,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:33:46.690",
+              "service": "si"
+            },
+            {
+              "average": 102,
+              "maximum": 102,
+              "minimum": 102,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:34:46.713",
+              "service": "si"
+            },
+            {
+              "average": 102,
+              "maximum": 102,
+              "minimum": 102,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:35:46.736",
+              "service": "si"
+            }
+          ]
+        },
+        {
+          "monitor": "readLatency",
+          "values": [
+            {
+              "average": 2055,
+              "maximum": 2064,
+              "minimum": 2055,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:33:46.698",
+              "service": "si"
+            },
+            {
+              "average": 2056,
+              "maximum": 2068,
+              "minimum": 2053,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:34:46.719",
+              "service": "si"
+            },
+            {
+              "average": 2058,
+              "maximum": 2079,
+              "minimum": 2056,
+              "samples": 20,
+              "timestamp": "2024-02-19 16:35:46.743",
+              "service": "si"
+            }
+          ]
+        },
+        {
+          "monitor": "ingestCount",
+          "values": [
+            {
+              "average": 34,
+              "maximum": 34,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:33:46.702",
+              "service": "si"
+            },
+            {
+              "average": 34,
+              "maximum": 34,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:34:46.724",
+              "service": "si"
+            },
+            {
+              "average": 34,
+              "maximum": 34,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:35:46.748",
+              "service": "si"
+            }
+          ]
+        },
+        {
+          "monitor": "queueLength",
+          "values": [
+            {
+              "average": 55,
+              "maximum": 100,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:33:46.706",
+              "service": "si"
+            },
+            {
+              "average": 55,
+              "maximum": 100,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:34:46.729",
+              "service": "si"
+            },
+            {
+              "average": 55,
+              "maximum": 100,
+              "minimum": 34,
+              "samples": 60,
+              "timestamp": "2024-02-19 16:35:46.753",
+              "service": "si"
+            }
+          ]
+        }
+      ]
+    }
 
 When collection is enabled the following counters will be collected for the south service that is enabled.
 

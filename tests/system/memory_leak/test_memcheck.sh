@@ -25,7 +25,7 @@ cleanup(){
 
 # Setting up Fledge and installing its plugin
 setup(){
-   ./scripts/setup "fledge-south-sinusoid fledge-south-random"  "${FLEDGE_TEST_BRANCH}" "${COLLECT_FILES}"
+   ./scripts/setup "fledge-south-sinusoid fledge-south-random fledge-filter-asset fledge-filter-rename"  "${FLEDGE_TEST_BRANCH}" "${COLLECT_FILES}"
 }
 
 reset_fledge(){
@@ -39,7 +39,7 @@ add_sinusoid(){
      "name": "Sine",
      "type": "south",
      "plugin": "sinusoid",
-     "enabled": true,
+     "enabled": "true",
      "config": {}
   }'  
   echo
@@ -51,6 +51,29 @@ add_sinusoid(){
   echo
 }
 
+add_filter_asset_to_sine(){
+   echo 'Setting Asset Filter'
+   curl -sX POST "$FLEDGE_URL/filter" -d \
+   '{
+      "name":"assset1",
+      "plugin":"asset",
+      "filter_config":{
+         "enable":"true",
+         "config":{
+            "rules":[
+               {"asset_name":"sinusoid","action":"rename","new_asset_name":"sinner"}
+            ]
+         }
+      }
+   }'
+
+   curl -sX PUT "$FLEDGE_URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
+   '{
+      "pipeline":["assset1"],
+      "files":[]
+   }'
+}
+
 add_random(){
   echo -e INFO: "Add South Random"
   curl -sX POST "$FLEDGE_URL/service" -d \
@@ -58,7 +81,7 @@ add_random(){
      "name": "Random",
      "type": "south",
      "plugin": "Random",
-     "enabled": true,
+     "enabled": "true",
      "config": {}
   }'
   echo
@@ -70,6 +93,27 @@ add_random(){
   echo
 
 }
+
+add_filter_rename_to_random(){
+   echo 'Setting Rename Filter'
+   curl -sX POST "$FLEDGE_URL/filter" -d \
+   '{
+      "name":"re1",
+      "plugin":"rename",
+      "filter_config":{
+         "find":"Random",
+         "replaceWith":"Randomizer",
+         "enable":"true"
+      }
+   }'
+
+   curl -sX PUT "$FLEDGE_URL/filter/Random/pipeline?allow_duplicates=true&append_filter=true" -d \
+   '{
+      "pipeline":["re1"],
+      "files":[]
+   }'
+}
+
 setup_north_pi_egress () {
   # Add PI North as service
   echo 'Setting up North'
@@ -133,7 +177,9 @@ cleanup
 setup
 reset_fledge
 add_sinusoid
+add_filter_asset_to_sine
 add_random
+add_filter_rename_to_random
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

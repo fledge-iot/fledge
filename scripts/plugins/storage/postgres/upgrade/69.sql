@@ -11,5 +11,3 @@ VALUES ('852cd8e4-3c29-440b-89ca-2c7691b0450d', -- id
         'true',                                 -- exclusive
         'true'                                  -- enabled
     );
-
-COMMIT;

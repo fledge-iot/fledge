@@ -459,17 +459,25 @@ unsigned int nFullQueues = 0;
 		// Get the readings in the set
 		for (auto & rdng : *vec)
 		{
-			m_queue->push_back(rdng);
+			m_queue->emplace_back(rdng);
 		}
+        Logger::getLogger()->info("Ingest::ingest(): Added %d readings to m_queue @ %p, first reading @ %p, first "
+                "reading in vec @ %p", vec->size(), m_queue, (*m_queue)[0], vec->at(0));
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;
-			m_queue = new vector<Reading *>;
+			
+            Logger::getLogger()->info("Ingest::ingest(): m_queue is full (size %d, threshold %d)", 
+                                m_queue->size(), m_queueSizeThreshold);
+
+            m_queue = new vector<Reading *>;
+            Logger::getLogger()->info("Ingest::ingest(): created new m_queue @ %p", m_queue);
 		}
 		qSize = m_queue->size();
 	}
 	if (fullQueue)
 	{
+	    PRINT_FUNC;
 		lock_guard<mutex> guard(m_fqMutex);
 		m_fullQueues.push(fullQueue);
 		nFullQueues = m_fullQueues.size();
@@ -481,6 +489,7 @@ unsigned int nFullQueues = 0;
 	}
 	if (nFullQueues != 0 || qSize > m_queueSizeThreshold * 3 / 4)
 	{
+	    PRINT_FUNC;
 		m_cv.notify_all();
 	}
 	m_performance->collect("queueLength", (long)queueLength());
@@ -550,6 +559,7 @@ void Ingest::processQueue()
 		 */
 		while (m_resendQueues.size() > 0)
 		{
+		    PRINT_FUNC;
 			vector<Reading *> *q = *m_resendQueues.begin();
 			if (m_storage.readingAppend(*q) == false)
 			{
@@ -704,14 +714,21 @@ void Ingest::processQueue()
 					// Block of code to execute holding the mutex
 					lock_guard<mutex> guard(m_qMutex);
 					std::vector<Reading *> *newQ = new vector<Reading *>;
+                    Logger::getLogger()->info("Ingest::ingest(): L%d: Previous m_data @ %p, m_data->size()=%d", 
+                                                __LINE__, m_data, m_data?m_data->size():12345678);
 					m_data = m_queue;
 					m_queue = newQ;
+                    Logger::getLogger()->info("Ingest::ingest(): Processing old m_queue i.e. m_data @ %p, first reading @ %p, created new m_queue @ %p", 
+                                                m_data, (*m_data)[0], m_queue);
 				}
 			}
 			else
 			{
+			    PRINT_FUNC;
 				m_data = m_fullQueues.front();
 				m_fullQueues.pop();
+                Logger::getLogger()->info("Ingest::ingest(): L%d: Popped m_fullQueues.front() into m_data @ %p, "
+                    "m_data->size()=%d, first reading @ %p", __LINE__, m_data, m_data->size(), (*m_data)[0]);
 			}
 		}
 		
@@ -747,8 +764,14 @@ void Ingest::processQueue()
 
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
+                    Logger::getLogger()->info("Ingest::ingest(): Processing m_data @ %p, readingSet @ %p, with size %d, first reading @ "
+                        "%p to first filter in the pipeline", m_data, readingSet, readingSet->getCount(), (*readingSet)[0]);
+                    
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
+
+                    Logger::getLogger()->info("Ingest::ingest(): L%d: Filtered readingSet, m_data @ %p, first reading at %p",
+                                                __LINE__, m_data, (*m_data)[0]);
 
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
@@ -820,8 +843,12 @@ void Ingest::processQueue()
 		 */
 		if (m_data && m_data->size())
 		{
+		    Logger::getLogger()->info("Ingest::ingest(): L%d: Ready to send to storage service: m_data @ %p, "
+		    "m_data->size()=%d, first reading at %p",
+                    __LINE__, m_data, m_data->size(), (*m_data)[0]);
 			if (m_storage.readingAppend(*m_data) == false)
 			{
+			    Logger::getLogger()->info("m_storage.readingAppend(*m_data) returned FALSE");
 				if (!m_storageFailed)
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_storageFailed = true;
@@ -833,6 +860,8 @@ void Ingest::processQueue()
 			}
 			else
 			{
+			    Logger::getLogger()->info("m_storage.readingAppend(*m_data) returned TRUE, m_storageFailed=%s", 
+			            m_storageFailed?"true":"false");
 				m_performance->collect("storedReadings", (long int)(m_data->size()));
 				if (m_storageFailed)
 				{
@@ -914,6 +943,8 @@ void Ingest::processQueue()
                                           // delete reading;
 
 				}
+                Logger::getLogger()->info("Ingest::ingest(): L%d: Asset tracking updates done, m_data @ %p, "
+                "m_data->size()=%d, first reading at %p", __LINE__, m_data, m_data->size(), (*m_data)[0]);
 				for( auto & rdng : *m_data)
 				{
 					delete rdng;
@@ -1052,19 +1083,18 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
-
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		if (ingest->m_data && ingest->m_data->size())
+		if (ingest->m_data)
 		{
-			// Remove the readings in the vector
-			for(auto & rdng : *(ingest->m_data))
-				delete rdng;
-			ingest->m_data->clear();// Remove the pointers still in the vector
-			
-			
-			// move reading vector to ingest
-			*(ingest->m_data) = readingSet->getAllReadings();
+		    // Remove the readings in the vector
+			for(auto & rdngPtr : *(ingest->m_data))
+				delete rdngPtr;
+            
+			ingest->m_data->clear();// Remove any pointers still in the vector
+			delete ingest->m_data;
+			// *(ingest->m_data) = readingSet->getAllReadings();
+                       ingest->m_data = readingSet->moveAllReadings();
 		}
 		else
 		{

@@ -719,7 +719,7 @@ void Ingest::processQueue()
 					m_data = m_queue;
 					m_queue = newQ;
                     Logger::getLogger()->info("Ingest::ingest(): Processing old m_queue i.e. m_data @ %p, first reading @ %p, created new m_queue @ %p", 
-                                                m_data, (*m_data)[0], m_queue);
+                                                m_data, (m_data->size()>0)?(*m_data)[0]:nullptr, m_queue);
 				}
 			}
 			else

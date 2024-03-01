@@ -96,9 +96,9 @@ Code Coverage
 Python Tests
 ++++++++++++
 
-Fledge uses PyTest-cov Framework of Pytest as the code coverage measuring tool for python tests, For more information on PyTest-cov please refer to |pytest-cov docs|.
+Fledge uses pytest-cov Framework of pytest as the code coverage measuring tool for python tests, For more information on pytest-cov please refer to |pytest-cov docs|.
 
-To install PyTest-cov Framework along with Pytest Framework use the following command:
+To install pytest-cov Framework along with pytest Framework use the following command:
 ::
    python3 -m pip install pytest==3.6.4 pytest-cov==2.9.0
 
@@ -113,4 +113,4 @@ Running the python tests:
 C Tests
 +++++++
 
-#TODO: FOGL-8497 Add documentation of Code Coverage of C Based tests
+TODO: FOGL-8497 Add documentation of Code Coverage of C Based tests

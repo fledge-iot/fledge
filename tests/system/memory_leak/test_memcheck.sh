@@ -47,7 +47,7 @@ add_sinusoid(){
 
   sleep 60
   
-  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d '{ "readingsPerSec": "100"}'
+  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d '{ "readingsPerSec": "'${READINGSRATE}'"}'
   echo
 }
 
@@ -89,7 +89,7 @@ add_random(){
 
   sleep 60
 
-  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "100"}'
+  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "'${READINGSRATE}'"}'
   echo
 
 }

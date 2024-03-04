@@ -1,6 +1,27 @@
 #!/bin/bash
+
+__author__="Mohit Singh Tomar"
+__copyright__="Copyright (c) 2024 Dianomic Systems Inc."
+__license__="Apache 2.0"
+__version__="1.0.0"
+
+#######################################################################################################################
+# Script Name: test_memcheck.sh
+# Description: Tests for checking memory leaks in Fledge.
+# Usage: ./test_memcheck.sh FLEDGE_TEST_BRANCH COLLECT_FILES [OPTIONS]
 #
-# Tests for checking meomory leaks.
+# Parameters:
+#   FLEDGE_TEST_BRANCH (str): Branch of Fledge Repository on which valgrind test will run.
+#   COLLECT_FILES (str): Type of report file needs to be collected from valgrind test, default is LOGS otherwise XML.
+#
+# Options:
+#   --use-filters: If passed, add filters to South Services.
+#
+# Example:
+#   ./test_memcheck.sh develop LOGS
+#   ./test_memcheck.sh develop LOGS --use-filters
+# 
+#########################################################################################################################
 
 set -e
 source config.sh
@@ -8,8 +29,12 @@ source config.sh
 export FLEDGE_ROOT=$(pwd)/fledge
 
 FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
-
 COLLECT_FILES="${2:-LOGS}"
+USE_FILTER="False"
+
+if [ "$3" = "--use-filters" ]; then
+   USE_FILTER="True"
+fi
 
 if [[  ${COLLECT_FILES} != @(LOGS|XML|) ]]
 then
@@ -51,11 +76,11 @@ add_sinusoid(){
   echo
 }
 
-add_filter_asset_to_sine(){
+add_asset_filter_to_sine(){
    echo 'Setting Asset Filter'
    curl -sX POST "$FLEDGE_URL/filter" -d \
    '{
-      "name":"assset1",
+      "name":"asset #1",
       "plugin":"asset",
       "filter_config":{
          "enable":"true",
@@ -69,7 +94,7 @@ add_filter_asset_to_sine(){
 
    curl -sX PUT "$FLEDGE_URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
    '{
-      "pipeline":["assset1"],
+      "pipeline":["asset #1"],
       "files":[]
    }'
 }
@@ -94,11 +119,11 @@ add_random(){
 
 }
 
-add_filter_rename_to_random(){
-   echo 'Setting Rename Filter'
+add_rename_filter_to_random(){
+   echo -e "\nSetting Rename Filter"
    curl -sX POST "$FLEDGE_URL/filter" -d \
    '{
-      "name":"re1",
+      "name":"rename #1",
       "plugin":"rename",
       "filter_config":{
          "find":"Random",
@@ -109,7 +134,7 @@ add_filter_rename_to_random(){
 
    curl -sX PUT "$FLEDGE_URL/filter/Random/pipeline?allow_duplicates=true&append_filter=true" -d \
    '{
-      "pipeline":["re1"],
+      "pipeline":["rename #1"],
       "files":[]
    }'
 }
@@ -177,9 +202,11 @@ cleanup
 setup
 reset_fledge
 add_sinusoid
-add_filter_asset_to_sine
 add_random
-add_filter_rename_to_random
+if [ "${USE_FILTER}" = "True" ]; then
+   add_asset_filter_to_sine
+   add_rename_filter_to_random
+fi
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

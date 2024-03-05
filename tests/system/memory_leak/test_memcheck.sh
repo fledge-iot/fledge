@@ -64,7 +64,7 @@ add_sinusoid(){
      "name": "Sine",
      "type": "south",
      "plugin": "sinusoid",
-     "enabled": "true",
+     "enabled": "false",
      "config": {}
   }'  
   echo
@@ -77,7 +77,7 @@ add_sinusoid(){
 }
 
 add_asset_filter_to_sine(){
-   echo 'Setting Asset Filter'
+   echo 'Adding Asset Filter to Sinusoid Service'
    curl -sX POST "$FLEDGE_URL/filter" -d \
    '{
       "name":"asset #1",
@@ -106,7 +106,7 @@ add_random(){
      "name": "Random",
      "type": "south",
      "plugin": "Random",
-     "enabled": "true",
+     "enabled": "false",
      "config": {}
   }'
   echo
@@ -120,7 +120,7 @@ add_random(){
 }
 
 add_rename_filter_to_random(){
-   echo -e "\nSetting Rename Filter"
+   echo -e "\nAdding Rename Filter to Random Service"
    curl -sX POST "$FLEDGE_URL/filter" -d \
    '{
       "name":"rename #1",
@@ -137,6 +137,14 @@ add_rename_filter_to_random(){
       "pipeline":["rename #1"],
       "files":[]
    }'
+}
+
+enable_services(){
+   echo -e "\nEnable Services"
+   curl -sX PUT "$FLEDGE_URL/schedule/enable" -d '{"schedule_name":"Sine"}'
+   sleep 20
+   curl -sX PUT "$FLEDGE_URL/schedule/enable" -d '{"schedule_name": "Random"}'
+   sleep 20
 }
 
 setup_north_pi_egress () {
@@ -207,6 +215,7 @@ if [ "${USE_FILTER}" = "True" ]; then
    add_asset_filter_to_sine
    add_rename_filter_to_random
 fi
+enable_services
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

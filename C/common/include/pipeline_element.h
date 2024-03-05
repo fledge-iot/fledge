@@ -9,6 +9,15 @@
  *
  * Author: Mark Riddoch
  */
+#include <string>
+#include <config_category.h>
+#include <management_client.h>
+#include <plugin.h>
+#include <plugin_manager.h>
+#include <plugin_data.h>
+#include <reading_set.h>
+#include <filter_plugin.h>
+#include <service_handler.h>
 
 /**
  * The base pipeline element class
@@ -16,6 +25,7 @@
 class PipelineElement {
 	public:
 		PipelineElement();
+		virtual ~PipelineElement();
 		void			setNext(PipelineElement *next)
 					{
 						m_next = next;
@@ -25,8 +35,8 @@ class PipelineElement {
 						m_serviceName = serviceName;
 					};
 	protected:
-		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, vector<std::string& children>& children) {};
-		void			ingest(READINGSET *readingSet) = 0;
+		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, std::vector<std::string>& children) { return false; };
+		virtual void		ingest(READINGSET *readingSet) = 0;
 	protected:
 		std::string		m_serviceName;
 		PipelineElement		*m_next;
@@ -39,8 +49,9 @@ class PipelineElement {
 class PipelineFilter : public PipelineElement {
 	public:
 		PipelineFilter(const std::string& name, const ConfigCategory& filterDetails);
+		~PipelineFilter();
 	protected:
-		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, vector<std::string& children>& children);
+		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, vector<std::string>& children);
 		void			ingest(READINGSET *readingSet)
 					{
 						if (m_plugin)

@@ -1,0 +1,48 @@
+#!/bin/bash
+
+log_directory="${1}"
+error_tolerance="${2}"
+leak_tolerance="${3}"
+
+for log_file in "$log_directory"/*.log; do
+    echo "Analyzing $log_file..."
+
+    error_summary=$(grep -o "ERROR SUMMARY: [0-9]* errors" "$log_file" | tail -n 1 | cut -d ' ' -f 3)
+    leak_summary=$(sed -n '/LEAK SUMMARY:/,/ERROR SUMMARY:/p' "$log_file" | grep -E "definitely lost|indirectly lost|possibly lost|still reachable" | tail -n 4)
+
+    if [ -n "$error_summary" ]; then
+        if [ "$error_summary" -gt "${error_tolerance}" ]; then
+            echo "Valgrind detected $error_summary error(s) in the log file: $log_file"
+            exit 1
+        else
+            echo "Valgrind did not detected any errors in the log file: $log_file"
+        fi
+    else
+        echo "No error summary found in the log file."
+    fi
+
+    if [ -n "$leak_summary" ]; then
+        echo "Valgrind detected memory leaks in the log file."
+        definitely_lost=$(echo "$leak_summary" | grep -o "definitely lost: [0-9,]* bytes" | awk '{print $3}' | tr -d ',')
+        indirectly_lost=$(echo "$leak_summary" | grep -o "indirectly lost: [0-9,]* bytes" | awk '{print $3}' | tr -d ',')
+        possibly_lost=$(echo "$leak_summary" | grep -o "possibly lost: [0-9,]* bytes" | awk '{print $3}' | tr -d ',')
+        still_reachable=$(echo "$leak_summary" | grep -o "still reachable: [0-9,]* bytes" | awk '{print $3}' | tr -d ',')
+
+        echo "Definitely Lost: $definitely_lost"
+        echo "Indirectly Lost: $indirectly_lost"
+        echo "Possibly Lost: $possibly_lost"
+        echo "Still Reachable: $still_reachable"
+        
+        if [ "$definitely_lost" -gt "$leak_tolerance" ] || [ "$indirectly_lost" -gt "$leak_tolerance" ] || [ "$possibly_lost" -gt "$leak_tolerance" ] || [ "$still_reachable" -gt "$leak_tolerance" ]; then
+            echo "Memory leak is higher than the tolerable value: $log_file"
+            exit 1
+        else
+            echo "Valgrind did not detect any errors in the log file: $log_file"
+        fi
+
+    else
+        echo "No memory leaks detected by Valgrind in the log file."
+    fi
+
+    echo "=============================="
+done

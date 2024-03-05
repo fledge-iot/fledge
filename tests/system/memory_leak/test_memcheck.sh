@@ -31,6 +31,7 @@ export FLEDGE_ROOT=$(pwd)/fledge
 FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
 COLLECT_FILES="${2:-LOGS}"
 USE_FILTER="False"
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
 if [ "$3" = "--use-filters" ]; then
    USE_FILTER="True"
@@ -188,19 +189,37 @@ setup_north_pi_egress () {
 }
 
 # This Function keep the fledge and its plugin running state for the "TEST_RUN_TIME" seconds then stop the fledge, So that data required for mem check be collected.
-collect_data(){
-  sleep ${TEST_RUN_TIME}
-  # TODO: remove set +e / set -e 
-  # FOGL-6840  fledge stop returns exit code 1 
+collect_data() {
+  echo "Collecting Data and Generating reports"
+  sleep "${TEST_RUN_TIME}"
   set +e
-  ${FLEDGE_ROOT}/scripts/fledge stop && echo $?
+
+  echo "===================== COLLECTING SUPPORT BUNDLE / SYSLOG ============================"
+  mkdir -p reports/ && ls -lrth
+  BUNDLE=$(curl -sX POST "$FLEDGE_URL/support")
+  # Check if the bundle is created using jq
+  if jq -e 'has("bundle created")' <<< "$BUNDLE" > /dev/null; then
+    echo "Support Bundle Created"
+    # Use proper quoting for variable expansion
+    cp -r "$FLEDGE_ROOT/data/support/"* reports/ && \
+    echo "Support bundle has been saved to path: $SCRIPT_DIR/reports"
+  else
+    echo "Failed to Create support bundle"
+    # Use proper quoting for variable expansion
+    cp /var/log/syslog reports/ && \
+    echo "Syslog Saved to path: $SCRIPT_DIR/reports"
+  fi
+  echo "===================== COLLECTED SUPPORT BUNDLE / SYSLOG ============================"
+  # Use proper quoting for variable expansion
+  "${FLEDGE_ROOT}/scripts/fledge" stop && echo $?
   set -e
 }
+
 
 generate_valgrind_logs(){
   echo 'Creating reports directory';
   mkdir -p reports/ ; ls -lrth
-  echo 'copying reports '
+  echo 'copying reports'
   extension="xml"
   if [[ "${COLLECT_FILES}" == "LOGS" ]]; then extension="log"; fi
   cp -rf /tmp/*valgrind*.${extension} reports/. && echo 'copied'

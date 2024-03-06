@@ -58,6 +58,27 @@ reset_fledge(){
   ./scripts/reset ${FLEDGE_ROOT} ;
 }
 
+configure_purge(){
+   # This function is for updating purge configuration and schedule of python based purge.
+   echo -e "Updating Purge Configuration \n"
+   row_count="$(printf "%.0f" "$(echo "${READINGSRATE} * 2 * ${PURGE_INTERVAL_SECONDS}"| bc)")"
+   curl -X PUT "$FLEDGE_URL/category/PURGE_READ" -d "{\"size\":\"${row_count}\"}"
+   echo 
+   echo -e "Updated Purge Configuration \n"
+   echo -e "Updating Purge Schedule \n"
+   echo  > enable_purge.json
+   cat enable_purge.json
+   curl -X PUT "$FLEDGE_URL/schedule/cea17db8-6ccc-11e7-907b-a6006ad3dba0" -d \
+   '{
+      "name": "purge",
+      "type": 3,
+      "repeat": '"${PURGE_INTERVAL_SECONDS}"',
+      "exclusive": true,
+      "enabled": true
+   }'
+   echo -e "Updated Purge Schedule \n"
+}
+
 add_sinusoid(){ 
   echo -e INFO: "Add South Sinusoid"
   curl -sX POST "$FLEDGE_URL/service" -d \
@@ -228,6 +249,7 @@ generate_valgrind_logs(){
 cleanup
 setup
 reset_fledge
+configure_purge
 add_sinusoid
 add_random
 if [ "${USE_FILTER}" = "True" ]; then

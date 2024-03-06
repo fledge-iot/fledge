@@ -1,8 +1,8 @@
 #!/bin/bash
 
 log_directory="${1}"
-error_tolerance="${2}"
-leak_tolerance="${3}"
+error_tolerance=$(printf '%d' "${2}" 2>/dev/null)
+leak_tolerance=$(printf '%d' "${3}" 2>/dev/null)
 
 for log_file in "$log_directory"/*.log; do
     echo "Analyzing $log_file..."

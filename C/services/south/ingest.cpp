@@ -728,7 +728,7 @@ void Ingest::processQueue()
 				m_data = m_fullQueues.front();
 				m_fullQueues.pop();
                 Logger::getLogger()->info("Ingest::ingest(): L%d: Popped m_fullQueues.front() into m_data @ %p, "
-                    "m_data->size()=%d, first reading @ %p", __LINE__, m_data, m_data->size(), (*m_data)[0]);
+                    "m_data->size()=%d, first reading @ %p", __LINE__, m_data, m_data->size(), (m_data->size()>0)?(*m_data)[0]:nullptr);
 			}
 		}
 		
@@ -765,13 +765,13 @@ void Ingest::processQueue()
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
                     Logger::getLogger()->info("Ingest::ingest(): Processing m_data @ %p, readingSet @ %p, with size %d, first reading @ "
-                        "%p to first filter in the pipeline", m_data, readingSet, readingSet->getCount(), (*readingSet)[0]);
+                        "%p to first filter in the pipeline", m_data, readingSet, readingSet->getCount(), (readingSet->getCount()>0)?(*readingSet)[0]:nullptr);
                     
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
                     Logger::getLogger()->info("Ingest::ingest(): L%d: Filtered readingSet, m_data @ %p, first reading at %p",
-                                                __LINE__, m_data, (*m_data)[0]);
+                                                __LINE__, m_data, (m_data->size()>0)?(*m_data)[0]:nullptr);
 
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
@@ -845,7 +845,7 @@ void Ingest::processQueue()
 		{
 		    Logger::getLogger()->info("Ingest::ingest(): L%d: Ready to send to storage service: m_data @ %p, "
 		    "m_data->size()=%d, first reading at %p",
-                    __LINE__, m_data, m_data->size(), (*m_data)[0]);
+                    __LINE__, m_data, m_data->size(), (m_data->size()>0)?(*m_data)[0]:nullptr);
 			if (m_storage.readingAppend(*m_data) == false)
 			{
 			    Logger::getLogger()->info("m_storage.readingAppend(*m_data) returned FALSE");
@@ -944,7 +944,7 @@ void Ingest::processQueue()
 
 				}
                 Logger::getLogger()->info("Ingest::ingest(): L%d: Asset tracking updates done, m_data @ %p, "
-                "m_data->size()=%d, first reading at %p", __LINE__, m_data, m_data->size(), (*m_data)[0]);
+                "m_data->size()=%d, first reading at %p", __LINE__, m_data, m_data->size(), (m_data->size()>0)?(*m_data)[0]:nullptr);
 				for( auto & rdng : *m_data)
 				{
 					delete rdng;

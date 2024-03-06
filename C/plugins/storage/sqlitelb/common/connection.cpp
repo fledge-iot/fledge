@@ -11,6 +11,7 @@
 #include <connection_manager.h>
 #include <sqlite_common.h>
 #include <utils.h>
+#include "string_utils.h"
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
 #endif
@@ -926,6 +927,7 @@ unsigned long nRows = 0, nCols = 0;
 
 	// Set the result as a CPP string 
 	resultSet = buffer.GetString();
+	StringReplaceAll(resultSet,":null",":\"null\"");
 
 	// Return SQLite3 ret code
 	return rc;

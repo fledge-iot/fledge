@@ -13,6 +13,7 @@
 #include <utils.h>
 #include <unistd.h>
 
+#include "string_utils.h"
 #include "readings_catalogue.h"
 
 /*
@@ -802,6 +803,7 @@ unsigned long nRows = 0, nCols = 0;
 
 	// Set the result as a CPP string 
 	resultSet = buffer.GetString();
+	StringReplaceAll(resultSet,":null",":\"null\"");
 
 	// Return SQLite3 ret code
 	return rc;

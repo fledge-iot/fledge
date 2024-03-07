@@ -1,22 +1,14 @@
-.. Writing and Using Plugins describes how to implement a plugin for Fledge and how to use it
-.. https://docs.google.com/document/d/1IKGXLWbyN6a7vx8UO3uDbq5Df0VvE4oCQIULgZVZbjM
-
-.. |br| raw:: html
-
-   <br />
-
-.. Images
-
 Storage Service And Plugins
 ===========================
 
-The storage component provides a level of abstraction of the database layer used within Fledge. It exists to provide the freedom to replace the SQL database that was used in the POC with another storage mechanism at some point in the future if it becomes desirable to do so. The storage abstract is explicitly not a SQL layer, and the interface it offers to the clients of the storage layer; the device service, API and send process, is very deliberately not a SQL interface to facilitate the replacement of the underlying storage with any no-SQL storage mechanism or even a simple file storage mechanism. Different plugins may be used for the structured and unstructured data that is stored by the storage layer.
+The storage component provides a level of abstraction of the database layer used within Fledge. The storage abstract is explicitly not a SQL layer, and the interface it offers to the clients of the storage layer; the device service, API and send process, is very deliberately not a SQL interface to facilitate the replacement of the underlying storage with any no-SQL storage mechanism or even a simple file storage mechanism. Different plugins may be used for the structured and unstructured data that is stored by the storage layer.
 
 The three requirements that have resulted in the plugin architecture and separation of the database access into a microservice within Fledge are:
 
  - A desire to be able to support different storage mechanisms as the deployment and customer requirements dictate. E.g. SQL, no-SQL, in-memory, backing store (disk, SD card etc.) or simple file based mechanisms.
 
- - The ability to separate the storage from the ingress and egress components of Fledge to allow for distribution of Fledge across multiple physical hardware components.
+ - The ability to separate the storage from the south and north services of Fledge and to allow for distribution of Fledge across multiple physical hardware components.
+
  - To provide flexibility to allow components to be removed from a Fledge deployment, e.g. remove the buffering and have a simple forwarding router implementation of Fledge without storage.
 
 Use of JSON
@@ -24,7 +16,7 @@ Use of JSON
 
 There are three distinct reasons that JSON is used within the storage layer, these are;
 
- - The REST API uses JSON to encode the payloads within each API entry point. This is the preferred payload type for all REST interfaces in Fledge. The option to use XML has been considered and rejected as the vast majority of REST interfaces now use JSON and not XML.
+ - The REST API uses JSON to encode the payloads within each API entry point. This is the preferred payload type for all REST interfaces in Fledge. The option to use XML has been considered and rejected as the vast majority of REST interfaces now use JSON and not XML. JSON is generally more compact and easier to read than XML.
 
  - The interface between the generic storage layer and the plugin also passes requests and results as JSON. This is partly to make it compatible with the REST payloads and partly to give the plugin implementer flexibility and the ability to push functionality down to the plugin layer to be able to exploit storage system specific features for greatest efficiency.
 
@@ -42,7 +34,7 @@ The storage layer represents the interface to persist data for the Fledge applia
 
  - User & credential data - this is username, passwords and certificates related to the users of the Fledge API.
 
- - Audit trail data - this is a log of significant events during the lifetime of Fledge
+ - Audit trail data - this is a log of significant events during the lifetime of Fledge.
 
  - Metrics - various modules will hold performance metrics, such as readings in, readings out etc. These will be periodically written by those models as cumulative totals. These will be collected by the statistics gatherer and interval statistics of the values will be written to the persistent storage.
 
@@ -59,7 +51,7 @@ The core of the Fledge platform has to date been written using Python, for the s
 
  - Common code, such as the microservices management API can not be reused and a C/C++ implementation is required.
 
-The storage service differs from the other services within Fledge as it only support plugins compiled to shared objects that have the precribed C interface. The plugin's code itself may be in other langages, but it must compile to a C compatible shared object using the C calling conventions.
+The storage service differs from the other services within Fledge as it only supports plugins compiled to shared objects that have the prescribed C interface. The plugin's code itself may be in other languages, but it must compile to a C compatible shared object using the C calling conventions.
 
 Language Choice Reasons
 #######################
@@ -79,9 +71,9 @@ The choice of C/C++ is based on what is commonly available on all the platforms 
 Library Choice
 ##############
 
-One of the key libraries that will need to be chosen for C/C++ is the JSON library since there is no native support for this in the language. There are numerous libraries that exist for this purpose, for example rapidjson, Jansson and many more. Some investigation is required to find the most suitable. The factors to be considered in the choice of library are, in order of importance;
+One of the key libraries that will need to be chosen for C/C++ is the JSON library since there is no native support for this in the language. There are numerous libraries that exist for this purpose, for example, rapidjson, Jansson and many more. Some investigation is required to find the most suitable. The factors to be considered in the choice of library are, in order of importance;
 
- - Functionality - clearly any library chosen must offer the feature we need
+ - Functionality - clearly any library chosen must offer the feature we need.
 
  - Footprint - Footprint is a major concern for Fledge as we wish to run in constrained devices with the likelihood that in future the device we want to run on may become even smaller than we are considering today.
 
@@ -93,7 +85,7 @@ The choice of the JSON library is also something to be considered; since JSON ob
 
 Another key library choice, in order to support the REST interface, is an HTTP library capable of being used to support the REST interface development and able to support custom header fields and HTTPS. Once again these are numerous, libmicrohttpd, Simple-Web-Server, Proxygen. A choice must be made here also using the same criteria outlined above.
 
-Thread safety is likely to be important also as it is assumed the storage layer will be multi-threaded and almost certainly utilise asynchronous IO operations.
+Thread safety is likely to be important also as it is assumed the storage layer will be multi-threaded and almost certainly utilise asynchronous I/O operations.
 
 Classes of Data Stored
 ----------------------
@@ -124,16 +116,16 @@ Given the difference in the nature of the two classes of data and the possibilit
 
  - A single plugin can choose to only implement a subset of the plugin API, e.g. the common data access methods or the readings methods. Or both.
 
- - Plugins can choose where and how they store the readings to optimize the implementation. E.g. a SQL data can store the JSON in a table or a series of tables if prefered.
+ - Plugins can choose where and how they store the readings to optimize the implementation. E.g. a SQL data can store the JSON in a table or a series of tables if preferred.
 
- - The plugins are not forced to store the JSON data in a particular way. For example a SQL database does not have to use JSON data types in a single column if it does not support them.
+ - The plugins are not forced to store the JSON data in a particular way. For example, a SQL database does not have to use JSON data types in a single column if it does not support them.
 
 These two classes of data are referred to in this documentation as “common data access” and “readings data”.
 
 Common Data Access Methods
 --------------------------
 
-Most of these types of data can be accessed by the classic create, update, retrieve and delete methods and consist of data in JSON format with an associated key and timestamp. In this case a simple create with a key and JSON value, an update with the same key and value, a retrieve with an optional key (which returns an array of JSON objects) and a delete with the key is all that is required. Configuration, metrics, task records, audit tail and user data all fall into this category. Readings however do not and have to be treated differently.
+Most of these types of data can be accessed by the classic create, update, retrieve and delete methods and consist of data in JSON format with an associated key and timestamp. In this case a simple create with a key and JSON value, an update with the same key and value, a retrieve with an optional key (which returns an array of JSON objects) and a delete with the key is all that is required. Configuration, metrics, task records, audit trail and user data all fall into this category. Readings however do not and have to be treated differently.
 
 Readings Data Access
 --------------------
@@ -246,6 +238,7 @@ Plugin API Header File
           unsigned int options;
           char         *type;
           char         *interface;
+          char         *config;
   } PLUGIN_INFORMATION;
 
   typedef struct {
@@ -282,7 +275,7 @@ Plugin API Header File
   extern JSON *plugin_reading_fetch(PLUGIN_HANDLE handle, unsigned long id, unsigned int blksize);
   extern JSON *plugin_reading_retrieve(PLUGIN_HANDLE handle, JSON *condition);
   extern unsigned int plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long age, unsigned int flags, unsigned long sent);
-  extern plugin_relesae(PLUGIN_HANDLE handle, JSON *results);
+  extern plugin_release(PLUGIN_HANDLE handle, JSON *results);
   extern PLUGIN_ERROR *plugin_last_error(PLUGIN_HANDLE);
   extern boolean plugin_shutdown(PLUGIN_HANDLE handle)
   #endif
@@ -607,7 +600,9 @@ Which would yield a traditional SQL query of
 
   WHERE id < 3 OR id > 7 AND description = “A test row”
 
-Note, it is currently not possible to introduce bracketed conditions.
+.. note::
+
+  It is currently not possible to introduce bracketed conditions.
 
 Aggregation
 ###########
@@ -665,7 +660,7 @@ Multiple aggregates may be applied, in which case the aggregate property becomes
 		]
   }
 
-The result set JSON that is created for aggregates will have properties with names that are a concatenation of the column and operation. For example the where clause defined above would result in a response similar to below.
+The result set JSON that is created for aggregates will have properties with names that are a concatenation of the column and operation. For example, the where clause defined above would result in a response similar to below.
 
 .. code-block:: JSON
 
@@ -801,6 +796,7 @@ It is also possible to apply multiple sort operations, in which case the sort pr
       }
      ]
 
+.. note::
 
 The direction property is optional and if omitted will default to ascending order.
 

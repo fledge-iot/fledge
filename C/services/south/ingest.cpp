@@ -1073,8 +1073,8 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	}
 	else
 	{
-	    Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
 	}
 	
 	readingSet->clear();

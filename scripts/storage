@@ -88,6 +88,15 @@ elif [[ "$1" == "purge" ]]; then
 else
 	# Pass any other operation to the storage plugin
 	source "$PLUGIN_SCRIPT" $1 $2
+	# Also start the readings plugin if it is different to the configuration plugin
+	# The reason to do this is to create the schema in the readings database if required
+	if [[ "$PLUGIN_TO_USE" != "$READINGS_PLUGIN_TO_USE" ]]; then
+		READINGS_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/$READINGS_PLUGIN_TO_USE.sh"
+		# Some readings plugins, notably sqlitememory, do not have a script
+		if [[ -x "$READINGS_SCRIPT" ]]; then
+		    source "$READINGS_SCRIPT" $1 $2
+	        fi
+	fi
 fi
 
 # exit cannot be used because the script is sourced.

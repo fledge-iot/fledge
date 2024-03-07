@@ -176,6 +176,12 @@ async def delete_service(request):
 
         # Update deprecated timestamp in asset_tracker
         await update_deprecated_ts_in_asset_tracker(storage, svc)
+
+        # Delete user alerts
+        try:
+            await server.Server._alert_manager.delete(svc)
+        except:
+            pass
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -289,7 +295,7 @@ async def add_service(request):
                         return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
                 # Check If requested service is available for configured repository
-                services, log_path = await common.fetch_available_packages("service")
+                services, log_path = await common.fetch_available_packages()
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository'.format(name))
                 

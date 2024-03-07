@@ -773,13 +773,27 @@ void Ingest::processQueue()
 				m_performance->collect("readLatency", latency);
 				if (latency > m_timeout && m_highLatency == false)
 				{
-					m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);
+					m_logger->warn("Current send latency of %ldms exceeds requested maximum latency of %dmS", latency, m_timeout);
 					m_highLatency = true;
+					m_10Latency = false;
+					m_reportedLatencyTime = time(0);
 				}
 				else if (latency <= m_timeout / 1000 && m_highLatency)
 				{
 					m_logger->warn("Send latency now within requested limits");
 					m_highLatency = false;
+				}
+				else if (m_highLatency && latency > m_timeout + (m_timeout / 10) && time(0) - m_reportedLatencyTime > 60)
+				{
+					// Report again every minute if we are outside the latency
+					// target by more than 10%
+					m_logger->warn("Current send latency of %ldms still significantly exceeds requested maximum latency of %dmS", latency, m_timeout);
+					m_reportedLatencyTime = time(0);
+				}
+				else if (m_highLatency && latency < m_timeout + (m_timeout / 10) && m_10Latency == false)
+				{
+					m_logger->warn("Send latency of %ldms is now less than 10%% from target", latency);
+					m_10Latency = true;
 				}
 			}
 		}

@@ -475,6 +475,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			unsigned long interval  = strtoul(
+						m_configAdvanced.getValue("assetTrackerInterval").c_str(),
+						NULL,
+						10);
+			if (m_assetTracker)
+				m_assetTracker->tune(interval);
+		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
 		m_dataSender->setPerfMonitor(m_perfMonitor);
 
@@ -810,6 +819,15 @@ void NorthService::configChange(const string& categoryName, const string& catego
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			unsigned long interval  = strtoul(
+						m_configAdvanced.getValue("assetTrackerInterval").c_str(),
+						NULL,
+						10);
+			if (m_assetTracker)
+				m_assetTracker->tune(interval);
+		}
 		if (m_configAdvanced.itemExists("perfmon"))
 		{
 			string perf = m_configAdvanced.getValue("perfmon");
@@ -921,6 +939,12 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(DEFAULT_BLOCK_SIZE),
 		std::to_string(DEFAULT_BLOCK_SIZE));
 	defaultConfig.setItemDisplayName("blockSize", "Data block size");
+	defaultConfig.addItem("assetTrackerInterval",
+			"Number of milliseconds between updates of the asset tracker information",
+			"integer", std::to_string(MIN_ASSET_TRACKER_UPDATE),
+			std::to_string(MIN_ASSET_TRACKER_UPDATE));
+	defaultConfig.setItemDisplayName("assetTrackerInterval",
+			"Asset Tracker Update");
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			"boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");

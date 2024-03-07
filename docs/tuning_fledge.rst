@@ -47,6 +47,8 @@ The south services within Fledge each have a set of advanced configuration optio
 
   - *Reading Rate* - The rate at which polling occurs for this south service. This parameter only has effect if your south plugin is polled, asynchronous south services do not use this parameter. The units are defined by the setting of the *Reading Rate Per* item.
 
+  - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset trackign information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fix set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have varaiblility in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
+
   - *Reading Rate Per* - This defines the units to be used in the *Reading Rate* value. It allows the selection of per *second*, *minute* or *hour*.
 
   - *Poll Type* - This defines the mechanism used to control the poll requests that will be sent to the plugin. Three options are currently available, interval polling and fixed time polling and polling on demand.

@@ -385,7 +385,6 @@ static bool warned = false;
 
 	while (!m_pending.empty())
 	{
-		Logger::getLogger()->fatal("FIXME: %d items in the asset tracker pending queue", m_pending.size());
 		// Get first element as TrackingTuple calss
 		TrackingTuple *tuple = m_pending.front();
 

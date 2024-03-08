@@ -798,7 +798,7 @@ It is also possible to apply multiple sort operations, in which case the sort pr
 
 .. note::
 
-The direction property is optional and if omitted will default to ascending order.
+    The direction property is optional and if omitted will default to ascending order.
 
 Limit
 #####

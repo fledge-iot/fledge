@@ -650,6 +650,8 @@ the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
 
+.. _Numeric Data Types:
+
 Numeric Data Types
 ------------------
 

@@ -66,8 +66,6 @@ configure_purge(){
    echo 
    echo -e "Updated Purge Configuration \n"
    echo -e "Updating Purge Schedule \n"
-   echo  > enable_purge.json
-   cat enable_purge.json
    curl -X PUT "$FLEDGE_URL/schedule/cea17db8-6ccc-11e7-907b-a6006ad3dba0" -d \
    '{
       "name": "purge",

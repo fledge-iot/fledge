@@ -12,6 +12,3 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 't',                                    -- exclusive
                 't'                                     -- enabled
               );
-
-
-COMMIT;

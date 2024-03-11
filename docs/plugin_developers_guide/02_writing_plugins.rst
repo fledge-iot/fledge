@@ -358,8 +358,12 @@ We have used the properties *type* and *default* to define properties of the con
      - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
    * - displayName
      - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - items
+     - The type of the items in a list or kvlist configuration item.
    * - length
      - The maximum length of the string value of the item.
+   * - listSize
+     - The maximum number of entries allowed in a list or kvlist item.
    * - mandatory
      - A boolean flag to indicate that this item can not be left blank.
    * - maximum
@@ -384,6 +388,52 @@ We have used the properties *type* and *default* to define properties of the con
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
 
 Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all other may be omitted.
+
+Types
+~~~~~
+
+The configuration items within a configuration category can each be defined as one of a set of types. The types currently supported by Fledge are
+
+.. list-table::
+   :header-rows: 1
+
+   * - Type
+     - Description
+   * - integer
+     - An integer numeric value. The value may be positive or negative but may not contain any fractional part. The *minimum* and *maximum* properties may be used to control the limits of the values assigned to an integer.
+   * - float
+     - A floating point numeric item. The *minimum* and *maximum* properties may be used to control the limits of the values assigned to a floating point item.
+   * - string
+     - An alpha-numeric array of characters that may contain any printable characters. The *length* property can be used to constrain the maximum length of the string.
+   * - boolean
+     - A boolean value that can be assigned the values *true* or *false*.
+   * - IPv4
+     - An IP version 4 address.
+   * - IPv6
+     - An IP version 6 address.
+   * - X509 certificate
+     - An X509 certificate
+   * - password
+     - A string that is used as a password. There is not difference between this or a string type other than user interfaces do not show this in plain text.
+   * - JSON
+     - A JSON document. The value is checked to ensure it is a valid JSON document.
+   * - URL
+     - A universal resource locator string. The API Will check for correct URL formatting of the value.
+   * - enumeration
+     - The item can be assigned one of a fixed set of values. These values are defined in the *options* property of the item.
+   * - script
+     - A block of text that is executed as a script. In this case the script is not stored on the database, but as an external file.
+   * - northTask
+     - The name of a north task. The API will check that the value matches the name of an existing north task.
+   * - ACL
+     - An access control list. The value is the string name of an access control list that has been created within Fledge.
+   * - list
+     - A list of items, the items can be of type *string*, *integer* or *float*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+   * - kvlist
+     - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float* or *integer*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+
+Management
+~~~~~~~~~~
 
 Configuration data is stored by the storage service and is maintained by the configuration in the core Fledge service. When code requires configuration it would create a configuration category with a set of items as a JSON document. It would then register that configuration category with the configuration manager. The configuration manager is responsible for storing the data in the storage layer, as it does this it first checks to see if there is already a configuration category from a previous execution of the code. If one does exist then the two are merged, this merging process allows updates to the software to extend the configuration category whilst maintaining any changes in values made by the user.
 

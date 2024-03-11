@@ -11,7 +11,6 @@
 #include <connection_manager.h>
 #include <sqlite_common.h>
 #include <utils.h>
-#include "string_utils.h"
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
 #endif
@@ -858,6 +857,13 @@ unsigned long nRows = 0, nCols = 0;
 						str = (char *)newDate.c_str();
 					}
 
+					// Prepare well escaped string 'null' so that it is not treated as null character by the rapidjson::Value
+					if (strcmp(str,"null") == 0)
+					{
+						std::string nullString = "\"null\"";
+						str = const_cast<char*>(nullString.c_str());
+					}
+
 					Value value;
 					if (!d.Parse(str).HasParseError())
 					{
@@ -927,7 +933,6 @@ unsigned long nRows = 0, nCols = 0;
 
 	// Set the result as a CPP string 
 	resultSet = buffer.GetString();
-	StringReplaceAll(resultSet,":null",":\"null\"");
 
 	// Return SQLite3 ret code
 	return rc;

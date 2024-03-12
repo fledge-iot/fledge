@@ -53,17 +53,16 @@ PipelineFilter::~PipelineFilter()
  * Setup the configuration for a filter in a pipeline
  *
  * @param	mgtClient	The managament client
- * @param	manager		The plugin manager
  * @param	children	A vector to fill with child configuration categories
  */
-bool PipelineFilter::setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, vector<string>& children)
+bool PipelineFilter::setupConfiguration(ManagementClient *mgtClient, vector<string>& children)
 {
-
+	PluginManager *manager = PluginManager::getInstance();
 	string filterConfig = manager->getInfo(m_handle)->config;
 
 	string categoryName = m_serviceName + "_" + m_name;
 	// Create/Update default filter category items
-	DefaultConfigCategory filterDefConfig(cateoryName, filterConfig);
+	DefaultConfigCategory filterDefConfig(categoryName, filterConfig);
 	string filterDescription = "Configuration of '" + m_name;
 	filterDescription += "' filter for plugin '" + m_pluginName + "'";
 	filterDefConfig.setDescription(filterDescription);
@@ -83,4 +82,33 @@ bool PipelineFilter::setupConfiguration(ManagementClient *mgtClient, PluginManag
 	if (!m_plugin)
 		return false;
 	return true;
+}
+
+
+/**
+ * Load the specified filter plugin
+ *
+ * @param filterName	The filter plugin to load
+ * @return		Plugin handle on success, NULL otherwise 
+ *
+ */
+PLUGIN_HANDLE PipelineFilter::loadFilterPlugin(const string& filterName)
+{
+	if (filterName.empty())
+	{
+		Logger::getLogger()->error("Unable to fetch filter plugin '%s' from configuration.",
+			filterName.c_str());
+		// Failure
+		return NULL;
+	}
+	Logger::getLogger()->info("Loading filter plugin '%s'.", filterName.c_str());
+
+	PluginManager *manager = PluginManager::getInstance();
+	PLUGIN_HANDLE handle;
+	if ((handle = manager->loadPlugin(filterName, PLUGIN_TYPE_FILTER)) != NULL)
+	{
+		// Suceess
+		Logger::getLogger()->info("Loaded filter plugin '%s'.", filterName.c_str());
+	}
+	return handle;
 }

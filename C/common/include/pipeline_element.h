@@ -24,8 +24,8 @@
  */
 class PipelineElement {
 	public:
-		PipelineElement();
-		virtual ~PipelineElement();
+		PipelineElement() : m_next(NULL) {};
+		virtual ~PipelineElement() {};
 		void			setNext(PipelineElement *next)
 					{
 						m_next = next;
@@ -51,7 +51,7 @@ class PipelineFilter : public PipelineElement {
 		PipelineFilter(const std::string& name, const ConfigCategory& filterDetails);
 		~PipelineFilter();
 	protected:
-		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, vector<std::string>& children);
+		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, std::vector<std::string>& children);
 		void			ingest(READINGSET *readingSet)
 					{
 						if (m_plugin)
@@ -60,9 +60,11 @@ class PipelineFilter : public PipelineElement {
 						}
 					};
 	private:
+		PLUGIN_HANDLE		loadFilterPlugin(const std::string& filterName);
+	private:
 		std::string		m_name;		// The name of the filter category
 		std::string		m_pluginName;
-		PLUGIN_HANDLE		*m_handle;
+		PLUGIN_HANDLE		m_handle;
 		FilterPlugin		*m_plugin;
 };
 

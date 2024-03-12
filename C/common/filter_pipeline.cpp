@@ -139,29 +139,9 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 						// Get "plugin" item from filterCategoryName
 						string filterCategoryName = itr->GetString();
 						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-						if (!filterDetails.itemExists("plugin"))
-						{
-							string errMsg("loadFilters: 'plugin' item not found ");
-							errMsg += "in " + filterCategoryName + " category";
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						string filterName = filterDetails.getValue("plugin");
-						PLUGIN_HANDLE filterHandle;
-						// Load filter plugin only: we don't call any plugin method right now
-						filterHandle = loadFilterPlugin(filterName);
-						if (!filterHandle)
-						{
-							string errMsg("Cannot load filter plugin '" + filterName + "'");
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						else
-						{
-							// Save filter handler: key is filterCategoryName
-							filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-									     (filterCategoryName, filterHandle));
-						}
+
+						PipelineElement *element = PipelineFilter(filterCategoryName, filterDetails);
+						m_filters.emplace_back(element);
 					}
 					else if (itr->IsArray())
 					{
@@ -181,36 +161,9 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 
 				// We have kept filter default config in the filterInfo map
 				// Handle configuration for each filter
-				PluginManager *pluginManager = PluginManager::getInstance();
-				for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
-				     itr != filterInfo.end();
-				     ++itr)
+				for (auto& itr : m_filters)
 				{
-					// Get plugin default configuration
-					string filterConfig = pluginManager->getInfo(itr->second)->config;
-
-					// Create/Update default filter category items
-					DefaultConfigCategory filterDefConfig(categoryName + "_" + itr->first, filterConfig);
-					string filterDescription = "Configuration of '" + itr->first;
-					filterDescription += "' filter for plugin '" + categoryName + "'";
-					filterDefConfig.setDescription(filterDescription);
-
-					if (!mgtClient->addCategory(filterDefConfig, true))
-					{
-						string errMsg("Cannot create/update '" + \
-							      categoryName + "' filter category");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-					children.push_back(categoryName + "_" + itr->first);
-
-					// Instantiate the FilterPlugin class
-					// in order to call plugin entry points
-					FilterPlugin* currentFilter = new FilterPlugin(itr->first,
-										       itr->second);
-
-					// Add filter to filters vector
-					m_filters.push_back(currentFilter);
+					itr->setupConfiguration(mgtClient, children);
 				}
 			}
 		}

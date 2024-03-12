@@ -17,7 +17,7 @@
 #include <reading_set.h>
 #include <filter_plugin.h>
 #include <service_handler.h>
-
+#include <pipeline_element.h>
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
 /**
@@ -33,7 +33,7 @@ public:
 			StorageClient& storage,
 			std::string serviceName);
 	~FilterPipeline();
-	FilterPlugin *	getFirstFilterPlugin()
+	PipelineElement *getFirstFilterPlugin()
 	{
 		return (m_filters.begin() == m_filters.end()) ?
 			NULL : *(m_filters.begin());
@@ -62,7 +62,7 @@ protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;
-	std::vector<FilterPlugin *>
+	std::vector<PipelineElement *>
 				m_filters;
 	std::map<std::string, FilterPlugin *>
 				m_filterCategories;

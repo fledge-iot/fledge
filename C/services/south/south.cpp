@@ -423,6 +423,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			string interval = m_configAdvanced.getValue("assetTrackerInterval");
+			unsigned long i = strtoul(interval.c_str(), NULL, 10);
+			if (m_assetTracker)
+				m_assetTracker->tune(i);
+		}
 
 		{
 		// Instantiate the Ingest class
@@ -1023,6 +1030,13 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			{
 				m_throttle = false;
 			}
+		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			string interval = m_configAdvanced.getValue("assetTrackerInterval");
+			unsigned long i = strtoul(interval.c_str(), NULL, 10);
+			if (m_assetTracker)
+				m_assetTracker->tune(i);
 		}
 	}
 

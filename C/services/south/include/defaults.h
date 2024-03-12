@@ -25,6 +25,9 @@ static struct {
 			"Enable flow control by reducing the poll rate", "boolean", "false" },
 	{ "readingsPerSec",	"Reading Rate",
 			"Number of readings to generate per interval", "integer", "1" },
+	{ "assetTrackerInterval",	"Asset Tracker Update",
+			"Number of milliseconds between updates of the asset tracker information",
+			"integer", "500" },
 	{ NULL, NULL, NULL, NULL, NULL }
 };
 #endif

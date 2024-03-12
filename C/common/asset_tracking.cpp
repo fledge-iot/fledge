@@ -43,7 +43,7 @@ AssetTracker *AssetTracker::getAssetTracker()
  * @param service  		Service name
  */
 AssetTracker::AssetTracker(ManagementClient *mgtClient, string service) 
-	: m_mgtClient(mgtClient), m_service(service)
+	: m_mgtClient(mgtClient), m_service(service), m_updateInterval(MIN_ASSET_TRACKER_UPDATE)
 {
 	instance = this;
 	m_shutdown = false;
@@ -339,6 +339,27 @@ void AssetTracker::queue(TrackingTuple *tuple)
 }
 
 /**
+ * Set the update interval for the asset tracker.
+ *
+ * @param interval The number of milliseconds between update of the asset tracker
+ * @return bool	Was the update accepted
+ */
+bool AssetTracker::tune(unsigned long interval)
+{
+	unique_lock<mutex> lck(m_mutex);
+	if (interval >= MIN_ASSET_TRACKER_UPDATE)
+	{
+		m_updateInterval = interval;
+	}
+	else
+	{
+		Logger::getLogger()->error("Attempt to set asset tracker update to less than minimum interval");
+		return false;
+	}
+	return true;
+}
+
+/**
  * The worker thread that will flush any pending asset tuples to
  * the database.
  */
@@ -347,7 +368,7 @@ void AssetTracker::workerThread()
 	unique_lock<mutex> lck(m_mutex);
 	while (m_pending.empty() && m_shutdown == false)
 	{
-		m_cv.wait_for(lck, chrono::milliseconds(500));
+		m_cv.wait_for(lck, chrono::milliseconds(m_updateInterval));
 		processQueue();
 	}
 	// Process any items left in the queue at shutdown

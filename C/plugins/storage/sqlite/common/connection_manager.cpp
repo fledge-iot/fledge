@@ -489,7 +489,7 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 /**
  * Background thread used to execute periodic tasks and oversee the database activity.
  *
- * We will runt he SQLite vacuum command periodically to allow space to be reclaimed
+ * We will run the SQLite vacuum command periodically to allow space to be reclaimed
  */
 void ConnectionManager::background()
 {

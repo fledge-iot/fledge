@@ -862,6 +862,7 @@ unsigned long nRows = 0, nCols = 0;
 					{
 						std::string nullString = "\"null\"";
 						str = const_cast<char*>(nullString.c_str());
+						usleep(200); //Ubuntu 20 requires delay to work
 					}
 
 					Value value;

@@ -108,6 +108,7 @@ Running the python tests:
 - ``pytest test_filename.py --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` - This will execute all tests in the file named test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
 - ``pytest test_filename.py::TestClass --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` -  This will execute all test methods in a single class TestClass in file test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
 - ``pytest test_filename.py::TestClass::test_case --cov=. --cov-report xml:xml_filepath --cov-report html:html_directorypath`` - This will execute test method test_case in class TestClass in file test_filename.py and generate the code coverage report in XML as well as the HTML format at the specified path in the command.
+- ``pytest -s -vv tests/unit/python/fledge/ --cov=. --cov-report=html --cov-config $FLEDGE_ROOT/tests/unit/python/.coveragerc`` - This will execute all the python tests and generate the code coverage report in the HTML format on the basis of settings in the configuration file.
 
 
 C Tests

@@ -387,7 +387,7 @@ We have used the properties *type* and *default* to define properties of the con
    * - value
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
 
-Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all other may be omitted.
+Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
 
 Types
 ~~~~~
@@ -414,21 +414,23 @@ The configuration items within a configuration category can each be defined as o
    * - X509 certificate
      - An X509 certificate
    * - password
-     - A string that is used as a password. There is not difference between this or a string type other than user interfaces do not show this in plain text.
+     - A string that is used as a password. There is no difference between this or a string type other than user interfaces do not show this in plain text.
    * - JSON
      - A JSON document. The value is checked to ensure it is a valid JSON document.
    * - URL
-     - A universal resource locator string. The API Will check for correct URL formatting of the value.
+     - A universal resource locator string. The API will check for correct URL formatting of the value.
    * - enumeration
      - The item can be assigned one of a fixed set of values. These values are defined in the *options* property of the item.
    * - script
      - A block of text that is executed as a script. In this case the script is not stored on the database, but as an external file.
+   * - code
+     - A block of text that is executed as Python code. In this case the code is not stored on the database, but as an external file.
    * - northTask
      - The name of a north task. The API will check that the value matches the name of an existing north task.
    * - ACL
      - An access control list. The value is the string name of an access control list that has been created within Fledge.
    * - list
-     - A list of items, the items can be of type *string*, *integer* or *float*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+     - A list of items, the items can be of type *string*, *integer*, *float* or *enumeration*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
    * - kvlist
      - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float* or *integer*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
 

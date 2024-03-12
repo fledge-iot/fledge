@@ -23,11 +23,15 @@ Updates must either be installed manually from the command line or via the Fledg
 
 If the Fledge instance has been configured to require authentication then a valid authentication token must be passed in the request header and that authentication token must by for a user with administration rights on the instance.
 
+.. code-block:: console
+
+    curl -H "authorization: <token>" -X PUT http://localhost:8081/fledge/update
+
 Manual updates can be down from the command line using the appropriate package manager for your Linux host. If using the *apt* package manager then the command would be
 
 .. code-block:: console
 
-   apt upgrade
+   apt upgrade --only-upgrade 'fledge*'
 
 Or for the *yum* package manager
 

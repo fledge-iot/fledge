@@ -550,7 +550,12 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
-	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
+	unsigned long lastReadingId = vecPtr->back()->getId();
+
+	// Special case when all readings are filtered out 
+	// or new readings are appended by filter with id 0
+	if (readingSet->getCount() == 0 || lastReadingId == 0)	
 	{
 		load->updateLastSentId(load->m_lastFetched);
 	}

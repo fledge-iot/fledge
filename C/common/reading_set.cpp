@@ -550,15 +550,25 @@ Datapoint *rval = NULL;
 				size_t pos = str.find_first_of(':');
 				if (str.compare(2, 10, "DATABUFFER") == 0)
 				{
-					DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
-					DatapointValue value(databuffer);
-					rval = new Datapoint(name, value);
+					try {
+						DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
+						DatapointValue value(databuffer);
+						rval = new Datapoint(name, value);
+					} catch (exception& e) {
+						Logger::getLogger()->error("Unable to create datapoint %s as the base 64 encoded data is incorrect, %s",
+								name.c_str(), e.what());
+					}
 				}
 				else if (str.compare(2, 7, "DPIMAGE") == 0)
 				{
-					DPImage *image = new Base64DPImage(str.substr(pos + 1));
-					DatapointValue value(image);
-					rval = new Datapoint(name, value);
+					try {
+						DPImage *image = new Base64DPImage(str.substr(pos + 1));
+						DatapointValue value(image);
+						rval = new Datapoint(name, value);
+					} catch (exception& e) {
+						Logger::getLogger()->error("Unable to create datapoint %s as the base 64 encoded data is incorrect, %s",
+								name.c_str(), e.what());
+					}
 				}
 
 			}
@@ -648,7 +658,11 @@ Datapoint *rval = NULL;
 			vector<Datapoint *> *obj = new vector<Datapoint *>;
 			for (auto &mo : item.GetObject())
 			{
-				obj->push_back(datapoint(mo.name.GetString(), mo.value));
+				Datapoint *dp = datapoint(mo.name.GetString(), mo.value);
+				if (dp)
+				{
+					obj->push_back(dp);
+				}
 			}
 			DatapointValue value(obj, true);
 			rval = new Datapoint(name, value);

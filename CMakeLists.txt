@@ -35,6 +35,7 @@ add_subdirectory(C/services/filter-plugin-interfaces/python/filter_ingest_pymodu
 add_subdirectory(C/services/north-plugin-interfaces/python)
 add_subdirectory(C/tasks/north)
 add_subdirectory(C/tasks/purge_system)
+add_subdirectory(C/tasks/check_updates)
 add_subdirectory(C/tasks/statistics_history)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/OMF)

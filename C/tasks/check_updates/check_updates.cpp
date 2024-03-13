@@ -161,10 +161,10 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	std::vector<std::string> packageList;
 	if(!packageManager.empty())
 	{
-		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep -v '^foglamp-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
+		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep -v '^foglamp-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
+			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		}	
 
 		FILE* pipe = popen(command.c_str(), "r");

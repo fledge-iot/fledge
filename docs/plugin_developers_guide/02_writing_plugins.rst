@@ -343,51 +343,7 @@ The configuration items within a category are JSON object, the object key is the
                 "default" : "5"
                 }
 
-We have used the properties *type* and *default* to define properties of the configuration item *MaxRetries*.  These are not the only properties that a configuration item can have, the full set of properties are
-
-.. list-table::
-   :header-rows: 1
-
-   * - Property
-     - Description
-   * - default
-     - The default value for the configuration item. This is always expressed as a string regardless of the type of the configuration item.
-   * - deprecated
-     - A boolean flag to indicate that this item is no longer used and will be removed in a future release.
-   * - description
-     - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
-   * - displayName
-     - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
-   * - items
-     - The type of the items in a list or kvlist configuration item.
-   * - length
-     - The maximum length of the string value of the item.
-   * - listSize
-     - The maximum number of entries allowed in a list or kvlist item.
-   * - mandatory
-     - A boolean flag to indicate that this item can not be left blank.
-   * - maximum
-     - The maximum value for a numeric configuration item.
-   * - minimum
-     - The minimum value for a numeric configuration item.
-   * - options
-     - Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.
-   * - order
-     - Used in the user interface to give an indication of how high up in the dialogue to place this item.
-   * - group
-     - Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation and edit screens.
-   * - readonly
-     - A boolean property that can be used to include items that can not be altered by the API.
-   * - rule
-     - A validation rule that will be run against the value. This must evaluate to true for the new value to be accepted by the API
-   * - type
-     - The type of the configuration item. The list of types supported are; integer, float, string, password, enumeration, boolean, JSON, URL, IPV4, IPV6, script, code, X509 certificate and northTask.
-   * - validity
-     - An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.
-   * - value
-     - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
-
-Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
+We have used the properties *type* and *default* to define properties of the configuration item *MaxRetries*.  These are not the only properties that a configuration item can have, the full set of item types and properties are shown below
 
 Types
 ~~~~~
@@ -430,9 +386,117 @@ The configuration items within a configuration category can each be defined as o
    * - ACL
      - An access control list. The value is the string name of an access control list that has been created within Fledge.
    * - list
-     - A list of items, the items can be of type *string*, *integer*, *float* or *enumeration*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+     - A list of items, the items can be of type *string*, *integer*, *float*, *enumeration* or *object*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
    * - kvlist
-     - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float* or *integer*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+     - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float*, *integer* or *object*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+   * - object
+     - A complex configuration type with multiple elements that may be used withon *list* and *kvlist* items only, it is not possible to have *object* tye items outside of a list. Object type configuration items have a set of *properties* defined, each of which is itself a configuration item. 
+
+Lists of Objects
+################
+
+Object type items may be used in lists and are a mechanism to allow for list of groups of configuration items. The object list type items must specify a property called *properties*. The value of this is a JSON object that contains a list of configuration items that are grouped into the object.
+
+An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the defintions of a key/value pair list where the value is an object.
+
+.. code-block:: JSON
+
+  "map": {
+        "description": "A list of datapoints to read and PLC register definitions",
+        "type": "kvlist",
+        "items" : "object",
+        "default": "{}",
+        "order" : "3",
+        "displayName" : "PLC Map",
+        "properties" : {
+                "register" : {
+                        "description" : "The register number to read",
+                        "displayName" : "Register",
+                        "type" : "integer",
+                        "default" : "0"
+                        },
+                "width" : {
+                        "description" : "Number of registers to read",
+                        "displayName" : "Width",
+                        "type" : "integer",
+                        "maximum" : "4",
+                        "default" : "1"
+                        },
+                "type" : {
+                        "description" : "The data type to read",
+                        "displayName" : "Data Type",
+                        "type" : "enumeration",
+                        "options" : [ "integer","float", "boolean" ],
+                        "default" : "integer"
+                        }
+                }
+        }
+
+The *value* and *default* properties for a list of objects is returned as a JSON structure. An example of the above list with two elements in the list, voltage and current would be returned as follows:
+
+.. code-block:: JSON
+
+  {
+        "voltage" : {
+                        "register" : "10",
+                        "width" : "2",
+                        "type" : "integer"
+                },
+        "current" : {
+                        "register" : "14",
+                        "width" : "4",
+                        "type" : "float"
+                }
+  }
+
+Properties
+~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+
+   * - Property
+     - Description
+   * - default
+     - The default value for the configuration item. This is always expressed as a string regardless of the type of the configuration item.
+   * - deprecated
+     - A boolean flag to indicate that this item is no longer used and will be removed in a future release.
+   * - description
+     - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
+   * - displayName
+     - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - items
+     - The type of the items in a list or kvlist configuration item.
+   * - length
+     - The maximum length of the string value of the item.
+   * - listSize
+     - The maximum number of entries allowed in a list or kvlist item.
+   * - mandatory
+     - A boolean flag to indicate that this item can not be left blank.
+   * - maximum
+     - The maximum value for a numeric configuration item.
+   * - minimum
+     - The minimum value for a numeric configuration item.
+   * - options
+     - Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.
+   * - order
+     - Used in the user interface to give an indication of how high up in the dialogue to place this item.
+   * - group
+     - Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation and edit screens.
+   * - readonly
+     - A boolean property that can be used to include items that can not be altered by the API.
+   * - rule
+     - A validation rule that will be run against the value. This must evaluate to true for the new value to be accepted by the API
+   * - type
+     - The type of the configuration item. The list of types supported are; integer, float, string, password, enumeration, boolean, JSON, URL, IPV4, IPV6, script, code, X509 certificate and northTask.
+   * - validity
+     - An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.
+   * - value
+     - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
+   * - properties
+     - A set of items that are used in list and kvlist tyoe items ti create a list of groups of configuration items.
+
+Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional. However it is strongly addvised to include a *displayName* and an *order* in every item to improve the GUI rendering of configuration screens.
 
 Management
 ~~~~~~~~~~

@@ -395,7 +395,7 @@ The configuration items within a configuration category can each be defined as o
 Key/Value List
 ##############
 
-A key/value list is a way of storing tagged item pairs within a list. For example to create a list of labels and expressions we can use a kvlist that stores the expressions as string values in the kvlist.
+A key/value list is a way of storing tagged item pairs within a list. For example, to create a list of labels and expressions we can use a kvlist that stores the expressions as string values in the kvlist.
 
 .. code-block:: JSON
 
@@ -403,7 +403,7 @@ A key/value list is a way of storing tagged item pairs within a list. For exampl
                 "description" : "A set of expressions used to evaluate and label data",
                 "type" : "kvlist",
                 "items" : "string",
-                "default" : "{ \\"idle\\" : \\"speed == 0 \\" }",
+                "default" : "{\"idle\" : \"speed == 0\"}",
                 "order" : "4",
                 "displayName" : "Labels"
                 }
@@ -423,7 +423,7 @@ An example use of an object list might allow for a map structure to be built for
         "description": "A list of datapoints to read and PLC register definitions",
         "type": "kvlist",
         "items" : "object",
-        "default": "{ \\"speed\\" : { \\"register\\" : \\"10\\", \\"width\\" : \\"1\\", \\"type\\" : \\"integer\\"}}",
+        "default": "{\"speed\" : {\"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"}}",
         "order" : "3",
         "displayName" : "PLC Map",
         "properties" : {

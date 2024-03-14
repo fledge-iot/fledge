@@ -37,7 +37,7 @@ Or for the *yum* package manager
 
 .. code-block:: console
 
-   yum upgrade
+   yum upgrade 'fledge*'
 
 .. note::
 

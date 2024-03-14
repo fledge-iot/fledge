@@ -56,6 +56,15 @@ const char *default_config = QUOTE({
 			"default" : "false",
 			"displayName" : "Persist Data",
 			"order" : "2"
+		},
+		"purgeBlockSize" : {
+			"description" : "The number of rows to purge in each delete statement",
+			"type" : "integer",
+			"default" : "10000",
+			"displayName" : "Purge Block Size",
+			"order" : "3",
+			"minimum" : "1000",
+			"maximum" : "100000"
 		}
 });
 
@@ -117,6 +126,11 @@ int poolSize = 5;
 	{
 		Connection        *connection = manager->allocate();
 		connection->loadDatabase(manager->filename());
+	}
+	if (category->itemExists("purgeBlockSize"))
+	{
+		unsigned long purgeBlockSize = strtoul(category->getValue("purgeBlockSize").c_str(), NULL, 10);
+		manager->setPurgeBlockSize(purgeBlockSize);
 	}
 	return manager;
 }

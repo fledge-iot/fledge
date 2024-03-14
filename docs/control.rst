@@ -625,7 +625,7 @@ The control pipelines are not defined against a particular end point as they are
       - Source
       - The request is either originating from a script or being sent to a script.
     * - Service
-      - Source
+      - Both
       - The request is either coming from a named service or going to a named service.
 
 Control pipelines are always executed in the control dispatcher service. When a request comes into the service it will look for a pipeline to pass that request through. This process will look at the source of the request and the destination of the request. If a pipeline that has source and destination endpoints that are an exact match for the source and destination of the control request then the control request will be processed through that pipeline.

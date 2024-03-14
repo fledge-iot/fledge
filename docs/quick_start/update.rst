@@ -31,7 +31,7 @@ Manual updates can be down from the command line using the appropriate package m
 
 .. code-block:: console
 
-   apt upgrade --only-upgrade 'fledge*'
+   apt install --only-upgrade 'fledge*'
 
 Or for the *yum* package manager
 

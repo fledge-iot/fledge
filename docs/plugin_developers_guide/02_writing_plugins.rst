@@ -378,9 +378,9 @@ The configuration items within a configuration category can each be defined as o
    * - enumeration
      - The item can be assigned one of a fixed set of values. These values are defined in the *options* property of the item.
    * - script
-     - A block of text that is executed as a script. In this case the script is not stored on the database, but as an external file.
+     - A block of text that is executed as a script. The script type should be used for larger blocks of code to be executed.
    * - code
-     - A block of text that is executed as Python code. In this case the code is not stored on the database, but as an external file.
+     - A block of text that is executed as Python code. This is used for small snippets of Python rather than when larger scripts.
    * - northTask
      - The name of a north task. The API will check that the value matches the name of an existing north task.
    * - ACL
@@ -390,14 +390,32 @@ The configuration items within a configuration category can each be defined as o
    * - kvlist
      - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float*, *integer* or *object*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
    * - object
-     - A complex configuration type with multiple elements that may be used withon *list* and *kvlist* items only, it is not possible to have *object* tye items outside of a list. Object type configuration items have a set of *properties* defined, each of which is itself a configuration item. 
+     - A complex configuration type with multiple elements that may be used within *list* and *kvlist* items only, it is not possible to have *object* type items outside of a list. Object type configuration items have a set of *properties* defined, each of which is itself a configuration item. 
+
+Key/Value List
+##############
+
+A key/value list is a way of storing tagged item pairs within a list. For example to create a list of labels and expressions we can use a kvlist that stores the expressions as string values in the kvlist.
+
+.. code-block:: JSON
+
+  "expressions" : {
+                "description" : "A set of expressions used to evaluate and label data",
+                "type" : "kvlist",
+                "items" : "string",
+                "default" : "{ \\"idle\\" : \\"speed == 0 \\" }",
+                "order" : "4",
+                "displayName" : "Labels"
+                }
+
+The key values must be unique within a kvlist, as the data is stored as a JSON object with the key becoming the property name and the value of the property the corresponding value for the key.
 
 Lists of Objects
 ################
 
 Object type items may be used in lists and are a mechanism to allow for list of groups of configuration items. The object list type items must specify a property called *properties*. The value of this is a JSON object that contains a list of configuration items that are grouped into the object.
 
-An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the defintions of a key/value pair list where the value is an object.
+An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the definitions of a key/value pair list where the value is an object.
 
 .. code-block:: JSON
 
@@ -405,7 +423,7 @@ An example use of an object list might allow for a map structure to be built for
         "description": "A list of datapoints to read and PLC register definitions",
         "type": "kvlist",
         "items" : "object",
-        "default": "{}",
+        "default": "{ \\"speed\\" : { \\"register\\" : \\"10\\", \\"width\\" : \\"1\\", \\"type\\" : \\"integer\\"}}",
         "order" : "3",
         "displayName" : "PLC Map",
         "properties" : {
@@ -494,9 +512,13 @@ Properties
    * - value
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
    * - properties
-     - A set of items that are used in list and kvlist tyoe items ti create a list of groups of configuration items.
+     - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
 
-Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional. However it is strongly addvised to include a *displayName* and an *order* in every item to improve the GUI rendering of configuration screens.
+Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
+
+.. note::
+
+  It is strongly advised to include a *displayName* and an *order* in every item to improve the GUI rendering of configuration screens. If a configuration category is very large it is also recommended to use the *group* property to group together related items. These grouped items are displayed within separate tabs in the current Fledge GUI.
 
 Management
 ~~~~~~~~~~
@@ -553,7 +575,7 @@ The configuration in *default_config* is assumed to have an enumeration item cal
 
 Note the use of the *Manual* option to allow entry of devices that could not be discovered.
 
-The *discover* method does the actually discovery and manipulates the JSON configuration to add the the *options* element of the configuration item.
+The *discover* method does the actually discovery and manipulates the JSON configuration to add the *options* element of the configuration item.
 
 The code that connects to the device should then look at the *discovered* configuration item, if it finds it set to *Manual* then it will get an IP address from the *IP* configuration item. Otherwise it uses the information in the *discovered* item to connect, note that this need not just be an IP address, you can format the data in a way that is more user friendly and have the connection code extract what it needs or create a table in the *discover* method to allow for user meaningful strings to be mapped to network addresses.
 

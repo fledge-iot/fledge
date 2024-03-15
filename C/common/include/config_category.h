@@ -13,6 +13,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <rapidjson/document.h>
 #include <json_utils.h>
 
@@ -65,7 +66,9 @@ class ConfigCategory {
 			ScriptItem,
 			CategoryType,
 			CodeItem,
-			BucketItem
+			BucketItem,
+			ListItem,
+			KVListItem
 		};
 
 		ConfigCategory(const std::string& name, const std::string& json);
@@ -93,6 +96,8 @@ class ConfigCategory {
 		bool				itemExists(const std::string& name) const;
 		bool				setItemDisplayName(const std::string& name, const std::string& displayName);
 		std::string			getValue(const std::string& name) const;
+		std::vector<std::string>	getValueList(const std::string& name) const;
+		std::map<std::string, std::string>	getValueKVList(const std::string& name) const;
 		std::string			getType(const std::string& name) const;
 		std::string			getDescription(const std::string& name) const;
 		std::string			getDefault(const std::string& name) const;
@@ -110,6 +115,8 @@ class ConfigCategory {
 		bool				isBool(const std::string& name) const;
 		bool				isNumber(const std::string& name) const;
 		bool				isDouble(const std::string& name) const;
+		bool				isList(const std::string& name) const;
+		bool				isKVList(const std::string& name) const;
 		bool				isDeprecated(const std::string& name) const;
 		std::string			toJSON(const bool full=false) const;
 		std::string			itemsToJSON(const bool full=false) const;
@@ -118,6 +125,7 @@ class ConfigCategory {
 		void				setItemsValueFromDefault();
 		void				checkDefaultValuesOnly() const;
 		std::string 			itemToJSON(const std::string& itemName) const;
+		std::string			to_string(const rapidjson::Value& v) const;
 		enum ItemAttribute {
 					ORDER_ATTR,
 					READONLY_ATTR,
@@ -131,7 +139,9 @@ class ConfigCategory {
 					DISPLAY_NAME_ATTR,
 					DEPRECATED_ATTR,
 					RULE_ATTR,
-					BUCKET_PROPERTIES_ATTR
+					BUCKET_PROPERTIES_ATTR,
+					LIST_SIZE_ATTR,
+					ITEM_TYPE_ATTR
 					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -180,6 +190,8 @@ class ConfigCategory {
 				std::string	m_group;
 				std::string	m_rule;
 				std::string	m_bucketProperties;
+				std::string	m_listSize;
+				std::string	m_listItemType;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
@@ -275,5 +287,17 @@ class ConfigItemAttributeNotFound : public std::exception {
 		{
 			return "Configuration item attribute not found in configuration category";
 		}
+};
+
+/**
+ * An attempt has been made to access a configuration item as a list when the
+ * item is not of type list
+ */
+class ConfigItemNotAList : public std::exception {
+        public:
+                virtual const char *what() const throw()
+                {
+                        return "Configuration item is not a list type item";
+                }
 };
 #endif

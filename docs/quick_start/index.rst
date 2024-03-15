@@ -14,4 +14,5 @@ Quick Start Guide
     ../OMF
     backup
     support
+    update
     uninstalling

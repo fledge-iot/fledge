@@ -84,7 +84,7 @@ void CheckUpdates::raiseAlerts()
 			iss >> version;
 			removeSubstring(key,"/", " ");
 
-			std::string message = "A newer " + version + " version of " + key + " is available for upgrade";
+			std::string message = "A newer version " + version + " of " + key + " is available for upgrade";
 			std::string urgency = "normal";
 			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{
@@ -177,9 +177,9 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 		char buffer[1024];
 		while (!feof(pipe))
 		{
-			if (fgets(buffer, 1024, pipe) != NULL)
+			if (fgets(buffer, sizeof(buffer), pipe) != NULL)
 			{
-				//strip out newline characher
+				//strip out newline character
 				int len = strlen(buffer) - 1;
 				if (*buffer && buffer[len] == '\n')
 					buffer[len] = '\0';

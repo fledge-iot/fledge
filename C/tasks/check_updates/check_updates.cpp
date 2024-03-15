@@ -17,6 +17,7 @@
 #include <fstream>
 #include <errno.h>
 #include <cstring>
+#include <sstream>
 
 using namespace std;
 
@@ -74,9 +75,16 @@ void CheckUpdates::raiseAlerts()
 	m_logger->debug("raiseAlerts running");
 	try
 	{
-		for (auto key: getUpgradablePackageList())
+		for (auto item: getUpgradablePackageList())
 		{
-			std::string message = "A newer version of " + key + " is available for upgrade";
+			std::string key = "";
+			std::string version = "";
+			std::istringstream iss(item);
+			iss >> key;
+			iss >> version;
+			removeSubstring(key,"/", " ");
+
+			std::string message = "A newer version " + version + " of " + key + " is available for upgrade";
 			std::string urgency = "normal";
 			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{
@@ -153,10 +161,10 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	std::vector<std::string> packageList;
 	if(!packageManager.empty())
 	{
-		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep '^fledge' | cut -d'/' -f1 ";
+		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep '^fledge' | cut -d' ' -f1 ";
+			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		}	
 
 		FILE* pipe = popen(command.c_str(), "r");
@@ -166,12 +174,12 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 			return packageList;
 		}
 
-		char buffer[128];
+		char buffer[1024];
 		while (!feof(pipe))
 		{
-			if (fgets(buffer, 128, pipe) != NULL)
+			if (fgets(buffer, sizeof(buffer), pipe) != NULL)
 			{
-				//strip out newline characher
+				//strip out newline character
 				int len = strlen(buffer) - 1;
 				if (*buffer && buffer[len] == '\n')
 					buffer[len] = '\0';
@@ -187,3 +195,23 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	return packageList;
 }
 
+/**
+ * Remove substring
+ */
+void CheckUpdates::removeSubstring(std::string& str, const std::string& startDelimiter, const std::string& endDelimiter)
+{
+	size_t pos = str.find(startDelimiter);
+	while (pos != std::string::npos)
+	{
+		size_t end_pos = str.find(endDelimiter, pos + 1);
+		if (end_pos != std::string::npos)
+		{
+			str.erase(pos, end_pos - pos + 1);
+		}
+		else
+		{
+			str.erase(pos); // Remove until the end if space not found
+		}
+		pos = str.find(startDelimiter);
+	}
+}

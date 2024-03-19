@@ -129,3 +129,4 @@ setup_target_for_coverage_gcovr_xml(
             DEPENDENCIES ${PROJECT_NAME}
     )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE UNIT_TEST)

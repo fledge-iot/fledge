@@ -207,10 +207,37 @@ setup_north_pi_egress () {
   echo 'North setup done'
 }
 
-# This Function keep the fledge and its plugin running state for the "TEST_RUN_TIME" seconds then stop the fledge, So that data required for mem check be collected.
+monitor_memory() {
+  local duration=$1
+  local threshold=$2
+  local interval=5  # Check memory every 5 seconds
+  
+  echo "Monitoring system memory for ${duration} seconds..."
+  
+  # Calculate threshold memory value
+  local total_mem=$(free | awk '/^Mem:/{print $2}')
+  local threshold_mem=$((total_mem * threshold / 100))
+  
+  local remaining=$duration
+  
+  while [ $remaining -gt 0 ]; do
+      # Check available memory
+      local avail_mem=$(free | awk '/^Mem:/{print $7}')
+      
+      if [ $avail_mem -lt $threshold_mem ]; then
+          echo "Available memory is below threshold. Stopping monitoring."
+          break
+      fi
+      
+      # Sleep for interval seconds
+      sleep $interval
+      remaining=$((remaining - interval))
+      echo "${remaining} seconds remaining"
+  done
+}
+
 collect_data() {
   echo "Collecting Data and Generating reports"
-  sleep "${TEST_RUN_TIME}"
   set +e
 
   echo "===================== COLLECTING SUPPORT BUNDLE / SYSLOG ============================"
@@ -256,6 +283,7 @@ if [ "${USE_FILTER}" = "True" ]; then
 fi
 enable_services
 setup_north_pi_egress
+monitor_memory ${TEST_RUN_TIME} ${MEMORY_THRESHOLD}
 collect_data
 generate_valgrind_logs 
 

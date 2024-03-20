@@ -7,3 +7,4 @@ READINGSRATE="100"   # It is the readings rate per second per service
 PURGE_INTERVAL_SECONDS="180"
 STORAGE='sqlite' # postgres, sqlite-in-memory, sqlitelb
 READING_PLUGIN_DB='Use main plugin'
+MEMORY_THRESHOLD=20    # Memory Threshold in percentage

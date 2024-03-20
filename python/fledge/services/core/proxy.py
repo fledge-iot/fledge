@@ -180,7 +180,7 @@ async def _call_microservice_service_api(
                         _logger.error("GET Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, message))
         elif request.method == 'POST':
-            payload = await request.text()
+            payload = request.content
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, data=payload) as resp:
                     message = await resp.text()

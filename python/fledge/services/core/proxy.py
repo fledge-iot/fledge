@@ -180,30 +180,14 @@ async def _call_microservice_service_api(
                         _logger.error("GET Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, message))
         elif request.method == 'POST':
-            payload = await request.post()
-            if 'multipart/form-data' in request.headers['Content-Type']:
-                import requests
-                from requests_toolbelt.multipart.encoder import MultipartEncoder
-                from aiohttp.web_request import FileField
-                multipart_payload = {}
-                for k, v in payload.items():
-                    multipart_payload[k] = (v.filename, v.file.read(), 'text/plain') if isinstance(v, FileField) else v
-                m = MultipartEncoder(fields=multipart_payload)
-                headers['Content-Type'] = m.content_type
-                r = requests.post(url, data=m, headers=headers)
-                response = (r.status_code, r.text)
-                if r.status_code not in range(200, 209):
-                    _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
-                        r.status_code, r.reason, r.text))
-            else:
-                payload = await request.json()
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
-                        message = await resp.text()
-                        response = (resp.status, message)
-                        if resp.status not in range(200, 209):
-                            _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
-                                resp.status, resp.reason, message))
+            payload = await request.text()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=payload) as resp:
+                    message = await resp.text()
+                    response = (resp.status, message)
+                    if resp.status not in range(200, 209):
+                        _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
+                           resp.status, resp.reason, message))
         elif request.method == 'PUT':
             payload = await request.json()
             async with aiohttp.ClientSession() as session:

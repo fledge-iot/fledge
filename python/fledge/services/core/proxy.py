@@ -199,6 +199,9 @@ async def _call_microservice_service_api(
             if 'multipart/form-data' in request.headers['Content-Type']:
                 r = await _post_multipart(url, headers, payload)
                 response = (r.status_code, r.text)
+                if r.status_code not in range(200, 209):
+                    _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
+                        r.status_code, r.reason, r.text))
             else:
                 payload = await request.json()
                 async with aiohttp.ClientSession() as session:

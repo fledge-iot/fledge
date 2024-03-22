@@ -30,13 +30,30 @@ class PipelineElement {
 					{
 						m_next = next;
 					};
+		PipelineElement		*getNext(PipelineElement *next)
+					{
+						return m_next;
+					};
 		void			setService(const std::string& serviceName)
 					{
 						m_serviceName = serviceName;
 					};
-	protected:
-		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, std::vector<std::string>& children) { return false; };
+		static void		ingest(void *handle, READINGSET *readings)
+					{
+					       	((PipelineElement *)handle)->ingest(readings);
+					};
+		virtual bool		setupConfiguration(ManagementClient *mgtClient,
+						std::vector<std::string>& children)
+					{
+						return false;
+					};
+		virtual bool		isFilter()
+			       		{
+						return false;
+					};
 		virtual void		ingest(READINGSET *readingSet) = 0;
+		virtual bool		init(const ConfigCategory* config,
+						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output) = 0;
 	protected:
 		std::string		m_serviceName;
 		PipelineElement		*m_next;
@@ -50,8 +67,7 @@ class PipelineFilter : public PipelineElement {
 	public:
 		PipelineFilter(const std::string& name, const ConfigCategory& filterDetails);
 		~PipelineFilter();
-	protected:
-		bool			setupConfiguration(ManagementClient *mgtClient, PluginManager *manager, std::vector<std::string>& children);
+		bool			setupConfiguration(ManagementClient *mgtClient, std::vector<std::string>& children);
 		void			ingest(READINGSET *readingSet)
 					{
 						if (m_plugin)
@@ -59,10 +75,16 @@ class PipelineFilter : public PipelineElement {
 							m_plugin->ingest(readingSet);
 						}
 					};
+		bool			isFilter() { return true; };
+		std::string		getCategoryName() { return m_categoryName; };
+		bool			persistData() { return m_plugin->persistData(); };
+		void			setPluginData(PluginData *data) { m_plugin->m_plugin_data = data; };
+		std::string		getPluginData() { m_plugin->m_plugin_data->loadStoredData(serviceName + (*it)->getName()); };
 	private:
 		PLUGIN_HANDLE		loadFilterPlugin(const std::string& filterName);
 	private:
-		std::string		m_name;		// The name of the filter category
+		std::string		m_name;		// The name of the filter instance
+		std::string		m_categoryName;
 		std::string		m_pluginName;
 		PLUGIN_HANDLE		m_handle;
 		FilterPlugin		*m_plugin;
@@ -74,8 +96,15 @@ class PipelineFilter : public PipelineElement {
 class PipelineBranch : public PipelineElement {
 	public:
 		PipelineBranch();
-	protected:
 		void			ingest(READINGSET *readingSet);
+					{
+						if (m_next)
+						{
+							m_next->ingest(readingSet);
+						}
+					};
+	private:
+		PipelineElement		*m_branch;
 };
 
 /**
@@ -84,7 +113,6 @@ class PipelineBranch : public PipelineElement {
 class PipelineWriter : public PipelineElement {
 	public:
 		PipelineWriter();
-	protected:
 		void			ingest(READINGSET *readingSet);
 };
 

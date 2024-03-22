@@ -140,7 +140,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 						string filterCategoryName = itr->GetString();
 						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 
-						PipelineElement *element = PipelineFilter(filterCategoryName, filterDetails);
+						PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
 						m_filters.emplace_back(element);
 					}
 					else if (itr->IsArray())
@@ -221,30 +221,33 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName =  serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
 		vector<string> children;
 		
 		try
 		{
-			Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = mgtClient->getCategory(filterCategoryName);
+			if ((*it)->isFilter())
+			{
+				PipelineFilter *filter = *it;
+				string filterCategoryName = filter->getCategoryName();
+				Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
+				// Fetch up to date filter configuration
+				updatedCfg = mgtClient->getCategory(filterCategoryName);
 
-			// Pass Management client IP:Port to filter so that it may connect to bucket service
-			updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
-								"string", "127.0.0.1:0",
-								mgtClient->getUrlbase());
+				// Pass Management client IP:Port to filter so that it may connect to bucket service
+				updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
+									"string", "127.0.0.1:0",
+									mgtClient->getUrlbase());
 
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			mgtClient->addChildCategories(serviceName, children);
-			
-			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
-			m_serviceHandler = (ServiceHandler *)ingest;
-			
-			m_filterCategories[filterCategoryName] = (*it);
+				// Add filter category name under service/process config name
+				children.push_back(filterCategoryName);
+				mgtClient->addChildCategories(serviceName, children);
+				
+				ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
+				configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
+				m_serviceHandler = (ServiceHandler *)ingest;
+				
+				m_filterCategories[filterCategoryName] = *it;
+			}
 		}
 		// TODO catch specific exceptions
 		catch (...)

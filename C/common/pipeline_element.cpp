@@ -22,8 +22,8 @@ using namespace std;
  * specialisation of the PipelineElement that represents
  * a running filter in the pipeline.
  */
-PipelineFilter::PipelineFilter(const string& name, const ConfigCategory& filterDetails) : m_name(name),
-	m_plugin(NULL)
+PipelineFilter::PipelineFilter(const string& name, const ConfigCategory& filterDetails) :
+	PipelineElement(), m_name(name), m_plugin(NULL)
 {
 	m_name = name;
 	if (!filterDetails.itemExists("plugin"))
@@ -60,9 +60,9 @@ bool PipelineFilter::setupConfiguration(ManagementClient *mgtClient, vector<stri
 	PluginManager *manager = PluginManager::getInstance();
 	string filterConfig = manager->getInfo(m_handle)->config;
 
-	string categoryName = m_serviceName + "_" + m_name;
+	m_categoryName = m_serviceName + "_" + m_name;
 	// Create/Update default filter category items
-	DefaultConfigCategory filterDefConfig(categoryName, filterConfig);
+	DefaultConfigCategory filterDefConfig(m_categoryName, filterConfig);
 	string filterDescription = "Configuration of '" + m_name;
 	filterDescription += "' filter for plugin '" + m_pluginName + "'";
 	filterDefConfig.setDescription(filterDescription);
@@ -70,7 +70,7 @@ bool PipelineFilter::setupConfiguration(ManagementClient *mgtClient, vector<stri
 	if (!mgtClient->addCategory(filterDefConfig, true))
 	{
 		string errMsg("Cannot create/update '" + \
-			      categoryName + "' filter category");
+			      m_categoryName + "' filter category");
 		Logger::getLogger()->fatal(errMsg.c_str());
 		return false;
 	}
@@ -111,4 +111,11 @@ PLUGIN_HANDLE PipelineFilter::loadFilterPlugin(const string& filterName)
 		Logger::getLogger()->info("Loaded filter plugin '%s'.", filterName.c_str());
 	}
 	return handle;
+}
+
+/**
+ * Constructor for a branch in a filter pipeline
+ */
+PipelineBranch::PipelineBranch() : PipelineElement(), m_branch(NULL)
+{
 }

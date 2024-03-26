@@ -61,7 +61,7 @@ reset_fledge(){
 configure_purge(){
    # This function is for updating purge configuration and schedule of python based purge.
    echo -e "Updating Purge Configuration \n"
-   row_count="$(printf "%.0f" "$(echo "${READINGSRATE} * 2 * ${PURGE_INTERVAL_SECONDS}"| bc)")"
+   row_count="$(printf "%.0f" "$(echo "${READINGS_RATE} * 2 * ${PURGE_INTERVAL_SECONDS}"| bc)")"
    curl -X PUT "$FLEDGE_URL/category/PURGE_READ" -d "{\"size\":\"${row_count}\"}"
    echo 
    echo -e "Updated Purge Configuration \n"
@@ -92,7 +92,7 @@ add_sinusoid(){
 
   sleep 60
   
-  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d '{ "readingsPerSec": "'${READINGSRATE}'"}'
+  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d '{ "readingsPerSec": "'${READINGS_RATE}'"}'
   echo
 }
 
@@ -134,7 +134,7 @@ add_random(){
 
   sleep 60
 
-  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "'${READINGSRATE}'"}'
+  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "'${READINGS_RATE}'"}'
   echo
 
 }

@@ -425,7 +425,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                       "value for item name {}".format(
                                                     category_name, item_name))
                                 if list_size >= 0:
-                                    if len(eval_default_val) != list_size:
+                                    if len(eval_default_val) > list_size:
                                         raise ArithmeticError("For {} category, default value {} list size limit to "
                                                               "{} for item name {}".format(category_name, msg,
                                                                                            list_size, item_name))
@@ -1908,7 +1908,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'listSize' in storage_value_entry:
                     list_size = int(storage_value_entry['listSize'])
                     if list_size >= 0:
-                        if len(eval_new_val) != list_size:
+                        if len(eval_new_val) > list_size:
                             raise TypeError("For config item {} value {} list size limit to {}".format(
                                 item_name, msg, list_size))
 

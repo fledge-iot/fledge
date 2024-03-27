@@ -341,6 +341,27 @@ const char *json_parse_error = "{\"description\": {"
 		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
+const char *listConfig = "{ \"name\": {"
+                "\"type\": \"list\","
+		"\"items\" : \"string\","
+                "\"default\": \"[ \\\"Fledge\\\" ]\","
+		"\"value\" : \"[ \\\"one\\\", \\\"two\\\" ]\","
+                "\"description\": \"A simple list\"} }";
+
+const char *kvlistConfig = "{ \"name\": {"
+                "\"type\": \"kvlist\","
+		"\"items\" : \"string\","
+                "\"default\": \"{ }\","
+		"\"value\" : \"{ \\\"a\\\" : \\\"first\\\", \\\"b\\\" : \\\"second\\\" }\","
+                "\"description\": \"A simple list\"} }";
+
+const char *kvlistObjectConfig = "{ \"name\": {"
+                "\"type\": \"kvlist\","
+		"\"items\" : \"object\","
+                "\"default\": \"{ }\","
+		"\"value\" : \"{ \\\"a\\\" : { \\\"one\\\" : \\\"first\\\"}, \\\"b\\\" : { \\\"two\\\" :\\\"second\\\" } }\","
+                "\"description\": \"A simple list\"} }";
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);
@@ -675,4 +696,37 @@ TEST(CategoryTestQuoted, toJSONQuotedSpecial)
 TEST(Categorytest, parseError)
 {
 	EXPECT_THROW(ConfigCategory("parseTest", json_parse_error), ConfigMalformed*);
+}
+
+TEST(CategoryTest, listItem)
+{
+	ConfigCategory category("list", listConfig);
+	ASSERT_EQ(true, category.isList("name"));
+	ASSERT_EQ(0, category.getItemAttribute("name", ConfigCategory::ITEM_TYPE_ATTR).compare("string"));
+	std::vector<std::string> v = category.getValueList("name");
+	ASSERT_EQ(2, v.size());
+	ASSERT_EQ(0, v[0].compare("one"));
+	ASSERT_EQ(0, v[1].compare("two"));
+}
+
+TEST(CategoryTest, kvlistItem)
+{
+	ConfigCategory category("list", kvlistConfig);
+	ASSERT_EQ(true, category.isKVList("name"));
+	ASSERT_EQ(0, category.getItemAttribute("name", ConfigCategory::ITEM_TYPE_ATTR).compare("string"));
+	std::map<std::string, std::string> v = category.getValueKVList("name");
+	ASSERT_EQ(2, v.size());
+	ASSERT_EQ(0, v["a"].compare("first"));
+	ASSERT_EQ(0, v["b"].compare("second"));
+}
+
+TEST(CategoryTest, kvlistObjectItem)
+{
+	ConfigCategory category("list", kvlistObjectConfig);
+	ASSERT_EQ(true, category.isKVList("name"));
+	ASSERT_EQ(0, category.getItemAttribute("name", ConfigCategory::ITEM_TYPE_ATTR).compare("object"));
+	std::map<std::string, std::string> v = category.getValueKVList("name");
+	ASSERT_EQ(2, v.size());
+	ASSERT_EQ(0, v["a"].compare("{\"one\":\"first\"}"));
+	ASSERT_EQ(0, v["b"].compare("{\"two\":\"second\"}"));
 }

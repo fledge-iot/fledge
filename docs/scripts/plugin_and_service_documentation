@@ -144,7 +144,7 @@ do
             echo '.. include:: ../../fledge-north-OMF.rst' > plugins/${name}/index.rst
             # Append OMF.rst to the end of the file rather than including it so that we may edit the links to prevent duplicates
             cat OMF.rst >> plugins/${name}/index.rst
-            sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' -e 's/Edge_Data_Store/Edge_Data_Store_OMF_Endpoint/' -e 's/_Connector_Relay/PI_Connector_Relay/' plugins/${name}/index.rst
+            sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' -e 's/Edge_Data_Store/Edge_Data_Store_OMF_Endpoint/' -e 's/_Connector_Relay/PI_Connector_Relay/' -e 's/.. _Numeric Data Types/.. _Numeric_Data_Types/' plugins/${name}/index.rst
         elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
             name="fledge-rule-DataAvailability"
             echo "    ${name}/index" >> $dest

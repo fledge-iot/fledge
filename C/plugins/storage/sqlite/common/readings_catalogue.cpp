@@ -102,12 +102,12 @@ bool ReadingsCatalogue::configurationRetrieve(sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
+		m_ReadingsGlobalId = sqlite3_column_int64(stmt, 0);
 		m_dbIdLast = sqlite3_column_int(stmt, 1);
 		m_storageConfigCurrent.nReadingsPerDb = sqlite3_column_int(stmt, 2);
 		m_storageConfigCurrent.nDbPreallocate = sqlite3_column_int(stmt, 3);
 	}
-	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %d dbIdLast %d ", (int) m_ReadingsGlobalId, m_dbIdLast);
+	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lld dbIdLast %d ", m_ReadingsGlobalId.load(), m_dbIdLast);
 
 	sqlite3_finalize(stmt);
 
@@ -127,7 +127,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 {
 	string sql_cmd;
 	int rc;
-	int id;
+	long long id;
 	int nCols;
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
@@ -169,11 +169,11 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
+		m_ReadingsGlobalId = sqlite3_column_int64(stmt, 0);
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %d", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lld", id);
 
 	if (m_ReadingsGlobalId == -1)
 	{
@@ -181,7 +181,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %d", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lld", id);
 
 	// Set the global_id in the DB to -1 to force a calculation at the restart
 	// in case the shutdown is not executed and the proper value stored
@@ -213,9 +213,9 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
-	int i;
+	long long i;
 	i = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("storeGlobalId m_globalId %d ", i);
+	Logger::getLogger()->debug("storeGlobalId m_globalId %lld ", i);
 
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -246,14 +246,14 @@ bool ReadingsCatalogue::storeGlobalId ()
  * @param dbHandle Database connection to use for the operations
  *
  */
-int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
+long long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	int id;
+	long long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -322,7 +322,7 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		id = sqlite3_column_int(stmt, 0);
+		id = sqlite3_column_int64(stmt, 0);
 		// m_globalId stores then next value to be used
 		id++;
 	}
@@ -339,14 +339,14 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
  * @param dbHandle Database connection to use for the operations
  *
  */
-int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
+long long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	int id;
+	long long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -415,10 +415,10 @@ int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		id = sqlite3_column_int(stmt, 0);
+		id = sqlite3_column_int64(stmt, 0);
 	}
 
-	Logger::getLogger()->debug("%s - global id evaluated %d", __FUNCTION__, id);
+	Logger::getLogger()->debug("%s - global id evaluated %lld", __FUNCTION__, id);
 
 	sqlite3_finalize(stmt);
 

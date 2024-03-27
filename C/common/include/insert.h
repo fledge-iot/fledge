@@ -44,6 +44,12 @@ class InsertValue {
 			m_value.ival = value;
 			m_type = INT_COLUMN;
 		};
+		InsertValue(const std::string& column, const long long value) :
+				m_column(column)
+		{
+			m_value.llval = value;
+			m_type = INT64_COLUMN;
+		};
 		InsertValue(const std::string& column, const double value) :
 				m_column(column)
 		{
@@ -77,6 +83,9 @@ class InsertValue {
 			{
 			case INT_COLUMN:
 				m_value.ival = rhs.m_value.ival;
+				break;
+			case INT64_COLUMN:
+				m_value.llval = rhs.m_value.llval;
 				break;
 			case NUMBER_COLUMN:
 				m_value.fval = rhs.m_value.fval;
@@ -118,6 +127,9 @@ class InsertValue {
 			case INT_COLUMN:
 				json << m_value.ival;
 				break;
+			case INT64_COLUMN:
+				json << m_value.llval;
+				break;
 			case NUMBER_COLUMN:
 				json << m_value.fval;
 				break;
@@ -138,6 +150,7 @@ class InsertValue {
 		union {
 			char	*str;
 			long	ival;
+			long long llval;
 			double	fval;
 			}		m_value;
 };

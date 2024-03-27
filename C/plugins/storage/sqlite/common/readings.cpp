@@ -899,19 +899,19 @@ ostringstream threadId;
 				if (itr == readingsValue.Begin())
 				{
 					// Get current reading global id
-					unsigned long startTransactionId = readCatalogue->getIncGlobalId();
+					unsigned long long startTransactionId = readCatalogue->getIncGlobalId();  // & 0xffffffff;
 
 					// Mark transaction srtart fot this thread
 					readCatalogue->m_tx.SetThreadTransactionStart(tid,
 							startTransactionId);
 
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, startTransactionId);
+					sqlite3_bind_int64 (stmt, 1, startTransactionId);
 				}
 				else
 				{
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
+					sqlite3_bind_int64 (stmt, 1, readCatalogue->getIncGlobalId());
 				}
 
 				// Set parameter for user timestamp
@@ -1098,7 +1098,7 @@ ostringstream threadId;
  *
  *    2019-01-11 15:45:01.123456+01:00
  */
-bool Connection::fetchReadings(unsigned long id,
+bool Connection::fetchReadings(unsigned long long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
@@ -1108,8 +1108,8 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
-unsigned int minGlobalId;
-unsigned int idWindow;
+unsigned long long minGlobalId;
+unsigned long long idWindow;
 unsigned long rowsCount;
 
 	if (m_noReadings)

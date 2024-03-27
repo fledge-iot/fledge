@@ -55,10 +55,10 @@ class Reading {
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
 		bool				hasId() const { return m_has_id; };
-		unsigned long			getId() const { return m_id; };
-		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
-		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
-		void				setId(unsigned long id) { m_id = id; };
+		unsigned long long	getId() const { return m_id; };
+		unsigned long		getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
+		unsigned long		getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
+		void				setId(unsigned long long id) { m_id = id; };
 		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; };
 		void				setTimestamp(struct timeval tm) { m_timestamp = tm; };
 		void				setTimestamp(const std::string& timestamp);
@@ -82,7 +82,7 @@ class Reading {
 		void				stringToTimestamp(const std::string& timestamp, struct timeval *ts);
 		const std::string		escape(const std::string& str) const;
 		std::vector<Datapoint *>	*JSONtoDatapoints(const rapidjson::Value& json);
-		unsigned long			m_id;
+		unsigned long long	m_id;
 		bool				m_has_id;
 		std::string			m_asset;
 		struct timeval			m_timestamp;

@@ -113,7 +113,7 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 	const Value& readings = docHasRows ? doc["rows"] : doc["readings"];
 	if (readings.IsArray())
 	{
-		unsigned long id = 0;
+		unsigned long long id = 0;
 		// Process every rows and create the result set
 		for (auto& reading : readings.GetArray())
 		{
@@ -361,7 +361,7 @@ Reading* ReadingSet::removeReading(unsigned long id)
  *
  * @param pos	The position of the reading to return the ID for
  */
-unsigned long ReadingSet::getReadingId(uint32_t pos)
+unsigned long long ReadingSet::getReadingId(uint32_t pos)
 {
 	if (pos < m_readings.size())
 	{

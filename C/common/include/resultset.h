@@ -18,6 +18,7 @@
 
 typedef enum column_type {
 	INT_COLUMN = 1,
+	INT64_COLUMN,
 	NUMBER_COLUMN,
 	STRING_COLUMN,
 	BOOL_COLUMN,
@@ -48,6 +49,11 @@ class ResultSet {
 				{
 					m_value.ival = value;
 					m_type = INT_COLUMN;
+				};
+				ColumnValue(const long long value)
+				{
+					m_value.llval = value;
+					m_type = INT64_COLUMN;
 				};
 				ColumnValue(const double value)
 				{
@@ -83,6 +89,7 @@ class ResultSet {
 				union {
 					char			*str;
 					long			ival;
+					long long		llval;
 					double			fval;
 					rapidjson::Value	*json;
 					}	m_value;

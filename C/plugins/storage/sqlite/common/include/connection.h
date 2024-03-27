@@ -125,7 +125,7 @@ class Connection {
 #endif
 		int		appendReadings(const char *readings);
 		int 		readingStream(ReadingStream **readings, bool commit);
-		bool		fetchReadings(unsigned long id, unsigned int blksize,
+		bool		fetchReadings(unsigned long long id, unsigned int blksize,
 						std::string& resultSet);
 		bool		retrieveReadings(const std::string& condition,
 						 std::string& resultSet);

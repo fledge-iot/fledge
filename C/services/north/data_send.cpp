@@ -126,7 +126,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 	uint32_t to_send = readings->getCount();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
-	unsigned long lastSent = readings->getReadingId(sent);
+	unsigned long long lastSent = readings->getReadingId(sent);
 	if (m_perfMonitor)
 	{
 		m_perfMonitor->collect("Readings sent", sent);

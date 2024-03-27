@@ -367,8 +367,8 @@ class Datapoint {
 		 * Parse a json string and generates 
 		 * a corresponding datapoint vector  
 		 */
-		std::vector<Datapoint*>* parseJson(const std::string& json);
-		std::vector<Datapoint*>* recursiveJson(const rapidjson::Value& document);
+		static std::vector<Datapoint*>* parseJson(const std::string& json);
+		static std::vector<Datapoint*>* recursiveJson(const rapidjson::Value& document);
 
 	private:
 		std::string		m_name;

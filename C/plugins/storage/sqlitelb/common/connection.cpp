@@ -857,6 +857,14 @@ unsigned long nRows = 0, nCols = 0;
 						str = (char *)newDate.c_str();
 					}
 
+					// Prepare well escaped string 'null' so that it is not treated as null character by the rapidjson::Value
+					if (strcmp(str,"null") == 0)
+					{
+						std::string nullString = "\"null\"";
+						str = const_cast<char*>(nullString.c_str());
+						usleep(10); //Ubuntu 20 requires delay to work
+					}
+
 					Value value;
 					if (!d.Parse(str).HasParseError())
 					{

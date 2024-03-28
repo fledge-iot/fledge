@@ -103,9 +103,11 @@ std::string JSONunescape(const std::string& input)
 		// skip leading or trailing "
 		if ((i == 0 || i == input.size() -1) && input[i] == '"')
 		{
+			continue;
 		}
+
 		// \\" -> \"
-		else if (input[i] == '\\' && i + 2 < input.size() && input[i + 1] == '\\' && input[i + 2] == '"')
+		if (input[i] == '\\' && i + 2 < input.size() && input[i + 1] == '\\' && input[i + 2] == '"')
 		{
 			output.push_back('\\');
 			output.push_back('"');

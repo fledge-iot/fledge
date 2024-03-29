@@ -132,9 +132,9 @@ You may also need to install one or more North plugins to transmit data.  Suppor
 Firewall Configuration
 ######################
 
-If you are installing packages within a fire walled environment you will need to open a number of locations for outgoing connections. This will will vary depending upon how you install the packages.
+If you are installing packages within a fire walled environment you will need to open a number of locations for outgoing connections. This will vary depending upon how you install the packages.
 
-If you are downloading or installing packages on the fire walled machine, that machine will need to access *archives.dianomic.com* to be able to pull the Fledge packages. This will use the standard HTTP port, port 80.
+If you are downloading or installing packages on the fire walled machine, that machine will need to access *archives.fledge-iot.org* to be able to pull the Fledge packages. This will use the standard HTTP port, port 80.
 
 It is also recommended that you allow the machine to access the source of packages for your Linux installation. This allows you to keep the machine updated with important patches and also for the installation of any Linux packages that are required by Fledge or the plugins that you load.
 
@@ -150,7 +150,7 @@ In all cases the standard HTTPS port, 443, is used for communication and is the 
 
 .. note::
 
-   If you downloaad packages on a different machine and copy them to your machine behind the fire wall you must still open the access for pip to the Python package locations.
+   If you download packages on a different machine and copy them to your machine behind the fire wall you must still open the access for pip to the Python package locations.
 
 Checking package installation
 #############################

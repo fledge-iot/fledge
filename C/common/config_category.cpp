@@ -144,7 +144,7 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d, '%s'",
 			name.c_str(), json.c_str(),
 			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(),
-			StringAround(json, (unsigned)doc.GetErrorOffset()));
+			StringAround(json, (unsigned)doc.GetErrorOffset()).c_str());
 		throw new ConfigMalformed();
 	}
 	
@@ -440,6 +440,114 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the value of the configuration category item list, this
+ * is a convience function used when simple lists are defined
+ * and allows for central processing of the list values
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getValueList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_type.compare("list"))
+			{
+				throw new ConfigItemNotAList();
+			}
+			Document d;
+			vector<string> list;
+			d.Parse(m_items[i]->m_value.c_str());
+			if (d.HasParseError())
+			{
+				Logger::getLogger()->error("The JSON value for a list item %s has a parse error: %s, %s",
+					name.c_str(), GetParseError_En(d.GetParseError()), m_items[i]->m_value.c_str());
+				return list;
+			}
+			if (d.IsArray())
+			{
+				for (auto& v : d.GetArray())
+				{
+					if (v.IsString())
+					{
+						list.push_back(v.GetString());
+					}
+				}
+			}
+			else
+			{
+				Logger::getLogger()->error("The value of the list item %s should be a JSON array and it is not", name.c_str());
+			}
+			return list;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the value of the configuration category item kvlist, this
+ * is a convience function used when key/value lists are defined
+ * and allows for central processing of the list values
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+map<string, string> ConfigCategory::getValueKVList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_type.compare("kvlist"))
+			{
+				throw new ConfigItemNotAList();
+			}
+			map<string, string> list;
+			Document d;
+			d.Parse(m_items[i]->m_value.c_str());
+			if (d.HasParseError())
+			{
+				Logger::getLogger()->error("The JSON value for a kvlist item %s has a parse error: %s, %s",
+					name.c_str(), GetParseError_En(d.GetParseError()), m_items[i]->m_value.c_str());
+				return list;
+			}
+			for (auto& v : d.GetObject())
+			{
+				string key = v.name.GetString();
+				string value = to_string(v.value);
+				list.insert(pair<string, string>(key, value));
+			}
+			return list;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Convert a RapidJSON value to a string
+ *
+ * @param v	The RapidJSON value
+ */
+std::string ConfigCategory::to_string(const rapidjson::Value& v) const
+{
+	if (v.IsString())
+	{
+		return { v.GetString(), v.GetStringLength() };
+	}
+	else
+	{
+		StringBuffer strbuf;
+		Writer<rapidjson::StringBuffer> writer(strbuf);
+		v.Accept(writer);
+		return { strbuf.GetString(), strbuf.GetLength() };
+	}
+}
+
+/**
  * Return the requested attribute of a configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -478,6 +586,10 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_rule;
 				case BUCKET_PROPERTIES_ATTR:
 					return m_items[i]->m_bucketProperties;
+				case LIST_SIZE_ATTR:
+					return m_items[i]->m_listSize;
+				case ITEM_TYPE_ATTR:
+					return m_items[i]->m_listItemType;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -545,6 +657,12 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case BUCKET_PROPERTIES_ATTR:
 					m_items[i]->m_bucketProperties = value;
+					return true;
+				case LIST_SIZE_ATTR:
+					m_items[i]->m_listSize = value;
+					return true;
+				case ITEM_TYPE_ATTR:
+					m_items[i]->m_listItemType = value;
 					return true;
 				default:
 					return false;
@@ -883,6 +1001,44 @@ bool ConfigCategory::isDeprecated(const string& name) const
 }
 
 /**
+ * Return if the configuration item is a list item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return (m_items[i]->m_type.compare("list") == 0);
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a kvlist item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isKVList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return (m_items[i]->m_type.compare("kvlist") == 0);
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Set the description for the configuration category
  *
  * @param description	The configuration category description
@@ -1047,6 +1203,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_itemType = BucketItem;
 	}
+	if (m_type.compare("list") == 0)
+	{
+		m_itemType = ListItem;
+	}
+	if (m_type.compare("kvlist") == 0)
+	{
+		m_itemType = KVListItem;
+	}
 
 	if (item.HasMember("deprecated"))
 	{
@@ -1128,6 +1292,33 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			{
 				m_options.push_back(string(options[i].GetString()));
 			}
+		}
+	}
+
+	if (item.HasMember("items"))
+	{
+		if (item["items"].IsString())
+		{
+			m_listItemType = item["items"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("Items configuration item property is not a string");
+		}
+	}
+	else if (m_itemType == ListItem || m_itemType == KVListItem)
+	{
+		throw new runtime_error("List configuration item is missing the \"items\" attribute");
+	}
+	if (item.HasMember("listSize"))
+	{
+		if (item["listSize"].IsString())
+		{
+			m_listSize = item["listSize"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("ListSize configuration item property is not a string");
 		}
 	}
 
@@ -1414,6 +1605,8 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_group = rhs.m_group;
 	m_rule = rhs.m_rule;
 	m_bucketProperties = rhs.m_bucketProperties;
+	m_listSize = rhs.m_listSize;
+	m_listItemType = rhs.m_listItemType;
 }
 
 /**
@@ -1447,7 +1640,10 @@ ostringstream convert;
 
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem ||
-	    m_itemType == EnumerationItem)
+	    m_itemType == EnumerationItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << "\"value\" : \"" << JSONescape(m_value) << "\", ";
 		convert << "\"default\" : \"" << JSONescape(m_default) << "\"";
@@ -1460,6 +1656,10 @@ ostringstream convert;
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default;
+	}
+	else
+	{
+		Logger::getLogger()->error("Unknown item type in configuration category");
 	}
 
 	if (full)
@@ -1517,6 +1717,15 @@ ostringstream convert;
 		if (!m_file.empty())
 		{
 			convert << ", \"file\" : \"" << m_file << "\"";
+		}
+
+		if (!m_listSize.empty())
+		{
+			convert << ", \"listSize\" : \"" << m_listSize << "\"";
+		}
+		if (!m_listItemType.empty())
+		{
+			convert << ", \"items\" : \"" << m_listItemType << "\"";
 		}
 	}
 	convert << " }";
@@ -1608,7 +1817,10 @@ ostringstream convert;
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||
-	    m_itemType == BoolItem)
+	    m_itemType == BoolItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}

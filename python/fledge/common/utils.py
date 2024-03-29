@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+import functools
 import datetime
 
 __author__ = "Amarendra K Sinha"
@@ -132,3 +133,18 @@ def get_open_ssl_version(version_string=True):
     """
     import ssl
     return ssl.OPENSSL_VERSION if version_string else ssl.OPENSSL_VERSION_INFO
+
+
+def make_async(fn):
+    """ turns a sync function to async function using threads """
+    from concurrent.futures import ThreadPoolExecutor
+    import asyncio
+    pool = ThreadPoolExecutor()
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        future = pool.submit(fn, *args, **kwargs)
+        return asyncio.wrap_future(future)  # make it awaitable
+
+    return wrapper
+

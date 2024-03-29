@@ -75,21 +75,13 @@ void CheckUpdates::raiseAlerts()
 	m_logger->debug("raiseAlerts running");
 	try
 	{
-		for (auto item: getUpgradablePackageList())
+		int availableUpdates = getUpgradablePackageList().size();
+		std::string key = "package_updates";
+		std::string message = "There are " + std::to_string(availableUpdates) + " updates available to be installed";
+		std::string urgency = "normal";
+		if (!m_mgtClient->raiseAlert(key,message,urgency))
 		{
-			std::string key = "";
-			std::string version = "";
-			std::istringstream iss(item);
-			iss >> key;
-			iss >> version;
-			removeSubstring(key,"/", " ");
-
-			std::string message = "A newer version " + version + " of " + key + " is available for upgrade";
-			std::string urgency = "normal";
-			if (!m_mgtClient->raiseAlert(key,message,urgency))
-			{
-				m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
-			}
+			m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
 		}
 
 	}
@@ -193,25 +185,4 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	}
 
 	return packageList;
-}
-
-/**
- * Remove substring
- */
-void CheckUpdates::removeSubstring(std::string& str, const std::string& startDelimiter, const std::string& endDelimiter)
-{
-	size_t pos = str.find(startDelimiter);
-	while (pos != std::string::npos)
-	{
-		size_t end_pos = str.find(endDelimiter, pos + 1);
-		if (end_pos != std::string::npos)
-		{
-			str.erase(pos, end_pos - pos + 1);
-		}
-		else
-		{
-			str.erase(pos); // Remove until the end if space not found
-		}
-		pos = str.find(startDelimiter);
-	}
 }

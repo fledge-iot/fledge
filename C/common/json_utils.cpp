@@ -83,44 +83,47 @@ string escaped = subject;
         }
         return escaped;
 }
+
 /**
  * Return unescaped version of a JSON string
  *
  * Routine removes \" inside the string
  * and leading and trailing "
  *
- * @param subject       Input string
+ * @param input         Input string
  * @return              Unescaped string
  */
-std::string JSONunescape(const std::string& subject)
+std::string JSONunescape(const std::string& input)
 {
-        size_t pos = 0;
-        string replace("");
-        string json = subject;
+	std::string output;
+	output.reserve(input.size());
 
-        // Replace '\"' with '"'
-        while ((pos = json.find("\\\"", pos)) != std::string::npos)
-        {
-                json.replace(pos, 1, "");
-        }
-        // Remove leading '"'
-        if (json[0] == '\"')
-        {
-                json.erase(0, 1);
-        }
-        // Remove trailing '"'
-        if (json[json.length() - 1] == '\"')
-        {
-                json.erase(json.length() - 1, 1);
-        }
+	for (size_t i = 0; i < input.size(); ++i)
+	{
+		// skip leading or trailing "
+		if ((i == 0 || i == input.size() -1) && input[i] == '"')
+		{
+			continue;
+		}
 
-	// Where we had escaped " characters we now have \\"
-	// replace this with \"
-	pos = 0;
-        while ((pos = json.find("\\\\\"", pos)) != std::string::npos)
-        {
-                json.replace(pos, 3, "\\\"");
-        }
-        return json;
+		// \\" -> \"
+		if (input[i] == '\\' && i + 2 < input.size() && input[i + 1] == '\\' && input[i + 2] == '"')
+		{
+			output.push_back('\\');
+			output.push_back('"');
+			i += 2;
+		}
+		// \" -> "
+		else if (input[i] == '\\' && i + 1 < input.size() && input[i + 1] == '"')
+		{
+			output.push_back('"');
+			++i;
+		}
+		else
+		{
+			output.push_back(input[i]);
+		}
+	}
+
+	return output;
 }
-

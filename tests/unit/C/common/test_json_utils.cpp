@@ -73,3 +73,21 @@ TEST(JsonToVectorString, JSONbad)
 
 	ASSERT_EQ(result, false);
 }
+
+TEST(JsonStringUnescape, LeadingAndTrailingDoubleQuote)
+{
+	string json = R"("value")";
+	ASSERT_EQ("value", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, UnescapedDoubleQuote)
+{
+	string json = R"({\"key\":\"value\"})";
+	ASSERT_EQ(R"({"key":"value"})", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, TwoTimesUnescapedDoubleQuote)
+{
+	string json = R"({\\"key\\":\\"value\\"})";
+	ASSERT_EQ(R"({\"key\":\"value\"})", JSONunescape(json));
+}

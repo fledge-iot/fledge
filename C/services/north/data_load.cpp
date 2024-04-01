@@ -551,12 +551,27 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 
 	DataLoad *load = (DataLoad *)outHandle;
 	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
-	unsigned long lastReadingId = vecPtr->back()->getId();
+    unsigned long lastReadingId = 0;
 
+    for(auto rdngPtrItr = vecPtr->crbegin(); rdngPtrItr != vecPtr->crend(); rdngPtrItr++)
+    {
+        if((*rdngPtrItr)->hasId()) // skip readings without the reading ID
+        {
+            lastReadingId = (*rdngPtrItr)->getId();
+            break;
+        }
+    }
+    
+    Logger::getLogger()->info("DataLoad::pipelineEnd(): readingSet->getCount()=%d, lastReadingId=%d, " 
+                              "load->m_lastFetched=%d",
+                                readingSet->getCount(), lastReadingId, load->m_lastFetched);
+    
 	// Special case when all readings are filtered out 
 	// or new readings are appended by filter with id 0
-	if (readingSet->getCount() == 0 || lastReadingId == 0)	
+	if ((readingSet->getCount() == 0) || (lastReadingId == 0))
 	{
+	    Logger::getLogger()->info("DataLoad::pipelineEnd(): updating with load->updateLastSentId(%d)", 
+	                                load->m_lastFetched);
 		load->updateLastSentId(load->m_lastFetched);
 	}
 
@@ -572,7 +587,8 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
  */
 void DataLoad::updateStatistics(uint32_t increment)
 {
-	updateStatistic(m_name, m_name + " Readings Sent", increment);
+	// Logger::getLogger()->info("DataLoad::updateStatistics(): increment=%d", increment);
+    updateStatistic(m_name, m_name + " Readings Sent", increment);
 	updateStatistic("Readings Sent", "Readings Sent North", increment);
 }
 

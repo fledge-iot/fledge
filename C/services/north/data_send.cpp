@@ -133,7 +133,7 @@ unsigned long DataSender::send(ReadingSet *readings)
     unsigned long lastSent = 0;
     for(auto rdngPtrItr = readingsVec.crbegin(); rdngPtrItr != readingsVec.crend(); rdngPtrItr++)
     {
-        if((*rdngPtrItr)->hasId()) // skip readings at the end without the reading ID
+        if((*rdngPtrItr)->hasId()) // only consider readings with valid reading IDs
         {
             lastSent = (*rdngPtrItr)->getId();
             break;
@@ -147,12 +147,11 @@ unsigned long DataSender::send(ReadingSet *readings)
 		m_perfMonitor->collect("Percentage readings sent", (100 * sent) / to_send);
 	}
 
-    Logger::getLogger()->info("DataSender::send(): to_send=%d, sent=%d, lastSent=%d", to_send, sent, lastSent);
+    Logger::getLogger()->debug("DataSender::send(): to_send=%d, sent=%d, lastSent=%d", to_send, sent, lastSent);
 
 	if (sent > 0)
 	{
 		// lastSent = readings->getLastId();
-        // Logger::getLogger()->info("DataSender::send(): lastSent=%d", lastSent);
 
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();

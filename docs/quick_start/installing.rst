@@ -15,9 +15,9 @@
 Installing Fledge
 ==================
 
-Fledge is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Raspbian operating system. Be sure your system has plenty of storage available for data readings.
+Fledge is extremely lightweight and can run on inexpensive edge devices, sensors and actuator boards.  For the purposes of this manual, we assume that all services are running on a Raspberry Pi running the Bullseye operating system. Be sure your system has plenty of storage available for data readings.
 
-If your system does not have Raspbian pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/raspbian/.  After installing Raspbian, ensure you have the latest updates by executing the following commands on your Fledge server::
+If your system does not have a supported version of the Raspberry Pi Operating System  pre-installed, you can find instructions on downloading and installing it at https://www.raspberrypi.org/downloads/operating-systems/.  After installing a supported operating system, ensure you have the latest updates by executing the following commands on your Fledge server::
 
   sudo apt-get update
   sudo apt-get upgrade
@@ -58,12 +58,12 @@ Once complete you can add the repository itself into the apt configuration file 
     
     .. code-block:: console
 
-       deb  http://archives.fledge-iot.org/latest/buster/armv7l/ /
+       deb  http://archives.fledge-iot.org/latest/bullseye/armv7l/ /
 
     to the end of the file.
 
     .. note:: 
-       Replace `buster` with  `stretch` or `bullseye` based on the OS image used.
+       Replace `bullseye` with  the name of the version of the Raspberry Operating System you have installed.
 
   - Users with an Intel or AMD system with Ubuntu 18.04 should run
 
@@ -76,9 +76,6 @@ Once complete you can add the repository itself into the apt configuration file 
     .. code-block:: console
 
        sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / "
-
-    .. note::
-        We do not support the `aarch64` architecture with Ubuntu 20.04 yet.
 
   - Users with an Arm system with Ubuntu 18.04, such as the Odroid board, should run
 
@@ -114,18 +111,32 @@ You may also install multiple packages in a single command. To install the base 
 Installing Fledge downloaded packages
 ######################################
 
-Assuming you have downloaded the packages from the download link given above. Use SSH to login to the system that will host Fledge services. For each Fledge package that you choose to install, type the following command::
+Assuming you have downloaded the packages from the download link given above. Use SSH to login to the system that will host Fledge services. For each Fledge package that you choose to install, type the following command
 
-  sudo apt -y install PackageName
+.. code-block:: console
 
-The key packages to install are the Fledge core and the Fledge User Interface::
+  sudo apt -y install <filename>
 
-  sudo DEBIAN_FRONTEND=noninteractive apt -y install ./fledge-1.8.0-armv7l.deb
-  sudo apt -y install ./fledge-gui-1.8.0.deb
+.. note::
 
-You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type::
+  The downloaded files are named using the package name and the current version of the software. Therefore these names will change over time as new versions are released. At the time of writing the version of the Fledge package is 2.3.0, therefore the package filename is fledge_2.3.0_x86_64.deb on the X86 64bit platform. As a result the filenames shown in the following examples may differ from the names of the files you have downloaded.
 
-  sudo apt -y install ./fledge-south-sensehat-1.8.0-armv7l.deb
+The key packages to install are the Fledge core and the Fledge Graphical User Interface
+
+.. code-block:: console
+
+  sudo DEBIAN_FRONTEND=noninteractive apt -y install ./fledge_2.3.0_x86_64.deb
+  sudo apt -y install ./fledge-gui_2.3.0.deb
+
+You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type
+
+.. code-block:: console
+
+  sudo apt -y install ./fledge-south-sensehat_2.3.0_armv7l.deb  
+
+.. note::
+
+  In this case we are showing the name for a package on the Raspberry Pi platform. The sensehat plugin is not supported on all platforms as it requires Raspberry Pi specific hardware connections.
 
 You may also need to install one or more North plugins to transmit data.  Support for OSIsoft PI and OCS are included with the Fledge core package, so you don't need to install anything more if you are sending data to only these systems.
 

@@ -76,12 +76,21 @@ void CheckUpdates::raiseAlerts()
 	try
 	{
 		int availableUpdates = getUpgradablePackageList().size();
-		std::string key = "package_updates";
-		std::string message = "There are " + std::to_string(availableUpdates) + " updates available to be installed";
-		std::string urgency = "normal";
-		if (!m_mgtClient->raiseAlert(key,message,urgency))
+
+		if (availableUpdates > 0)
 		{
-			m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
+			std::string key = "package_updates";
+			std::string message = "";
+			if (availableUpdates == 1)
+				message = "There is " + std::to_string(availableUpdates) + " update available to be installed";
+			else
+				message = "There are " + std::to_string(availableUpdates) + " updates available to be installed";
+
+			std::string urgency = "normal";
+			if (!m_mgtClient->raiseAlert(key,message,urgency))
+			{
+				m_logger->error("Failed to raise an alert for key=%s,message=%s,urgency=%s", key.c_str(), message.c_str(), urgency.c_str());
+			}
 		}
 
 	}

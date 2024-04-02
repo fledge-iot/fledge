@@ -1814,6 +1814,14 @@ ostringstream convert;
 		}
 		convert << "]";
 	}
+	if (!m_listSize.empty())
+	{
+		convert << ", \"listSize\" : \"" << m_listSize << "\"";
+	}
+	if (!m_listItemType.empty())
+	{
+		convert << ", \"items\" : \"" << m_listItemType << "\"";
+	}
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||

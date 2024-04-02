@@ -468,7 +468,11 @@ JSONReading::JSONReading(const Value& json)
 			// Add 'reading' values
 			for (auto &m : json["reading"].GetObject())
 			{
-				addDatapoint(datapoint(m.name.GetString(), m.value));
+				Datapoint *dp = datapoint(m.name.GetString(), m.value);
+				if (dp)
+				{
+					addDatapoint(dp);
+				}
 			}
 		}
 		else

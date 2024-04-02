@@ -77,6 +77,16 @@ static const char *defaultConfiguration = QUOTE({
 		"displayName" : "Log Level",
 		"options" : [ "error", "warning", "info", "debug" ],
 		"order" : "7"
+	},
+	"timeout" : {
+		"value" : "60",
+		"default" : "60",
+		"description" : "Server request timeout, expressed in seconds",
+		"type" : "integer",
+		"displayName" : "Timeout",
+		"order" : "8",
+		"minimum" : "5",
+		"maximum" : "3600"
 	}
 });
 
@@ -313,6 +323,29 @@ void StorageConfiguration::checkCache()
 {
 bool forceUpdate = false;
 
+	Document *newdoc = new Document();
+	newdoc->Parse(defaultConfiguration);
+	if (newdoc->HasParseError())
+	{
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				newdoc->GetErrorOffset());
+	}
+	else
+	{
+		for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
+		{
+			const char *name = itr->name.GetString();
+			Value &newval = (*newdoc)[name];
+			if (!hasValue(name))
+			{
+				Document::AllocatorType& a = document->GetAllocator();
+				document->CopyFrom(newval, a);
+			}
+		}
+	}
+	delete newdoc;
 	if (document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
@@ -349,7 +382,7 @@ bool forceUpdate = false;
 	}
 
 	logger->info("Storage configuration cache is not up to date");
-	Document *newdoc = new Document();
+	newdoc = new Document();
 	newdoc->Parse(defaultConfiguration);
 	if (newdoc->HasParseError())
 	{
@@ -357,28 +390,31 @@ bool forceUpdate = false;
 				GetParseError_En(document->GetParseError()),
 				newdoc->GetErrorOffset());
 	}
-	for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
-				itr != newdoc->MemberEnd(); ++itr)
+	else
 	{
-		const char *name = itr->name.GetString();
-		Value &newval = (*newdoc)[name];
-		if (hasValue(name))
+		for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
 		{
-			const char *val = getValue(name);
-			newval["value"].SetString(strdup(val), strlen(val));
-			if (strcmp(name, "plugin") == 0)
+			const char *name = itr->name.GetString();
+			Value &newval = (*newdoc)[name];
+			if (hasValue(name))
 			{
-				newval["default"].SetString(strdup(val), strlen(val));
-				logger->warn("Set default of %s to %s", name, val);
-			}
-			if (strcmp(name, "readingPlugin") == 0)
-			{
-				if (strlen(val) == 0)
+				const char *val = getValue(name);
+				newval["value"].SetString(strdup(val), strlen(val));
+				if (strcmp(name, "plugin") == 0)
 				{
-					val = "Use main plugin";
+					newval["default"].SetString(strdup(val), strlen(val));
+					logger->warn("Set default of %s to %s", name, val);
 				}
-				newval["default"].SetString(strdup(val), strlen(val));
-				logger->warn("Set default of %s to %s", name, val);
+				if (strcmp(name, "readingPlugin") == 0)
+				{
+					if (strlen(val) == 0)
+					{
+						val = "Use main plugin";
+					}
+					newval["default"].SetString(strdup(val), strlen(val));
+					logger->warn("Set default of %s to %s", name, val);
+				}
 			}
 		}
 	}

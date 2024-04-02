@@ -100,6 +100,13 @@ public:
 
 	void	printList();
 	bool	createSchema(const std::string& schema);
+	void	setTimeout(long timeout)
+		{
+			if (m_server)
+			{
+				m_server->config.timeout_request = timeout;
+			}
+		};
 
 public:
 	std::atomic<int>        m_workers_count;

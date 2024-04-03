@@ -323,6 +323,14 @@ void StorageConfiguration::checkCache()
 {
 bool forceUpdate = false;
 
+	/*
+	 * If the cached version of the configuration that has been read in
+	 * does not contain an item in the default configuration, then copy
+	 * that item from the default configuration.
+	 *
+	 * This allows new tiems to be added to the configuration and populated
+	 * in the cache on first restart.
+	 */
 	Document *newdoc = new Document();
 	newdoc->Parse(defaultConfiguration);
 	if (newdoc->HasParseError())
@@ -340,12 +348,15 @@ bool forceUpdate = false;
 			Value &newval = (*newdoc)[name];
 			if (!hasValue(name))
 			{
+				logger->warn("Adding storage configuration item %s from defaults", name);
 				Document::AllocatorType& a = document->GetAllocator();
 				document->CopyFrom(newval, a);
 			}
 		}
 	}
 	delete newdoc;
+
+	// Upgrade step to add eumeration for plugin
 	if (document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
@@ -360,6 +371,8 @@ bool forceUpdate = false;
 		}
 	}
 
+	// Cachw is from befre we used an enumeration for the plugin, force upgrade
+	// steps
 	if (forceUpdate == false && document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];

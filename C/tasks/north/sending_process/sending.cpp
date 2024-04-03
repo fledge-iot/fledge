@@ -903,7 +903,7 @@ ConfigCategory SendingProcess::fetchConfiguration(const std::string& defaultConf
 			m_data_source_t = configuration.getValue("source");
 		} catch (...)
 		{
-			m_data_source_t = "";
+			m_data_source_t = "readings";
 		}
 
 		// Sets the m_memory_buffer_size = 1 in case of an invalid value

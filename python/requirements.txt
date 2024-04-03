@@ -7,7 +7,7 @@ yarl==1.7.2
 pyjwt==2.4.0
 
 # only required for Public Proxy multipart payload
-requests-toolbelt==0.9.1
+requests-toolbelt==1.0.0
 
 # Transformation of data, Apply JqFilter
 # Install pyjq based on python version

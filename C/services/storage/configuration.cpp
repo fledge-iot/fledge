@@ -105,6 +105,10 @@ StorageConfiguration::StorageConfiguration()
 	document = new Document();
 	readCache();
 	checkCache();
+	if (hasValue("logLevel"))
+	{
+		logger->setMinLevel(getValue("logLevel"));
+	}
 }
 
 /**
@@ -322,6 +326,7 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
 void StorageConfiguration::checkCache()
 {
 bool forceUpdate = false;
+bool writeCacheRequired = false;
 
 	/*
 	 * If the cached version of the configuration that has been read in
@@ -350,11 +355,21 @@ bool forceUpdate = false;
 			{
 				logger->warn("Adding storage configuration item %s from defaults", name);
 				Document::AllocatorType& a = document->GetAllocator();
-				document->CopyFrom(newval, a);
+				Value copy(name, a);
+				copy.CopyFrom(newval, a);
+				Value n(name, a);
+				document->AddMember(n, copy, a);
+				writeCacheRequired = true;
 			}
 		}
 	}
 	delete newdoc;
+
+	if (writeCacheRequired)
+	{
+		// We added a new member
+		writeCache();
+	}
 
 	// Upgrade step to add eumeration for plugin
 	if (document->HasMember("plugin"))
@@ -371,10 +386,11 @@ bool forceUpdate = false;
 		}
 	}
 
-	// Cachw is from befre we used an enumeration for the plugin, force upgrade
+	// Cache is from before we used an enumeration for the plugin, force upgrade
 	// steps
 	if (forceUpdate == false && document->HasMember("plugin"))
 	{
+		logger->info("Adding database plugin enumerations");
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
 		{

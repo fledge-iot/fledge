@@ -16,6 +16,7 @@ using namespace std;
  */
 Base64DataBuffer::Base64DataBuffer(const string& encoded)
 {
+	m_data = NULL;
 	m_itemSize = encoded[0] - '0';
 	size_t in_len = encoded.size() - 1;
 	if (in_len % 4 != 0)

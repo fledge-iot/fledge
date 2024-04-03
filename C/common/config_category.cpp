@@ -1640,7 +1640,10 @@ ostringstream convert;
 
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem ||
-	    m_itemType == EnumerationItem)
+	    m_itemType == EnumerationItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << "\"value\" : \"" << JSONescape(m_value) << "\", ";
 		convert << "\"default\" : \"" << JSONescape(m_default) << "\"";
@@ -1653,6 +1656,10 @@ ostringstream convert;
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default;
+	}
+	else
+	{
+		Logger::getLogger()->error("Unknown item type in configuration category");
 	}
 
 	if (full)
@@ -1810,7 +1817,10 @@ ostringstream convert;
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||
-	    m_itemType == BoolItem)
+	    m_itemType == BoolItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}

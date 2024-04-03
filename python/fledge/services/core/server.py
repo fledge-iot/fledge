@@ -736,44 +736,38 @@ class Server:
 
     @classmethod
     def _reposition_streams_table(cls, loop):
-
         _logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
-                     "force reset of 'fledge.streams' last_objects")
+                     "force reset of last_object column in 'fledge.streams'")
 
-        configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
-        rows = configuration['rows']
-        if len(rows) > 0:
-            streams_id = []
-            # Identifies the sending process handling the readings table
-            for _item in rows:
-                try:
-                    if _item['value']['source']['value'] is not None:
-                        if _item['value']['source']['value'] == "readings":
-                            # Sending process in C++
-                            try:
-                                streams_id.append(_item['value']['streamId']['value'])
-                            except KeyError:
-                                # Sending process in Python
-                                try:
-                                    streams_id.append(_item['value']['stream_id']['value'])
-                                except KeyError:
-                                    pass
-                except KeyError:
-                    pass
-
-            # Reset identified rows of the streams table
-            if len(streams_id) >= 0:
-                for _stream_id in streams_id:
-
-                    # Checks if there is the row in the Stream table to avoid an error during the update
-                    where = 'id={0}'.format(_stream_id)
-                    streams = loop.run_until_complete(cls._readings_client_async.query_tbl('streams', where))
-                    rows = streams['rows']
-
-                    if len(rows) > 0:
-                        payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()')\
-                            .WHERE(['id', '=', _stream_id]).payload()
-                        loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+        def _reset_last_object_in_streams(_stream_id):
+            payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').WHERE(
+                ['id', '=', _stream_id]).payload()
+            loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+        try:
+            # Find the child categories of parent North
+            query_payload = payload_builder.PayloadBuilder().SELECT("child").WHERE(["parent", "=", "North"]).payload()
+            north_children = loop.run_until_complete(cls._storage_client_async.query_tbl_with_payload(
+                'category_children', query_payload))
+            rows = north_children['rows']
+            if len(rows) > 0:
+                configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
+                for nc in rows:
+                    for cat in configuration['rows']:
+                        if nc['child'] == cat['key']:
+                            cat_value = cat['value']
+                            stream_id = cat_value['streamId']['value']
+                            # reset last_object in streams table as per streamId with following scenarios
+                            # a) if source KV pair is present and having value 'readings'
+                            # b) if source KV pair is not present
+                            if 'source' in cat_value:
+                                source_val = cat_value['source']['value']
+                                if source_val == 'readings':
+                                    _reset_last_object_in_streams(stream_id)
+                            else:
+                                _reset_last_object_in_streams(stream_id)
+                            break
+        except Exception as ex:
+            _logger.error(ex, "last_object of 'fledge.streams' reset is failed.")
 
     @classmethod
     def _check_readings_table(cls, loop):

@@ -88,7 +88,7 @@ fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
 REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
-REPOS="fledge-south-sinusoid fledge-south-lathesim fledge-filter-expression fledge-filter-python35 fledge-south-expression fledge-south-randomwalk"
+REPOS="fledge-south-sinusoid fledge-south-lathesim fledge-filter-expression fledge-filter-python35 fledge-south-expression fledge-south-random"
 INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}
@@ -233,7 +233,6 @@ done
 
 # Cross Referencing list of plugins
 plugins_path=$(pwd)/plugins
-
 for dir in $plugins_path/*
 do
     dir_name=$(echo $dir | sed 's/^.*fledge-/fledge-/')
@@ -260,7 +259,8 @@ EOFPLUGINS
             echo "For $dir_name:$result"
             for r in $result
             do
-                 echo "    \`$r <../$r/index.html>\`_" >> $plugins_path/$dir_name/index.rst
+                 description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${r,,}"'" ];print(fRepo[0]["description"])')
+                 echo "    \`$r <../$r/index.html>\`_  - $description" >> $plugins_path/$dir_name/index.rst
                  echo -e "\n" >> $plugins_path/$dir_name/index.rst
             done
         fi

@@ -72,10 +72,12 @@ print("\n".join(fRepos));
 fledge_wip_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:wip+org:fledge-iot)
 fledge_poc_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:poc+org:fledge-iot)
 fledge_internal_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:internal+org:fledge-iot)
+fledge_obsolete_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:obsolete+org:fledge-iot)
 fledge_wip_repos_name=$(echo ${fledge_wip_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_poc_repos_name=$(echo ${fledge_poc_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_internal_repos_name=$(echo ${fledge_internal_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
-export EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$(echo ${fledge_wip_repos_name} ${fledge_poc_repos_name} ${fledge_internal_repos_name} | sort -f)
+fledge_obsolete_repos_name=$(echo ${fledge_obsolete_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
+export EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$(echo ${fledge_wip_repos_name} ${fledge_poc_repos_name} ${fledge_internal_repos_name} ${fledge_obsolete_repos_name} | sort -f)
 echo "EXCLUDED FLEDGE TOPIC REPOS LIST: $EXCLUDE_FLEDGE_TOPIC_REPOSITORIES"
 fetchFledgeReposPyScript='
 import os,json,sys;\
@@ -86,9 +88,51 @@ fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
 REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
+REPOS="fledge-south-sinusoid fledge-south-lathesim fledge-filter-expression fledge-filter-python35 fledge-south-expression fledge-south-randomwalk"
 INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}
+
+#KEYWORDS="Mathematical Compression Structure Augmentation Labeling Simulation Cleansing PLC Signal Processing Image Textual Model Execution Electrical Vibration Scripted"
+
+MATHEMATICAL_KEYWORD=""
+AUGMENTATION_KEYWORD=""
+SCRIPTED_KEYWORD=""
+SIMULATION_KEYWORD=""
+
+function get_keywords() {
+    repo_path="$1"
+    repo_name="$2"
+    keywords=$(cat $repo_path/keywords | sed -e "s/,/ /g")
+    ret_val=$(echo $keywords | grep -w 'Augmentation')
+    ret_val=$(echo $?)
+    if [[ $ret_val -eq "0" ]]; then
+        AUGMENTATION_KEYWORD+="$repo_name "
+    fi
+
+    ret_val=$(echo $keywords | grep -w 'Mathematical')
+    ret_val=$(echo $?)
+    if [[ $ret_val -eq "0" ]]; then
+        MATHEMATICAL_KEYWORD+="$repo_name "
+    fi
+
+    ret_val=$(echo $keywords | grep -w 'Scripted')
+    ret_val=$(echo $?)
+    if [[ $ret_val -eq "0" ]]; then
+        SCRIPTED_KEYWORD+="$repo_name "
+    fi
+
+    ret_val=$(echo $keywords | grep -w 'Simulation')
+    ret_val=$(echo $?)
+    if [[ $ret_val -eq "0" ]]; then
+        SIMULATION_KEYWORD+="$repo_name "
+    fi
+
+    echo "Augmentation List: "$AUGMENTATION_KEYWORD
+    echo "Scripted List: "$SCRIPTED_KEYWORD
+    echo "Simulation List: "$SIMULATION_KEYWORD
+    echo "Mathematical List: "$MATHEMATICAL_KEYWORD
+}
 
 function plugin_and_service_doc {
     repo_name=$1
@@ -124,6 +168,10 @@ function plugin_and_service_doc {
             echo "    ${repo_name}/index" >> $dest
         else
             echo "*** WARNING: index.rst file is missing for ${repo_name}."
+        fi
+        # prepare shared list of doc keywords
+        if [[ ${type} != "service" && -f ${dir_type}/${repo_name}/keywords ]]; then
+            get_keywords "${dir_type}/${repo_name}" "$repo_name"
         fi
     else
         echo "*** WARNING: ${repo_name} docs directory is missing."
@@ -181,4 +229,40 @@ do
     type=$(echo $repo | sed -e 's/fledge-//' -e 's/-.*//')
     dest=services/index.rst
     plugin_and_service_doc $repo $dest "services"
+done
+
+# Cross Referencing list of plugins
+plugins_path=$(pwd)/plugins
+
+for dir in $plugins_path/*
+do
+    dir_name=$(echo $dir | sed 's/^.*fledge-/fledge-/')
+    if [[ $dir_name == *fledge-* ]]; then
+        echo "Cross Referencing repo: "$plugins_path/$dir_name/keywords
+        if [ -f $plugins_path/$dir_name/keywords ]; then
+            cat >> $plugins_path/$dir_name/index.rst << EOFPLUGINS
+
+********
+See Also
+********
+EOFPLUGINS
+
+            result=""
+            ret_val=$(echo $SIMULATION_KEYWORD | grep -w "$dir_name")
+            result+="$ret_val"
+            ret_val=$(echo $SCRIPTED_KEYWORD | grep -w "$dir_name")
+            result+=" $ret_val"
+            ret_val=$(echo $AUGMENTATION_KEYWORD | grep -w "$dir_name")
+            result+=" $ret_val"
+            ret_val=$(echo $MATHEMATICAL_KEYWORD | grep -w "$dir_name")
+            result+=" $ret_val"
+            result=$(echo $result | sed -e "s/$dir_name//g" | xargs -n 1 | sort -u | xargs)
+            echo "For $dir_name:$result"
+            for r in $result
+            do
+                 echo "    \`$r <../$r/index.html>\`_" >> $plugins_path/$dir_name/index.rst
+                 echo -e "\n" >> $plugins_path/$dir_name/index.rst
+            done
+        fi
+    fi
 done

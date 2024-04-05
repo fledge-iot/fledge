@@ -395,6 +395,7 @@ StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : 
 	m_server->config.thread_pool_size = threads;
 	m_server->config.timeout_request = 60;
 	StorageApi::m_instance = this;
+	m_perfMonitor = NULL;
 }
 
 /**
@@ -412,6 +413,10 @@ StorageApi::~StorageApi()
 	if (m_thread)
 	{
 		delete m_thread;
+	}
+	if (m_perfMonitor)
+	{
+		delete m_perfMonitor;
 	}
 }
 
@@ -486,10 +491,7 @@ void StorageApi::initResources()
 	management->registerStats(&stats);
 
 	// Create StoragePerformanceMonitor object fr direct monitorind data saving
-	m_perfMonitor = new StoragePerformanceMonitor("storage", this);
-
-	// Start monitor thread
-	//m_perfMonitor->setCollecting(true);
+	m_perfMonitor = new StoragePerformanceMonitor("Storage", this);
 }
 
 void startService()
@@ -588,8 +590,7 @@ string  responsePayload;
 			responsePayload += " }";
 			respond(response, responsePayload);
 
-			// Add insertTable number of inserts
-			//m_perfMonitor->collect("insertTable", rval);
+			m_perfMonitor->collect("insertTable", rval);
 		}
 		else
 		{
@@ -866,8 +867,7 @@ string  responsePayload;
 			responsePayload += " }";
 			respond(response, responsePayload);
 
-			// Add readings aooended with readings plugin name
-			//m_perfMonitor->collect("readingsAppend_" +  (readingPlugin ? readingPlugin : plugin)->getName(), rval);
+			m_perfMonitor->collect("readingsAppend_" +  (readingPlugin ? readingPlugin : plugin)->getName(), rval);
 		}
 		else
 		{

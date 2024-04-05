@@ -110,6 +110,8 @@ public:
 		};
 
 	StoragePlugin	*getStoragePlugin() { return plugin; };
+	StoragePerformanceMonitor
+			*getPerformanceMonitor() { return m_perfMonitor; };
 public:
 	std::atomic<int>        m_workers_count;
 

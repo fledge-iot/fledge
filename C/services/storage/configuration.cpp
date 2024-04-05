@@ -87,6 +87,14 @@ static const char *defaultConfiguration = QUOTE({
 		"order" : "8",
 		"minimum" : "5",
 		"maximum" : "3600"
+	},
+	"perfmon": {
+		"description": "Track and store performance counters",
+		"type": "boolean",
+		"displayName": "Performance Counters",
+		"default": "false",
+		"value": "false",
+		"order" : "9"
 	}
 });
 

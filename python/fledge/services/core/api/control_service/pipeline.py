@@ -234,7 +234,7 @@ async def update(request: web.Request) -> web.Response:
                         if result_filters['rows']:
                             db_filters = [r['fname'].replace("ctrl_{}_".format(pipeline['name']), ''
                                                              ) for r in result_filters['rows']]
-                        await _update_filters(storage, cpid, pipeline['name'], filters, db_filters)
+                        await _update_filters(storage, pipeline['id'], pipeline['name'], filters, db_filters)
                 else:
                     raise ValueError('Filters do not exist as per the given list {}'.format(filters))
     except ValueError as err:

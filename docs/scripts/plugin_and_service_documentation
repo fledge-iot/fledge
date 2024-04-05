@@ -88,8 +88,6 @@ fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
 REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
-#REPOS="fledge-south-sinusoid fledge-south-lathesim fledge-filter-expression fledge-filter-python35 fledge-south-expression fledge-south-random"
-REPOS="fledge-north-azure fledge-filter-python35 fledge-filter-replace fledge-filter-rate fledge-filter-change fledge-filter-delta fledge-filter-asset fledge-filter-omfhint fledge-filter-fft fledge-filter-rms fledge-filter-metadata fledge-filter-scale-set fledge-south-dnp3 fledge-south-s2opcua fledge-south-opcua fledge-south-modbus-c"
 INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}

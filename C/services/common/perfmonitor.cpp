@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <perfmonitors.h>
 #include <chrono>
@@ -175,7 +175,9 @@ void PerformanceMonitor::writeThread()
 				{
 					values.push_back(InsertValue("service", m_service));
 					values.push_back(InsertValue("monitor", name));
-					m_storage->insertTable("monitors", values);
+
+					// Inser data
+					writeData("monitors", values);
 				}
 			}
 		}

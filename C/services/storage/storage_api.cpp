@@ -484,6 +484,12 @@ void StorageApi::initResources()
 
 	ManagementApi *management = ManagementApi::getInstance();
 	management->registerStats(&stats);
+
+	// Create StoragePerformanceMonitor object fr direct monitorind data saving
+	m_perfMonitor = new StoragePerformanceMonitor("storage", this);
+
+	// Start monitor thread
+	//m_perfMonitor->setCollecting(true);
 }
 
 void startService()
@@ -581,6 +587,9 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			// Add insertTable number of inserts
+			//m_perfMonitor->collect("insertTable", rval);
 		}
 		else
 		{
@@ -856,6 +865,9 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			// Add readings aooended with readings plugin name
+			//m_perfMonitor->collect("readingsAppend_" +  (readingPlugin ? readingPlugin : plugin)->getName(), rval);
 		}
 		else
 		{

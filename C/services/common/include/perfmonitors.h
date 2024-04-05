@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <thread>
 #include <storage_client.h>
@@ -35,6 +35,14 @@ class PerfMon {
 class PerformanceMonitor {
 	public:
 		PerformanceMonitor(const std::string& service, StorageClient *storage);
+		// Write data to storage
+		virtual void writeData(const std::string& table, const InsertValues& values)
+		{
+			// Write data via storage client
+			if (m_storage != NULL) {
+				m_storage->insertTable(table, values);
+			}
+		};
 		~PerformanceMonitor();
 					/**
 					 * Collect a performance monitor

@@ -92,132 +92,6 @@ INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailabi
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}
 
-# Keywords
-AUGMENTATION_KEYWORD=""
-CLEANSING_KEYWORD=""
-CLOUD_KEYWORD=""
-COMPRESSION_KEYWORD=""
-ELECTRICAL_KEYWORD=""
-IMAGE_KEYWORD=""
-LABELLING_KEYWORD=""
-MATHEMATICAL_KEYWORD=""
-ML_MODEL_KEYWORD=""
-OMF_KEYWORD=""
-PLC_KEYWORD=""
-SCRIPTED_KEYWORD=""
-SIGNAL_PROCESSING_KEYWORD=""
-SIMULATION_KEYWORD=""
-STRUCTURE_KEYWORD=""
-TEXTUAL_KEYWORD=""
-VIBRATION_KEYWORD=""
-
-function get_keywords() {
-    repo_path="$1"
-    repo_name="$2"
-    keywords=$(cat $repo_path/keywords | sed -e "s/,/ /g")
-    ret_val=$(echo $keywords | grep -w 'Augmentation')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        AUGMENTATION_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Cleansing')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        CLEANSING_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Cloud')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        CLOUD_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Compression')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        COMPRESSION_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Electrical')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        ELECTRICAL_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Image')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        IMAGE_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Labelling')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        LABELLING_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Mathematical')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        MATHEMATICAL_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Model Execution')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        ML_MODEL_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'OMF')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        OMF_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'PLC')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        PLC_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Scripted')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        SCRIPTED_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Signal Processing')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        SIGNAL_PROCESSING_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Simulation')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        SIMULATION_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Structure')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        STRUCTURE_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Textual')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        TEXTUAL_KEYWORD+="$repo_name "
-    fi
-
-    ret_val=$(echo $keywords | grep -w 'Vibration')
-    ret_val=$(echo $?)
-    if [[ $ret_val -eq "0" ]]; then
-        VIBRATION_KEYWORD+="$repo_name "
-    fi
-}
-
 function plugin_and_service_doc {
     repo_name=$1
     dest=$2
@@ -252,10 +126,6 @@ function plugin_and_service_doc {
             echo "    ${repo_name}/index" >> $dest
         else
             echo "*** WARNING: index.rst file is missing for ${repo_name}."
-        fi
-        # prepare shared list of doc keywords
-        if [[ ${type} != "service" && -f ${dir_type}/${repo_name}/keywords ]]; then
-            get_keywords "${dir_type}/${repo_name}" "$repo_name"
         fi
     else
         echo "*** WARNING: ${repo_name} docs directory is missing."
@@ -318,65 +188,43 @@ done
 # Cross Referencing list of plugins
 plugins_path=$(pwd)/plugins
 
-echo "Augmentation List: "$AUGMENTATION_KEYWORD
-echo "Cleansing List: "$CLEANSING_KEYWORD
-echo "Cloud List: "$CLOUD_KEYWORD
-echo "Compression List: "$COMPRESSION_KEYWORD
-echo "Electrical List: "$ELECTRICAL_KEYWORD
-echo "Image List: "$IMAGE_KEYWORD
-echo "Labelling List: "$LABELLING_KEYWORD
-echo "Mathematical List: "$MATHEMATICAL_KEYWORD
-echo "Model Execution List: "$ML_MODEL_KEYWORD
-echo "OMF List: "$OMF_KEYWORD
-echo "PLC List: "$PLC_KEYWORD
-echo "Scripted List: "$SCRIPTED_KEYWORD
-echo "Signal Processing List: "$SIGNAL_PROCESSING_KEYWORD
-echo "Simulation List: "$SIMULATION_KEYWORD
-echo "Structure List: "$STRUCTURE_KEYWORD
-echo "Textual List: "$TEXTUAL_KEYWORD
-echo "Vibration List: "$VIBRATION_KEYWORD
-
+# HashMap used for storing keywords and repos
+declare -A KEYWORDS
 for dir in $plugins_path/*
 do
     dir_name=$(echo $dir | sed 's/^.*fledge-/fledge-/')
     if [[ $dir_name == *fledge-* ]]; then
         if [ -f $plugins_path/$dir_name/keywords ]; then
-            result=""
-            ret_val=$(echo $AUGMENTATION_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $CLEANSING_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $CLOUD_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $COMPRESSION_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $ELECTRICAL_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $IMAGE_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $LABELLING_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $MATHEMATICAL_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $ML_MODEL_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $OMF_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $PLC_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $SCRIPTED_KEYWORD | grep -w "$dir_name")
-            result+=" $ret_val"
-            ret_val=$(echo $SIGNAL_PROCESSING_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $SIMULATION_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $STRUCTURE_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $TEXTUAL_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            ret_val=$(echo $VIBRATION_KEYWORD | grep -w "$dir_name")
-            result+="$ret_val"
-            result=$(echo $result | sed -e "s/$dir_name//g" | xargs -n 1 | sort -u | xargs)
+            keywords=$(cat $plugins_path/$dir_name/keywords | sed -e "s/,/ /g")
+            for k in $keywords
+            do
+                KEYWORDS+=(["$k"]+="$dir_name ")
+            done
+        fi
+    fi
+done
+
+function get_repos_list_by_keywords() {
+    DIR_NAME="$1"
+    REPOSITORIES_LIST=""
+    for i in "${!KEYWORDS[@]}"
+    do
+        repos_val=$(echo ${KEYWORDS[$i]} | grep -w "$DIR_NAME")
+        if [[ $repos_val != "" ]]; then
+            repos_result+=$(echo "$repos_val ")
+        fi
+    done
+    REPOSITORIES_LIST=$(echo $repos_result | sed -e "s/$DIR_NAME//g" | xargs -n 1 | sort -u | xargs)
+    echo "$REPOSITORIES_LIST"
+}
+
+# See Also section added as per installed plugins directory path
+for dir in $plugins_path/*
+do
+    dir_name=$(echo $dir | sed 's/^.*fledge-/fledge-/')
+    if [[ $dir_name == *fledge-* ]]; then
+        if [ -f $plugins_path/$dir_name/keywords ]; then
+            result=$(get_repos_list_by_keywords "$dir_name")
             echo "For $dir_name: $result"
             if [[ -n "$result" ]]; then
                 cat >> $plugins_path/$dir_name/index.rst << EOFPLUGINS
@@ -386,6 +234,7 @@ See Also
 EOFPLUGINS
                 for r in $result
                 do
+                     # Add link and description to the plugin
                      description=$(cat $(pwd)/fledge_plugins.rst | grep -A1 -w "plugins/$r/index.html" | grep -v "$r")
                      echo "    \`$r <../$r/index.html>\`_  $description" >> $plugins_path/$dir_name/index.rst
                      echo -e "\n" >> $plugins_path/$dir_name/index.rst

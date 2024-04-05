@@ -177,4 +177,4 @@ html_context = {
 
 # Pass Plugin DOCBRANCH argument in Makefile ; by default develop
 # NOTE: During release time we need to replace DOCBRANCH with actual released version
-subprocess.run(["make generated DOCBRANCH='FOGL-8581'"], shell=True, check=True)
+subprocess.run(["make generated DOCBRANCH='FOGL-8636'"], shell=True, check=True)

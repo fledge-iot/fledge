@@ -218,13 +218,13 @@ async def update(request: web.Request) -> web.Response:
         columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
-            payload = PayloadBuilder().SET(**columns).WHERE(['cpid', '=', cpid]).payload()
+            payload = PayloadBuilder().SET(**columns).WHERE(['cpid', '=', pipeline['id']]).payload()
             await storage.update_tbl("control_pipelines", payload)
         filters = data.get('filters', None)
         if filters is not None:
             # Case: When filters payload is empty then remove all filters
             if not filters:
-                await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
+                await _remove_filters(storage, pipeline['filters'], pipeline['id'], pipeline['name'])
             else:
                 go_ahead = await _check_filters(storage, filters) if filters else True
                 if go_ahead:
@@ -268,7 +268,7 @@ async def delete(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         pipeline = await _get_pipeline(cpid)
         # Remove filters if exists and also delete the entry from control_filter table
-        await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
+        await _remove_filters(storage, pipeline['filters'], pipeline['id'], pipeline['name'])
         # Delete entry from control_pipelines
         payload = PayloadBuilder().WHERE(['cpid', '=', pipeline['id']]).payload()
         await storage.delete_from_tbl("control_pipelines", payload)

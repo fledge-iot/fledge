@@ -66,6 +66,7 @@ class PerformanceMonitor {
 					};
 		void			setCollecting(bool state);
 		void			writeThread();
+		bool			isCollecting() { return m_collecting; };
 	private:
 		void			doCollection(const std::string& name, long value);
 	private:

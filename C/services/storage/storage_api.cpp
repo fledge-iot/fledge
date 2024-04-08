@@ -590,7 +590,11 @@ string  responsePayload;
 			responsePayload += " }";
 			respond(response, responsePayload);
 
-			m_perfMonitor->collect("insertTable", rval);
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("insertTable_rows", rval);
+				m_perfMonitor->collect("insertTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -668,6 +672,12 @@ string	responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("updateTable_rows", rval);
+				m_perfMonitor->collect("updateTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -792,6 +802,12 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("deleteTable_rows", rval);
+				m_perfMonitor->collect("deleteTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -867,7 +883,15 @@ string  responsePayload;
 			responsePayload += " }";
 			respond(response, responsePayload);
 
-			m_perfMonitor->collect("readingsAppend_" +  (readingPlugin ? readingPlugin : plugin)->getName(), rval);
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("readingsAppendRows_" +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						rval);
+				m_perfMonitor->collect("readingsAppendPayloadSize_" +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						payload.length());
+			}
 		}
 		else
 		{

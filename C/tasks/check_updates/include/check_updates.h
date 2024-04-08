@@ -34,7 +34,5 @@ class CheckUpdates : public FledgeProcess
 		std::string getPackageManager();
 		std::vector<std::string> getUpgradablePackageList();
 		void processEnd();
-		void removeSubstring(std::string& str, const std::string& startDelimiter, const std::string& endDelimiter);
-	
 };
 #endif

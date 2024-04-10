@@ -25,6 +25,46 @@ Version History
 Fledge v2
 ==========
 
+v2.4.0
+-------
+
+Release Date: 2024-04-10
+
+- **Fledge Core**
+
+    - New Features:
+
+       - A new storage configuration option has been added that allows the server request timeout value to be modified has been added.
+
+
+    - Bug Fix:
+
+       - The return type of plugin_shutdown was incorrectly documented in the plugin developers guide for north plugins. This has now been resolved.
+
+
+- **GUI**
+
+    - New Features:
+
+       - 
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+       - A new notification delivery plugin has been added the will create an alert in the user interface.
+
+
+    - Bug Fix:
+
+       - An issue with alarm data in the SKF Observer plugin has been resolved.
+
+
 v2.3.0
 -------
 

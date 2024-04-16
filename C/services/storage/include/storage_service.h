@@ -40,6 +40,10 @@ class StorageService : public ServiceHandler {
 		string			getPluginName();
 		string			getPluginManagedStatus();
 		string			getReadingPluginName();
+		void			setLogLevel(std::string level)
+					{
+						m_logLevel = level;
+					};
 	private:
 		const string&		m_name;
 		bool 			loadPlugin();
@@ -50,5 +54,7 @@ class StorageService : public ServiceHandler {
 		StoragePlugin 		*readingPlugin;
 		bool			m_shutdown;
 		bool			m_requestRestart;
+		std::string		m_logLevel;
+		long			m_timeout;
 };
 #endif

@@ -141,6 +141,7 @@ string	       logLevel = "warning";
 	}
 
 	StorageService service(myName);
+	service.setLogLevel(logLevel);
 	Logger::getLogger()->setMinLevel(logLevel);
 	if (returnPlugin)
 	{
@@ -228,15 +229,25 @@ unsigned short servicePort;
 	}
 	if (config->hasValue("logLevel"))
 	{
-		logger->setMinLevel(config->getValue("logLevel"));
+		m_logLevel = config->getValue("logLevel");
 	}
 	else
 	{
-		logger->setMinLevel("warning");
+		m_logLevel = "warning";
+	}
+	logger->setMinLevel(m_logLevel);
+
+	if (config->hasValue("timeout"))
+	{
+		m_timeout = strtol(config->getValue("timeout"), NULL, 10);
+	}
+	else
+	{
+		m_timeout = 5;
 	}
 
-
 	api = new StorageApi(servicePort, threads);
+	api->setTimeout(m_timeout);
 }
 
 /**
@@ -386,6 +397,20 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// configuration cache has been manually reset or altered while Fledge was down
 		client->setCategoryItemValue(STORAGE_CATEGORY, "plugin", config->getValue("plugin"));
 		client->setCategoryItemValue(STORAGE_CATEGORY, "readingPlugin", config->getValue("readingPlugin"));
+
+		// Check whether to enable storage performance monitor
+		if (config->hasValue("perfmon"))
+		{
+			string perf = config->getValue("perfmon");
+			if (perf.compare("true") == 0)
+			{
+				api->getPerformanceMonitor()->setCollecting(true);
+			}
+			else
+			{
+				api->getPerformanceMonitor()->setCollecting(false);
+			}
+		}
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -543,6 +568,33 @@ void StorageService::configChange(const string& categoryName, const string& cate
 	if (!categoryName.compare(STORAGE_CATEGORY))
 	{
 		config->updateCategory(category);
+
+		if (m_logLevel.compare(config->getValue("logLevel")))
+		{
+			m_logLevel = config->getValue("logLevel");
+			logger->setMinLevel(m_logLevel);
+		}
+		if (config->hasValue("timeout"))
+		{
+			long timeout = strtol(config->getValue("timeout"), NULL, 10);
+			if (timeout != m_timeout)
+			{
+				api->setTimeout(timeout);
+				m_timeout = timeout;
+			}
+		}
+		if (config->hasValue("perfmon"))
+                {
+			string perf = config->getValue("perfmon");
+			if (perf.compare("true") == 0)
+			{
+				api->getPerformanceMonitor()->setCollecting(true);
+			}
+			else
+			{
+				api->getPerformanceMonitor()->setCollecting(false);
+			}
+		}
 		return;
 	}
 	if (!categoryName.compare(getPluginName()))

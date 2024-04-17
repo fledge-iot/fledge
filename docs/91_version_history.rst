@@ -14,7 +14,6 @@
 
    <a href="https://github.com/fledge-iot/Fledge/blob/1.1/python/requirements.txt" target="_blank">check here</a>
 
-
 .. =============================================
 
 
@@ -34,11 +33,37 @@ Release Date: 2024-04-10
 
     - New Features:
 
-       - A new storage configuration option has been added that allows the server request timeout value to be modified has been added.
+       - A new feature has been added that allows for internal alerts to be raised. These are used to inform users of any issue internally that may require attention, they are not related to specific data that is flowing through the Fledge data pipelines. Examples of alerts that may be raised are that updates to the software are available, a service is repeatedly failing or an exceptional issue has occurred.
+       - A new task (update checker) has been added that will run periodically and raise an alert if there are software updates available.
+       - The internal service monitor has been updated to use the new alerts mechanism to alert a user if services are failing.
+       - A new storage configuration option has been added that allows the server request timeout value to be modified.
+       - The ability to tune the cache flushing frequency of the asset tracker has been added to the advanced configuration options of the south and north services.
+       - The reporting of south service send latency has been updated to give more detail regarding continue send latency issues.
+       - A new tuning parameter has been added to the purge process to control the number of readings purged within single blocks. This can be used to tune the intention between the purge process and the ingestion of new data in highly loaded systems.
+       - A new list type has been added to the types supported in the configuration category. This allows for improved configuration interactions.
+       - Support has been added in the C++ configuration manager code to allow for the new list, key/value list and object list types in configuration categories. Also some convenience functions have been added for use by plugins that wish to traverse the lists.
+       - In the hierarchy map, forward-slash-separated string tokens in the meta-data are now parsed and used to construct an object hierarchy in the OPC UA Server's Address Space.
+       - The scheduler has been enhanced to provide the capability to order the startup of services when Fledge is started.
+       - A performance improvement, courtesy of a community member, for the JSON escaping code has been added. This improves performance of the PostgreSQL storage plugin and other areas of the system.
+       - A new section has been added to the documentation that describes how storage plugins are built.
+       - The plugin developers guide has been updated with information and examples of the new list handling facilities added to configuration items within Fledge.
+       - The tuning section of the documentation has been updated to include details of the service startup ordering enhancement.
+       - The plugin documentation has been updated to include cross referencing between plugins. A new See Also section will be included that will link the set to other plugins that might be useful or relate to the plugin that is being viewed.
+       - The plugin developers guide has been updated to add some additional guidance to the developer as to how to decide if features should be added to a plugin or not and also to document common problems that cause problems with plugins.
+       - Documentation that describes what firewall settings are needed to install Fledge has been added to the quick start guide.
 
 
     - Bug Fix:
 
+       - An issue that prevented configuration categories items called messages has been resolved.
+       - An issue that could cause data to be repeated in a north service when using a pipeline in the north that adds new readings to the pipeline has been resolved.
+       - An issue that could cause the order of filters in a control pipeline API to be modified has been fixed.
+       - An issue that could result in series that are already installed being shown in the list of services available to be installed has been resolved.
+       - An issue that could cause some north plugins to fail following a restart when using the SQLite in-memory storage plugin has been fixed.      
+       - An issue that could prevent a plugin being updated in some circumstances has been resolved.
+       - An issue requiring a restart before the change in log level for the storage service took effect has been resolved.
+       - An issue causing the database to potentially not initialize correctly when switching the readings plugin from SQLite to PostgreSQL has been resolved.
+       - An issue in the control pipeline API related to the type of one of the parameters of the pipeline has been resolved. This issue could manifest itself as an inability to edit a control pipeline.
        - The return type of plugin_shutdown was incorrectly documented in the plugin developers guide for north plugins. This has now been resolved.
 
 
@@ -46,23 +71,55 @@ Release Date: 2024-04-10
 
     - New Features:
 
-       - 
+       - A new page has been added for managing additional services within an instance.
+       - Support for entering simple lists for configuration items has been added.
+       - Support has been added for manipulating key/value lists using the new available list configuration type that is available.
+       - Navigation buttons have been added to the tabs in the south and north services to facilitate easier navigation between tabs.
+       - A preview of the new flow editor for the north side has been added. This may be enabled via the GUI settings page.
+       - The GUI now shows the internal alerts via an icon in the navigation bar at the top of the screen.
 
 
     - Bug Fix:
 
+       - An issue with creating an operation in a control script with no parameters in the GUI has been resolved.
+       - An issue with the Next button not being enabled when changing the name of a service in the service creation wizard has been resolved.
+       - An issue that could result in a filter not being added to a control pipeline when the user does not click on the see button has been addressed by adding a check before navigating off the page.
+       - An issue that could result in the JSON code editor being incorrectly displayed for non-JSON code has been resolved.
+       - An issue with the visibility of the last item on the side menu when scrolling in a small window has been resolved.
 
 
-- **Plugins**
+- **Services & Plugins**
 
     - New Features:
-
-       - A new notification delivery plugin has been added the will create an alert in the user interface.
+       
+       - Improvements have been made to the buffering strategy of the OMF north plugin to reduce the overhead in creating outgoing OMF messages.
+       - The control pipelines mechanism has been enhanced to allow pipelines to change the name of the operation that is performed as well as the parameters.
+       - The documentation of the expression filter has been updated to document the restriction on asset and datapoint names.
 
 
     - Bug Fix:
 
-       - An issue with alarm data in the SKF Observer plugin has been resolved.
+       - An issue with the dynamic reconfiguration of filters in control pipelines has been resolved.
+       - An issue that could cause the control dispatcher service to fail when changing the destination of a control pipeline has been resolved.
+       - An issue with the control dispatcher that prevents operations with no parameters from being correctly passed via control pipelines has been resolved.
+       - An issue in the control dispatcher that could cause a crash if a control pipeline completely removed the request has now been resolved.
+       - An issue that could cause an error to be logged when installing the control dispatcher has been resolved. The error did not prevent the dispatcher from executing.
+       - An issue when using the PostgreSQL storage plugin and data containing double quotes within JSON data has been resolved.
+       - An issue that could cause an error in the south plugin written in Python that supports control operations has been resolved.
+       - A memory consumption issue in the fledge-filter-asset when using the flatten option has been resolved.
+       - The fledge-filter-asset issue causing deadlock in pipelines with two instances has been resolved.
+       - An issue that limited the number of variables the fledge-south-s2opcua plugin could subscribed to has been resolved.
+       - An issue that could result in the sent count being incorrectly incremented when using the fledge-north-kafka (C based) plugin has been resolved.
+       - An issue that could cause excessive messages regarding connection loss and regain to be raised in the OMF north plugin has been resolved.
+       - An issue that caused the fledge-north-kafka (C based) plugin to fetch data when it was disabled has been resolved.
+       - If you set the User Authentication Policy to username, you must select a Security Policy other than None to communicate with the OPC UA Server. Allowing username authentication with None would mean that usernames and passwords would be passed from the plugin to the server as clear text which is a serious security risk. This is explained in the `OPC UA Specification <https://reference.opcfoundation.org/Core/Part4/v104/docs/7.36.4>`_. In addition, OPC UA defines a Security Policy for a "UserIdentityToken". When configuring the fledge-south-s2opcua plugin, the Security Policy selected in your configuration must match a supported "UserIdentityToken" Security Policy.  To help troubleshoot configuration problems, log messages for the endpoint search have been improved. The documentation includes a new section called "Username Authentication".
+       - If a datapoint or asset name contains a reserved mathematical symbol then the fledge-filter-expression plugin was previously unable to use this as a variable in an expression. A mechanism has been added to allow these names.
+       - The Notification service would create Rule and Delivery support objects even if the notification was disabled. When the notification was later enabled, the original objects would remain. This has been fixed.
+       - If the OMF North plugin gets an exception when POSTing data to the PI Web API, the plugin would declare the connection to PI broken when it wasn't. This would result in endless connection loss and reconnection messages. This has been fixed. The plugin will now ping the PI Web API every 60 seconds and will determine that connection has been lost only if this ping fails. The OMFHint LegacyType has been deprecated because a Container cannot be changed after it is created in the PI System. This means there is no way to process the LegacyType hint when readings are processed. If the LegacyType hint appears in any reading, a warning message will be written saying that this hint type has been deprecated.
+       - This fix applies when configuring OMF North to create an Asset Framework (AF) structure. The first time an AF Element holding an AF Attribute pointing to a PI Point (i.e. the Container) is created, it will appear in Asset Framework as a normal AF Element. If the path is then changed using an "AFLocation hint", a reference to the AF Element should appear in the hint's location. The original AF Element's location should remain unchanged. This feature was not working correctly but has been fixed. Before this fix, the hint's path would be created as expected but no reference to the original data location was created.
+       - The storage service with the SQLite in-memory plugin does consume large amounts of memory while running at higher data rates. Analysis has determined this is not caused by a memory leak but rather by legitimately storing large amounts of data in memory while operating. The reason for the high load on the storage service appears to be database purging but this is a subject for further study.
+       - An issue in the control pipeline documentation that stated that services could only be the source of control pipelines has been fixed to now show that they may be the source or the destination.
+       - It is not possible to change the numeric data type of OMF Container (which maps to a PI Point) after it has been created. This means it is not possible to enable or disable an integer OMFHint or change the numeric data type in the Fledge GUI after the Container has been created. It is possible to manually correct the problem if it is necessary. OMF North plugin documentation has been updated with the procedure.
 
 
 v2.3.0

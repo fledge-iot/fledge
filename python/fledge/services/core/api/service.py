@@ -176,6 +176,12 @@ async def delete_service(request):
 
         # Update deprecated timestamp in asset_tracker
         await update_deprecated_ts_in_asset_tracker(storage, svc)
+
+        # Delete user alerts
+        try:
+            await server.Server._alert_manager.delete(svc)
+        except:
+            pass
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
@@ -289,7 +295,7 @@ async def add_service(request):
                         return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
                 # Check If requested service is available for configured repository
-                services, log_path = await common.fetch_available_packages("service")
+                services, log_path = await common.fetch_available_packages()
                 if name not in services:
                     raise KeyError('{} service is not available for the given repository'.format(name))
                 
@@ -413,7 +419,10 @@ async def add_service(request):
         count = await check_scheduled_processes(storage, process_name, script)
         if count == 0:
             # Now first create the scheduled process entry for the new service
-            payload = PayloadBuilder().INSERT(name=process_name, script=script).payload()
+            column_name = {"name": process_name, "script": script}
+            if service_type == 'management':
+                column_name["priority"] = 300
+            payload = PayloadBuilder().INSERT(**column_name).payload()
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
@@ -485,6 +494,9 @@ async def add_service(request):
             schedule.exclusive = True
             #  if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
             schedule.enabled = False
+
+            # Reset startup priority order
+            server.Server.scheduler.reset_process_script_priority()
 
             # Save schedule
             await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=dryrun)

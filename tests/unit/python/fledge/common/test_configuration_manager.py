@@ -34,15 +34,17 @@ class TestConfigurationManager:
         ConfigurationManagerSingleton._shared_state = {}
 
     def test_supported_validate_type_strings(self):
-        expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string', 'ACL', 'bucket']
+        expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration',
+                          'float', 'integer', 'northTask', 'password', 'script', 'string', 'ACL', 'bucket',
+                          'list', 'kvlist']
         assert len(expected_types) == len(_valid_type_strings)
         assert sorted(expected_types) == _valid_type_strings
 
     def test_supported_optional_items(self):
-        assert 11 == len(_optional_items)
-        assert ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
-                'readonly', 'rule', 'validity'] == _optional_items
+        expected_types = ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
+                          'readonly', 'rule', 'validity', 'listSize']
+        assert len(expected_types) == len(_optional_items)
+        assert sorted(expected_types) == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -577,7 +579,285 @@ class TestConfigurationManager:
                                                set_value_val_from_default_val=False)
         assert excinfo.type is exc_name
         assert reason == str(excinfo.value)
-        
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A"}}, KeyError,
+         "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": []}}, TypeError,
+         "For {} category, entry value must be a string for item name {} and entry name items; "
+         "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "str"}}, ValueError,
+         "For {} category, items value should either be in string, float, integer, object or enumeration for "
+         "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
+         "For {} category, default value should be passed array list in string format for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"AJ\"]", "items": "float"}}, ValueError,
+        "For {} category, all elements should be of same <class 'float'> type in default value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"AJ\"]", "items": "integer"}},
+         ValueError, "For {} category, all elements should be of same <class 'int'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"1.04\"]", "items": "integer"}},
+         ValueError, "For {} category, all elements should be of same <class 'int'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({"include": {"description": "multiple", "type": "list", "default": "[\"135\", \"1111\"]", "items": "integer",
+                      "value": "1"},
+        ITEM_NAME: {"description": "test", "type": "list", "default": "[\"13\", \"1\"]", "items": "float"}},
+         ValueError, "For {} category, all elements should be of same <class 'float'> type in default "
+                     "value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "float", "listSize": 1}},
+         TypeError, "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "float", "listSize": ""}},
+         ValueError, "For {} category, listSize value must be an integer value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"10.12\", \"0.9\"]", "items": "float",
+                      "listSize": "1"}}, ValueError, "For {} category, default value array list size limit to 1 for "
+                                                     "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1\"]", "items": "integer",
+                      "listSize": "0"}}, ValueError, "For {} category, default value array list size limit to 0 "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"6e7777\", \"1.79e+308\", \"1.0\", \"0.9\"]",
+                      "items": "float", "listSize": "3"}}, ValueError,
+         "For {} category, default value array list size limit to 3 for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1\", \"2\", \"1\"]", "items": "integer",
+                      "listSize": "3"}}, ValueError, "For {} category, default value array elements are not unique "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"a\", \"b\", \"ab\", \"a\"]",
+                      "items": "string"}}, ValueError, "For {} category, default value array elements are not unique "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                                                  "{}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": 1}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": ""}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {}}}, ValueError,
+         "For {} category, properties JSON object cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration"}}, KeyError,
+         "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": 1}}, TypeError,
+         "For {} category, entry value must be a list for item name {} and entry name items; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": []}}, ValueError,
+         "For {} category, options cannot be empty list for item_name {} and entry_name items".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": ["integer"], "listSize": 1}}, TypeError,
+         "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
+         "For {} category, listSize value must be an integer value for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
+         "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
+         "For {} category, entry value must be a string for item name {} and entry name items; "
+         "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "str"}}, ValueError,
+         "For {} category, items value should either be in string, float, integer, object or enumeration for "
+         "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "string"}}, TypeError,
+         "For {} category, default value should be passed KV pair list in string format for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\"}", "items": "string"}},
+         TypeError, "For {} category, KV pair invalid in default value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1\"}", "items": "float"}},
+         ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
+                     "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"AJ\"}",
+                      "items": "integer"}}, ValueError,
+         "For {} category, all elements should be of same <class 'int'> type in default value for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"13\", \"key2\": \"1.04\"}"
+            , "items": "integer"}}, ValueError, "For {} category, all elements should be of same <class 'int'> type in "
+                                                "default value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({"include": {"description": "expression", "type": "kvlist",
+                      "default": "{\"key1\": \"135\", \"key2\": \"1111\"}", "items": "integer", "value": "1"},
+          ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key1\": \"135\", \"key2\": \"1111\"}", "items": "float"}}, ValueError,
+         "For {} category, all elements should be of same <class 'float'> type in default value for item name "
+         "{}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "[]", "items": "float", "listSize": 1}},
+         TypeError, "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "[]", "items": "float",
+                      "listSize": "blah"}}, ValueError, "For {} category, listSize value must be an integer value for "
+                                                        "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "[\"1\"]", "items": "float",
+                      "listSize": "1"}}, TypeError, "For {} category, KV pair invalid in default value for item name "
+                                                    "{}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"1\"}", "items": "float",
+                      "listSize": "1"}}, TypeError, "For {} category, KV pair invalid in default value for item name "
+                                                    "{}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": {} }", "items": "float",
+                      "listSize": "1"}}, ValueError, "For {} category, all elements should be of same <class 'float'> "
+                                                     "type in default value for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key2\": \"val2\"}", "items": "float", "listSize": "1"}},
+         ValueError, "For {} category, default value KV pair list size limit to 1 for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listSize": "2"}},
+         ValueError, "For category {}, duplicate KV pair found for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key1\": \"val2\"}", "items": "float", "listSize": "2"}},
+         ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
+                     "item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key1\": \"val2\", \"key3\": \"val2\"}", "items": "float",
+                      "listSize": "2"}}, ValueError, "For {} category, default value KV pair list size limit to 2 for"
+                                                     " item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "float",
+                      "listSize": "0"}}, ValueError, "For {} category, default value KV pair list size limit to 0 "
+                                                     "for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object"
+                      }}, KeyError, "'For {} category, properties KV pair must be required for item name {}'".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                                                  "{}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": 1}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": ""}}, ValueError,
+         "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {}}}, ValueError,
+         "For {} category, properties JSON object cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": 1}}}, TypeError,
+         "For {} category, Properties must be a JSON object for width key for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {}}}}, ValueError,
+         "For {} category, width properties cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object","properties": {"width": {"type": ""}}}}, ValueError,
+        "For {} category, width properties must have type, description, default keys for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"description": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"type": "", "description": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"type": "", "default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"description": "", "default": ""}}}}, ValueError,
+         "For {} category, width properties must have type, description, default keys for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration"}}, KeyError,
+         "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": 1}}, TypeError,
+         "For {} category, entry value must be a list for item name {} and entry name items; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": []}}, ValueError,
+         "For {} category, options cannot be empty list for item_name {} and entry_name items".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": ["integer"], "listSize": 1}}, TypeError,
+         "For {} category, listSize type must be a string for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
+                      "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
+         "For {} category, listSize value must be an integer value for item name {}".format(
+             CAT_NAME, ITEM_NAME))
+    ])
+    async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
+    @pytest.mark.parametrize("config", [
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[\"first\", \"second\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
+                     "default": "[\"1\", \"0\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "float",
+                     "default": "[\"0.5\", \"123.57\"]"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "float",
+                     "default": "[\".5\", \"1.79e+308\"]", "listSize": "2"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[\"var1\", \"var2\"]", "listSize": "2"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[]", "listSize": "1"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
+                     "default": "[\"10\", \"100\", \"200\", \"300\"]", "listSize": "4"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "object",
+                     "default": "[{\"datapoint\": \"voltage\"}]",
+                     "properties": {"datapoint": {"description": "The datapoint name to create", "displayName":
+                         "Datapoint", "type": "string", "default": ""}}}},
+        {"include": {"description": "A simple list", "type": "list", "default": "[\"integer\", \"float\"]",
+                     "items": "enumeration", "options": ["integer", "float"]}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
+                    "default": "{}", "order": "1", "displayName": "labels"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
+                     "default": "{\"key\": \"value\"}", "order": "1", "displayName": "labels"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "integer",
+                     "default": "{\"key\": \"13\"}", "order": "1", "displayName": "labels"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
+                     "default": "{\"key\": \"13.13\"}", "order": "1", "displayName": "labels"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
+                     "default": "{\"key\": \"value\"}", "order": "1", "displayName": "labels", "listSize": "1"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "integer",
+                     "default": "{\"key\": \"13\"}", "order": "1", "displayName": "labels", "listSize": "1"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
+                     "default": "{\"key\": \"13.13\"}", "order": "1", "displayName": "labels", "listSize": "1"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
+                     "default": "{}", "order": "1", "displayName": "labels", "listSize": "3"}},
+        {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "object",
+                     "default": "{\"register\": {\"width\": \"2\"}}", "order": "1", "displayName": "labels",
+                     "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
+                                              "type": "integer", "maximum": "4", "default": "1"}}}},
+        {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}}
+    ])
+    async def test__validate_category_val_list_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                 set_value_val_from_default_val=True)
+        assert config['include']['default'] == res['include']['default']
+        assert config['include']['default'] == res['include']['value']
+
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
         ("string", "", False),
@@ -586,13 +866,21 @@ class TestConfigurationManager:
         ("JSON", " ", False),
         ("bucket", "", False),
         ("bucket", " ", False),
+        ("list", "", False),
+        ("list", " ", False),
+        ("kvlist", "", False),
+        ("kvlist", " ", False),
         ("integer", " ", True),
         ("string", "", True),
         ("string", " ", True),
         ("JSON", "", True),
         ("JSON", " ", True),
         ("bucket", "", True),
-        ("bucket", " ", True)
+        ("bucket", " ", True),
+        ("list", "", True),
+        ("list", " ", True),
+        ("kvlist", "", True),
+        ("kvlist", " ", True)
     ])
     async def test__validate_category_val_with_optional_mandatory(self, _type, value, from_default_val):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -601,6 +889,9 @@ class TestConfigurationManager:
                                    "mandatory": "true"}}
         if _type == "bucket":
             test_config[ITEM_NAME]['properties'] = {"key": "foo"}
+        elif _type in ("list", "kvlist"):
+            test_config[ITEM_NAME]['items'] = "string"
+
         with pytest.raises(Exception) as excinfo:
             await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=test_config,
                                                set_value_val_from_default_val=from_default_val)
@@ -3197,7 +3488,9 @@ class TestConfigurationManager:
         ("URL", "coaps://host:6683", True),
         ("password", "not implemented", None),
         ("X509 certificate", "not implemented", None),
-        ("northTask", "valid_north_task", True)
+        ("northTask", "valid_north_task", True),
+        ("listSize", "5", True),
+        ("listSize", "0", True)
     ])
     async def test__validate_type_value(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3229,7 +3522,9 @@ class TestConfigurationManager:
         ("JSON", None),
         ("URL", "blah"),
         ("URL", "example.com"),
-        ("URL", "123:80")
+        ("URL", "123:80"),
+        ("listSize", "Blah"),
+        ("listSize", "None")
         # TODO: can not use urlopen hence we may want to check
         # result.netloc with some regex, but limited
         # ("URL", "http://somevalue.a"),
@@ -3570,34 +3865,176 @@ class TestConfigurationManager:
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_key_name, 'catname', 'itemname', new_value_entry)
 
-    @pytest.mark.parametrize("new_value_entry, storage_value_entry, exc_msg", [
+    @pytest.mark.parametrize("new_value_entry, storage_value_entry, exc_msg, exc_type", [
         ("Fledge", {'default': 'FOG', 'length': '3', 'displayName': 'Length Test', 'value': 'fog', 'type': 'string',
-                    'description': 'Test value '}, 'beyond the length 3'),
+                    'description': 'Test value '},
+         'For config item {} you cannot set the new value, beyond the length 3', TypeError),
         ("0", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMin Test',
-               'value': '15', 'type': 'integer', 'description': 'Test value'}, 'beyond the range (10,19)'),
+               'value': '15', 'type': 'integer', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, beyond the range (10,19)', TypeError),
         ("20", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
-                'value': '19', 'type': 'integer', 'description': 'Test value'}, 'beyond the range (10,19)'),
+                'value': '19', 'type': 'integer', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, beyond the range (10,19)', TypeError),
         ("1", {'order': '5', 'default': '2', 'minimum': '2', 'displayName': 'MIN', 'value': '10', 'type': 'integer',
-               'description': 'Test value '}, 'below 2'),
+               'description': 'Test value '}, 'For config item {} you cannot set the new value, below 2', TypeError),
         ("11", {'default': '10', 'maximum': '10', 'displayName': 'MAX', 'value': '10', 'type': 'integer',
-                'description': 'Test value'}, 'above 10'),
+                'description': 'Test value'}, 'For config item {} you cannot set the new value, above 10', TypeError),
         ("19.0", {'default': '19.3', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMin Test',
-                  'value': '19.1', 'type': 'float', 'description': 'Test val'}, 'beyond the range (19.1,19.5)'),
+                  'value': '19.1', 'type': 'float', 'description': 'Test val'},
+         'For config item {} you cannot set the new value, beyond the range (19.1,19.5)', TypeError),
         ("19.6", {'default': '19.4', 'minimum': '19.1', 'maximum': '19.5', 'displayName': 'RangeMax Test',
-                  'value': '19.5', 'type': 'float', 'description': 'Test val'}, 'beyond the range (19.1,19.5)'),
+                  'value': '19.5', 'type': 'float', 'description': 'Test val'},
+         'For config item {} you cannot set the new value, beyond the range (19.1,19.5)', TypeError),
         ("20", {'order': '8', 'default': '10.1', 'maximum': '19.8', 'displayName': 'MAX Test', 'value': '10.1',
-                'type': 'float', 'description': 'Test value'}, 'above 19.8'),
+                'type': 'float', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, above 19.8', TypeError),
         ("0.7", {'order': '9', 'default': '0.9', 'minimum': '0.8', 'displayName': 'MIN Test', 'value': '0.9',
-                 'type': 'float', 'description': 'Test value'}, 'below 0.8')
+                 'type': 'float', 'description': 'Test value'},
+         'For config item {} you cannot set the new value, below 0.8', TypeError),
+        ("", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"1\"]', 'order': '2',
+                'items': 'integer', 'listSize': '2', 'value': '[\"1\", \"2\"]'},
+         "For config item {} value should be passed array list in string format", TypeError),
+        ("[\"5\", \"7\", \"9\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"3\"]',
+                                   'order': '2', 'items': 'integer', 'listSize': '2', 'value': '[\"5\", \"7\"]'},
+         "For config item {} value array list size limit to 2", TypeError),
+        ("", {'description': 'Simple list', 'type': 'list', 'default': '[\"foo\"]', 'order': '2',
+                'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
+         "For config item {} value should be passed array list in string format", TypeError),
+        ("", {'description': 'Simple list', 'type': 'list', 'default': '[\"foo\"]', 'order': '2',
+                'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
+         "For config item {} value should be passed array list in string format", TypeError),
+        ("[\"foo\", \"bar\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"foo\"]', 'order': '2',
+                                'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
+         "For config item {} value array list size limit to 1", TypeError),
+        ("[\"1.4\", \".03\", \"50.67\", \"13.13\"]",
+         {'description': 'Simple list', 'type': 'list', 'default': '[\"1.4\", \".03\", \"50.67\"]', 'order': '2',
+          'items': 'float', 'listSize': '3', 'value': '[\"1.4\", \".03\", \"50.67\"]'},
+         "For config item {} value array list size limit to 3", TypeError),
+        ("[\"10\", \"10\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                'items': 'integer', 'value': '[\"3\", \"4\"]'}, "For config item {} elements are not unique", ValueError),
+        ("[\"foo\", \"foo\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                              'items': 'string', 'value': '[\"abc\", \"def\"]'},
+         "For config item {} elements are not unique", ValueError),
+        ("[\".002\", \".002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'},
+         "For config item {} elements are not unique", ValueError),
+        ("[\"10\", \"foo\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                              'items': 'integer', 'value': '[\"3\", \"4\"]'},
+         "For config item {} all elements should be of same integer type", ValueError),
+        ("[\"foo\", 1]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'value': '[\"abc\", \"def\"]'},
+         "For config item {} all elements should be of same string type", ValueError),
+        ("[\"1\", \"2\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'},
+         "For config item {} all elements should be of same float type", ValueError),
+        ("[\"100\", \"2\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]', 'order': '2',
+                              'items': 'integer', 'listSize': '2', 'value': '[\"34\", \"48\"]', 'minimum': '20'},
+         "For config item {} you cannot set the new value, below 20", ValueError),
+        ("[\"50\", \"49\", \"51\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]',
+                                       'order': '2', 'items': 'integer', 'listSize': '3',
+                                       'value': '[\"34\", \"48\"]', 'maximum': '50'},
+         "For config item {} you cannot set the new value, above 50", ValueError),
+        ("[\"50\", \"49\", \"46\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'},
+         "For config item {} you cannot set the new value, beyond the range (47,50)", ValueError),
+        ("[\"50\", \"49\", \"51\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'},
+         "For config item {} you cannot set the new value, beyond the range (47,50)", ValueError),
+        ("[\"foo\", \"bars\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a1\", \"c1\"]',
+                                 'order': '2', 'items': 'string', 'value': '[\"ab\", \"de\"]', 'listSize': '2',
+                                 'length': '3'},
+         "For config item {} you cannot set the new value, beyond the length 3", ValueError),
+        ("[\"2.6\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"5.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"2.5\"]', 'minimum': '2.5',
+                                  'listSize': '2'}, "For config item {} you cannot set the new value, below 2.5",
+         ValueError),
+        ("[\"2.6\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"1.67\", \"2.5\"]', 'maximum': '2.5',
+                                  'listSize': '2'}, "For config item {} you cannot set the new value, above 2.5",
+         ValueError),
+        ("[\"2.6\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError),
+        ("[\"1.999\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError),
+        ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
+              'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
+         "For config item {} value should be passed KV pair list in string format", TypeError),
+        ("{\"key\": \"1\", \"key2\": \"2\"}",
+         {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}', 'order': '2',
+          'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"2\"}'},
+         "For config item {} value KV pair list size limit to 1", TypeError),
+        ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
+              'items': 'string', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
+         "For config item {} value should be passed KV pair list in string format", TypeError),
+        ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
+              'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
+         "For config item {} value should be passed KV pair list in string format", TypeError),
+        ("{\"key\": \"val\", \"key2\": \"val2\"}",
+         {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
+          'items': 'string', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
+         "For config item {} value KV pair list size limit to 1", TypeError),
+        ("{\"key\": \"1.2\", \"key2\": \"0.9\", \"key3\": \"444.12\"}",
+         {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1.2\", \"key2\": \"0.9\"}',
+          'order': '2', 'items': 'float', 'listSize': '2', 'value': '{\"key\": \"1.2\", \"key2\": \"0.9\"}'},
+         "For config item {} value KV pair list size limit to 2", TypeError),
+        ("{\"key\": \"1.2\", \"key\": \"1.23\"}", {'description': 'Simple list', 'type': 'kvlist', 'default': '{\"key\": \"11.12\"}',
+                                  'order': '2', 'items': 'float', 'value': '{\"key\": \"1.4\"}'},
+         "For config item {} duplicate KV pair found", TypeError),
+        ("{\"key\": \"val\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}',
+                               'items': 'integer', 'value': '{\"key\": \"13\"}'},
+         "For config item {} all elements should be of same integer type", ValueError),
+        ("{\"key\": 1}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"a\": \"c\"}', 'order': '2',
+                          'items': 'string', 'value': '{\"abc\", \"def\"}'},
+         "For config item {} all elements should be of same string type", ValueError),
+        ("{\"key\": \"2\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1.4\"}',
+                            'order': '2', 'items': 'float', 'value': '{\"key\": \"12.0\"}'},
+         "For config item {} all elements should be of same float type", ValueError),
+        ("{\"key\": \"2\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"48\"}',
+                              'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"48\"}', 'minimum': '20'},
+         "For config item {} you cannot set the new value, below 20", ValueError),
+        ("{\"key\": \"100\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"48\"}',
+                                'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"48\"}', 'maximum': '50'},
+         "For config item {} you cannot set the new value, above 50", ValueError),
+        ("{\"key\": \"46\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"50\"}',
+                               'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"48\"}', 'maximum': '50',
+                               'minimum': '47'}, "For config item {} you cannot set the new value, beyond the "
+                                                 "range (47,50)", ValueError),
+        ("{\"key\": \"100\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"48\"}',
+                                'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"48\"}', 'maximum': '50',
+                                'minimum': '47'},
+         "For config item {} you cannot set the new value, beyond the range (47,50)", ValueError),
+        ("{\"foo\": \"bars\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"a1\": \"c1\"}',
+                                 'items': 'string', 'value': '[\"ab\", \"de\"]', 'listSize': '1', 'length': '3'},
+         "For config item {} you cannot set the new value, beyond the length 3", ValueError),
+        ("{\"key\": \"1.002\", \"key2\": \"2.6\"}", {'description': 'expression', 'type': 'kvlist',
+                                                     'default': '{\"key\", \"2.5\"}', 'items': 'float',
+                                                     'value': '{\"key\", \"2.5\"}', 'minimum': '2.5', 'listSize': '2'},
+         "For config item {} you cannot set the new value, below 2.5", ValueError),
+        ("{\"key\": \"2.6\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"2.5\"}',
+                                  'items': 'float', 'value': '{\"key\": \"2.5\"}', 'maximum': '2.5',
+                                  'listSize': '1'}, "For config item {} you cannot set the new value, above 2.5",
+         ValueError),
+        ("{\"key\": \"2.6\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"2.2\"}',
+                                'items': 'float', 'value': '{\"key\": \"2.5\"}', 'listSize': '1', 'minimum': '2',
+                                'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError),
+        ("{\"key\": \"1.999\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"2.2\"}',
+                         'items': 'float', 'value': '{\"key\": \"2.5\"}', 'listSize': '1', 'minimum': '2',
+                                  'maximum': '2.5'},
+         "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError)
     ])
-    def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg):
-        message = "For config item {} you cannot set the new value, {}".format(ITEM_NAME, exc_msg)
+    def test_bad__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry, exc_msg, exc_type):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(Exception) as exc_info:
             c_mgr._validate_value_per_optional_attribute(ITEM_NAME, storage_value_entry, new_value_entry)
-        assert excinfo.type is TypeError
-        assert message == str(excinfo.value)
+        assert exc_info.type is exc_type
+        msg = exc_msg.format(ITEM_NAME)
+        assert msg == str(exc_info.value)
 
     @pytest.mark.parametrize("new_value_entry, storage_value_entry", [
         ("Fledge", {'default': 'FOG', 'length': '7', 'displayName': 'Length Test', 'value': 'fledge',
@@ -3615,7 +4052,117 @@ class TestConfigurationManager:
         ("19", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'RangeMax Test',
                 'value': '15', 'type': 'integer', 'description': 'Test value'}),
         ("15", {'order': '4', 'default': '10', 'minimum': '10', 'maximum': '19', 'displayName': 'Range Test',
-                'value': '15', 'type': 'integer', 'description': 'Test value'})
+                'value': '15', 'type': 'integer', 'description': 'Test value'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                'items': 'integer', 'value': '[\"3\", \"4\"]'}),
+        ("[\"10\", \"20\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]', 'order': '2',
+                              'items': 'integer', 'value': '[\"3\", \"4\"]'}),
+        ("[\"foo\", \"bar\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'value': '[\"abc\", \"def\"]'}),
+        ("[\".002\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[\"10\", \"20\", \"30\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': "3", 'value': '[\"3\", \"4\"]'}),
+        ("[\"new string\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                                'items': 'string', 'listSize': "1", 'value': '[\"abc\", \"def\"]'}),
+        ("[\"6.523e-07\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                                   'order': '2', 'items': 'float', 'listSize': "1", 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1\", \"2\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': "0", 'value': '[\"3\", \"4\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                              'items': 'string', 'listSize': "0", 'value': '[\"abc\", \"def\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"1.2\", \"1.4\"]',
+                             'order': '2', 'items': 'float', 'listSize': "0", 'value': '[\"5.67\", \"12.0\"]'}),
+        ("[]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a\", \"c\"]', 'order': '2',
+                'items': 'string', 'listSize': "1", 'value': '[\"abc\", \"def\"]'}),
+        ("[\"100\", \"20\"]", {'description': 'SL', 'type': 'list', 'default': '[\"34\", \"48\"]', 'order': '2',
+                               'items': 'integer', 'listSize': '2', 'value': '[\"34\", \"48\"]', 'minimum': '20'}),
+        ("[\"50\", \"49\", \"0\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"34\", \"48\"]',
+                                      'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"34\", \"48\"]', 'maximum': '50'}),
+        ("[\"50\", \"49\", \"47\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'}),
+        ("[\"50\", \"49\", \"48\"]", {'description': 'Simple list', 'type': 'list', 'default':
+            '[\"50\", \"48\", \"49\"]', 'order': '2', 'items': 'integer', 'listSize': '3',
+                                      'value': '[\"47\", \"48\", \"49\"]', 'maximum': '50', 'minimum': '47'}),
+        ("[\"foo\", \"bar\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"a1\", \"c1\"]',
+                                 'order': '2', 'items': 'string', 'value': '[\"ab\", \"de\"]', 'listSize': '2',
+                                 'length': '3'}),
+        ("[\"2.6\", \"13.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"5.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"5.67\", \"2.5\"]', 'minimum': '2.5',
+                                  'listSize': '2'}),
+        ("[\"2.4\", \"1.002\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\", \"2.5\"]',
+                                  'order': '2', 'items': 'float', 'value': '[\"1.67\", \"2.5\"]', 'maximum': '2.5',
+                                  'listSize': '2'}),
+        ("[\"2.0\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                       'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
+        ("[\"2.5\"]", {'description': 'Simple list', 'type': 'list', 'default': '[\"2.2\"]', 'order': '2',
+                         'items': 'float', 'value': '[\"2.5\"]', 'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
+        ("{\"key\": \"bar\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"key\": \"c\"}',
+          'order': '2',
+          'items': 'string', 'value': '{\"key\": \"def\"}'}),
+        ("{\"key\": \"1.002\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"key\": \"1.4\"}',
+          'order': '2', 'items': 'float', 'value': '{\"key\": \"12.0\"}'}),
+        ("{\"key\": \"10\", \"key1\": \"20\", \"key2\": \"30\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist',
+          'default': '{\"key\": \"10\", \"key1\": \"20\", \"key2\": \"30\"}',
+          'order': '2', 'items': 'integer', 'listSize': "3",
+          'value': '{\"key\": \"1\", \"key1\": \"2\", \"key2\": \"3\"}'}),
+        ("{\"key\": \"new string\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"key\": \"c\"}',
+          'order': '2',
+          'items': 'string', 'listSize': "1", 'value': '{\"key\": \"def\"}'}),
+        ("{\"key\": \"6.523e-07\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"key\": \"1.4\"}',
+          'order': '2', 'items': 'float', 'listSize': "1", 'value': '{\"key\": \"12.0\"}'}),
+        ("{}", {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"1\": \"2\"}',
+                'order': '2', 'items': 'integer', 'listSize': "0", 'value': '{\"3\": \"4\"}'}),
+        ("{}", {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"a\": \"c\"}',
+                'order': '2',
+                'items': 'string', 'listSize': "0", 'value': '{\"abc\": \"def\"}'}),
+        ("{}", {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"key\": \"1.4\"}',
+                'order': '2', 'items': 'float', 'listSize': "0", 'value': '{\"key\": \"12.0\"}'}),
+        ("{}", {'description': 'A list of expressions and values', 'type': 'kvlist', 'default': '{\"1\": \"2\"}',
+                'order': '2', 'items': 'integer', 'listSize': "1", 'value': '{\"3\": \"4\"}'}),
+        ("{\"key\": \"100\", \"key2\": \"20\"}",
+         {'description': 'SL', 'type': 'kvlist', 'default': '{\"key\": \"100\", \"key2\": \"48\"}', 'order': '2',
+          'items': 'integer', 'listSize': '2', 'value': '{\"key\": \"34\", \"key2\": \"20\"}', 'minimum': '20'}),
+        ("{\"key\": \"50\", \"key2\": \"0\", \"key3\": \"49\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist',
+          'default': '{\"key\": \"47\", \"key2\": \"48\", \"key3\": \"49\"}',
+          'order': '2', 'items': 'integer', 'listSize': '3',
+          'value': '{\"key\": \"47\", \"key2\": \"48\", \"key3\": \"49\"}', 'maximum': '50'}),
+        ("{\"key\": \"50\", \"key2\": \"48\", \"key3\": \"49\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default':
+             '{\"key\": \"50\", \"key2\": \"48\", \"key3\": \"49\"}', 'order': '2', 'items': 'integer', 'listSize': '3',
+          'value': '{\"key\": \"47\", \"key2\": \"48\", \"key3\": \"49\"}', 'maximum': '50', 'minimum': '47'}),
+        ("{\"key\": \"50\", \"key2\": \"48\", \"key3\": \"49\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist', 'default':
+             '{\"key\": \"47\", \"key2\": \"48\", \"key3\": \"49\"}', 'order': '2', 'items': 'integer', 'listSize': '3',
+          'value': '{\"key\": \"47\", \"key2\": \"48\", \"key3\": \"49\"}', 'maximum': '50', 'minimum': '47'}),
+        ("{\"key\": \"foo\", \"key2\": \"bar\"}", {'description': 'A list of expressions and values', 'type': 'kvlist',
+                                                   'default': '{\"key\": \"a1\", \"key2\": \"c1\"}',
+                                                   'order': '2', 'items': 'string',
+                                                   'value': '{\"key\": \"ab\", \"key2\": \"de\"}', 'listSize': '2',
+                                                   'length': '3'}),
+        ("{\"key\": \"2.6\", \"key2\": \"13.002\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist',
+          'default': '{\"key\": \"5.2\", \"key2\": \"2.5\"}',
+          'order': '2', 'items': 'float', 'value': '{\"key\": \"5.67\", \"key2\": \"2.5\"}', 'minimum': '2.5',
+          'listSize': '2'}),
+        ("{\"key\": \"2.4\", \"key2\": \"1.002\"}",
+         {'description': 'A list of expressions and values', 'type': 'kvlist',
+          'default': '{\"key\": \"2.2\", \"key2\": \"2.5\"}', 'order': '2', 'items': 'float',
+          'value': '{\"key\": \"1.67\", \"key2\": \"2.5\"}', 'maximum': '2.5', 'listSize': '2'}),
+        ("{\"key\": \"2.0\"}", {'description': 'A list of expressions and values', 'type': 'kvlist',
+                                'default': '{\"key\": \"2.2\"}', 'order': '2', 'items': 'float', 'value': '{\"2.5\"}',
+                                'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
+        ("{\"key\": \"2.5\"}", {'description': 'A list of expressions and values', 'type': 'kvlist',
+                                'default': '{\"key\": \"2.2\"}', 'order': '2', 'items': 'float', 'value': '{\"2.5\"}',
+                                'listSize': '1', 'minimum': '2', 'maximum': '2.5'})
     ])
     def test_good__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

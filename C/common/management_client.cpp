@@ -602,8 +602,12 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 	try {
 		string url = "/fledge/service/category/" + urlEncode(categoryName);
 		auto res = this->getHttpClient()->request("GET", url.c_str());
-		Document doc;
 		string response = res->content.string();
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return ConfigCategory(categoryName, response);
+		}
+		Document doc;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
@@ -613,7 +617,7 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 								categoryName.c_str(), response.c_str());
 			throw new exception();
 		}
-		else if (doc.HasMember("message"))
+		else if (doc.HasMember("message") && doc["message"].IsString())
 		{
 			m_logger->error("Failed to fetch configuration category: %s.",
 				doc["message"].GetString());
@@ -621,7 +625,9 @@ ConfigCategory ManagementClient::getCategory(const string& categoryName)
 		}
 		else
 		{
-			return ConfigCategory(categoryName, response);
+			m_logger->error("Failed to fetch configuration category: %s.",
+				response.c_str());
+			throw new exception();
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config category failed %s.", e.what());
@@ -649,6 +655,10 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return response;
+		}
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
@@ -666,7 +676,9 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 		}
 		else
 		{
-			return response;
+			m_logger->error("Failed to set configuration category item value: %s.",
+					response.c_str());
+			throw new exception();
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get config category failed %s.", e.what());
@@ -2059,3 +2071,68 @@ int ManagementClient::validateDatapoints(std::string dp1, std::string dp2)
 
 	return temp.compare(dp2);
 }
+
+/**
+ * Get an alert by specific key
+ *
+ * @param    key        Key to get alert
+ * @return   string     Alert
+ */
+std::string ManagementClient::getAlertByKey(const std::string& key)
+{
+	std::string response = "Status: 404 Not found";
+	try
+	{
+		std::string url = "/fledge/alert/" + urlEncode(key) ;
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		std::string statusCode = res->status_code;
+		if (statusCode.compare("200 OK"))
+		{
+			m_logger->error("Get alert failed %s.", statusCode.c_str());
+			response = "Status: " + statusCode;
+			return response;
+		}
+
+		response = res->content.string();
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get alert failed %s.", e.what());
+	}
+	return response;
+}
+
+
+/**
+ * Raise an alert
+ *
+ * @param    key        Alert key
+ * @param    message    Alert message
+ * @param    urgency    Alert urgency
+ * @return   whether operation was successful
+ */
+bool ManagementClient::raiseAlert(const std::string& key, const std::string& message, const std::string& urgency)
+{
+	try
+	{
+		std::string url = "/fledge/alert" ;
+		ostringstream   payload;
+		payload << "{\"key\":\"" << key  << "\","
+					<< "\"message\":\"" << message  << "\","
+					<< "\"urgency\":\"" << urgency  << "\"}";
+
+		auto res = this->getHttpClient()->request("POST", url.c_str(), payload.str());
+		std::string statusCode = res->status_code;
+		if (statusCode.compare("200 OK"))
+		{
+			m_logger->error("Raise alert failed %s.", statusCode.c_str());
+			return false;
+		}
+
+		return true;
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Raise alert failed %s.", e.what());
+		return false;
+	}
+}
+

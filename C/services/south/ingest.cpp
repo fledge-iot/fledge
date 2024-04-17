@@ -459,7 +459,7 @@ unsigned int nFullQueues = 0;
 		// Get the readings in the set
 		for (auto & rdng : *vec)
 		{
-			m_queue->push_back(rdng);
+			m_queue->emplace_back(rdng);
 		}
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
@@ -782,13 +782,27 @@ void Ingest::processQueue()
 				m_performance->collect("readLatency", latency);
 				if (latency > m_timeout && m_highLatency == false)
 				{
-					m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);
+					m_logger->warn("Current send latency of %ldms exceeds requested maximum latency of %dmS", latency, m_timeout);
 					m_highLatency = true;
+					m_10Latency = false;
+					m_reportedLatencyTime = time(0);
 				}
 				else if (latency <= m_timeout / 1000 && m_highLatency)
 				{
 					m_logger->warn("Send latency now within requested limits");
 					m_highLatency = false;
+				}
+				else if (m_highLatency && latency > m_timeout + (m_timeout / 10) && time(0) - m_reportedLatencyTime > 60)
+				{
+					// Report again every minute if we are outside the latency
+					// target by more than 10%
+					m_logger->warn("Current send latency of %ldms still significantly exceeds requested maximum latency of %dmS", latency, m_timeout);
+					m_reportedLatencyTime = time(0);
+				}
+				else if (m_highLatency && latency < m_timeout + (m_timeout / 10) && m_10Latency == false)
+				{
+					m_logger->warn("Send latency of %ldms is now less than 10%% from target", latency);
+					m_10Latency = true;
 				}
 			}
 		}
@@ -1041,27 +1055,26 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		if (ingest->m_data && ingest->m_data->size())
+		if (ingest->m_data)
 		{
-			// Remove the readings in the vector
-			for(auto & rdng : *(ingest->m_data))
-				delete rdng;
-			ingest->m_data->clear();// Remove the pointers still in the vector
-			
-			
-			// move reading vector to ingest
-			*(ingest->m_data) = readingSet->getAllReadings();
+		    // Remove the readings in the vector
+		    for(auto & rdngPtr : *(ingest->m_data))
+		        delete rdngPtr;
+
+                   ingest->m_data->clear();// Remove any pointers still in the vector
+		   delete ingest->m_data;
+                   ingest->m_data = readingSet->moveAllReadings();
 		}
 		else
 		{
-			// move reading vector to ingest
-			ingest->m_data = readingSet->moveAllReadings();
+		    // move reading vector to ingest
+		    ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
 	else
 	{
-		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
 	}
 	
 	readingSet->clear();

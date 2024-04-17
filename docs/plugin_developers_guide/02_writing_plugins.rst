@@ -28,6 +28,17 @@ Writing and Using Plugins
 
 A plugin has a small set of external entry points that must exist in order for Fledge to load and execute that plugin. Currently plugins may be written in either Python or C/C++, the set of entry points is the same for both languages. The entry points detailed here will be presented for both languages, a more in depth discussion of writing plugins in C/C++ will then follow.
 
+General Guidance
+----------------
+
+Before delving into the detail of how to write plugins, what entry points have to be provided and how to build and test them, a few notes of general guidance that all plugin developers should consider that will prevent the plugin writer difficulty.
+
+  - The ethos of Fledge is to provide data pipelines that promote easy building of applications through re-use of small, focused processing components. Always try to make use of existing plugins when at all possible. When writing new plugins do not be tempted to make them too specific to a single application. This will mean it is more likely that at some point in the future you will have all the components in your toolbox that you need to create the next application without having to write new plugins.
+
+  - Filters within Fledge are run within a single process which may be a south or north service, they do not run as separate executable. Therefore make sure that when you write a new plugin service that you do not make use of global variables. Global variables will be shared between all the plugins in a service and may clash with other plugins and will prevent the same plugin being used multiple times within a pipeline.
+
+  - Do not make assumptions about how the data you are processing in your plugin will be used, or by how many upstream components it will be used. For example do not put anything in a south plugin or a filter plugin that assumes the data will be consumed by a particular north plugin or will only be consumed by one north plugin. An example of this might be a south plugin that adds OMF AF Location hints to the data it produces. Whilst this works well if the data is sent to OMF, it does not help if the data is sent to a different destination that also requires location information. Adding options for different destinations only compounds the problem, consider for example that the data might be sent to multiple destinations. A better approach would be to add generic location meta data to the data and have the hints filters for each of the destinations perform the destination specific work.
+
 Common Fledge Plugin API
 -------------------------
 
@@ -200,7 +211,7 @@ Plugin Initialization
 
 The plugin initialization is called after the service that has loaded the plugin has collected the plugin information and resolved the configuration of the plugin but before any other calls will be made to the plugin. The initialization routine is called with the resolved configuration of the plugin, this includes values as opposed to the defaults that were returned in the *plugin_info* call.
 
-This call is used by the plugin to do any initialization or state creation it needs to do. The call returns a handle which will be passed into each subsequent call of the plugin. The handle allows the plugin to have state information that is maintained and passed to it whilst allowing for multiple instances of the same plugin to be loaded by a service if desired. It is equivalent to a this or self pointer for the plugin, although the plugin is not defined as a class.
+This call is used by the plugin to do any initialization or state creation it needs to do. The call returns a handle which will be passed into each subsequent call of the plugin. The handle allows the plugin to create state information that is maintained and passed to it whilst allowing for multiple instances of the same plugin to be loaded by a service if desired. It is equivalent to a this or self pointer for the plugin, although the plugin is not defined as a class. The handle is the only way in which the plugin should retain information between calls to a given entry point and also the only way information should be passed between entry points.
 
 In Python a simple example of a sensor that reads a GPIO pin for data, we might choose to use that configured GPIO pin as the handle we pass to other calls. 
 
@@ -332,7 +343,132 @@ The configuration items within a category are JSON object, the object key is the
                 "default" : "5"
                 }
 
-We have used the properties *type* and *default* to define properties of the configuration item *MaxRetries*.  These are not the only properties that a configuration item can have, the full set of properties are
+We have used the properties *type* and *default* to define properties of the configuration item *MaxRetries*.  These are not the only properties that a configuration item can have, the full set of item types and properties are shown below
+
+Types
+~~~~~
+
+The configuration items within a configuration category can each be defined as one of a set of types. The types currently supported by Fledge are
+
+.. list-table::
+   :header-rows: 1
+
+   * - Type
+     - Description
+   * - integer
+     - An integer numeric value. The value may be positive or negative but may not contain any fractional part. The *minimum* and *maximum* properties may be used to control the limits of the values assigned to an integer.
+   * - float
+     - A floating point numeric item. The *minimum* and *maximum* properties may be used to control the limits of the values assigned to a floating point item.
+   * - string
+     - An alpha-numeric array of characters that may contain any printable characters. The *length* property can be used to constrain the maximum length of the string.
+   * - boolean
+     - A boolean value that can be assigned the values *true* or *false*.
+   * - IPv4
+     - An IP version 4 address.
+   * - IPv6
+     - An IP version 6 address.
+   * - X509 certificate
+     - An X509 certificate
+   * - password
+     - A string that is used as a password. There is no difference between this or a string type other than user interfaces do not show this in plain text.
+   * - JSON
+     - A JSON document. The value is checked to ensure it is a valid JSON document.
+   * - URL
+     - A universal resource locator string. The API will check for correct URL formatting of the value.
+   * - enumeration
+     - The item can be assigned one of a fixed set of values. These values are defined in the *options* property of the item.
+   * - script
+     - A block of text that is executed as a script. The script type should be used for larger blocks of code to be executed.
+   * - code
+     - A block of text that is executed as Python code. This is used for small snippets of Python rather than when larger scripts.
+   * - northTask
+     - The name of a north task. The API will check that the value matches the name of an existing north task.
+   * - ACL
+     - An access control list. The value is the string name of an access control list that has been created within Fledge.
+   * - list
+     - A list of items, the items can be of type *string*, *integer*, *float*, *enumeration* or *object*. The type of the items within the list must all be the same, and this is defined via the *items* property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+   * - kvlist
+     - A key value pair list. The key is a string value always but the value of the item in the list may be of type *string*, *enumeration*, *float*, *integer* or *object*. The type of the values in the kvlist is defined by the *items* property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the *listSize* property.
+   * - object
+     - A complex configuration type with multiple elements that may be used within *list* and *kvlist* items only, it is not possible to have *object* type items outside of a list. Object type configuration items have a set of *properties* defined, each of which is itself a configuration item. 
+
+Key/Value List
+##############
+
+A key/value list is a way of storing tagged item pairs within a list. For example, to create a list of labels and expressions we can use a kvlist that stores the expressions as string values in the kvlist.
+
+.. code-block:: JSON
+
+  "expressions" : {
+                "description" : "A set of expressions used to evaluate and label data",
+                "type" : "kvlist",
+                "items" : "string",
+                "default" : "{\"idle\" : \"speed == 0\"}",
+                "order" : "4",
+                "displayName" : "Labels"
+                }
+
+The key values must be unique within a kvlist, as the data is stored as a JSON object with the key becoming the property name and the value of the property the corresponding value for the key.
+
+Lists of Objects
+################
+
+Object type items may be used in lists and are a mechanism to allow for list of groups of configuration items. The object list type items must specify a property called *properties*. The value of this is a JSON object that contains a list of configuration items that are grouped into the object.
+
+An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the definitions of a key/value pair list where the value is an object.
+
+.. code-block:: JSON
+
+  "map": {
+        "description": "A list of datapoints to read and PLC register definitions",
+        "type": "kvlist",
+        "items" : "object",
+        "default": "{\"speed\" : {\"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"}}",
+        "order" : "3",
+        "displayName" : "PLC Map",
+        "properties" : {
+                "register" : {
+                        "description" : "The register number to read",
+                        "displayName" : "Register",
+                        "type" : "integer",
+                        "default" : "0"
+                        },
+                "width" : {
+                        "description" : "Number of registers to read",
+                        "displayName" : "Width",
+                        "type" : "integer",
+                        "maximum" : "4",
+                        "default" : "1"
+                        },
+                "type" : {
+                        "description" : "The data type to read",
+                        "displayName" : "Data Type",
+                        "type" : "enumeration",
+                        "options" : [ "integer","float", "boolean" ],
+                        "default" : "integer"
+                        }
+                }
+        }
+
+The *value* and *default* properties for a list of objects is returned as a JSON structure. An example of the above list with two elements in the list, voltage and current would be returned as follows:
+
+.. code-block:: JSON
+
+  {
+        "voltage" : {
+                        "register" : "10",
+                        "width" : "2",
+                        "type" : "integer"
+                },
+        "current" : {
+                        "register" : "14",
+                        "width" : "4",
+                        "type" : "float"
+                }
+  }
+
+Properties
+~~~~~~~~~~
 
 .. list-table::
    :header-rows: 1
@@ -347,8 +483,12 @@ We have used the properties *type* and *default* to define properties of the con
      - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
    * - displayName
      - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - items
+     - The type of the items in a list or kvlist configuration item.
    * - length
      - The maximum length of the string value of the item.
+   * - listSize
+     - The maximum number of entries allowed in a list or kvlist item.
    * - mandatory
      - A boolean flag to indicate that this item can not be left blank.
    * - maximum
@@ -371,8 +511,17 @@ We have used the properties *type* and *default* to define properties of the con
      - An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.
    * - value
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
+   * - properties
+     - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
 
-Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all other may be omitted.
+Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
+
+.. note::
+
+  It is strongly advised to include a *displayName* and an *order* in every item to improve the GUI rendering of configuration screens. If a configuration category is very large it is also recommended to use the *group* property to group together related items. These grouped items are displayed within separate tabs in the current Fledge GUI.
+
+Management
+~~~~~~~~~~
 
 Configuration data is stored by the storage service and is maintained by the configuration in the core Fledge service. When code requires configuration it would create a configuration category with a set of items as a JSON document. It would then register that configuration category with the configuration manager. The configuration manager is responsible for storing the data in the storage layer, as it does this it first checks to see if there is already a configuration category from a previous execution of the code. If one does exist then the two are merged, this merging process allows updates to the software to extend the configuration category whilst maintaining any changes in values made by the user.
 
@@ -426,7 +575,7 @@ The configuration in *default_config* is assumed to have an enumeration item cal
 
 Note the use of the *Manual* option to allow entry of devices that could not be discovered.
 
-The *discover* method does the actually discovery and manipulates the JSON configuration to add the the *options* element of the configuration item.
+The *discover* method does the actually discovery and manipulates the JSON configuration to add the *options* element of the configuration item.
 
 The code that connects to the device should then look at the *discovered* configuration item, if it finds it set to *Manual* then it will get an IP address from the *IP* configuration item. Otherwise it uses the information in the *discovered* item to connect, note that this need not just be an IP address, you can format the data in a way that is more user friendly and have the connection code extract what it needs or create a table in the *discover* method to allow for user meaningful strings to be mapped to network addresses.
 

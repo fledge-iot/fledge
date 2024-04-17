@@ -124,6 +124,10 @@ class Connection {
 		bool		loadDatabase(const std::string& filname);
 		bool		saveDatabase(const std::string& filname);
 #endif
+		void		setPurgeBlockSize(unsigned long purgeBlockSize)
+				{
+					m_purgeBlockSize = purgeBlockSize;
+				};
 
 	private:
 #ifndef MEMORY_READING_PLUGIN
@@ -132,6 +136,7 @@ class Connection {
 		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
+		unsigned long	m_purgeBlockSize;
 		std::string	operation(const char *sql);
 		int 		SQLexec(sqlite3 *db, const std::string& table, const char *sql,
 					int (*callback)(void*,int,char**,char**),

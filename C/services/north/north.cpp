@@ -475,6 +475,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			unsigned long interval  = strtoul(
+						m_configAdvanced.getValue("assetTrackerInterval").c_str(),
+						NULL,
+						10);
+			if (m_assetTracker)
+				m_assetTracker->tune(interval);
+		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
 		m_dataSender->setPerfMonitor(m_perfMonitor);
 
@@ -810,6 +819,15 @@ void NorthService::configChange(const string& categoryName, const string& catego
 				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			unsigned long interval  = strtoul(
+						m_configAdvanced.getValue("assetTrackerInterval").c_str(),
+						NULL,
+						10);
+			if (m_assetTracker)
+				m_assetTracker->tune(interval);
+		}
 		if (m_configAdvanced.itemExists("perfmon"))
 		{
 			string perf = m_configAdvanced.getValue("perfmon");
@@ -921,6 +939,12 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(DEFAULT_BLOCK_SIZE),
 		std::to_string(DEFAULT_BLOCK_SIZE));
 	defaultConfig.setItemDisplayName("blockSize", "Data block size");
+	defaultConfig.addItem("assetTrackerInterval",
+			"Number of milliseconds between updates of the asset tracker information",
+			"integer", std::to_string(MIN_ASSET_TRACKER_UPDATE),
+			std::to_string(MIN_ASSET_TRACKER_UPDATE));
+	defaultConfig.setItemDisplayName("assetTrackerInterval",
+			"Asset Tracker Update");
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			"boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
@@ -932,6 +956,7 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
  * @param name		Name of the variable to write
  * @param value		Value to write to the variable
  * @param destination	Where to write the value
+ * @return true if write was succesfully sent to dispatcher, else false
  */
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination)
 {
@@ -961,6 +986,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
  * @param value		Value to write to the variable
  * @param destination	Where to write the value
  * @param arg		Argument used to determine destination
+ * @return true if write was succesfully sent to dispatcher, else false
  */
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination, const string& arg)
 {
@@ -1008,6 +1034,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
  * @param paramCount	The number of parameters
  * @param parameters	The parameters to the operation
  * @param destination	Where to write the value
+ * @return -1 in case of error on operation destination, 1 if operation was succesfully sent to dispatcher, else 0
  */
 int  NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination)
 {
@@ -1039,8 +1066,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 			payload += ",";
 	}
 	payload += " } } }";
-	sendToDispatcher("/dispatch/operation", payload);
-	return -1;
+	return static_cast<int>(sendToDispatcher("/dispatch/operation", payload));
 }
 
 /**
@@ -1051,6 +1077,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
  * @param parameters	The parameters to the operation
  * @param destination	Where to write the value
  * @param arg		Argument used to determine destination
+ * @return 1 if operation was succesfully sent to dispatcher, else 0
  */
 int NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination, const string& arg)
 {
@@ -1099,8 +1126,7 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 			payload += ",";
 	}
 	payload += "} } }";
-	sendToDispatcher("/dispatch/operation", payload);
-	return -1;
+	return static_cast<int>(sendToDispatcher("/dispatch/operation", payload));
 }
 
 /**

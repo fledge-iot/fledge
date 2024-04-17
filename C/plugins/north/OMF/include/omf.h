@@ -17,6 +17,7 @@
 #include <http_sender.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include <omfbuffer.h>
 #include <linkedlookup.h>
 
 #define	OMF_HINT	"OMFHint"
@@ -146,7 +147,7 @@ class OMF
 
 		// Method with vector (by reference) of readings
 		uint32_t sendToServer(const std::vector<Reading>& readings,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Method with vector (by reference) of reading pointers
 		uint32_t sendToServer(const std::vector<Reading *>& readings,
@@ -154,11 +155,11 @@ class OMF
 
 		// Send a single reading (by reference)
 		uint32_t sendToServer(const Reading& reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Send a single reading pointer
 		uint32_t sendToServer(const Reading* reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Set saved OMF formats
 		void setFormatType(const std::string &key, std::string &value);
@@ -230,9 +231,6 @@ class OMF
 
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
-
-		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus);
 
 		void setLegacyMode(bool legacy) { m_legacy = legacy; };
 
@@ -356,6 +354,7 @@ private:
 
 		// Start of support for using linked containers
 		bool sendBaseTypes();
+		bool sendAFLinks(Reading& reading, OMFHints *hints);
 		// End of support for using linked containers
 		//
 		string createAFLinks(Reading &reading, OMFHints *hints);
@@ -395,7 +394,6 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
-		bool            m_connected;  // true if calls to PI Web API are working 
 
 		vector<std::string>  m_afhHierarchyAlreadyCreated={
 
@@ -520,19 +518,23 @@ private:
  * The OMFData class.
  * A reading is formatted with OMF specifications using the original
  * type creation scheme implemented by the OMF plugin
+ *
+ * There is no good reason to retain this class any more, it is here
+ * mostly to reduce the scope of the change when introducting the OMFBuffer
  */
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading,
+		OMFData(OMFBuffer & payload, 
+			const Reading& reading,
 			string measurementId,
+			bool needDelim,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);
-
-		const std::string& OMFdataVal() const;
+		bool	hasData() { return m_hasData; };
 	private:
-		std::string	m_value;
+		bool	m_hasData;
 };
 
 #endif

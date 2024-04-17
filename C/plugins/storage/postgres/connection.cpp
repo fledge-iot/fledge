@@ -353,6 +353,7 @@ Connection::Connection() : m_maxReadingRows(INSERT_ROW_LIMIT)
 				PQerrorMessage(dbConnection));
 			connectErrorTime = time(0);
 		}
+		throw runtime_error("Unable to connect to PostgreSQL database");
 	}
 	
 	logSQL("Set", "session time zone 'UTC' ");
@@ -3299,6 +3300,12 @@ const string Connection::escape_double_quotes(const string& str)
 		{
 			*p2++ = '\\';
 			*p2++ = '\"';
+			p1++;
+		}
+		else if (*p1 == '\\' ) // Take care of previously escaped quotes
+		{
+			*p2++ = '\\';
+			*p2++ = '\\';
 			p1++;
 		}
 		else

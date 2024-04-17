@@ -41,9 +41,10 @@ class ConnectionManager {
 					  {
 						m_persist = persist;
 						m_filename = filename;
-					   }
-		bool			   persist() { return m_persist; };
-		std::string		   filename() { return m_filename; };
+					  }
+		bool			  persist() { return m_persist; };
+		std::string		  filename() { return m_filename; };
+		void			  setPurgeBlockSize(unsigned long purgeBlockSize);
 	protected:
 		ConnectionManager();
 
@@ -62,6 +63,7 @@ class ConnectionManager {
 		long			     m_vacuumInterval;
 		bool			     m_persist;
 		std::string	             m_filename;
+		unsigned long		     m_purgeBlockSize;
 };
 
 #endif

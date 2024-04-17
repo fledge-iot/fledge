@@ -459,7 +459,7 @@ unsigned int nFullQueues = 0;
 		// Get the readings in the set
 		for (auto & rdng : *vec)
 		{
-			m_queue->push_back(rdng);
+			m_queue->emplace_back(rdng);
 		}
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
@@ -1055,27 +1055,26 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		if (ingest->m_data && ingest->m_data->size())
+		if (ingest->m_data)
 		{
-			// Remove the readings in the vector
-			for(auto & rdng : *(ingest->m_data))
-				delete rdng;
-			ingest->m_data->clear();// Remove the pointers still in the vector
-			
-			
-			// move reading vector to ingest
-			*(ingest->m_data) = readingSet->getAllReadings();
+		    // Remove the readings in the vector
+		    for(auto & rdngPtr : *(ingest->m_data))
+		        delete rdngPtr;
+
+                   ingest->m_data->clear();// Remove any pointers still in the vector
+		   delete ingest->m_data;
+                   ingest->m_data = readingSet->moveAllReadings();
 		}
 		else
 		{
-			// move reading vector to ingest
-			ingest->m_data = readingSet->moveAllReadings();
+		    // move reading vector to ingest
+		    ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
 	else
 	{
-		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
 	}
 	
 	readingSet->clear();

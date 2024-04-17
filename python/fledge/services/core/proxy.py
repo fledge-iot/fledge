@@ -10,6 +10,7 @@ import aiohttp
 
 from aiohttp import web
 from fledge.common.logger import FLCoreLogger
+from fledge.common.utils import make_async
 from fledge.services.core import server
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
@@ -163,6 +164,20 @@ async def _get_service_record_info_along_with_bearer_token(svc_name):
         return service[0], token
 
 
+@make_async
+def _post_multipart(url, headers, payload):
+    import requests
+    from requests_toolbelt.multipart.encoder import MultipartEncoder
+    from aiohttp.web_request import FileField
+    multipart_payload = {}
+    for k, v in payload.items():
+        multipart_payload[k] = (v.filename, v.file.read(), 'text/plain') if isinstance(v, FileField) else v
+    m = MultipartEncoder(fields=multipart_payload)
+    headers['Content-Type'] = m.content_type
+    result = requests.post(url, data=m, headers=headers)
+    return result
+
+
 async def _call_microservice_service_api(
         request: web.Request, protocol: str, address: str, port: int, uri: str, token: str):
     # Custom Request header
@@ -182,15 +197,7 @@ async def _call_microservice_service_api(
         elif request.method == 'POST':
             payload = await request.post()
             if 'multipart/form-data' in request.headers['Content-Type']:
-                import requests
-                from requests_toolbelt.multipart.encoder import MultipartEncoder
-                from aiohttp.web_request import FileField
-                multipart_payload = {}
-                for k, v in payload.items():
-                    multipart_payload[k] = (v.filename, v.file.read(), 'text/plain') if isinstance(v, FileField) else v
-                m = MultipartEncoder(fields=multipart_payload)
-                headers['Content-Type'] = m.content_type
-                r = requests.post(url, data=m, headers=headers)
+                r = await _post_multipart(url, headers, payload)
                 response = (r.status_code, r.text)
                 if r.status_code not in range(200, 209):
                     _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(

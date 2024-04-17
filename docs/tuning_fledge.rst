@@ -400,6 +400,17 @@ The Fledge core contains a scheduler that is used for running periodic tasks, th
 
     Individual tasks have a setting that they may use to stop multiple instances of the same task running in parallel. This also helps protect the system from runaway tasks.
 
+Startup Ordering
+----------------
+
+The Fledge scheduler also provides for ordering the startup sequence of the various services within a Fledge instance. This ensures that the support services are started before any south or north services are started, with the south services started before the north services.
+
+There is no ordering within the south or north services, with all south services being started in a single block and all north services started in a single block.
+
+The order in which a service is started is controlled by assigning a priority to the service. This priority is a numeric value and services are started based on this value. The lower the value the earlier in the sequence the service is started.
+
+Priorities are stored in the database table, scheduled_processes. There is currently no user interface to modify the priority of scheduled processes, but it may be changed by direct access to the database. Future versions of Fledge may add an interface to allow for the tuning of process startup priorities.
+
 Storage
 =======
 
@@ -462,6 +473,8 @@ The storage plugins to use can be selected in the *Advanced* section of the *Con
 - **Management Port**: Normally the storage service will dynamically create a management port that will be used by the storage service. Setting this to a value other than 0 will cause a fixed port to be used. This can be useful when developing a new storage plugin.
 
 - **Log Level**: This control the level at which the storage plugin will output logs. 
+
+- **Timeout**: Sets the timeout value in seconds for each request to the storage layer. This causes a timeout error to be returned to a client if a storage call takes longer than the specified value.
 
 Changing will be saved once the *save* button is pressed. Fledge uses a mechanism whereby this data is not only saved in the configuration database, but also cached to a file called *storage.json* in the *etc* directory of the data directory. This is required such that Fledge can find the configuration database during the boot process. If the configuration becomes corrupt for some reason simply removing this file and restarting Fledge will cause the default configuration to be restored. The location of the Fledge data directory will depend upon how you installed Fledge and the environment variables used to run Fledge.
 

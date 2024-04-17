@@ -77,6 +77,24 @@ static const char *defaultConfiguration = QUOTE({
 		"displayName" : "Log Level",
 		"options" : [ "error", "warning", "info", "debug" ],
 		"order" : "7"
+	},
+	"timeout" : {
+		"value" : "60",
+		"default" : "60",
+		"description" : "Server request timeout, expressed in seconds",
+		"type" : "integer",
+		"displayName" : "Timeout",
+		"order" : "8",
+		"minimum" : "5",
+		"maximum" : "3600"
+	},
+	"perfmon": {
+		"description": "Track and store performance counters",
+		"type": "boolean",
+		"displayName": "Performance Counters",
+		"default": "false",
+		"value": "false",
+		"order" : "9"
 	}
 });
 
@@ -95,6 +113,10 @@ StorageConfiguration::StorageConfiguration()
 	document = new Document();
 	readCache();
 	checkCache();
+	if (hasValue("logLevel"))
+	{
+		logger->setMinLevel(getValue("logLevel"));
+	}
 }
 
 /**
@@ -312,7 +334,52 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
 void StorageConfiguration::checkCache()
 {
 bool forceUpdate = false;
+bool writeCacheRequired = false;
 
+	/*
+	 * If the cached version of the configuration that has been read in
+	 * does not contain an item in the default configuration, then copy
+	 * that item from the default configuration.
+	 *
+	 * This allows new tiems to be added to the configuration and populated
+	 * in the cache on first restart.
+	 */
+	Document *newdoc = new Document();
+	newdoc->Parse(defaultConfiguration);
+	if (newdoc->HasParseError())
+	{
+		logger->error("Default configuration failed to parse. %s at %d",
+				GetParseError_En(document->GetParseError()),
+				newdoc->GetErrorOffset());
+	}
+	else
+	{
+		for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
+		{
+			const char *name = itr->name.GetString();
+			Value &newval = (*newdoc)[name];
+			if (!hasValue(name))
+			{
+				logger->warn("Adding storage configuration item %s from defaults", name);
+				Document::AllocatorType& a = document->GetAllocator();
+				Value copy(name, a);
+				copy.CopyFrom(newval, a);
+				Value n(name, a);
+				document->AddMember(n, copy, a);
+				writeCacheRequired = true;
+			}
+		}
+	}
+	delete newdoc;
+
+	if (writeCacheRequired)
+	{
+		// We added a new member
+		writeCache();
+	}
+
+	// Upgrade step to add eumeration for plugin
 	if (document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
@@ -327,8 +394,11 @@ bool forceUpdate = false;
 		}
 	}
 
+	// Cache is from before we used an enumeration for the plugin, force upgrade
+	// steps
 	if (forceUpdate == false && document->HasMember("plugin"))
 	{
+		logger->info("Adding database plugin enumerations");
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
 		{
@@ -349,7 +419,7 @@ bool forceUpdate = false;
 	}
 
 	logger->info("Storage configuration cache is not up to date");
-	Document *newdoc = new Document();
+	newdoc = new Document();
 	newdoc->Parse(defaultConfiguration);
 	if (newdoc->HasParseError())
 	{
@@ -357,28 +427,31 @@ bool forceUpdate = false;
 				GetParseError_En(document->GetParseError()),
 				newdoc->GetErrorOffset());
 	}
-	for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
-				itr != newdoc->MemberEnd(); ++itr)
+	else
 	{
-		const char *name = itr->name.GetString();
-		Value &newval = (*newdoc)[name];
-		if (hasValue(name))
+		for (Value::ConstMemberIterator itr = newdoc->MemberBegin();
+				itr != newdoc->MemberEnd(); ++itr)
 		{
-			const char *val = getValue(name);
-			newval["value"].SetString(strdup(val), strlen(val));
-			if (strcmp(name, "plugin") == 0)
+			const char *name = itr->name.GetString();
+			Value &newval = (*newdoc)[name];
+			if (hasValue(name))
 			{
-				newval["default"].SetString(strdup(val), strlen(val));
-				logger->warn("Set default of %s to %s", name, val);
-			}
-			if (strcmp(name, "readingPlugin") == 0)
-			{
-				if (strlen(val) == 0)
+				const char *val = getValue(name);
+				newval["value"].SetString(strdup(val), strlen(val));
+				if (strcmp(name, "plugin") == 0)
 				{
-					val = "Use main plugin";
+					newval["default"].SetString(strdup(val), strlen(val));
+					logger->warn("Set default of %s to %s", name, val);
 				}
-				newval["default"].SetString(strdup(val), strlen(val));
-				logger->warn("Set default of %s to %s", name, val);
+				if (strcmp(name, "readingPlugin") == 0)
+				{
+					if (strlen(val) == 0)
+					{
+						val = "Use main plugin";
+					}
+					newval["default"].SetString(strdup(val), strlen(val));
+					logger->warn("Set default of %s to %s", name, val);
+				}
 			}
 		}
 	}

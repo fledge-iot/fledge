@@ -790,7 +790,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
-            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' )
+            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
+            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' )
             ;
 
 --

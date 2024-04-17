@@ -246,7 +246,6 @@ unsigned short servicePort;
 		m_timeout = 5;
 	}
 
-
 	api = new StorageApi(servicePort, threads);
 	api->setTimeout(m_timeout);
 }
@@ -398,6 +397,20 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// configuration cache has been manually reset or altered while Fledge was down
 		client->setCategoryItemValue(STORAGE_CATEGORY, "plugin", config->getValue("plugin"));
 		client->setCategoryItemValue(STORAGE_CATEGORY, "readingPlugin", config->getValue("readingPlugin"));
+
+		// Check whether to enable storage performance monitor
+		if (config->hasValue("perfmon"))
+		{
+			string perf = config->getValue("perfmon");
+			if (perf.compare("true") == 0)
+			{
+				api->getPerformanceMonitor()->setCollecting(true);
+			}
+			else
+			{
+				api->getPerformanceMonitor()->setCollecting(false);
+			}
+		}
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -568,6 +581,18 @@ void StorageService::configChange(const string& categoryName, const string& cate
 			{
 				api->setTimeout(timeout);
 				m_timeout = timeout;
+			}
+		}
+		if (config->hasValue("perfmon"))
+                {
+			string perf = config->getValue("perfmon");
+			if (perf.compare("true") == 0)
+			{
+				api->getPerformanceMonitor()->setCollecting(true);
+			}
+			else
+			{
+				api->getPerformanceMonitor()->setCollecting(false);
 			}
 		}
 		return;

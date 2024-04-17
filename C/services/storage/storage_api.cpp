@@ -395,6 +395,7 @@ StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : 
 	m_server->config.thread_pool_size = threads;
 	m_server->config.timeout_request = 60;
 	StorageApi::m_instance = this;
+	m_perfMonitor = NULL;
 }
 
 /**
@@ -412,6 +413,10 @@ StorageApi::~StorageApi()
 	if (m_thread)
 	{
 		delete m_thread;
+	}
+	if (m_perfMonitor)
+	{
+		delete m_perfMonitor;
 	}
 }
 
@@ -484,6 +489,9 @@ void StorageApi::initResources()
 
 	ManagementApi *management = ManagementApi::getInstance();
 	management->registerStats(&stats);
+
+	// Create StoragePerformanceMonitor object fr direct monitorind data saving
+	m_perfMonitor = new StoragePerformanceMonitor("Storage", this);
 }
 
 void startService()
@@ -581,6 +589,12 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("insertTable_rows", rval);
+				m_perfMonitor->collect("insertTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -658,6 +672,12 @@ string	responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("updateTable_rows", rval);
+				m_perfMonitor->collect("updateTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -782,6 +802,12 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("deleteTable_rows", rval);
+				m_perfMonitor->collect("deleteTable_payloadSize", payload.length());
+			}
 		}
 		else
 		{
@@ -856,6 +882,16 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("readingsAppendRows_" +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						rval);
+				m_perfMonitor->collect("readingsAppendPayloadSize_" +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						payload.length());
+			}
 		}
 		else
 		{

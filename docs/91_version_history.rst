@@ -93,7 +93,6 @@ Release Date: 2024-04-10
     - New Features:
        
        - Improvements have been made to the buffering strategy of the OMF north plugin to reduce the overhead in creating outgoing OMF messages.
-       - An issue with the control dispatcher that prevents operations with no parameters from being correctly passed via control pipelines has been resolved.
        - The control pipelines mechanism has been enhanced to allow pipelines to change the name of the operation that is performed as well as the parameters.
        - The documentation of the expression filter has been updated to document the restriction on asset and datapoint names.
 
@@ -102,6 +101,7 @@ Release Date: 2024-04-10
 
        - An issue with the dynamic reconfiguration of filters in control pipelines has been resolved.
        - An issue that could cause the control dispatcher service to fail when changing the destination of a control pipeline has been resolved.
+       - An issue with the control dispatcher that prevents operations with no parameters from being correctly passed via control pipelines has been resolved.
        - An issue in the control dispatcher that could cause a crash if a control pipeline completely removed the request has now been resolved.
        - An issue that could cause an error to be logged when installing the control dispatcher has been resolved. The error did not prevent the dispatcher from executing.
        - An issue when using the PostgreSQL storage plugin and data containing double quotes within JSON data has been resolved.

@@ -106,7 +106,8 @@ Release Date: 2024-04-10
        - An issue that could cause an error to be logged when installing the control dispatcher has been resolved. The error did not prevent the dispatcher from executing.
        - An issue when using the PostgreSQL storage plugin and data containing double quotes within JSON data has been resolved.
        - An issue that could cause an error in the south plugin written in Python that supports control operations has been resolved.
-       - A problem with the asset filter has been resolved. The issue meant that if two instances of the filter were used in a single pipeline it could cause a deadlock condition to occur.
+       - A memory consumption issue in the fledge-filter-asset when using the flatten option has been resolved.
+       - The fledge-filter-asset issue causing deadlock in pipelines with two instances has been resolved.
        - An issue that limited the number of variables the fledge-south-s2opcua plugin could subscribed to has been resolved.
        - An issue that could result in the sent count being incorrectly incremented when using the fledge-north-kafka (C based) plugin has been resolved.
        - An issue that could cause excessive messages regarding connection loss and regain to be raised in the OMF north plugin has been resolved.

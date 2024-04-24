@@ -734,7 +734,7 @@ void Ingest::processQueue()
 			lock_guard<mutex> guard(m_pipelineMutex);
 			if (m_filterPipeline && !m_filterPipeline->isShuttingDown())
 			{
-				FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
+				PipelineElement *firstFilter = m_filterPipeline->getFirstFilterPlugin();
 				if (firstFilter)
 				{
 					// Check whether filters are set before calling ingest

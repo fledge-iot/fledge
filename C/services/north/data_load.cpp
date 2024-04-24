@@ -336,7 +336,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 {
 	if (m_pipeline)
 	{
-		FilterPlugin *firstFilter = m_pipeline->getFirstFilterPlugin();
+		PipelineElement *firstFilter = m_pipeline->getFirstFilterPlugin();
 		if (firstFilter)
 		{
 

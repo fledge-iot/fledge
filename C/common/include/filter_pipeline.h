@@ -64,7 +64,7 @@ protected:
 	std::string		serviceName;
 	std::vector<PipelineElement *>
 				m_filters;
-	std::map<std::string, FilterPlugin *>
+	std::map<std::string, PipelineElement *>
 				m_filterCategories;
 	std::string		m_pipeline;
 	bool		m_ready;

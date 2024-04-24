@@ -18,25 +18,30 @@
 #include <reading_set.h>
 #include <filter_plugin.h>
 #include <service_handler.h>
+#include <config_handler.h>
 
 /**
  * The base pipeline element class
  */
 class PipelineElement {
 	public:
-		PipelineElement() : m_next(NULL) {};
+		PipelineElement() : m_next(NULL), m_storage(NULL) {};
 		virtual ~PipelineElement() {};
 		void			setNext(PipelineElement *next)
 					{
 						m_next = next;
 					};
-		PipelineElement		*getNext(PipelineElement *next)
+		PipelineElement		*getNext()
 					{
 						return m_next;
 					};
 		void			setService(const std::string& serviceName)
 					{
 						m_serviceName = serviceName;
+					};
+		void			setStorage(StorageClient *storage)
+					{
+						m_storage = storage;
 					};
 		static void		ingest(void *handle, READINGSET *readings)
 					{
@@ -54,9 +59,16 @@ class PipelineElement {
 		virtual void		ingest(READINGSET *readingSet) = 0;
 		virtual bool		init(const ConfigCategory* config,
 						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output) = 0;
+		virtual void		shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler) = 0;
+		virtual void		reconfigure(const std::string& newConfig)
+					{
+					};
+		virtual std::string	getName() = 0;
+		virtual bool		isReady() = 0;
 	protected:
 		std::string		m_serviceName;
 		PipelineElement		*m_next;
+		StorageClient		*m_storage;
 
 };
 
@@ -75,11 +87,18 @@ class PipelineFilter : public PipelineElement {
 							m_plugin->ingest(readingSet);
 						}
 					};
+		bool			init(const ConfigCategory* config,
+                                                OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
+		void			reconfigure(const std::string& newConfig);
 		bool			isFilter() { return true; };
 		std::string		getCategoryName() { return m_categoryName; };
 		bool			persistData() { return m_plugin->persistData(); };
 		void			setPluginData(PluginData *data) { m_plugin->m_plugin_data = data; };
-		std::string		getPluginData() { m_plugin->m_plugin_data->loadStoredData(serviceName + (*it)->getName()); };
+		std::string		getPluginData() { return m_plugin->m_plugin_data->loadStoredData(m_serviceName + m_name); };
+		void			setServiceName(const std::string& name) { m_serviceName = name; };
+		std::string		getName() { return m_name; };
+		bool			isReady() { return true; };
 	private:
 		PLUGIN_HANDLE		loadFilterPlugin(const std::string& filterName);
 	private:
@@ -88,6 +107,7 @@ class PipelineFilter : public PipelineElement {
 		std::string		m_pluginName;
 		PLUGIN_HANDLE		m_handle;
 		FilterPlugin		*m_plugin;
+		std::string		m_serviceName;
 };
 
 /**
@@ -96,13 +116,18 @@ class PipelineFilter : public PipelineElement {
 class PipelineBranch : public PipelineElement {
 	public:
 		PipelineBranch();
-		void			ingest(READINGSET *readingSet);
+		void			ingest(READINGSET *readingSet)
 					{
 						if (m_next)
 						{
 							m_next->ingest(readingSet);
 						}
 					};
+		std::string		getName() { return "Branch"; };
+		bool			init(const ConfigCategory* config,
+						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
+		bool			isReady();
 	private:
 		PipelineElement		*m_branch;
 };
@@ -114,6 +139,10 @@ class PipelineWriter : public PipelineElement {
 	public:
 		PipelineWriter();
 		void			ingest(READINGSET *readingSet);
+		bool			init(const ConfigCategory* config,
+						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
+		bool			isReady();
 };
 
 #endif

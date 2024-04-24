@@ -141,6 +141,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 
 						PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
+						element->setServiceName(serviceName);
 						m_filters.emplace_back(element);
 					}
 					else if (itr->IsArray())
@@ -227,11 +228,11 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 		{
 			if ((*it)->isFilter())
 			{
-				PipelineFilter *filter = *it;
+				PipelineFilter *filter = (PipelineFilter *)*it;
 				string filterCategoryName = filter->getCategoryName();
 				Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
 				// Fetch up to date filter configuration
-				updatedCfg = mgtClient->getCategory(filterCategoryName);
+				ConfigCategory updatedCfg = mgtClient->getCategory(filterCategoryName);
 
 				// Pass Management client IP:Port to filter so that it may connect to bucket service
 				updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
@@ -247,53 +248,43 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 				m_serviceHandler = (ServiceHandler *)ingest;
 				
 				m_filterCategories[filterCategoryName] = *it;
+
+				// Iterate the load filters set in the Ingest class m_filters member 
+				if ((it + 1) != m_filters.end())
+				{
+					// Set next filter pointer as OUTPUT_HANDLE
+					if (!(*it)->init(&updatedCfg,
+							(OUTPUT_HANDLE *)(*(it + 1)),
+							filterReadingSetFn(passToOnwardFilter)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				}
+				else
+				{
+					// Set the Ingest class pointer as OUTPUT_HANDLE
+					if (!(*it)->init(&updatedCfg,
+							 (OUTPUT_HANDLE *)(ingest),
+							 filterReadingSetFn(useFilteredData)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				}
+
+			}
+			else
+			{
+				// Not a plugin
 			}
 		}
 		// TODO catch specific exceptions
 		catch (...)
 		{		
 			throw;		
-		}
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					(OUTPUT_HANDLE *)(*(it + 1)),
-					filterReadingSetFn(passToOnwardFilter)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)(ingest),
-					 filterReadingSetFn(useFilteredData)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
 		}
 	}
 
@@ -324,35 +315,12 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 	// Cleanup filters, in reverse order
 	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
-		FilterPlugin* filter = *it;
-		string filterCategoryName =  categoryName + "_" + filter->getName();
+		PipelineElement *element = *it;
 		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-		configHandler->unregisterCategory(m_serviceHandler, filterCategoryName);
-		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
-		
-		// If plugin has SP_PERSIST_DATA option:
-		if (filter->m_plugin_data)
-	 	{
-			// 1- call shutdownSaveData and get up-to-date plugin data.
-			string saveData = filter->shutdownSaveData();
-			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(categoryName + filter->getName());
-			if (!filter->m_plugin_data->persistPluginData(key, saveData))
-			{
-				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
-							   filter->getName().c_str(),
-							   saveData.c_str(),
-							   key.c_str());
-			}
-		}
-		else
-		{
-			// Call filter plugin shutdown
-			filter->shutdown();
-		}
+		element->shutdown(m_serviceHandler, configHandler);
 
 		// Free filter
-		delete filter;
+		delete element;
 	}
 }
 
@@ -366,23 +334,6 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
  */
 void FilterPipeline::configChange(const string& category, const string& newConfig)
 {
-	Logger::getLogger()->debug("%s:%d: category=%s, newConfig=%s", __FUNCTION__, __LINE__, category.c_str(), newConfig.c_str());
-
-	if(newConfig.compare("logLevel") == 0)
-	{
-		PluginManager *pluginManager = PluginManager::getInstance();
-		Logger::getLogger()->debug("m_filterCategories has %d entries", m_filterCategories.size());
-		for(auto & it : m_filterCategories)
-		{
-			const string &filtername = it.first;
-			FilterPlugin *fp = it.second;
-			PLUGIN_TYPE type = pluginManager->getPluginImplType(fp->getHandle());
-			Logger::getLogger()->debug("%s:%d: filter name=%s, filter type = %s", __FUNCTION__, __LINE__, filtername.c_str(), (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
-			if(type == PYTHON_PLUGIN)
-				fp->reconfigure(newConfig);
-		}
-	}
-	
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{

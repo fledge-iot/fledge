@@ -76,7 +76,7 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 		if ((it + 1) != m_filters.end())
 		{
 			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
+			if (!(*it)->init(&updatedCfg,
 					(OUTPUT_HANDLE *)(*(it + 1)),
 					filterReadingSetFn(passToOnwardFilter)))
 			{
@@ -92,7 +92,7 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 			const unsigned long* bufferIndex = sendingProcess->getLoadBufferIndexPtr();
 			
 			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
+			if (!(*it)->init(&updatedCfg,
 					 (OUTPUT_HANDLE *)(bufferIndex),
 					 filterReadingSetFn(useFilteredData)))
 			{
@@ -102,20 +102,6 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 			}
 		}
 
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
 	}
 
 	if (initErrors)

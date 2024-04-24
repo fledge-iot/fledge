@@ -24,7 +24,7 @@ def install(_type, plugin, branch="develop", plugin_lang="python", use_pip_cache
         assert False, "{} plugin installation failed".format(plugin)
 
     # Cleanup /tmp repos
-    if _type == "rule":
+    if _type in ("notify", "rule"):
         subprocess.run(["rm -rf /tmp/fledge-service-notification"], shell=True, check=True)
     subprocess.run(["rm -rf /tmp/fledge-{}-{}".format(_type, plugin)], shell=True, check=True)
 
@@ -37,16 +37,28 @@ def reset():
 
 
 def add_south_service(south_plugin, fledge_url, service_name, config=None, start_service=True):
-        """Add south plugin and start the service by default"""
-        _config = config if config is not None else {}
-        _enabled = "true" if start_service else "false"
-        data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
-                "enabled": _enabled, "config": _config}
+    """Add south plugin and start the service by default"""
+    _config = config if config is not None else {}
+    _enabled = "true" if start_service else "false"
+    data = {"name": "{}".format(service_name), "type": "South", "plugin": "{}".format(south_plugin),
+            "enabled": _enabled, "config": _config}
 
-        # Create south service
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("POST", '/fledge/service', json.dumps(data))
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        return json.loads(r)
+    # Create south service
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("POST", '/fledge/service', json.dumps(data))
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    return json.loads(r)
+
+def create_filter(fledge_url, filter_name, plugin_name, config=None):
+    """Create standalone filter"""
+    data = {"name": filter_name, "plugin": plugin_name}
+    if config is not None:
+        data["filter_config"] = config
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("POST", '/fledge/filter', json.dumps(data))
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    return json.loads(r)

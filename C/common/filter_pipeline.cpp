@@ -131,34 +131,7 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 
 				Logger::getLogger()->info(logMsg.c_str());
 
-				// Try loading all filter plugins: abort on any error
-				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
-				{
-					if (itr->IsString())
-					{
-						// Get "plugin" item from filterCategoryName
-						string filterCategoryName = itr->GetString();
-						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-
-						PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
-						element->setServiceName(serviceName);
-						m_filters.emplace_back(element);
-					}
-					else if (itr->IsArray())
-					{
-						// Sub pipeline
-						Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
-					}
-					else if (itr->IsObject())
-					{
-						// An object, probably the write destination
-						Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
-					}
-					else
-					{
-						Logger::getLogger()->error("Unexpected object in  pipeline definition %s, ignoring", categoryName.c_str());
-					}
-				}
+				loadPipeline(filterList, m_filters);
 
 				// We have kept filter default config in the filterInfo map
 				// Handle configuration for each filter
@@ -202,6 +175,41 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 	}
 }
 
+void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElement *>& pipeline)
+{
+	// Try loading all filter plugins: abort on any error
+	for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+	{
+		if (itr->IsString())
+		{
+			// Get "plugin" item from filterCategoryName
+			string filterCategoryName = itr->GetString();
+			ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+
+			PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
+			element->setServiceName(serviceName);
+			element->setStorage(&storage);
+			pipeline.emplace_back(element);
+		}
+		else if (itr->IsArray())
+		{
+			// Sub pipeline
+			Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
+			PipelineBranch *element = new PipelineBranch();
+			loadPipeline(*itr, element->getBranchElements());
+		}
+		else if (itr->IsObject())
+		{
+			// An object, probably the write destination
+			Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
+		}
+		else
+		{
+			Logger::getLogger()->error("Unexpected object in  pipeline definition, ignoring");
+		}
+	}
+}
+
 /**
  * Set the filter pipeline
  * 
@@ -222,63 +230,37 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		vector<string> children;
 		
 		try
 		{
-			if ((*it)->isFilter())
+			if ((*it)->isBranch())
 			{
-				PipelineFilter *filter = (PipelineFilter *)*it;
-				string filterCategoryName = filter->getCategoryName();
-				Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-				// Fetch up to date filter configuration
-				ConfigCategory updatedCfg = mgtClient->getCategory(filterCategoryName);
-
-				// Pass Management client IP:Port to filter so that it may connect to bucket service
-				updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
-									"string", "127.0.0.1:0",
-									mgtClient->getUrlbase());
-
-				// Add filter category name under service/process config name
-				children.push_back(filterCategoryName);
-				mgtClient->addChildCategories(serviceName, children);
-				
-				ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-				configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
-				m_serviceHandler = (ServiceHandler *)ingest;
-				
-				m_filterCategories[filterCategoryName] = *it;
-
-				// Iterate the load filters set in the Ingest class m_filters member 
-				if ((it + 1) != m_filters.end())
+				PipelineBranch *branch = (PipelineBranch *)(*it);
+				branch->setFunctions(passToOnwardFilter, useFilteredData, ingest);
+			}
+			(*it)->setup(mgtClient, ingest, m_filterCategories);
+			// Iterate the load filters set in the Ingest class m_filters member 
+			if ((it + 1) != m_filters.end())
+			{
+				// Set next filter pointer as OUTPUT_HANDLE
+				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
+						filterReadingSetFn(passToOnwardFilter)))
 				{
-					// Set next filter pointer as OUTPUT_HANDLE
-					if (!(*it)->init(&updatedCfg,
-							(OUTPUT_HANDLE *)(*(it + 1)),
-							filterReadingSetFn(passToOnwardFilter)))
-					{
-						errMsg += (*it)->getName() + "'";
-						initErrors = true;
-						break;
-					}
+					errMsg += (*it)->getName() + "'";
+					initErrors = true;
+					break;
 				}
-				else
-				{
-					// Set the Ingest class pointer as OUTPUT_HANDLE
-					if (!(*it)->init(&updatedCfg,
-							 (OUTPUT_HANDLE *)(ingest),
-							 filterReadingSetFn(useFilteredData)))
-					{
-						errMsg += (*it)->getName() + "'";
-						initErrors = true;
-						break;
-					}
-				}
-
 			}
 			else
 			{
-				// Not a plugin
+				// Set the Ingest class pointer as OUTPUT_HANDLE
+				if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
+						 filterReadingSetFn(useFilteredData)))
+				{
+					errMsg += (*it)->getName() + "'";
+					initErrors = true;
+					break;
+				}
 			}
 		}
 		// TODO catch specific exceptions

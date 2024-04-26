@@ -56,9 +56,13 @@ class PipelineElement {
 			       		{
 						return false;
 					};
+		virtual bool		isBranch()
+			       		{
+						return false;
+					};
 		virtual void		ingest(READINGSET *readingSet) = 0;
-		virtual bool		init(const ConfigCategory* config,
-						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output) = 0;
+		virtual bool		setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories) = 0;
+		virtual bool		init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output) = 0;
 		virtual void		shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler) = 0;
 		virtual void		reconfigure(const std::string& newConfig)
 					{
@@ -87,8 +91,8 @@ class PipelineFilter : public PipelineElement {
 							m_plugin->ingest(readingSet);
 						}
 					};
-		bool			init(const ConfigCategory* config,
-                                                OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
+		bool			init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
 		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
 		void			reconfigure(const std::string& newConfig);
 		bool			isFilter() { return true; };
@@ -108,6 +112,7 @@ class PipelineFilter : public PipelineElement {
 		PLUGIN_HANDLE		m_handle;
 		FilterPlugin		*m_plugin;
 		std::string		m_serviceName;
+		ConfigCategory		m_updatedCfg;
 };
 
 /**
@@ -116,20 +121,34 @@ class PipelineFilter : public PipelineElement {
 class PipelineBranch : public PipelineElement {
 	public:
 		PipelineBranch();
-		void			ingest(READINGSET *readingSet)
-					{
-						if (m_next)
-						{
-							m_next->ingest(readingSet);
-						}
-					};
+		void			ingest(READINGSET *readingSet);
 		std::string		getName() { return "Branch"; };
-		bool			init(const ConfigCategory* config,
-						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
-		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
-		bool			isReady();
+		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
+		bool                    init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		void                    shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
+		bool                    isReady();
+		bool			isBranch()
+					{
+						return true;
+					};
+		std::vector<PipelineElement *>&	
+					getBranchElements()
+					{
+						return m_branch;
+					};
+		void			setFunctions(void *onward, void *use, void *ingest)
+					{
+						m_passOnward = onward;
+						m_useData = use;
+						m_ingest = ingest;
+					};
 	private:
-		PipelineElement		*m_branch;
+		std::vector<PipelineElement *>		m_branch;
+		std::thread				*m_thread;
+		std::queue<READINGSET *>		m_queue;
+		void					*m_passOnward;
+		void					*m_useData;
+		void					*m_ingest;
 };
 
 /**
@@ -139,10 +158,10 @@ class PipelineWriter : public PipelineElement {
 	public:
 		PipelineWriter();
 		void			ingest(READINGSET *readingSet);
-		bool			init(const ConfigCategory* config,
-						OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
-		void			shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
-		bool			isReady();
+		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
+		bool                    init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
+		void                    shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
+		bool                    isReady();
 };
 
 #endif

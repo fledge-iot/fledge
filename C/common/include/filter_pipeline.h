@@ -57,6 +57,7 @@ public:
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
+	void		loadPipeline(const rapidjson::Value& filters, std::vector<PipelineElement *>& pipeline);
 
 protected:
 	ManagementClient*	mgtClient;
@@ -67,8 +68,8 @@ protected:
 	std::map<std::string, PipelineElement *>
 				m_filterCategories;
 	std::string		m_pipeline;
-	bool		m_ready;
-	bool		m_shutdown;
+	bool			m_ready;
+	bool			m_shutdown;
 	ServiceHandler		*m_serviceHandler;
 };
 

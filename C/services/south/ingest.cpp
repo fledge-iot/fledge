@@ -1023,7 +1023,7 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
 
-	// Pass readings to next filter
+	// Pass readings to the next stage in the pipeline
 	next->ingest(readingSet);
 }
 

@@ -125,7 +125,7 @@ bool PipelineFilter::setup(ManagementClient *mgmt, void *ingest, map<string, Pip
 {
 vector<string> children;
 
-	Logger::getLogger()->info("Load plugin categoryName %s", m_categoryName.c_str());
+	Logger::getLogger()->info("Load plugin categoryName %s for %s", m_categoryName.c_str(), m_name.c_str());
 	// Fetch up to date filter configuration
 	m_updatedCfg = mgmt->getCategory(m_categoryName);
 

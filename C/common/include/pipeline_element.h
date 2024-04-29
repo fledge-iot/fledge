@@ -88,7 +88,12 @@ class PipelineFilter : public PipelineElement {
 					{
 						if (m_plugin)
 						{
+							Logger::getLogger()->info("Pipeline_filter %s ingest", m_name.c_str());
 							m_plugin->ingest(readingSet);
+						}
+						else
+						{
+							Logger::getLogger()->error("Pipeline filter %s has  no plugin associated with it.", m_name.c_str());
 						}
 					};
 		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
@@ -123,6 +128,7 @@ class PipelineBranch : public PipelineElement {
 		PipelineBranch();
 		void			ingest(READINGSET *readingSet);
 		std::string		getName() { return "Branch"; };
+		bool			setupConfiguration(ManagementClient *mgtClient, std::vector<std::string>& children);
 		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
 		bool                    init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
 		void                    shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
@@ -143,12 +149,18 @@ class PipelineBranch : public PipelineElement {
 						m_ingest = ingest;
 					};
 	private:
+		static void		branchHandler(void *instance);
+		void			handler();
+	private:
 		std::vector<PipelineElement *>		m_branch;
 		std::thread				*m_thread;
 		std::queue<READINGSET *>		m_queue;
+		std::mutex				m_mutex;
+		std::condition_variable			m_cv;
 		void					*m_passOnward;
 		void					*m_useData;
 		void					*m_ingest;
+		bool					m_shutdownCalled;
 };
 
 /**

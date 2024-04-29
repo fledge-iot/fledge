@@ -184,6 +184,7 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 		{
 			// Get "plugin" item from filterCategoryName
 			string filterCategoryName = itr->GetString();
+			Logger::getLogger()->info("Creating pipeline filter %s", filterCategoryName.c_str());
 			ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 
 			PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
@@ -194,9 +195,10 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 		else if (itr->IsArray())
 		{
 			// Sub pipeline
-			Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
+			Logger::getLogger()->info("Creating pipeline branch");
 			PipelineBranch *element = new PipelineBranch();
 			loadPipeline(*itr, element->getBranchElements());
+			pipeline.emplace_back(element);
 		}
 		else if (itr->IsObject())
 		{
@@ -235,13 +237,16 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 		{
 			if ((*it)->isBranch())
 			{
+				Logger::getLogger()->info("Set branch functions");
 				PipelineBranch *branch = (PipelineBranch *)(*it);
 				branch->setFunctions(passToOnwardFilter, useFilteredData, ingest);
 			}
+			Logger::getLogger()->info("Setup element %s", (*it)->getName().c_str());
 			(*it)->setup(mgtClient, ingest, m_filterCategories);
 			// Iterate the load filters set in the Ingest class m_filters member 
 			if ((it + 1) != m_filters.end())
 			{
+				(*it)->setNext(*(it + 1));
 				// Set next filter pointer as OUTPUT_HANDLE
 				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
 						filterReadingSetFn(passToOnwardFilter)))

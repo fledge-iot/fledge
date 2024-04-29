@@ -750,6 +750,9 @@ void Ingest::processQueue()
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
+					// TODO: Need to wait for all the branches to complete
+					usleep(250);
+
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
 					 * return.
@@ -1051,7 +1054,10 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	Ingest* ingest = (Ingest *)outHandle;
+	lock_guard<mutex> guard(ingest->m_useDataMutex);
+	
 
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{

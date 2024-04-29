@@ -158,6 +158,7 @@ private:
 	time_t				m_deprecatedAgeOut;
 	time_t				m_deprecatedAgeOutStorage;
 	PerformanceMonitor		*m_performance;
+	std::mutex			m_useDataMutex;
 };
 
 #endif

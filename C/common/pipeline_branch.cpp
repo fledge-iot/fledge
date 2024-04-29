@@ -21,6 +21,22 @@ using namespace std;
  */
 PipelineBranch::PipelineBranch() : PipelineElement()
 {
+	m_shutdownCalled = false;
+}
+
+/**
+ * Setup the configuration for a branch in a pipeline
+ *
+ * @param       mgtClient       The managament client
+ * @param       children        A vector to fill with child configuration categories
+ */
+bool PipelineBranch::setupConfiguration(ManagementClient *mgtClient, vector<string>& children)
+{
+	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
+	{
+		(*it)->setupConfiguration(mgtClient, children);
+	}
+	return true;
 }
 
 /**
@@ -37,6 +53,7 @@ bool PipelineBranch::setup(ManagementClient *mgmt, void *ingest, map<string, Pip
 {
 vector<string> children;
 
+	Logger::getLogger()->info("Calling setup for pipeline branch");
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
 	{
 		if ((*it)->isBranch())
@@ -51,8 +68,8 @@ vector<string> children;
 /**
  * Initialise the pipeline branch.
  *
- * Spawn a thread to excute the child pipeline.
  * Initialise the elements of the child pipeline
+ * Spawn a thread to excute the child pipeline.
  *
  * @param config	The filter configuration
  * @param outHandle	The pipeline element on the "main branch"
@@ -62,10 +79,12 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 {
 	bool initErrors = false;
 	string errMsg = "'plugin_init' failed for filter '";
+	Logger::getLogger()->info("Calling init for pipeline branch");
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
 	{
 		try
 		{
+			Logger::getLogger()->info("Initialise %s on pipeline branch", (*it)->getName().c_str());
 			// Iterate the load filters set in the Ingest class m_filters member 
 			if ((it + 1) != m_branch.end())
 			{
@@ -105,13 +124,16 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 		return false;
 	}
 
+	Logger::getLogger()->info("Create branch handler thread");
+	m_thread = new thread(PipelineBranch::branchHandler, this);
+
 	//Success
 	return true;
 }
 
 /**
- * Ingest a set of reading and pass on in the pipeline and queue into the
- * branched pipeline.
+ * Ingest a set of readings and pass on in the pipeline. Create a deep copy
+ * and queue the copy into the branched pipeline.
  *
  * @param readingSet	The set of readings to ingest
  */
@@ -119,10 +141,18 @@ void PipelineBranch::ingest(READINGSET *readingSet)
 {
 	READINGSET *copy = new ReadingSet();
 	copy->copy(*readingSet);
+	unique_lock<mutex> lck(m_mutex);
 	m_queue.push(copy);
+	lck.unlock();
+	m_cv.notify_one();
 	if (m_next)
 	{
+		Logger::getLogger()->info("Branch sending data onwards in main branch");
 		m_next->ingest(readingSet);
+	}
+	else
+	{
+		Logger::getLogger()->warn("Pipeline branch has no downstream element");
 	}
 }
 
@@ -138,6 +168,24 @@ void PipelineBranch::ingest(READINGSET *readingSet)
  */
 void PipelineBranch::shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler)
 {
+	// Shutdown the handler thread
+	m_shutdownCalled = true;
+	m_cv.notify_all();
+	m_thread->join();
+
+	// Shutdown the fitler elements on the branch
+	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
+	{
+		(*it)->shutdown(serviceHandler, configHandler);
+	}
+
+	// Clear any queued readings
+	while (!m_queue.empty())
+	{
+		ReadingSet *readings = m_queue.front();
+		m_queue.pop();
+		delete readings;
+	}
 }
 
 bool PipelineBranch::isReady()
@@ -145,3 +193,41 @@ bool PipelineBranch::isReady()
 	return true;
 }
 
+/**
+ * Static entry point for the thread that handles sending data on the
+ * branch
+ *
+ * @param instance	The instance of the PipelineBranch
+ */
+void PipelineBranch::branchHandler(void *instance)
+{
+	PipelineBranch *branch = (PipelineBranch *)instance;
+	branch->handler();
+}
+
+/**
+ * The handler for readings in an instance of a branch.
+ * Loop waiting for data or a shutdown signal and pass the
+ * queued data to the first filter in the pipeline branch
+ */
+void PipelineBranch::handler()
+{
+	Logger::getLogger()->info("Starting thread to process branch pipeline");
+	while (!m_shutdownCalled)
+	{
+		unique_lock<mutex> lck(m_mutex);
+		while (m_queue.empty())
+		{
+			m_cv.wait(lck);
+			if (m_shutdownCalled)
+			{
+				return;
+			}
+		}
+		ReadingSet *readings = m_queue.front();
+		m_queue.pop();
+		lck.unlock();
+		Logger::getLogger()->info("Branch sending data onwards in child branch");
+		m_branch[0]->ingest(readings);
+	}
+}

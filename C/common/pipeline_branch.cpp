@@ -88,6 +88,7 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 			// Iterate the load filters set in the Ingest class m_filters member 
 			if ((it + 1) != m_branch.end())
 			{
+				(*it)->setNext(*(it + 1));
 				// Set next filter pointer as OUTPUT_HANDLE
 				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
 						filterReadingSetFn(m_passOnward)))

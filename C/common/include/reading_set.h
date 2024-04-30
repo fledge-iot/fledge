@@ -46,8 +46,8 @@ class ReadingSet {
 		Reading* removeReading(unsigned long id);
 		
 		// Return the reading id of the last  data element
-		unsigned long long		getLastId() const { return m_last_id; };
-		unsigned long long		getReadingId(uint32_t pos);
+		unsigned long			getLastId() const { return m_last_id; };
+		unsigned long			getReadingId(uint32_t pos);
 		void				append(ReadingSet *);
 		void				append(ReadingSet&);
 		void				append(std::vector<Reading *> &);
@@ -59,9 +59,9 @@ class ReadingSet {
 		unsigned long			m_count;
 		ReadingSet(const ReadingSet&);
 		ReadingSet&			operator=(ReadingSet const &);
-		std::vector<Reading *>	m_readings;
+		std::vector<Reading *>		m_readings;
 		// Id of last Reading element
-		unsigned long long		m_last_id;    // Id of the last Reading
+		unsigned long			m_last_id;    // Id of the last Reading
 };
 
 /**
@@ -75,7 +75,7 @@ class JSONReading : public Reading {
 		~JSONReading() {};
 
 		// Return the reading id
-		unsigned long long	getId() const { return m_id; };
+		unsigned long	getId() const { return m_id; };
 
 	private:
 		Datapoint 	*datapoint(const std::string& name, const rapidjson::Value& json);

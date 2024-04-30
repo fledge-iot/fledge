@@ -316,7 +316,7 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 	try {
 
 		char url[256];
-		snprintf(url, sizeof(url), "/storage/reading?id=%ld&count=%ld",
+		snprintf(url, sizeof(url), "/storage/reading?id=%lu&count=%lu",
 				readingId, count);
 
 		auto res = this->getHttpClient()->request("GET", url);

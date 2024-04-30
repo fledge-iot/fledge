@@ -193,8 +193,11 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
-			Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
+			Logger::getLogger()->debug("DataLoad::readBlock(): last reading: %s", 
+		                                    readings->getAllReadings()[readings->getCount()-1]->toJSON().c_str());
 			m_lastFetched = readings->getLastId();
+			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
+							readings->getCount(), m_lastFetched);
 			bufferReadings(readings);
 			if (m_perfMonitor)
 			{
@@ -562,9 +565,9 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
         }
     }
     
-    Logger::getLogger()->debug("DataLoad::pipelineEnd(): readingSet->getCount()=%d, lastReadingId=%d, " 
-                              "load->m_lastFetched=%d",
-                                readingSet->getCount(), lastReadingId, load->m_lastFetched);
+    Logger::getLogger()->debug("DataLoad::pipelineEnd(): readingSet->getCount()=%d, lastReadingId=%lu, " 
+                                "load->m_lastFetched=%lu",
+                                  readingSet->getCount(), lastReadingId, load->m_lastFetched);
     
 	// Special case when all readings are filtered out 
 	// or new readings are appended by filter with id 0
@@ -621,7 +624,7 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 		InsertValues values;
 		values.push_back(InsertValue("key",         key));
 		values.push_back(InsertValue("description", description));
-		values.push_back(InsertValue("value",       (int)increment));
+		values.push_back(InsertValue("value",       (long)increment));
 		string table = "statistics";
 
 		if (m_storage->insertTable(table, values) != 1)

@@ -932,7 +932,7 @@ unsigned long			   count = 0;
 		}
 		else
 		{
-			id = (unsigned)atol(search->second.c_str());
+			id = (unsigned long)atol(search->second.c_str());
 		}
 		search = query.find("count");
 		if (search == query.end())

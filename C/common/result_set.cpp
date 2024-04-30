@@ -55,10 +55,6 @@ ResultSet::ResultSet(const std::string& json)
 					{
 						type = NUMBER_COLUMN;
 					}
-					else if (itr->value.IsNumber() && itr->value.IsInt64() && !itr->value.IsInt())
-					{
-						type = INT64_COLUMN;
-					}
           				else if (itr->value.IsNumber())
 					{
 						type = INT_COLUMN;
@@ -104,9 +100,6 @@ ResultSet::ResultSet(const std::string& json)
 							{
 								rowValue->append(new ColumnValue(string(item->value.GetString())));
 							}
-							break;
-						case INT64_COLUMN:
-							rowValue->append(new ColumnValue((long long)(item->value.GetInt64())));
 							break;
 						case INT_COLUMN:
 							rowValue->append(new ColumnValue((long)(item->value.GetInt64())));
@@ -340,8 +333,6 @@ long ResultSet::ColumnValue::getInteger() const
 	{
 	case INT_COLUMN:
 		return m_value.ival;
-	case INT64_COLUMN:
-		return (long long)m_value.llval;
 	case NUMBER_COLUMN:
 		return (long)m_value.fval;
 	default:
@@ -361,8 +352,6 @@ double ResultSet::ColumnValue::getNumber() const
 	{
 	case INT_COLUMN:
 		return (double)m_value.ival;
-	case INT64_COLUMN:
-		return (long long)m_value.llval;
 	case NUMBER_COLUMN:
 		return m_value.fval;
 	default:

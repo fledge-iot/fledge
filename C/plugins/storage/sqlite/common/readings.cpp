@@ -899,7 +899,7 @@ ostringstream threadId;
 				if (itr == readingsValue.Begin())
 				{
 					// Get current reading global id
-					unsigned long long startTransactionId = readCatalogue->getIncGlobalId();  // & 0xffffffff;
+					unsigned long startTransactionId = readCatalogue->getIncGlobalId();  // & 0xffffffff;
 
 					// Mark transaction srtart fot this thread
 					readCatalogue->m_tx.SetThreadTransactionStart(tid,
@@ -1098,7 +1098,7 @@ ostringstream threadId;
  *
  *    2019-01-11 15:45:01.123456+01:00
  */
-bool Connection::fetchReadings(unsigned long long id,
+bool Connection::fetchReadings(unsigned long id,
 			       unsigned int blksize,
 			       std::string& resultSet)
 {
@@ -1108,8 +1108,8 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
-unsigned long long minGlobalId;
-unsigned long long idWindow;
+unsigned long minGlobalId;
+unsigned long idWindow;
 unsigned long rowsCount;
 
 	if (m_noReadings)

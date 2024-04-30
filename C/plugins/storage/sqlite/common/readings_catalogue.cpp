@@ -127,7 +127,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 {
 	string sql_cmd;
 	int rc;
-	long long id;
+	long id;
 	int nCols;
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
@@ -213,7 +213,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
-	long long i;
+	long i;
 	i = m_ReadingsGlobalId;
 	Logger::getLogger()->debug("storeGlobalId m_globalId %lld ", i);
 
@@ -246,14 +246,14 @@ bool ReadingsCatalogue::storeGlobalId ()
  * @param dbHandle Database connection to use for the operations
  *
  */
-long long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
+long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	long long id;
+	long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -339,14 +339,14 @@ long long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
  * @param dbHandle Database connection to use for the operations
  *
  */
-long long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
+long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	long long id;
+	long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -772,7 +772,7 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 	{
 		item = dbIdList.back();
 
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		Logger::getLogger()->debug(
@@ -811,7 +811,7 @@ bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 
 	for(int item : dbIdList)
 	{
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		result = attachDb(dbHandle, dbPathReadings, dbAlias, item);
@@ -854,7 +854,7 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 
 	for (int item : dbIdList)
 	{
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		enableWAL(dbPathReadings);
@@ -1237,7 +1237,7 @@ void ReadingsCatalogue::dbsRemove(int startId, int endId)
 	for (dbId = startId; dbId <= endId; dbId++)
 	{
 		dbAlias = generateDbAlias(dbId);
-		dbPath  = generateDbFilePah(dbId);
+		dbPath  = generateDbFilePath(dbId);
 
 		Logger::getLogger()->debug("dbsRemove - db alias '%s' db path '%s'", dbAlias.c_str(), dbPath.c_str());
 
@@ -1532,7 +1532,7 @@ void ReadingsCatalogue::preallocateReadingsTables(int dbId)
  * @return     Generated the full path
  *
  */
-string ReadingsCatalogue::generateDbFilePah(int dbId)
+string ReadingsCatalogue::generateDbFilePath(int dbId)
 {
 	string dbPathReadings;
 
@@ -1638,7 +1638,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	}
 
 	// Creates the DB data file
-	dbPathReadings = generateDbFilePah(newDbId);
+	dbPathReadings = generateDbFilePath(newDbId);
 
 	dbAlreadyPresent = false;
 	if(stat(dbPathReadings.c_str(),&st) == 0)

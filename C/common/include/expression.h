@@ -48,9 +48,6 @@ class Expression {
 			case INT_COLUMN:
 				json << m_value.ival;
 				break;
-			case INT64_COLUMN:
-				json << m_value.llval;
-				break;
 			case NUMBER_COLUMN:
 				json << m_value.fval;
 				break;
@@ -65,7 +62,6 @@ class Expression {
 		union {
 			long	ival;
 			double	fval;
-			long long llval;
 			}		m_value;
 };
 

@@ -193,8 +193,6 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
-			Logger::getLogger()->debug("DataLoad::readBlock(): last reading: %s", 
-		                                    readings->getAllReadings()[readings->getCount()-1]->toJSON().c_str());
 			m_lastFetched = readings->getLastId();
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
 							readings->getCount(), m_lastFetched);

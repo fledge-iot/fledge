@@ -899,7 +899,7 @@ ostringstream threadId;
 				if (itr == readingsValue.Begin())
 				{
 					// Get current reading global id
-					unsigned long startTransactionId = readCatalogue->getIncGlobalId();  // & 0xffffffff;
+					unsigned long startTransactionId = readCatalogue->getIncGlobalId();
 
 					// Mark transaction srtart fot this thread
 					readCatalogue->m_tx.SetThreadTransactionStart(tid,

@@ -156,7 +156,7 @@ public:
 	int           getReadingsCount();
 	int           getReadingPosition(int dbId, int tableId);
 	int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
-	long	      getIncGlobalId() { return m_ReadingsGlobalId.fetch_add(1); }  // returns contained value before incrementing
+	long	      getIncGlobalId() { return m_ReadingsGlobalId.fetch_add(1); }  // returns the value before the add operation
 	long	      getMinGlobalId (sqlite3 *dbHandle);
 	long 	      getGlobalId() {return m_ReadingsGlobalId;};
 	bool          evaluateGlobalId();

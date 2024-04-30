@@ -107,7 +107,7 @@ bool ReadingsCatalogue::configurationRetrieve(sqlite3 *dbHandle)
 		m_storageConfigCurrent.nReadingsPerDb = sqlite3_column_int(stmt, 2);
 		m_storageConfigCurrent.nDbPreallocate = sqlite3_column_int(stmt, 3);
 	}
-	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lld dbIdLast %d ", m_ReadingsGlobalId.load(), m_dbIdLast);
+	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lu dbIdLast %d ", m_ReadingsGlobalId, m_dbIdLast);
 
 	sqlite3_finalize(stmt);
 
@@ -173,7 +173,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lld", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lu", id);
 
 	if (m_ReadingsGlobalId == -1)
 	{
@@ -181,7 +181,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lld", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lu", id);
 
 	// Set the global_id in the DB to -1 to force a calculation at the restart
 	// in case the shutdown is not executed and the proper value stored
@@ -213,9 +213,9 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
-	long i;
+	unsigned long i;
 	i = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("storeGlobalId m_globalId %lld ", i);
+	Logger::getLogger()->debug("storeGlobalId m_globalId %lu ", i);
 
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -253,7 +253,7 @@ long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 	string dbName;
 
 	int rc;
-	long id;
+	unsigned long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -346,7 +346,7 @@ long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 	string dbName;
 
 	int rc;
-	long id;
+	unsigned long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -418,7 +418,7 @@ long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 		id = sqlite3_column_int64(stmt, 0);
 	}
 
-	Logger::getLogger()->debug("%s - global id evaluated %lld", __FUNCTION__, id);
+	Logger::getLogger()->debug("%s - global id evaluated %lu", __FUNCTION__, id);
 
 	sqlite3_finalize(stmt);
 

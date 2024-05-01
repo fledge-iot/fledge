@@ -300,12 +300,14 @@ class Scheduler(object):
                 val = 3
             elif pname == 'notification_c':
                 val = 5
-            elif pname == 'south_c':
+            elif pname == 'pipeline_c':
                 val = 7
-            elif pname == 'north_C':
+            elif pname == 'south_c':
                 val = 9
+            elif pname == 'north_C':
+                val = 11
             else:
-                val = 12
+                val = 14
             return val
 
         # This check is necessary only if significant time can elapse between "await" and

@@ -107,7 +107,7 @@ bool ReadingsCatalogue::configurationRetrieve(sqlite3 *dbHandle)
 		m_storageConfigCurrent.nReadingsPerDb = sqlite3_column_int(stmt, 2);
 		m_storageConfigCurrent.nDbPreallocate = sqlite3_column_int(stmt, 3);
 	}
-	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lu dbIdLast %d ", m_ReadingsGlobalId, m_dbIdLast);
+	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lu dbIdLast %d ", m_ReadingsGlobalId.load(), m_dbIdLast);
 
 	sqlite3_finalize(stmt);
 

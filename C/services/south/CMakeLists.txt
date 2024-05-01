@@ -4,6 +4,7 @@ project (South)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -DPy_DEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
+set(CMAKE_CXX_FLAGS_PROFILING "-O2 -pg")
 set(DLLIB -ldl)
 set(UUIDLIB -luuid)
 set(COMMON_LIB common-lib)
@@ -81,3 +82,14 @@ if(MSYS) #TODO: Is MSYS true when MSVC is true?
         target_link_libraries(${EXEC} ws2_32 wsock32)
     endif()
 endif()
+
+# Set profiling flags if 'Profiling' build
+if(CMAKE_BUILD_TYPE STREQUAL "Profiling")
+    message("Building in Profiling mode")
+    set_target_properties(${EXEC} PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS_PROFILING}")
+    # define 'PROFILING' flag used by service to change directory
+    target_compile_definitions(${EXEC} PRIVATE PROFILING=1)
+    set(CMAKE_SHARED_LINKED_FLAGS "${CMAKE_SHARED_LINKED_FLAGS} -O2 -pg")
+    target_link_libraries(${EXEC} -O2 -pg)
+endif()
+

@@ -550,8 +550,28 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
-	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
+    unsigned long lastReadingId = 0;
+
+    for(auto rdngPtrItr = vecPtr->crbegin(); rdngPtrItr != vecPtr->crend(); rdngPtrItr++)
+    {
+        if((*rdngPtrItr)->hasId()) // only consider valid reading IDs
+        {
+            lastReadingId = (*rdngPtrItr)->getId();
+            break;
+        }
+    }
+    
+    Logger::getLogger()->debug("DataLoad::pipelineEnd(): readingSet->getCount()=%d, lastReadingId=%d, " 
+                              "load->m_lastFetched=%d",
+                                readingSet->getCount(), lastReadingId, load->m_lastFetched);
+    
+	// Special case when all readings are filtered out 
+	// or new readings are appended by filter with id 0
+	if ((readingSet->getCount() == 0) || (lastReadingId == 0))
 	{
+	    Logger::getLogger()->debug("DataLoad::pipelineEnd(): updating with load->updateLastSentId(%d)", 
+	                                load->m_lastFetched);
 		load->updateLastSentId(load->m_lastFetched);
 	}
 

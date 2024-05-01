@@ -49,6 +49,13 @@ using namespace std;
  */
 int main(int argc, char *argv[])
 {
+#ifdef PROFILING
+	char profilePath[200]{0};
+	snprintf(profilePath, sizeof(profilePath), "%s/services/%s_Profile", getenv("FLEDGE_ROOT"), SERVICE_TYPE);
+	mkdir(profilePath, 0777);
+	chdir(profilePath);
+#endif
+
 unsigned short corePort = 8082;
 string	       coreAddress = "localhost";
 bool	       daemonMode = true;

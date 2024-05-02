@@ -20,6 +20,8 @@
 #include <service_handler.h>
 #include <config_handler.h>
 
+class FilterPipeline;
+
 /**
  * The base pipeline element class
  */
@@ -125,7 +127,7 @@ class PipelineFilter : public PipelineElement {
  */
 class PipelineBranch : public PipelineElement {
 	public:
-		PipelineBranch();
+		PipelineBranch(FilterPipeline *parent);
 		void			ingest(READINGSET *readingSet);
 		std::string		getName() { return "Branch"; };
 		bool			setupConfiguration(ManagementClient *mgtClient, std::vector<std::string>& children);
@@ -161,6 +163,7 @@ class PipelineBranch : public PipelineElement {
 		void					*m_useData;
 		void					*m_ingest;
 		bool					m_shutdownCalled;
+		FilterPipeline				*m_pipeline;
 };
 
 /**

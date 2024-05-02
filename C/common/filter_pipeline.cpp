@@ -196,7 +196,7 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 		{
 			// Sub pipeline
 			Logger::getLogger()->info("Creating pipeline branch");
-			PipelineBranch *element = new PipelineBranch();
+			PipelineBranch *element = new PipelineBranch(this);
 			loadPipeline(*itr, element->getBranchElements());
 			pipeline.emplace_back(element);
 		}
@@ -328,3 +328,46 @@ void FilterPipeline::configChange(const string& category, const string& newConfi
 	}
 }
 
+/**
+ * Called when we pass the data into the pipeline. Set the
+ * numebr of active branches to 1
+ */
+void FilterPipeline::execute()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches = 1;
+}
+
+/**
+ * Wait for all active branches of the pipeline to complete
+ */
+void FilterPipeline::awaitCompletion()
+{
+	unique_lock<mutex> lck(m_actives);
+	while (m_activeBranches > 0)
+	{
+		m_branchActivations.wait(lck);
+	}
+}
+
+/**
+ * A new branch has started in the pipeline
+ */
+void FilterPipeline::startBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches++;
+}
+
+/**
+ * A branch in the pipeline has completed
+ */
+void FilterPipeline::completeBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches--;
+	if (m_activeBranches == 0)
+	{
+		m_branchActivations.notify_all();
+	}
+}

@@ -54,6 +54,10 @@ public:
 	bool		hasChanged(const std::string pipeline) const { return m_pipeline != pipeline; }
 	bool		isShuttingDown() { return m_shutdown; };
 	void 		setShuttingDown() { m_shutdown = true; }
+	void		execute();
+	void		awaitCompletion();
+	void		startBranch();
+	void		completeBranch();
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
@@ -71,6 +75,9 @@ protected:
 	bool			m_ready;
 	bool			m_shutdown;
 	ServiceHandler		*m_serviceHandler;
+	int			m_activeBranches;
+	std::mutex		m_actives;
+	std::condition_variable	m_branchActivations;
 };
 
 #endif

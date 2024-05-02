@@ -19,7 +19,7 @@ using namespace std;
 /**
  * Constructor for a branch in a filter pipeline
  */
-PipelineBranch::PipelineBranch() : PipelineElement()
+PipelineBranch::PipelineBranch(FilterPipeline *parent) : m_pipeline(parent), PipelineElement()
 {
 	m_shutdownCalled = false;
 }
@@ -140,6 +140,7 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
  */
 void PipelineBranch::ingest(READINGSET *readingSet)
 {
+	m_pipeline->startBranch();
 	READINGSET *copy = new ReadingSet();
 	copy->copy(*readingSet);
 	unique_lock<mutex> lck(m_mutex);

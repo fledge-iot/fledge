@@ -336,8 +336,8 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 {
 	if (m_pipeline)
 	{
-		PipelineElement *firstFilter = m_pipeline->getFirstFilterPlugin();
-		if (firstFilter)
+		PipelineElement *firstElement = m_pipeline->getFirstFilterPlugin();
+		if (firstElement)
 		{
 
 			// Check whether filters are set before calling ingest
@@ -347,8 +347,11 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 									  "filter pipeline is ready");
 				std::this_thread::sleep_for(std::chrono::milliseconds(150));
 			}
+
+			m_pipeline->execute();
 			// Pass readingSet to filter chain
-			firstFilter->ingest(readings);
+			firstElement->ingest(readings);
+			m_pipeline->awaitCompletion();
 			return;
 		}
 	}
@@ -518,8 +521,8 @@ bool DataLoad::loadFilters(const string& categoryName)
 void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
-	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	// Get next element in the pipeline
+	PipelineElement *next = (PipelineElement *)outHandle;
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -578,6 +581,7 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);
 	load->m_fetchCV.notify_all();
+	load->m_pipeline->completeBranch();
 }
 
 /**

@@ -190,6 +190,9 @@ void PipelineBranch::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
 	}
 }
 
+/**
+ * Return if the brach is ready to be executed
+ */
 bool PipelineBranch::isReady()
 {
 	return true;

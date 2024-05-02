@@ -16,24 +16,39 @@
 
 using namespace std;
 
+/**
+ * Ingest into a pipeline writer
+ */
 void PipelineWriter::ingest(READINGSET *readingSet)
 {
 }
 
+/**
+ * Setup the pipeline writer
+ */
 bool PipelineWriter::setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories)
 {
 	return true;
 }
 
+/**
+ * Initialise the pipeline writer
+ */
 bool PipelineWriter::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 {
 	return true;
 }
 
+/**
+ * Shutdown the pipeline writer
+ */
 void PipelineWriter::shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler)
 {
 }
 
+/**
+ * Return if the pipeline writer is ready to receive data
+ */
 bool PipelineWriter::isReady()
 {
 	return true;

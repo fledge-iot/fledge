@@ -44,6 +44,9 @@ PipelineFilter::PipelineFilter(const string& name, const ConfigCategory& filterD
 	}
 }
 
+/**
+ * Destructor for the pipeline filter element
+ */
 PipelineFilter::~PipelineFilter()
 {
 	delete m_plugin;

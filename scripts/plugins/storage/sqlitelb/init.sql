@@ -838,6 +838,8 @@ INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'nort
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',         200 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',     20 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]', 10 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'pipeline_c',        '["services/pipeline_c"]',        90 );
+
 
 -- Automation script tasks
 --

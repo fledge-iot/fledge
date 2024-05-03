@@ -90,7 +90,6 @@ class PipelineFilter : public PipelineElement {
 					{
 						if (m_plugin)
 						{
-							Logger::getLogger()->info("Pipeline_filter %s ingest", m_name.c_str());
 							m_plugin->ingest(readingSet);
 						}
 						else
@@ -128,6 +127,7 @@ class PipelineFilter : public PipelineElement {
 class PipelineBranch : public PipelineElement {
 	public:
 		PipelineBranch(FilterPipeline *parent);
+		~PipelineBranch();
 		void			ingest(READINGSET *readingSet);
 		std::string		getName() { return "Branch"; };
 		bool			setupConfiguration(ManagementClient *mgtClient, std::vector<std::string>& children);

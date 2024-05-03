@@ -19,9 +19,41 @@ using namespace std;
 /**
  * Constructor for a branch in a filter pipeline
  */
-PipelineBranch::PipelineBranch(FilterPipeline *parent) : m_pipeline(parent), PipelineElement()
+PipelineBranch::PipelineBranch(FilterPipeline *parent) : m_pipeline(parent), m_thread(NULL), PipelineElement()
 {
 	m_shutdownCalled = false;
+}
+
+/**
+ * Destructor for the pipeline branch
+ *
+ * If the pipeline is not already shutdown then shut it down
+ * Delete the thread if it exists.
+ */
+PipelineBranch::~PipelineBranch()
+{
+	if (!m_shutdownCalled)
+	{
+		m_shutdownCalled = true;
+		m_cv.notify_all();
+		m_thread->join();
+	}
+	if (m_thread)
+	{
+		delete m_thread;
+	}
+
+	// Clear any queued readings
+	while (!m_queue.empty())
+	{
+		ReadingSet *readings = m_queue.front();
+		m_queue.pop();
+		delete readings;
+	}
+	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
+	{
+		delete *it;
+	}
 }
 
 /**
@@ -53,7 +85,6 @@ bool PipelineBranch::setup(ManagementClient *mgmt, void *ingest, map<string, Pip
 {
 vector<string> children;
 
-	Logger::getLogger()->info("Calling setup for pipeline branch");
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
 	{
 		if ((*it)->isBranch())
@@ -79,7 +110,6 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 {
 	bool initErrors = false;
 	string errMsg = "'plugin_init' failed for filter '";
-	Logger::getLogger()->info("Calling init for pipeline branch");
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
 	{
 		try
@@ -125,7 +155,7 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 		return false;
 	}
 
-	Logger::getLogger()->info("Create branch handler thread");
+	Logger::getLogger()->debug("Create branch handler thread");
 	m_thread = new thread(PipelineBranch::branchHandler, this);
 
 	//Success
@@ -149,7 +179,6 @@ void PipelineBranch::ingest(READINGSET *readingSet)
 	m_cv.notify_one();
 	if (m_next)
 	{
-		Logger::getLogger()->info("Branch sending data onwards in main branch");
 		m_next->ingest(readingSet);
 	}
 	else
@@ -174,6 +203,8 @@ void PipelineBranch::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
 	m_shutdownCalled = true;
 	m_cv.notify_all();
 	m_thread->join();
+	delete m_thread;
+	m_thread = NULL;
 
 	// Shutdown the fitler elements on the branch
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
@@ -232,7 +263,6 @@ void PipelineBranch::handler()
 		ReadingSet *readings = m_queue.front();
 		m_queue.pop();
 		lck.unlock();
-		Logger::getLogger()->info("Branch sending data onwards in child branch");
 		m_branch[0]->ingest(readings);
 	}
 }

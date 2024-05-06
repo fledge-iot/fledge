@@ -156,9 +156,9 @@ public:
 	int           getReadingsCount();
 	int           getReadingPosition(int dbId, int tableId);
 	int           getNReadingsAvailable() const      {return m_nReadingsAvailable;}
-	int           getIncGlobalId() {return m_ReadingsGlobalId++;};
-	int           getMinGlobalId (sqlite3 *dbHandle);
-	int           getGlobalId() {return m_ReadingsGlobalId;};
+	long	      getIncGlobalId() { return m_ReadingsGlobalId.fetch_add(1); }  // returns the value before the add operation
+	long	      getMinGlobalId (sqlite3 *dbHandle);
+	long 	      getGlobalId() {return m_ReadingsGlobalId;};
 	bool          evaluateGlobalId();
 	bool          storeGlobalId ();
 
@@ -223,8 +223,8 @@ private:
 	bool          isReadingAvailable() const;
 	void          allocateReadingAvailable();
 	tyReadingsAvailable   evaluateLastReadingAvailable(sqlite3 *dbHandle, int dbId);
-	int           calculateGlobalId (sqlite3 *dbHandle);
-	std::string   generateDbFilePah(int dbId);
+	long          calculateGlobalId (sqlite3 *dbHandle);
+	std::string   generateDbFilePath(int dbId);
 
 	void		  raiseError(const char *operation, const char *reason,...);
 	int			  SQLStep(sqlite3_stmt *statement);
@@ -255,7 +255,7 @@ private:
 	std::vector<int>
 		      m_dbIdList;               // Databases already created but not in use
 
-	std::atomic<int>
+	std::atomic<long>
   		      m_ReadingsGlobalId;       // Global row id shared among all the readings table
 	int
  		      m_nReadingsAvailable = 0; // Number of readings tables available

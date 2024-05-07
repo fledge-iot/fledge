@@ -207,7 +207,7 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 		}
 		else
 		{
-			Logger::getLogger()->error("Unexpected object in  pipeline definition, ignoring");
+			Logger::getLogger()->error("Unexpected object in pipeline definition, ignoring");
 		}
 	}
 }
@@ -330,7 +330,7 @@ void FilterPipeline::configChange(const string& category, const string& newConfi
 
 /**
  * Called when we pass the data into the pipeline. Set the
- * numebr of active branches to 1
+ * number of active branches to 1
  */
 void FilterPipeline::execute()
 {

@@ -110,7 +110,7 @@ PLUGIN_HANDLE PipelineFilter::loadFilterPlugin(const string& filterName)
 	PLUGIN_HANDLE handle;
 	if ((handle = manager->loadPlugin(filterName, PLUGIN_TYPE_FILTER)) != NULL)
 	{
-		// Suceess
+		// Success
 		Logger::getLogger()->info("Loaded filter plugin '%s'.", filterName.c_str());
 	}
 	return handle;

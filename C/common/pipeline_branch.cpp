@@ -36,7 +36,8 @@ PipelineBranch::~PipelineBranch()
 	{
 		m_shutdownCalled = true;
 		m_cv.notify_all();
-		m_thread->join();
+		if (m_thread->joinable())
+			m_thread->join();
 	}
 	if (m_thread)
 	{
@@ -59,7 +60,7 @@ PipelineBranch::~PipelineBranch()
 /**
  * Setup the configuration for a branch in a pipeline
  *
- * @param       mgtClient       The managament client
+ * @param       mgtClient       The management client
  * @param       children        A vector to fill with child configuration categories
  */
 bool PipelineBranch::setupConfiguration(ManagementClient *mgtClient, vector<string>& children)
@@ -206,7 +207,7 @@ void PipelineBranch::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
 	delete m_thread;
 	m_thread = NULL;
 
-	// Shutdown the fitler elements on the branch
+	// Shutdown the filter elements on the branch
 	for (auto it = m_branch.begin(); it != m_branch.end(); ++it)
 	{
 		(*it)->shutdown(serviceHandler, configHandler);
@@ -222,7 +223,7 @@ void PipelineBranch::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
 }
 
 /**
- * Return if the brach is ready to be executed
+ * Return if the branch is ready to be executed
  */
 bool PipelineBranch::isReady()
 {

@@ -746,7 +746,7 @@ void Ingest::processQueue()
 					}
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
-					m_filterPipeline->execute();	// Set the pipelien executing
+					m_filterPipeline->execute();	// Set the pipeline executing
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
@@ -1056,34 +1056,8 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	Ingest* ingest = (Ingest *)outHandle;
 	lock_guard<mutex> guard(ingest->m_useDataMutex);
 	
-#if 0
-	if (ingest->m_data != readingSet->getAllReadingsPtr())
-	{
-		if (ingest->m_data)
-		{
-		    // Remove the readings in the vector
-		    for(auto & rdngPtr : *(ingest->m_data))
-		        delete rdngPtr;
-
-                   ingest->m_data->clear();// Remove any pointers still in the vector
-		   delete ingest->m_data;
-                   ingest->m_data = readingSet->moveAllReadings();
-		}
-		else
-		{
-		    // move reading vector to ingest
-		    ingest->m_data = readingSet->moveAllReadings();
-		}
-	}
-	else
-	{
-	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
-	}
-#else
 	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
 	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
-#endif
 	
 	readingSet->clear();
 	delete readingSet;

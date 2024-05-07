@@ -625,3 +625,44 @@ void PluginManager::getInstalledPlugins(const string& type,
 		closedir(dp);
 	}
 }
+
+/**
+ * Return a list of plugins matching the criteria
+ * of plugin type and plugin flags
+ *
+ * @param type          The plugin type to match
+ * @param flags         A bitmask of flags to match
+ * @return vector<string>       A list of matching plugin names
+ */
+std::vector<string> PluginManager::getPluginsByFlags(const std::string& type, 
+											unsigned int flags) 
+{
+	// Plugins matching type and flag bits
+	std::vector<std::string> matchingPlugins;
+	
+	// Get list of installed plugins of given type
+	std::list<string> plugins;
+	getInstalledPlugins(type, plugins);
+	
+	/* Iterate list of installed plugins and
+		match plugin 'options' with passed 
+		plugin flags
+	*/
+	for (auto &pName: plugins) 
+	{
+		// Load plugin and fetch plugin info
+		PLUGIN_INFORMATION *pluginInfo = getInfo(loadPlugin(pName, type));
+		if (pluginInfo) {
+			
+			// Fetch plugin flags from loaded plugin
+			const unsigned int pluginFlags = pluginInfo->options;
+
+			// match plugin flags with passed flags
+			if ((flags & pluginFlags) == pluginFlags) {
+				matchingPlugins.push_back(pName);
+			}
+		}
+	}
+
+	return matchingPlugins;
+}

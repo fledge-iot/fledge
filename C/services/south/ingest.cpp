@@ -734,7 +734,7 @@ void Ingest::processQueue()
 			lock_guard<mutex> guard(m_pipelineMutex);
 			if (m_filterPipeline && !m_filterPipeline->isShuttingDown())
 			{
-				FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
+				PipelineElement *firstFilter = m_filterPipeline->getFirstFilterPlugin();
 				if (firstFilter)
 				{
 					// Check whether filters are set before calling ingest
@@ -744,12 +744,13 @@ void Ingest::processQueue()
 									  "filter pipeline is ready");
 						std::this_thread::sleep_for(std::chrono::milliseconds(150));
 					}
-
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
+					m_filterPipeline->execute();	// Set the pipeline executing
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
+					m_filterPipeline->awaitCompletion();
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
 					 * return.
@@ -1021,9 +1022,9 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
 	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	PipelineElement *next = (PipelineElement *)outHandle;
 
-	// Pass readings to next filter
+	// Pass readings to the next stage in the pipeline
 	next->ingest(readingSet);
 }
 
@@ -1051,34 +1052,16 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	Ingest* ingest = (Ingest *)outHandle;
-
-	if (ingest->m_data != readingSet->getAllReadingsPtr())
-	{
-		if (ingest->m_data)
-		{
-		    // Remove the readings in the vector
-		    for(auto & rdngPtr : *(ingest->m_data))
-		        delete rdngPtr;
-
-                   ingest->m_data->clear();// Remove any pointers still in the vector
-		   delete ingest->m_data;
-                   ingest->m_data = readingSet->moveAllReadings();
-		}
-		else
-		{
-		    // move reading vector to ingest
-		    ingest->m_data = readingSet->moveAllReadings();
-		}
-	}
-	else
-	{
-	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
-	}
+	lock_guard<mutex> guard(ingest->m_useDataMutex);
+	
+	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
+	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	
 	readingSet->clear();
 	delete readingSet;
+	ingest->m_filterPipeline->completeBranch();
 }
 
 /**

@@ -50,34 +50,18 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName =  serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
-		
-		try
+
+		if ((*it)->isBranch())
 		{
-			Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = mgtClient->getCategory(filterCategoryName);
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			mgtClient->addChildCategories(serviceName, children);
-			
-			m_filterCategories[filterCategoryName] = (*it);
+			PipelineBranch *branch = (PipelineBranch *)(*it);
+			branch->setFunctions(passToOnwardFilter, useFilteredData, _sendingProcess);
 		}
-		// TODO catch specific exceptions
-		catch (...)
-		{		
-			throw;		
-		}
-
+		(*it)->setup(mgtClient, _sendingProcess, m_filterCategories);
 		// Iterate the load filters set in the Ingest class m_filters member 
 		if ((it + 1) != m_filters.end())
 		{
 			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					(OUTPUT_HANDLE *)(*(it + 1)),
+			if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
 					filterReadingSetFn(passToOnwardFilter)))
 			{
 				errMsg += (*it)->getName() + "'";
@@ -92,8 +76,7 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 			const unsigned long* bufferIndex = sendingProcess->getLoadBufferIndexPtr();
 			
 			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)(bufferIndex),
+			if (!(*it)->init((OUTPUT_HANDLE *)(bufferIndex),
 					 filterReadingSetFn(useFilteredData)))
 			{
 				errMsg += (*it)->getName() + "'";
@@ -102,20 +85,6 @@ bool NorthFilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *u
 			}
 		}
 
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
 	}
 
 	if (initErrors)

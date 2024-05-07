@@ -131,86 +131,13 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 
 				Logger::getLogger()->info(logMsg.c_str());
 
-				// Try loading all filter plugins: abort on any error
-				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
-				{
-					if (itr->IsString())
-					{
-						// Get "plugin" item fromn filterCategoryName
-						string filterCategoryName = itr->GetString();
-						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-						if (!filterDetails.itemExists("plugin"))
-						{
-							string errMsg("loadFilters: 'plugin' item not found ");
-							errMsg += "in " + filterCategoryName + " category";
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						string filterName = filterDetails.getValue("plugin");
-						PLUGIN_HANDLE filterHandle;
-						// Load filter plugin only: we don't call any plugin method right now
-						filterHandle = loadFilterPlugin(filterName);
-						if (!filterHandle)
-						{
-							string errMsg("Cannot load filter plugin '" + filterName + "'");
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						else
-						{
-							// Save filter handler: key is filterCategoryName
-							filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-									     (filterCategoryName, filterHandle));
-						}
-					}
-					else if (itr->IsArray())
-					{
-						// Sub pipeline
-						Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
-					}
-					else if (itr->IsObject())
-					{
-						// An object, probably the write destination
-						Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
-					}
-					else
-					{
-						Logger::getLogger()->error("Unexpected object in  pipeline definition %s, ignoring", categoryName.c_str());
-					}
-				}
+				loadPipeline(filterList, m_filters);
 
 				// We have kept filter default config in the filterInfo map
 				// Handle configuration for each filter
-				PluginManager *pluginManager = PluginManager::getInstance();
-				for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
-				     itr != filterInfo.end();
-				     ++itr)
+				for (auto& itr : m_filters)
 				{
-					// Get plugin default configuration
-					string filterConfig = pluginManager->getInfo(itr->second)->config;
-
-					// Create/Update default filter category items
-					DefaultConfigCategory filterDefConfig(categoryName + "_" + itr->first, filterConfig);
-					string filterDescription = "Configuration of '" + itr->first;
-					filterDescription += "' filter for plugin '" + categoryName + "'";
-					filterDefConfig.setDescription(filterDescription);
-
-					if (!mgtClient->addCategory(filterDefConfig, true))
-					{
-						string errMsg("Cannot create/update '" + \
-							      categoryName + "' filter category");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-					children.push_back(categoryName + "_" + itr->first);
-
-					// Instantiate the FilterPlugin class
-					// in order to call plugin entry points
-					FilterPlugin* currentFilter = new FilterPlugin(itr->first,
-										       itr->second);
-
-					// Add filter to filters vector
-					m_filters.push_back(currentFilter);
+					itr->setupConfiguration(mgtClient, children);
 				}
 			}
 		}
@@ -248,6 +175,43 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 	}
 }
 
+void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElement *>& pipeline)
+{
+	// Try loading all filter plugins: abort on any error
+	for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+	{
+		if (itr->IsString())
+		{
+			// Get "plugin" item from filterCategoryName
+			string filterCategoryName = itr->GetString();
+			Logger::getLogger()->info("Creating pipeline filter %s", filterCategoryName.c_str());
+			ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+
+			PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
+			element->setServiceName(serviceName);
+			element->setStorage(&storage);
+			pipeline.emplace_back(element);
+		}
+		else if (itr->IsArray())
+		{
+			// Sub pipeline
+			Logger::getLogger()->info("Creating pipeline branch");
+			PipelineBranch *element = new PipelineBranch(this);
+			loadPipeline(*itr, element->getBranchElements());
+			pipeline.emplace_back(element);
+		}
+		else if (itr->IsObject())
+		{
+			// An object, probably the write destination
+			Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
+		}
+		else
+		{
+			Logger::getLogger()->error("Unexpected object in pipeline definition, ignoring");
+		}
+	}
+}
+
 /**
  * Set the filter pipeline
  * 
@@ -268,76 +232,46 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName =  serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
 		
 		try
 		{
-			Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = mgtClient->getCategory(filterCategoryName);
-
-			// Pass Management client IP:Port to filter so that it may connect to bucket service
-			updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
-								"string", "127.0.0.1:0",
-								mgtClient->getUrlbase());
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			mgtClient->addChildCategories(serviceName, children);
-			
-			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
-			m_serviceHandler = (ServiceHandler *)ingest;
-			
-			m_filterCategories[filterCategoryName] = (*it);
+			if ((*it)->isBranch())
+			{
+				Logger::getLogger()->info("Set branch functions");
+				PipelineBranch *branch = (PipelineBranch *)(*it);
+				branch->setFunctions(passToOnwardFilter, useFilteredData, ingest);
+			}
+			Logger::getLogger()->info("Setup element %s", (*it)->getName().c_str());
+			(*it)->setup(mgtClient, ingest, m_filterCategories);
+			// Iterate the load filters set in the Ingest class m_filters member 
+			if ((it + 1) != m_filters.end())
+			{
+				(*it)->setNext(*(it + 1));
+				// Set next filter pointer as OUTPUT_HANDLE
+				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
+						filterReadingSetFn(passToOnwardFilter)))
+				{
+					errMsg += (*it)->getName() + "'";
+					initErrors = true;
+					break;
+				}
+			}
+			else
+			{
+				// Set the Ingest class pointer as OUTPUT_HANDLE
+				if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
+						 filterReadingSetFn(useFilteredData)))
+				{
+					errMsg += (*it)->getName() + "'";
+					initErrors = true;
+					break;
+				}
+			}
 		}
 		// TODO catch specific exceptions
 		catch (...)
 		{		
 			throw;		
-		}
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					(OUTPUT_HANDLE *)(*(it + 1)),
-					filterReadingSetFn(passToOnwardFilter)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)(ingest),
-					 filterReadingSetFn(useFilteredData)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
 		}
 	}
 
@@ -368,35 +302,12 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 	// Cleanup filters, in reverse order
 	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
-		FilterPlugin* filter = *it;
-		string filterCategoryName =  categoryName + "_" + filter->getName();
+		PipelineElement *element = *it;
 		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-		configHandler->unregisterCategory(m_serviceHandler, filterCategoryName);
-		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
-		
-		// If plugin has SP_PERSIST_DATA option:
-		if (filter->m_plugin_data)
-	 	{
-			// 1- call shutdownSaveData and get up-to-date plugin data.
-			string saveData = filter->shutdownSaveData();
-			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(categoryName + filter->getName());
-			if (!filter->m_plugin_data->persistPluginData(key, saveData))
-			{
-				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
-							   filter->getName().c_str(),
-							   saveData.c_str(),
-							   key.c_str());
-			}
-		}
-		else
-		{
-			// Call filter plugin shutdown
-			filter->shutdown();
-		}
+		element->shutdown(m_serviceHandler, configHandler);
 
 		// Free filter
-		delete filter;
+		delete element;
 	}
 }
 
@@ -410,23 +321,6 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
  */
 void FilterPipeline::configChange(const string& category, const string& newConfig)
 {
-	Logger::getLogger()->debug("%s:%d: category=%s, newConfig=%s", __FUNCTION__, __LINE__, category.c_str(), newConfig.c_str());
-
-	if(newConfig.compare("logLevel") == 0)
-	{
-		PluginManager *pluginManager = PluginManager::getInstance();
-		Logger::getLogger()->debug("m_filterCategories has %d entries", m_filterCategories.size());
-		for(auto & it : m_filterCategories)
-		{
-			const string &filtername = it.first;
-			FilterPlugin *fp = it.second;
-			PLUGIN_TYPE type = pluginManager->getPluginImplType(fp->getHandle());
-			Logger::getLogger()->debug("%s:%d: filter name=%s, filter type = %s", __FUNCTION__, __LINE__, filtername.c_str(), (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
-			if(type == PYTHON_PLUGIN)
-				fp->reconfigure(newConfig);
-		}
-	}
-	
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{
@@ -434,3 +328,46 @@ void FilterPipeline::configChange(const string& category, const string& newConfi
 	}
 }
 
+/**
+ * Called when we pass the data into the pipeline. Set the
+ * number of active branches to 1
+ */
+void FilterPipeline::execute()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches = 1;
+}
+
+/**
+ * Wait for all active branches of the pipeline to complete
+ */
+void FilterPipeline::awaitCompletion()
+{
+	unique_lock<mutex> lck(m_actives);
+	while (m_activeBranches > 0)
+	{
+		m_branchActivations.wait(lck);
+	}
+}
+
+/**
+ * A new branch has started in the pipeline
+ */
+void FilterPipeline::startBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches++;
+}
+
+/**
+ * A branch in the pipeline has completed
+ */
+void FilterPipeline::completeBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches--;
+	if (m_activeBranches == 0)
+	{
+		m_branchActivations.notify_all();
+	}
+}

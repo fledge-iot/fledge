@@ -17,7 +17,7 @@
 #include <reading_set.h>
 #include <filter_plugin.h>
 #include <service_handler.h>
-
+#include <pipeline_element.h>
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
 /**
@@ -33,7 +33,7 @@ public:
 			StorageClient& storage,
 			std::string serviceName);
 	~FilterPipeline();
-	FilterPlugin *	getFirstFilterPlugin()
+	PipelineElement *getFirstFilterPlugin()
 	{
 		return (m_filters.begin() == m_filters.end()) ?
 			NULL : *(m_filters.begin());
@@ -54,22 +54,30 @@ public:
 	bool		hasChanged(const std::string pipeline) const { return m_pipeline != pipeline; }
 	bool		isShuttingDown() { return m_shutdown; };
 	void 		setShuttingDown() { m_shutdown = true; }
+	void		execute();
+	void		awaitCompletion();
+	void		startBranch();
+	void		completeBranch();
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
+	void		loadPipeline(const rapidjson::Value& filters, std::vector<PipelineElement *>& pipeline);
 
 protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;
-	std::vector<FilterPlugin *>
+	std::vector<PipelineElement *>
 				m_filters;
-	std::map<std::string, FilterPlugin *>
+	std::map<std::string, PipelineElement *>
 				m_filterCategories;
 	std::string		m_pipeline;
-	bool		m_ready;
-	bool		m_shutdown;
+	bool			m_ready;
+	bool			m_shutdown;
 	ServiceHandler		*m_serviceHandler;
+	int			m_activeBranches;
+	std::mutex		m_actives;
+	std::condition_variable	m_branchActivations;
 };
 
 #endif

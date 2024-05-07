@@ -119,13 +119,15 @@ void applyFilters(SendingProcess* loadData,
 		  ReadingSet* readingSet)
 {
 	// Get first filter
-	FilterPlugin *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
+	PipelineElement *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
 	
 	// Call first filter "ingest"
 	// Note:
 	// next filters will be automatically called
 	if (firstFilter)
+	{
 		firstFilter->ingest(readingSet);
+	}
 }
 
 /**
@@ -320,7 +322,7 @@ static void loadDataThread(SendingProcess *loadData)
 				// Apply filters to the reading set
 				if (loadData->filterPipeline)
 				{
-					FilterPlugin *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
+					PipelineElement *firstFilter = loadData->filterPipeline->getFirstFilterPlugin();
 					if (firstFilter)
 					{
 

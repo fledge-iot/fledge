@@ -91,6 +91,8 @@ bool StorageClient::deleteHttpClient()
 {
 	std::thread::id thread_id = std::this_thread::get_id();
 
+	lock_guard<mutex> guard(sto_mtx_client_map);
+
 	if(m_client_map.find(thread_id) == m_client_map.end())
 		return false;
 
@@ -100,6 +102,7 @@ bool StorageClient::deleteHttpClient()
 	
 	delete m_client_map[thread_id];
 	m_client_map.erase(thread_id);
+
 	return true;
 }
 

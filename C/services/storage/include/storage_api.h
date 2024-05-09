@@ -51,6 +51,30 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define ASSET_NAME_COMPONENT	1
 #define SNAPSHOT_ID_COMPONENT	2
 
+/**
+ * Class used to queue the operations to be executed by
+ * the worker thread pool
+ */
+class StorageOperation {
+	public:
+		enum Operations	{ ReadingAppend, ReadingPurge, ReadingFetch, ReadingQuery };
+	public:
+		StorageOperation(StorageOperation::Operations operation, shared_ptr<HttpServer::Request> request,
+				shared_ptr<HttpServer::Response> response) :
+					m_operation(operation),
+					m_request(request),
+					m_response(response)
+		{
+		};
+		~StorageOperation()
+		{
+		};
+	public:
+		StorageOperation::Operations	m_operation;
+		shared_ptr<HttpServer::Request> m_request;
+		shared_ptr<HttpServer::Response> m_response;
+};
+
 class StoragePerformanceMonitor;
 /**
  * The Storage API class - this class is responsible for the registration of all API
@@ -60,7 +84,7 @@ class StoragePerformanceMonitor;
 class StorageApi {
 
 public:
-	StorageApi(const unsigned short port, const unsigned  int threads);
+	StorageApi(const unsigned short port, const unsigned int threads, const unsigned int workerPoolSize);
 	~StorageApi();
         static StorageApi *getInstance();
 	void	initResources();
@@ -112,6 +136,8 @@ public:
 	StoragePlugin	*getStoragePlugin() { return plugin; };
 	StoragePerformanceMonitor
 			*getPerformanceMonitor() { return m_perfMonitor; };
+	void		worker();
+	void		queue(StorageOperation::Operations op, shared_ptr<HttpServer::Request> request, shared_ptr<HttpServer::Response> response);
 public:
 	std::atomic<int>        m_workers_count;
 
@@ -136,6 +162,14 @@ private:
 	StreamHandler		*streamHandler;
 	StoragePerformanceMonitor
 				*m_perfMonitor;
+	std::mutex		m_queueMutex;
+	std::condition_variable	m_queueCV;
+	std::queue<StorageOperation *>
+				m_queue;
+	std::vector<std::thread	*>
+				m_workers;
+	unsigned int		m_workerPoolSize;
+	bool			m_shutdown;
 };
 
 /**

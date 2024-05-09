@@ -234,6 +234,11 @@ unsigned short servicePort;
 	{
 		threads = (unsigned int)atoi(config->getValue("threads"));
 	}
+	unsigned int workerPoolSize = 5;
+	if (config->hasValue("workerPool"))
+	{
+		workerPoolSize = (unsigned int)atoi(config->getValue("workerPool"));
+	}
 	if (config->hasValue("logLevel"))
 	{
 		m_logLevel = config->getValue("logLevel");
@@ -253,7 +258,7 @@ unsigned short servicePort;
 		m_timeout = 5;
 	}
 
-	api = new StorageApi(servicePort, threads);
+	api = new StorageApi(servicePort, threads, workerPoolSize);
 	api->setTimeout(m_timeout);
 }
 

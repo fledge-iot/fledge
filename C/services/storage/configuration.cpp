@@ -40,10 +40,22 @@ static const char *defaultConfiguration = QUOTE({
 	"threads" : {
 	       	"value" : "1", 
 		"default" : "1",
-		"description" : "The number of threads to run",
+		"description" : "The number of threads to use for the storage API",
 		"type" : "integer",
-		"displayName" : "Database threads",
+		"displayName" : "Storage API threads",
+		"minimum" : "1",
+		"maximum" : "10",
 		"order" : "3"
+	       	},
+	"workerPool" : {
+	       	"value" : "5", 
+		"default" : "5",
+		"description" : "The number of threads to create in the thread pool used to execute operations against reading data",
+		"type" : "integer",
+		"displayName" : "Worker thread pool",
+		"minimum" : "1",
+		"maximum" : "10",
+		"order" : "4"
 	       	},
 	"managedStatus" : {
 		"value" : "false",
@@ -51,7 +63,7 @@ static const char *defaultConfiguration = QUOTE({
 		"description" : "Control if Fledge should manage the storage provider",
 		"type" : "boolean",
 		"displayName" : "Manage Storage",
-		"order" : "4"
+		"order" : "5"
 		},
 	"port" : { 
 		"value" : "0",
@@ -59,7 +71,7 @@ static const char *defaultConfiguration = QUOTE({
 		"description" : "The port to listen on",
 		"type" : "integer",
 		"displayName" : "Service Port",
-		"order" : "5"
+		"order" : "6"
 	},
 	"managementPort" : {
 		"value" : "0", 
@@ -67,7 +79,7 @@ static const char *defaultConfiguration = QUOTE({
 		"description" : "The management port to listen on.",
 		"type" : "integer",
 		"displayName" : "Management Port",
-		"order" : "6"
+		"order" : "7"
        	},
 	"logLevel" : {
 		"value" : "warning",
@@ -76,7 +88,7 @@ static const char *defaultConfiguration = QUOTE({
 		"type" : "enumeration",
 		"displayName" : "Log Level",
 		"options" : [ "error", "warning", "info", "debug" ],
-		"order" : "7"
+		"order" : "8"
 	},
 	"timeout" : {
 		"value" : "60",
@@ -84,7 +96,7 @@ static const char *defaultConfiguration = QUOTE({
 		"description" : "Server request timeout, expressed in seconds",
 		"type" : "integer",
 		"displayName" : "Timeout",
-		"order" : "8",
+		"order" : "9",
 		"minimum" : "5",
 		"maximum" : "3600"
 	},
@@ -94,7 +106,7 @@ static const char *defaultConfiguration = QUOTE({
 		"displayName": "Performance Counters",
 		"default": "false",
 		"value": "false",
-		"order" : "9"
+		"order" : "10"
 	}
 });
 

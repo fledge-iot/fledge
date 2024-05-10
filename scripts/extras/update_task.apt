@@ -139,6 +139,7 @@ audit_trail_entry () {
     else
         $(rm -rf ${FLEDGE_DATA}/.upgradable)
         msg="Audit trail entry created for '${AUDIT_PACKAGES_LIST}' packages upgrade!"
+        write_log "" "$0" "info" "$msg" "all" "pretty"
     fi
 }
 
@@ -177,10 +178,8 @@ update_task() {
 upgrade_check() {
     # Find the upgradable list of fledge packages
     UPGRADABLE_LIST="sudo apt list --upgradable | grep ^fledge"
-    # write_log "" "$0" "debug" "Executing $UPGRADABLE_LIST ..." "logonly"
     UPGRADE_CMD_OUT=$(eval $UPGRADABLE_LIST)
     UPGRADE_CMD_STATUS="$?"
-    # write_log "" "$0" "debug" "Upgrade check result [$UPGRADE_CMD_OUT], retcode $UPGRADE_CMD_STATUS" "all" "pretty"
     if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
         write_log "" "$0" "info" "No new Fledge packages to upgrade." "all" "pretty"
         echo 0

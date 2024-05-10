@@ -147,7 +147,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 		m_perfMonitor->collect("Percentage readings sent", (100 * sent) / to_send);
 	}
 
-    Logger::getLogger()->debug("DataSender::send(): to_send=%d, sent=%d, lastSent=%d", to_send, sent, lastSent);
+	Logger::getLogger()->debug("DataSender::send(): to_send=%d, sent=%d, lastSent=%lu", to_send, sent, lastSent);
 
 	if (sent > 0)
 	{

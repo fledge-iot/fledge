@@ -906,12 +906,12 @@ ostringstream threadId;
 							startTransactionId);
 
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, startTransactionId);
+					sqlite3_bind_int64 (stmt, 1, startTransactionId);
 				}
 				else
 				{
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
+					sqlite3_bind_int64 (stmt, 1, readCatalogue->getIncGlobalId());
 				}
 
 				// Set parameter for user timestamp
@@ -1108,8 +1108,8 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
-unsigned int minGlobalId;
-unsigned int idWindow;
+unsigned long minGlobalId;
+unsigned long idWindow;
 unsigned long rowsCount;
 
 	if (m_noReadings)

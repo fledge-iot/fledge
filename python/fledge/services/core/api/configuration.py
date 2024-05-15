@@ -694,9 +694,9 @@ def hide_password(config: dict) -> Dict:
     new_config = copy.deepcopy(config)
     try:
         for k, v in new_config.items():
-            if v['type'] == 'password':
+            if v['type'] == 'password' and len(v['value']):
                 v['value'] = "****"
     except TypeError:
-        if new_config['type'] == 'password':
+        if new_config['type'] == 'password' and len(new_config['value']):
             new_config['value'] = "****"
     return new_config

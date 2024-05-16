@@ -166,6 +166,7 @@ async def validate_requests(request):
            - read access operations (GET calls)
            - change profile (PUT call)
            - logout (PUT call)
+           - extension API (PUT match call)
         c) With "data-view" based user role id=4 only
            - ping (GET call)
            - browser asset read operation (GET call)
@@ -189,7 +190,8 @@ async def validate_requests(request):
             raise web.HTTPForbidden
     # Viewer user
     elif int(request.user["role_id"]) == 3 and request.method != 'GET':
-        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
+        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
+                               '/fledge/extension/bucket/match']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
     # Data Viewer user

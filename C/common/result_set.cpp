@@ -55,7 +55,7 @@ ResultSet::ResultSet(const std::string& json)
 					{
 						type = NUMBER_COLUMN;
 					}
-					else if (itr->value.IsNumber())
+          				else if (itr->value.IsNumber())
 					{
 						type = INT_COLUMN;
 					}

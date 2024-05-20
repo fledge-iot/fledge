@@ -620,6 +620,16 @@ void PluginManager::getInstalledPlugins(const string& type,
 				strcmp (entry->d_name, "common") != 0 &&
 				entry->d_name[0] != '_')
 			{
+				struct stat stbuf;
+				bool is_dir(false);
+				if (stat((path + entry->d_name).c_str(), &stbuf) != 0) {
+					continue;
+				}
+				is_dir = S_ISDIR(stbuf.st_mode);
+				if (!is_dir) {
+					continue;
+				}
+
 				/* check for duplicate names to avoid
 					multiple loadPlugin calls
 				*/ 

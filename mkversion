@@ -1,5 +1,12 @@
 #!/bin/sh
 output=$1/cmake_build/version.h
+. $1/VERSION
+if [ -f $output ]; then
+	grep -s "VERSION[ 	]*\"${fledge_version}\"" $output > /dev/null
+	if [ $? = 0 ]; then
+		exit 0
+	fi
+fi
 cat > $output << END_WARNING
 
 /*
@@ -9,5 +16,4 @@ cat > $output << END_WARNING
  */
 
 END_WARNING
-. $1/VERSION
 /bin/echo '#define VERSION	"'${fledge_version}'"' >> $output

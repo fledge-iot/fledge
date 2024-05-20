@@ -96,25 +96,27 @@ string escaped = subject;
 std::string JSONunescape(const std::string& input)
 {
 	std::string output;
-	output.reserve(input.size());
+	size_t inputSize = input.size();
+	output.reserve(inputSize);
 
-	for (size_t i = 0; i < input.size(); ++i)
+	for (size_t i = 0; i < inputSize; ++i)
 	{
 		// skip leading or trailing "
-		if ((i == 0 || i == input.size() -1) && input[i] == '"')
+		if ((i == 0 || i == inputSize -1) && input[i] == '"')
 		{
 			continue;
 		}
 
-		// \\" -> \"
-		if (input[i] == '\\' && i + 2 < input.size() && input[i + 1] == '\\' && input[i + 2] == '"')
+		// \\\" -> \"
+		if (input[i] == '\\' && i + 3 < inputSize && input[i + 1] == '\\' && input[i + 2] == '\\' && input[i + 3] == '"')
 		{
 			output.push_back('\\');
 			output.push_back('"');
-			i += 2;
+			i += 3;
 		}
+		// \\" -> \"
 		// \" -> "
-		else if (input[i] == '\\' && i + 1 < input.size() && input[i + 1] == '"')
+		else if (input[i] == '\\' && i + 1 < inputSize && input[i + 1] == '"')
 		{
 			output.push_back('"');
 			++i;

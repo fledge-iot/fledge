@@ -661,6 +661,14 @@ class TestConfigurationManager:
                       "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
          "For {} category, listSize value must be an integer value for item name {}".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"integer\"]",
+                      "items": "enumeration", "options": ["int"], "listSize": "1"}}, ValueError,
+         "For {} category, integer value does not exist in options for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"0\"]",
+                      "items": "enumeration", "options": ["999"], "listSize": "1"}}, ValueError,
+         "For {} category, 0 value does not exist in options for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
@@ -793,7 +801,15 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
                       "items": "enumeration", "options": ["integer"], "listSize": "blah"}}, ValueError,
          "For {} category, listSize value must be an integer value for item name {}".format(
-             CAT_NAME, ITEM_NAME))
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"int\"}",
+                      "items": "enumeration", "options": ["integer"], "listSize": "1"}}, ValueError,
+         "For {} category, int value does not exist in options for item name {} and entry_name key1".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"1\"}",
+                      "items": "enumeration", "options": ["integer", "2"], "listSize": "1"}}, ValueError,
+         "For {} category, 1 value does not exist in options for item name {} and entry_name key1".format(
+             CAT_NAME, ITEM_NAME)),
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

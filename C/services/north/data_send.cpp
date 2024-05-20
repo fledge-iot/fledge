@@ -284,15 +284,10 @@ void DataSender::updateStatistics(uint32_t increment)
 }
 
 /**
- * Flush statistics top storage service
+ * Flush statistics to storage service
  */
 void DataSender::flushStatistics()
 {
-	if (m_shutdown)
-	{
-		return;
-	}
-
 	// Wait for FLUSH_STATS_INTERVAL seconds or receive notification
 	// when shutdown is called
 	unique_lock<mutex> flush(m_flushStatsMtx);

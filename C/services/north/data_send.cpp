@@ -313,7 +313,48 @@ void DataSender::flushStatistics()
 		return;
 	}
 
+	vector<pair<ExpressionValues *, Where *>> statsUpdates;
+	const Condition conditionStat(Equals);
+
 	// Send statistics to storage service
+	map<string, int>::iterator it;
+	for (it = statsData.begin(); it != statsData.end(); it++)
+	{
+		// Prepare "WHERE key = name
+		Where *nStat = new Where("key", conditionStat, it->first);
+		// Prepare value = value + inc
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) it->second));
+
+		statsUpdates.emplace_back(updateValue, nStat);
+	}
+
+	// Bulk update
+	if (m_loader->getStorage())
+	{
+		int rv = m_loader->getStorage()->updateTable("statistics", statsUpdates);
+
+		// Check affected rows is different from number of stats,
+		if (rv != statsData.size())
+		{
+			// Create entries
+			createStats(statsData);
+		}
+	}
+}
+
+/**
+ * Create a row into statistic table for each statistic
+ *
+ * @param statsData map with statistics key ad value
+ */
+void DataSender::createStats(std::map<std::string, int> &statsData)
+{
+	if (!m_loader->getStorage())
+	{
+		return;
+	}
+
 	map<string, int>::iterator it;
 	for (it = statsData.begin(); it != statsData.end(); it++)
 	{
@@ -326,7 +367,22 @@ void DataSender::flushStatistics()
 		{
 			description = it->first + " Noth";
 		}
-		m_loader->updateStatistic(it->first, description, it->second);
+		InsertValues values;
+		values.push_back(InsertValue("key",         it->first));
+		values.push_back(InsertValue("description", description));
+		values.push_back(InsertValue("value",       it->second));
+		string table = "statistics";
+
+		if (m_loader->getStorage()->insertTable(table, values) != 1)
+		{
+			Logger::getLogger()->error("Failed to insert a new "\
+					"row into the 'statistics' table, key '%s'",
+					it->first.c_str());
+		}
+		else
+		{
+			Logger::getLogger()->info("New row added into 'statistics' table, key '%s'",
+				it->first.c_str());
+		}
 	}
 }
-

@@ -28,8 +28,7 @@ class DataSender {
 		void			flushStatistics();
 	private:
 		void			updateStatistics(uint32_t increment);
-
-	private:
+		void 			createStats(std::map<std::string, int> &statsData);
 		unsigned long		send(ReadingSet *readings);
 		void			blockPause();
 		void			releasePause();

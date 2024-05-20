@@ -792,6 +792,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                     "Dict cannot be set as empty. A value must be given for {}".format(item_name))
                         elif not len(new_val.strip()):
                             raise ValueError("A value must be given for {}".format(item_name))
+                if cat_info[item_name]['type'] in ('list', 'kvlist') and cat_info[item_name]['items'] == 'enumeration':
+                    try:
+                        eval_new_val = ast.literal_eval(new_val)
+                    except:
+                        raise TypeError("Malformed payload for given {} category".format(category_name))
+                    ev_options = cat_info[item_name]['options']
+                    if cat_info[item_name]['type'] == 'kvlist':
+                        if not isinstance(eval_new_val, dict):
+                            raise TypeError("New value should be in KV pair format")
+                        for ek, ev in eval_new_val.items():
+                            if ev == '':
+                                raise ValueError('For {}, enum value cannot be empty'.format(ek))
+                            if ev not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(ek))
+                    else:
+                        if not isinstance(eval_new_val, list):
+                            raise TypeError("New value should be passed in list")
+                        if not eval_new_val:
+                            raise ValueError('enum value cannot be empty')
+                        for s in eval_new_val:
+                            if s not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
                 # Validations on the basis of optional attributes

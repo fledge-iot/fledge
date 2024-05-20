@@ -3583,7 +3583,13 @@ class TestConfigurationManager:
          TypeError, "Unrecognized value name for item_name testJSON"),
         ({'testJSON': {'default': '{"foo": "bar"}', 'description': 'Test JSON', 'type': 'JSON',
                        'value': '{"foo": "bar"}', 'mandatory': 'true'}}, {"testJSON": {}},
-         ValueError, "Dict cannot be set as empty. A value must be given for testJSON")
+         ValueError, "Dict cannot be set as empty. A value must be given for testJSON"),
+        ({ITEM_NAME: {'default': '[\"foo\": \"bar\"]', 'description': 'Test list', 'type': 'list',
+                      "items": "enumeration", 'value': '[\"foo\": \"bar\"]', 'options': ['foo', 'bar']}},
+         {ITEM_NAME: ""}, TypeError, "Malformed payload for given testcat category"),
+        ({ITEM_NAME: {'default': '{"key1": "a","key2": "b"}', 'description': 'Test Kvlist', 'type': 'kvlist',
+                      "items": "enumeration", 'value': '{"key1": "a","key2": "b"}', 'options': ['b', 'a']}},
+         {ITEM_NAME: ""}, TypeError, "Malformed payload for given testcat category")
     ])
     async def test_update_configuration_item_bulk_exceptions(self, cat_info, config_item_list, exc_type, exc_msg,
                                                              category_name='testcat'):
@@ -3774,6 +3780,44 @@ class TestConfigurationManager:
                     await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
                 assert exc_info.type is ValueError
                 assert 'The value of info is not valid, please supply a valid value' == str(exc_info.value)
+            assert 1 == patch_log_exc.call_count
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    @pytest.mark.parametrize("list_type, payload, exc_type, exc_msg", [
+        ('list', {ITEM_NAME: "{}"}, TypeError, 'New value should be passed in list'),
+        ('list', {ITEM_NAME: "[]"}, ValueError, 'enum value cannot be empty'),
+        ('list', {ITEM_NAME: "[\"1\"]"}, ValueError, 'For 1, new value does not exist in options enum'),
+        ('kvlist', {ITEM_NAME: "[]"}, TypeError, 'New value should be in KV pair format'),
+        ('kvlist', {ITEM_NAME: "{\"key1\":\"\"}"}, ValueError, 'For key1, enum value cannot be empty'),
+        ('kvlist', {ITEM_NAME: "{\"key1\":\"b1\",\"key2\":\"b\"}"}, ValueError,
+         'For key1, new value does not exist in options enum')
+    ])
+    async def test_bad_update_configuration_item_bulk_with_list_type(self, list_type, payload, exc_type, exc_msg):
+        category_name = 'testcat'
+        if list_type == 'kvlist':
+            cat_info = {ITEM_NAME: {'type': 'kvlist', 'default': '{"key1": "a", "key2": "b"}', 'items': 'enumeration',
+                                    'options': ['b', 'a'], 'listSize': '2', 'description': 'test desc',
+                                    'value': '{"key1":"a1", "key2":"b"}'}}
+        else:
+            cat_info = {ITEM_NAME: {'type': 'list', 'default': '[\"999\"]', 'items': 'enumeration',
+                                    'options': ['13', '999'], 'listSize': '2', 'description': 'test desc',
+                                    'value': '[\"13\"]'}}
+
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        _rv = await async_mock(cat_info) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(async_mock(cat_info)))
+
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
+            with patch.object(_logger, 'exception') as patch_log_exc:
+                with pytest.raises(Exception) as exc_info:
+                    await c_mgr.update_configuration_item_bulk(category_name, payload)
+                assert exc_type == exc_info.type
+                assert exc_msg == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
 

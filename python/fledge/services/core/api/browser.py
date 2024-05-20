@@ -214,15 +214,18 @@ async def asset(request):
                 response = results['rows']
                 if response and 'timestamp' in response[0]:
                     date_times.append(datetime.datetime.strptime(response[0]['timestamp'], dt_format))
-            most_recent_ts = max(date_times)
-            _logger.debug("DTS: {} most_recent_ts: {}".format(date_times, most_recent_ts))
-            window = int(request.query['seconds'])
-            to_ts = most_recent_ts - datetime.timedelta(seconds=window)
-            most_recent_str = most_recent_ts.strftime(dt_format)
-            to_str = to_ts.strftime(dt_format)
-            _logger.debug("user_ts <={} TO user_ts>{}".format(most_recent_str, to_str))
-            _and_where = PayloadBuilder(_where).AND_WHERE(['user_ts', '<=', most_recent_str]).AND_WHERE(
-                ['user_ts', '>', to_str]).chain_payload()
+            if date_times:
+                most_recent_ts = max(date_times)
+                _logger.debug("DTS: {} most_recent_ts: {}".format(date_times, most_recent_ts))
+                window = int(request.query['seconds'])
+                to_ts = most_recent_ts - datetime.timedelta(seconds=window)
+                most_recent_str = most_recent_ts.strftime(dt_format)
+                to_str = to_ts.strftime(dt_format)
+                _logger.debug("user_ts <={} TO user_ts>{}".format(most_recent_str, to_str))
+                _and_where = PayloadBuilder(_where).AND_WHERE(['user_ts', '<=', most_recent_str]).AND_WHERE(
+                    ['user_ts', '>', to_str]).chain_payload()
+            else:
+                _and_where = where_clause(request, _where)
     elif 'previous' in request.query:
         msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -640,7 +643,7 @@ def where_window(request, where):
         For mostrecent functionality with back/forward buttons a.k.a previous payload
         There is workaround implemented at python side to get it without any amendments at C Payload side
         Now, client has to pass datetime UTC string and having format %Y-%m-%d %H:%M:%S.%f in "previous" payload
-        For example: /fledge/asset/randomwalk?mostrecent=TRUE&seconds=10&previous=2023-08-01 06:32:36.515
+        For example: /fledge/asset/randomwalk?mostrecent=TRUE&seconds=10&previous_ts=2023-08-01 06:32:36.515
         Payload:
         {"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}],
         "where": {"column": "asset_code", "condition": "=", "value": "randomwalk",
@@ -650,7 +653,7 @@ def where_window(request, where):
     """
     if 'mostrecent' in request.query and 'seconds' in request.query:
         val = int(request.query['seconds'])
-        previous_str = request.query['previous']
+        previous_str = request.query['previous_ts']
         dt_format = '%Y-%m-%d %H:%M:%S.%f'
         dt_obj = datetime.datetime.strptime(previous_str, dt_format)
         dt_obj_diff = dt_obj - datetime.timedelta(seconds=val)

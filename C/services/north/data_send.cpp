@@ -1,11 +1,11 @@
 /*
  * Fledge North Service Data Loading.
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020, 2024 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <data_sender.h>
 #include <data_load.h>
@@ -26,6 +26,17 @@ static void startSenderThread(void *data)
 }
 
 /**
+ * Thread to update statistics table in DB
+ */
+static void statsThread(DataSender *sender)
+{
+	while (sender->isRunning())
+	{
+		sender->flushStatistics();
+	}
+}
+
+/**
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
@@ -34,10 +45,12 @@ DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *serv
 	m_logger = Logger::getLogger();
 
 	/*
-	 * Fianlly start the thread. Everything mus tbe initialsied
+	 * Start the thread. Everything must be initialsied
 	 * before the thread is started
 	 */
 	m_thread = new thread(startSenderThread, this);
+
+	m_statsThread = new thread(statsThread, this);
 }
 
 /**
@@ -49,6 +62,13 @@ DataSender::~DataSender()
 	m_shutdown = true;
 	m_thread->join();
 	delete m_thread;
+
+	m_statsCv.notify_one();
+	m_logger->info("DataSender stats thread notified");
+	m_statsThread->join();
+	m_logger->info("DataSender stats thread joined");
+	delete m_statsThread;
+
 	m_logger->info("DataSender shutdown complete");
 }
 
@@ -181,7 +201,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				break;
 			}
 		}
-		m_loader->updateStatistics(sent);
+		updateStatistics(sent);
 		return lastSent;
 	}
 	return 0;
@@ -248,3 +268,70 @@ void DataSender::releasePause()
 	}
 	m_pauseCV.notify_all();
 }
+
+/**
+ * Update the sent statistics
+ *
+ * @param increment     Increment of the number of readings sent
+ */
+void DataSender::updateStatistics(uint32_t increment)
+{
+	lock_guard<mutex> guard(m_statsMtx);
+
+	// Add statistics counter to the map
+	m_statsPendingEntries[m_loader->getName()] += increment;
+	m_statsPendingEntries["Readings Sent"] += increment;
+}
+
+/**
+ * Flush statistics top storage service
+ */
+void DataSender::flushStatistics()
+{
+	if (m_shutdown)
+	{
+		return;
+	}
+
+	// Wait for FLUSH_STATS_INTERVAL seconds or receive notification
+	// when shutdown is called
+	unique_lock<mutex> flush(m_flushStatsMtx);
+	m_statsCv.wait_for(flush, std::chrono::seconds(FLUSH_STATS_INTERVAL));
+	flush.unlock();
+
+	std::map<std::string, int> statsData;
+
+	// Acquire m_statsMtx lock for m_statsMtx
+	unique_lock<mutex> lck(m_statsMtx);
+
+	// copy statistics map
+	statsData = m_statsPendingEntries;
+
+	// Reset statistics
+	m_statsPendingEntries.clear();
+
+	// Release lock
+	lck.unlock();
+
+	if (statsData.empty())
+	{
+		return;
+	}
+
+	// Send statistics to storage service
+	map<string, int>::iterator it;
+	for (it = statsData.begin(); it != statsData.end(); it++)
+	{
+		string description;
+		if (it->first == m_loader->getName())
+		{
+			description = it->first + " Readings Sent";
+		}
+		else
+		{
+			description = it->first + " Noth";
+		}
+		m_loader->updateStatistic(it->first, description, it->second);
+	}
+}
+

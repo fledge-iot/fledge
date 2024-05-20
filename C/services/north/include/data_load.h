@@ -49,6 +49,7 @@ class DataLoad : public ServiceHandler {
 						m_blockSize = blockSize;
 					};
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
+		const std::string	&getName() {return m_name; };
 
 	private:
 		void			readBlock(unsigned int blockSize);
@@ -59,6 +60,7 @@ class DataLoad : public ServiceHandler {
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
 		bool			loadFilters(const std::string& category);
+	public:
 		void			updateStatistic(const std::string& key, const std::string& description, uint32_t increment);
 	private:
 		const std::string&	m_name;

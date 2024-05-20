@@ -88,16 +88,46 @@ user interface to set the storage engine and its options.
    migrated to the new storage system and this data may be lost if it has
    not been sent onward from Fledge.
 
-   If selecting the Postgres storeage engine then postgress must be installed and running with a fledge user created in order for Fledge to start succesfully.
+   If selecting the Postgres storage engine then PostgreSQL must be installed and running with a Fledge user created in order for Fledge to start successfully.
 
 SQLite Plugin Configuration
 ---------------------------
 
-The SQLite plugin has a more complex set of configuration options that can be used to configure how and when it creates more database to accommodate ore distinct assets. This plugin is designed to allow greater ingest rates for readings by separating the readings for each asset into a database table for that asset. It does however result in limiting the number of distinct assets that can be handled due to the requirement to handle large number of database files.
+The SQLite storage engine has further options that may be used to
+configure its behavior. To access these configuration parameters click
+on the *sqlite* option under the *Storage* category in the configuration
+page.
 
 +-------------+
 | |sqlite_01| |
 +-------------+
+
+Many of these configuration options control the performance of SQLite and
+it is important to have some background on how readings are stored within
+SQLite. The plugin is designed to allow greater ingests rates in
+situations where multiple different assets are being ingested by a
+single instance.
+
+The storage plugin stores readings for each distinct asset in
+a table for that asset. These tables are stored within a database, however
+the SQLite database engine will lock an entire database to insert into
+any table within that database. In order to improve concurrency, multiple
+databases are used within the storage plugin. A set of parameters are
+used to define how these tables and databases are used.
+
+.. note:
+
+   SQLite has a limitation on the number of databases that can be attached
+   to a single process. Therefore we can not create an unlimited number
+   of databases and attach them.
+
+Once the tables within all the databases have been assigned to a
+particular asset, any new assets ingested will be inserted into an
+overflow tables that contains multiple assets. There is one overflow
+table per database within the process. The impact of this is that once
+the total number of distinct assets exceeds the number of tables allocated
+the gain in performance from using multiple tables in multiple databases
+start to diminish.
 
   - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
 
@@ -197,41 +227,6 @@ Next, you must create a PostgreSQL user that matches your Linux user.
 
   sudo -u postgres createuser -d $(whoami)
 
-SQLite Plugin Configuration
-===========================
-
-The SQLite storage engine has further options that may be used to
-configure its behavior. To access these configuration parameters click
-on the *sqlite* option under the *Storage* category in the configuration
-page.
-
-+--------------+
-| |storage_03| |
-+--------------+
-
-Many of these configuration options control the performance of SQLite and
-it is important to have some background on how readings are stored within
-SQLite. The storage plugin stores readings for each distinct asset in
-a table for that asset. These tables are stored within a database. In
-order to improve concurrency multiple databases are used within the
-storage plugin. A set of parameters are used to define how these tables
-and databases are used.
-
-  - **Pool Size**: The number of connections to maintain to the database server.
-
-  - **No. Readings per database**: This controls the number of different assets that will be stored in each database file within SQLite.
-
-  - **No. databases to allocate in advance**: The number of SQLite databases that will be created at startup.
-
-  - **Database allocation threshold**: The point at which new databases are created. If the number of empty databases falls below this value then an other set of databases will be created.
-
-  - **Database allocation size**: The number of database to allocate each time a new set of databases is required.
-
-The setting of these parameters also imposes an upper limit on the number
-of assets that can be stored within a Fledge instance as SQLite has a
-maximum limit of 61 databases that can be in use at any time. Therefore
-the maximum number of readings is 60 times the number of readings per
-database. One database is reserved for the configuration data.
 
 Storage Management
 ==================

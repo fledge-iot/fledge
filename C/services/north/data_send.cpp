@@ -327,18 +327,27 @@ void DataSender::flushStatistics()
 		updateValue->push_back(Expression("value", "+", (int) it->second));
 
 		statsUpdates.emplace_back(updateValue, nStat);
+
+		// Check whether to create stats entry into the storage
+		if (m_statsDbEntriesCache.find(it->first) == m_statsDbEntriesCache.end())
+		{
+			if (createStats(it->first, it->second))
+			{
+				m_statsDbEntriesCache.insert(it->first);
+			}
+		}
 	}
 
 	// Bulk update
 	if (m_loader->getStorage())
 	{
+
 		int rv = m_loader->getStorage()->updateTable("statistics", statsUpdates);
 
-		// Check affected rows is different from number of stats,
+		// Check affected rows,
 		if (rv != statsData.size())
 		{
-			// Create entries
-			createStats(statsData);
+			Logger::getLogger()->error("Failed to update rows in 'statistics' table.");
 		}
 	}
 }
@@ -346,43 +355,46 @@ void DataSender::flushStatistics()
 /**
  * Create a row into statistic table for each statistic
  *
- * @param statsData map with statistics key ad value
+ * @param key		The statistics key to create
+ * @param value		The statistics value
+ * @return		True for created data, False for no operation or error
  */
-void DataSender::createStats(std::map<std::string, int> &statsData)
+bool DataSender::createStats(const std::string &key,
+		int value)
 {
 	if (!m_loader->getStorage())
 	{
-		return;
+		return false;
 	}
 
-	map<string, int>::iterator it;
-	for (it = statsData.begin(); it != statsData.end(); it++)
+	string description;
+	if (key == m_loader->getName())
 	{
-		string description;
-		if (it->first == m_loader->getName())
-		{
-			description = it->first + " Readings Sent";
-		}
-		else
-		{
-			description = it->first + " Noth";
-		}
-		InsertValues values;
-		values.push_back(InsertValue("key",         it->first));
-		values.push_back(InsertValue("description", description));
-		values.push_back(InsertValue("value",       it->second));
-		string table = "statistics";
-
-		if (m_loader->getStorage()->insertTable(table, values) != 1)
-		{
-			Logger::getLogger()->error("Failed to insert a new "\
-					"row into the 'statistics' table, key '%s'",
-					it->first.c_str());
-		}
-		else
-		{
-			Logger::getLogger()->info("New row added into 'statistics' table, key '%s'",
-				it->first.c_str());
-		}
+		description = key + " Readings Sent";
 	}
+	else
+	{
+		description = key + " Noth";
+	}
+	InsertValues values;
+	values.push_back(InsertValue("key",         key));
+	values.push_back(InsertValue("description", description));
+	values.push_back(InsertValue("value",       value));
+	string table = "statistics";
+
+	if (m_loader->getStorage()->insertTable(table, values) != 1)
+	{
+		Logger::getLogger()->error("Failed to insert a new "\
+				"row into the 'statistics' table, key '%s'",
+				key.c_str());
+		return false;
+	}
+	else
+	{
+		Logger::getLogger()->info("New row added into 'statistics' table, key '%s'",
+			key.c_str());
+		return true;
+	}
+
+	return false;
 }

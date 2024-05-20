@@ -28,7 +28,7 @@ class DataSender {
 		void			flushStatistics();
 	private:
 		void			updateStatistics(uint32_t increment);
-		void 			createStats(std::map<std::string, int> &statsData);
+		bool 			createStats(const std::string &key, int value);
 		unsigned long		send(ReadingSet *readings);
 		void			blockPause();
 		void			releasePause();
@@ -52,5 +52,8 @@ class DataSender {
 		std::mutex		m_statsMtx;
 		std::map<std::string, int>
 					m_statsPendingEntries;
+		// confirmed stats table entries
+		std::unordered_set<std::string>
+					m_statsDbEntriesCache;
 };
 #endif

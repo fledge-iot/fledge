@@ -130,13 +130,6 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
  */
 int main(int argc, char *argv[])
 {
-#ifdef PROFILING
-	char profilePath[200]{0};
-	snprintf(profilePath, sizeof(profilePath), "%s/services/%s_Profile", getenv("FLEDGE_ROOT"), SERVICE_TYPE);
-	mkdir(profilePath, 0777);
-	chdir(profilePath);
-#endif
-
 unsigned short	corePort = 8082;
 string		coreAddress = "localhost";
 bool		daemonMode = true;
@@ -182,6 +175,22 @@ bool		dryRun = false;
 			dryRun = true;
 		}
 	}
+
+#ifdef PROFILING
+	char profilePath[200]{0};
+	if (getenv("FLEDGE_DATA")) 
+	{
+		snprintf(profilePath, sizeof(profilePath), "%s/%s_Profile", getenv("FLEDGE_DATA"), myName.c_str());
+	} else if (getenv("FLEDGE_ROOT"))
+	{
+		snprintf(profilePath, sizeof(profilePath), "%s/data/%s_Profile", getenv("FLEDGE_ROOT"), myName.c_str());
+	} else 
+	{
+		snprintf(profilePath, sizeof(profilePath), "/usr/local/fledge/data/%s_Profile", myName.c_str());
+	}
+	mkdir(profilePath, 0777);
+	chdir(profilePath);
+#endif
 
 	if (daemonMode && makeDaemon() == -1)
 	{

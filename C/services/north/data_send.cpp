@@ -76,9 +76,9 @@ DataSender::~DataSender()
 	delete m_thread;
 
 	m_statsCv.notify_one();
-	m_logger->info("DataSender stats thread notified");
+	m_logger->debug("DataSender stats thread notified");
 	m_statsThread->join();
-	m_logger->info("DataSender stats thread joined");
+	m_logger->debug("DataSender stats thread joined");
 	delete m_statsThread;
 
 	m_logger->info("DataSender shutdown complete");

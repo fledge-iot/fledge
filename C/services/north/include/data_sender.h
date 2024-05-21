@@ -11,6 +11,8 @@
 
 // Send statistics to storage in seconds
 #define FLUSH_STATS_INTERVAL 5
+// Failure counter before re-recreating statics rows
+#define STATS_UPDATE_FAIL_THRESHOLD 3
 
 class DataLoad;
 class NorthService;
@@ -52,6 +54,7 @@ class DataSender {
 		std::mutex		m_statsMtx;
 		std::map<std::string, int>
 					m_statsPendingEntries;
+		int			m_statsUpdateFails;
 		// confirmed stats table entries
 		std::unordered_set<std::string>
 					m_statsDbEntriesCache;

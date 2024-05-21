@@ -42,6 +42,8 @@ static void statsThread(DataSender *sender)
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
 	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false), m_perfMonitor(NULL)
 {
+	m_statsUpdateFails = 0;
+
 	m_logger = Logger::getLogger();
 
 	// Create statistics rows if not existant
@@ -346,18 +348,46 @@ void DataSender::flushStatistics()
 				m_statsDbEntriesCache.insert(it->first);
 			}
 		}
+
+		Logger::getLogger()->error("Flushing '%s': %d",
+				it->first.c_str(),
+				it->second);
 	}
 
 	// Bulk update
 	if (m_loader->getStorage())
 	{
-
+		// Do the update
 		int rv = m_loader->getStorage()->updateTable("statistics", statsUpdates);
 
-		// Check affected rows,
+		// Check for errors
 		if (rv != statsData.size())
 		{
-			Logger::getLogger()->error("Failed to update rows in 'statistics' table.");
+			if (++m_statsUpdateFails > STATS_UPDATE_FAIL_THRESHOLD)
+			{
+				Logger::getLogger()->warn("Update of statistics failure has persisted, attempting recovery");
+
+				m_statsDbEntriesCache.clear();
+				// Create statistics rows if not existant
+				if (createStats("Readings Sent", 0))
+				{
+					m_statsDbEntriesCache.insert("Readings Sent");
+				}
+				if (createStats(m_loader->getName(), 0))
+				{
+					m_statsDbEntriesCache.insert(m_loader->getName());
+				}
+
+				m_statsUpdateFails = 0;
+			}
+			else if (m_statsUpdateFails == 1)
+			{
+				Logger::getLogger()->warn("Update of statistics failed");
+			}
+			else
+			{
+				Logger::getLogger()->warn("Update of statistics still failing");
+			}
 		}
 	}
 }

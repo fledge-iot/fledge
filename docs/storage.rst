@@ -88,7 +88,7 @@ user interface to set the storage engine and its options.
    migrated to the new storage system and this data may be lost if it has
    not been sent onward from Fledge.
 
-   If selecting the Postgres storage engine then PostgreSQL must be installed and running with a Fledge user created in order for Fledge to start successfully.
+   If selecting the Postgres storage engine then PostgreSQL must be installed and running with a fledge user created in order for Fledge to start successfully.
 
 SQLite Plugin Configuration
 ---------------------------
@@ -115,7 +115,7 @@ any table within that database. In order to improve concurrency, multiple
 databases are used within the storage plugin. A set of parameters are
 used to define how these tables and databases are used.
 
-.. note:
+.. note::
 
    SQLite has a limitation on the number of databases that can be attached
    to a single process. Therefore we can not create an unlimited number
@@ -129,8 +129,6 @@ the total number of distinct assets exceeds the number of tables allocated
 the gain in performance from using multiple tables in multiple databases
 start to diminish.
 
-  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
-
   - **Pool Size**: The number of connections to create in the database connection pool.
 
   - **No. Readings per database**: This option control how many assets can be stored in a single database. Each asset will be stored in a distinct table within the database. Once all tables within a database are allocated the plugin will use more databases to store further assets.
@@ -140,6 +138,8 @@ start to diminish.
   - **Database allocation threshold**: The number of unused databases that must exist within the system. Once the number of available databases falls below this value the system will begin the process of creating extra databases.
 
   - **Database allocation size**: The number of databases to create when the above threshold is crossed. Database creation is a slow process and hence the tuning of these parameters can impact performance when an instance receives a large number of new asset names for which it has previously not allocated readings tables.
+
+  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
 
   - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
 

@@ -367,6 +367,25 @@ bool DataSender::createStats(const std::string &key,
 		return false;
 	}
 
+	// SELECT * FROM fledge.statiatics WHERE key = statistics_key
+	const Condition conditionKey(Equals);
+	Where *wKey = new Where("key", conditionKey, key);
+	Query qKey(wKey);
+
+	ResultSet* result = 0;
+
+	// Query via storage client
+	result = m_loader->getStorage()->queryTable("statistics", qKey);
+
+	bool doInsert = !result->rowCount();
+	delete result;
+
+	if (!doInsert)
+ 	{
+		// Row already exists
+		return true;
+	}
+
 	string description;
 	if (key == m_loader->getName())
 	{

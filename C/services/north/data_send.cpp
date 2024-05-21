@@ -44,6 +44,16 @@ DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *serv
 {
 	m_logger = Logger::getLogger();
 
+	// Create statistics rows if not existant
+	if (createStats("Readings Sent", 0))
+	{
+		m_statsDbEntriesCache.insert("Readings Sent");
+	}
+	if (createStats(m_loader->getName(), 0))
+	{
+		m_statsDbEntriesCache.insert(m_loader->getName());
+	}
+
 	/*
 	 * Start the thread. Everything must be initialsied
 	 * before the thread is started

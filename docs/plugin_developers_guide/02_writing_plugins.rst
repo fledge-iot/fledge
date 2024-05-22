@@ -430,6 +430,20 @@ In the above example the user is able to supply any number of unconstrained stri
 
 This differs from an enumeration in that the user is allowed to select more than one option from the set of options.
 
+Lists may also be used to allow the entry of a list of numeric values, either integer or float, by setting the appropriate type for the items in a list.
+
+.. code-block:: JSON
+
+ "tags" : {
+                "description" : "A set of factor values to use when calculating the best fit",
+                "type" : "list",
+                "items" : "integer",
+                "default" : "[ \"1\", \"2\", \"3\" ]",
+                "order" : "4",
+                "displayName" : "Factors"
+           }
+
+
 Key/Value List
 ##############
 
@@ -453,10 +467,10 @@ A returned list with 4 entries would have a value as shown below.
 .. code-block:: JSON
 
    {
-        "idle" : "\"speed == 0\",
-        "operational" : \"speed == 5000\",
-        "transitional" : \"speed > 0 && speed < 5000\",
-        "overspeed" : \"speed > 5000\"
+        "idle" : "speed == 0",
+        "operational" : "speed == 5000",
+        "transitional" : "speed > 0 && speed < 5000",
+        "overspeed" : "speed > 5000"
    }
 
 Lists of Objects
@@ -524,7 +538,7 @@ The *value* and *default* properties for a list of objects is returned as a JSON
     }
   ]
 
-An alternative might be to use a key/value pair list where the key is the name of the item to be read, the datapoint in the previous example and the value is an object that describes how to read the data from the PLC.
+An alternative might be to use a key/value pair list, *kvlist* type, where the key is the name of the item to be read, the datapoint in the previous example and the value is an object that describes how to read the data from the PLC.
 
 .. code-block:: JSON
 

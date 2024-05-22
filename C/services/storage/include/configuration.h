@@ -44,7 +44,8 @@ class StorageConfiguration {
     void                  readCache();
     void                  writeCache();
     void                  checkCache();
-    Logger                *logger;
+    void                  updateStoragePluginConfig();
+    Logger *logger;
 };
 
 #endif

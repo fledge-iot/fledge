@@ -17,10 +17,11 @@
 #include <iostream>
 #include <unistd.h>
 #include <plugin_api.h>
+#include <plugin_manager.h>
 
-static const char *defaultConfiguration = QUOTE({
+static std::string defaultConfiguration(QUOTE({
 	"plugin" : {
-       		"value" : "sqlite",
+		"value" : "sqlite",
 		"default" : "sqlite",
 		"description" : "The main storage plugin to load",
 		"type" : "enumeration",
@@ -96,21 +97,18 @@ static const char *defaultConfiguration = QUOTE({
 		"value": "false",
 		"order" : "9"
 	}
-});
+}));
 
 using namespace std;
 using namespace rapidjson;
 
 /**
  * Constructor for storage service configuration class.
- *
- * TODO Update the options for plugin and readingPlugin with any other storage
- * plugins that have been installed
  */
 StorageConfiguration::StorageConfiguration()
 {
 	logger = Logger::getLogger();
-	document = new Document();
+	document = new Document();	
 	readCache();
 	checkCache();
 	if (hasValue("logLevel"))
@@ -212,8 +210,14 @@ string	cachefile;
 	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
 		logger->info("Storage cache %s unreadable, using default configuration: %s.",
-				cachefile.c_str(), defaultConfiguration);
-		document->Parse(defaultConfiguration);
+				cachefile.c_str(), defaultConfiguration.c_str());
+		/**
+		 * Update options in deafult configuration for items 'plugin' and 
+		 * 'readingPlugin' with installed plugins
+		 */
+		updateStoragePluginConfig();
+
+		document->Parse(defaultConfiguration.c_str());
 		if (document->HasParseError())
 		{
 			logger->error("Default configuration failed to parse. %s at %d",
@@ -345,7 +349,7 @@ bool writeCacheRequired = false;
 	 * in the cache on first restart.
 	 */
 	Document *newdoc = new Document();
-	newdoc->Parse(defaultConfiguration);
+	newdoc->Parse(defaultConfiguration.c_str());
 	if (newdoc->HasParseError())
 	{
 		logger->error("Default configuration failed to parse. %s at %d",
@@ -420,7 +424,7 @@ bool writeCacheRequired = false;
 
 	logger->info("Storage configuration cache is not up to date");
 	newdoc = new Document();
-	newdoc->Parse(defaultConfiguration);
+	newdoc->Parse(defaultConfiguration.c_str());
 	if (newdoc->HasParseError())
 	{
 		logger->error("Default configuration failed to parse. %s at %d",
@@ -458,4 +462,74 @@ bool writeCacheRequired = false;
 	delete document;
 	document = newdoc;
 	writeCache();
+}
+
+/**
+ * Check for installed storage and readings plugin and update default configuration.
+ * 
+ * Update options for category item 'plugin' and 'readingPlugin' 
+ * with installed plugins.
+ * 
+ * If no plugin is found default config is not updated.
+ */
+void StorageConfiguration::updateStoragePluginConfig()
+{
+	PluginManager *manager = PluginManager::getInstance();
+	manager->setPluginType(PLUGIN_TYPE_ID_STORAGE);
+
+	// Fetch installed storage and readings plugins.
+	auto storagePlugins = manager->getPluginsByFlags(PLUGIN_TYPE_STORAGE, SP_COMMON);
+	auto readingsPlugins = manager->getPluginsByFlags(PLUGIN_TYPE_STORAGE, SP_READINGS);
+	
+	Document newDocument;
+	newDocument.Parse(defaultConfiguration.c_str());
+
+	if (storagePlugins.size() > 0) 
+	{
+		// Modify the "options" array for storage with installed plugins
+		if (newDocument.HasMember("plugin") && newDocument["plugin"].IsObject()) {
+			Value& plugin = newDocument["plugin"];
+			if (plugin.HasMember("options") && plugin["options"].IsArray()) {
+				Value& options = plugin["options"];
+				options.Clear();
+				for (const auto& option : storagePlugins) 
+				{
+					options.PushBack(Value().SetString(option.c_str(), newDocument.GetAllocator()), newDocument.GetAllocator());
+				}
+			}
+		}
+	} else {
+		logger->debug("unable to find installed storage plugins");
+	}
+
+	if (readingsPlugins.size() > 0) 
+	{
+		// Modify the "options" array for readingsPlugin with installed plugins
+		if (newDocument.HasMember("readingPlugin") && newDocument["readingPlugin"].IsObject()) 
+		{
+			Value& plugin = newDocument["readingPlugin"];
+			if (plugin.HasMember("options") && plugin["options"].IsArray()) 
+			{
+				Value& options = plugin["options"];
+				options.Clear();
+				// Add default option "Use main plugin"
+				options.PushBack(Value().SetString("Use main plugin", newDocument.GetAllocator()), newDocument.GetAllocator());
+				for (const auto& option : readingsPlugins) 
+				{
+					options.PushBack(Value().SetString(option.c_str(), newDocument.GetAllocator()), newDocument.GetAllocator());
+				}
+			}
+		}
+	} else {
+		logger->debug("unable to find installed readings plugins");
+	}
+
+	// Update default configuration if options are modified
+	if (storagePlugins.size() > 0 || readingsPlugins.size() > 0) 
+	{
+		StringBuffer buffer;
+		Writer<StringBuffer> writer(buffer);
+		newDocument.Accept(writer);
+		defaultConfiguration = buffer.GetString();
+	}
 }

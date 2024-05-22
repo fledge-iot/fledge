@@ -32,7 +32,6 @@ class DataLoad : public ServiceHandler {
 		void			triggerRead(unsigned int blockSize);
 		void			updateLastSentId(unsigned long id);
 		ReadingSet		*fetchReadings(bool wait);
-		void			updateStatistics(uint32_t increment);
 		static void		passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
@@ -49,6 +48,8 @@ class DataLoad : public ServiceHandler {
 						m_blockSize = blockSize;
 					};
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
+		const std::string	&getName() { return m_name; };
+		StorageClient		*getStorage() { return m_storage; }; 
 
 	private:
 		void			readBlock(unsigned int blockSize);
@@ -59,7 +60,7 @@ class DataLoad : public ServiceHandler {
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
 		bool			loadFilters(const std::string& category);
-		void			updateStatistic(const std::string& key, const std::string& description, uint32_t increment);
+
 	private:
 		const std::string&	m_name;
 		long			m_streamId;

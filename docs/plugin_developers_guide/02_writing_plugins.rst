@@ -392,6 +392,58 @@ The configuration items within a configuration category can each be defined as o
    * - object
      - A complex configuration type with multiple elements that may be used within *list* and *kvlist* items only, it is not possible to have *object* type items outside of a list. Object type configuration items have a set of *properties* defined, each of which is itself a configuration item. 
 
+List
+####
+
+A simple list would be defined using the JSON shown below
+
+.. code-block:: JSON
+
+ "tags" : {
+                "description" : "A set of tag names on which to operate",
+                "type" : "list",
+                "items" : "string",
+                "default" : "[ \"speed\", \"temperature\", \"voltage\" ]",
+                "order" : "4",
+                "displayName" : "Labels"
+           }
+
+The returned value for such a configuration item is merely an array of strings.
+
+.. code-block:: JSON
+
+    [ "speed", "temperature", "voltage", "current", "status" ]
+
+In the above example the user is able to supply any number of unconstrained strings, however if we wanted a user to choose from a set of fixed options they may use an enumeration as the type of the list rather than a string.
+
+.. code-block:: JSON
+
+    "tags" : {
+                "description" : "A set of tag names on which to operate",
+                "type" : "list",
+                "items" : "enumeration",
+                "options" : [ "speed", "current", "temperature", "voltage", "status", "runtime" ],
+                "default" : "{ \"speed\", \"temperature\", \"voltage\" }",
+                "order" : "4",
+                "displayName" : "Labels"
+             }
+
+This differs from an enumeration in that the user is allowed to select more than one option from the set of options.
+
+Lists may also be used to allow the entry of a list of numeric values, either integer or float, by setting the appropriate type for the items in a list.
+
+.. code-block:: JSON
+
+ "tags" : {
+                "description" : "A set of factor values to use when calculating the best fit",
+                "type" : "list",
+                "items" : "integer",
+                "default" : "[ \"1\", \"2\", \"3\" ]",
+                "order" : "4",
+                "displayName" : "Factors"
+           }
+
+
 Key/Value List
 ##############
 
@@ -410,12 +462,83 @@ A key/value list is a way of storing tagged item pairs within a list. For exampl
 
 The key values must be unique within a kvlist, as the data is stored as a JSON object with the key becoming the property name and the value of the property the corresponding value for the key.
 
+A returned list with 4 entries would have a value as shown below.
+
+.. code-block:: JSON
+
+   {
+        "idle" : "speed == 0",
+        "operational" : "speed == 5000",
+        "transitional" : "speed > 0 && speed < 5000",
+        "overspeed" : "speed > 5000"
+   }
+
 Lists of Objects
 ################
 
 Object type items may be used in lists and are a mechanism to allow for list of groups of configuration items. The object list type items must specify a property called *properties*. The value of this is a JSON object that contains a list of configuration items that are grouped into the object.
 
-An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the definitions of a key/value pair list where the value is an object.
+An example use of an object list might allow for a map structure to be built for accessing a device like a PLC. The following shows the definition of a list that contains the map for a PLC.
+
+.. code-block:: JSON
+
+  "map": {
+        "description": "A list of datapoints to read and PLC register definitions",
+        "type": "list",
+        "items" : "object",
+        "default": "[ { \"datapoint\" : \"speed\", \"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"} ]",
+        "order" : "3",
+        "displayName" : "PLC Map",
+        "properties" : {
+                "datapoint" : {
+                        "description" : "The name of the datapoint to create for the map entry",
+                        "displayName" : "Datapoint",
+                        "type" : "string",
+                        "default" : "datapoint"
+                        },
+                "register" : {
+                        "description" : "The register number to read",
+                        "displayName" : "Register",
+                        "type" : "integer",
+                        "default" : "0"
+                        },
+                "width" : {
+                        "description" : "Number of registers to read",
+                        "displayName" : "Width",
+                        "type" : "integer",
+                        "maximum" : "4",
+                        "default" : "1"
+                        },
+                "type" : {
+                        "description" : "The data type to read",
+                        "displayName" : "Data Type",
+                        "type" : "enumeration",
+                        "options" : [ "integer","float", "boolean" ],
+                        "default" : "integer"
+                        }
+                }
+        }
+
+The *value* and *default* properties for a list of objects is returned as a JSON structure. An example of the above list with two elements in the list would be returned as follows:
+
+.. code-block:: JSON
+
+  [
+    {
+        "datapoint" : "voltage",
+        "register" : "10",
+        "width" : "2",
+        "type" : "integer"
+    },
+    {
+        "datapoint" : "current",
+        "register" : "14",
+        "width" : "4",
+        "type" : "float"
+    }
+  ]
+
+An alternative might be to use a key/value pair list, *kvlist* type, where the key is the name of the item to be read, the datapoint in the previous example and the value is an object that describes how to read the data from the PLC.
 
 .. code-block:: JSON
 

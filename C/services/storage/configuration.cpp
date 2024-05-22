@@ -108,7 +108,13 @@ using namespace rapidjson;
 StorageConfiguration::StorageConfiguration()
 {
 	logger = Logger::getLogger();
-	document = new Document();	
+	document = new Document();
+	/**
+	 * Update options in deafult configuration for items 'plugin' and 
+	 * 'readingPlugin' with installed plugins
+	 */
+	updateStoragePluginConfig();
+
 	readCache();
 	checkCache();
 	if (hasValue("logLevel"))
@@ -203,19 +209,14 @@ void StorageConfiguration::updateCategory(const string& json)
  * into memory.
  */
 void StorageConfiguration::readCache()
-{
-string	cachefile;
+{	
+	string	cachefile;
 
 	getConfigCache(cachefile);
 	if (access(cachefile.c_str(), F_OK ) != 0)
 	{
 		logger->info("Storage cache %s unreadable, using default configuration: %s.",
 				cachefile.c_str(), defaultConfiguration.c_str());
-		/**
-		 * Update options in deafult configuration for items 'plugin' and 
-		 * 'readingPlugin' with installed plugins
-		 */
-		updateStoragePluginConfig();
 
 		document->Parse(defaultConfiguration.c_str());
 		if (document->HasParseError())
@@ -471,6 +472,8 @@ bool writeCacheRequired = false;
  * with installed plugins.
  * 
  * If no plugin is found default config is not updated.
+ * 
+ * For plugins installed after cache is created options is updated via checkCache on restart
  */
 void StorageConfiguration::updateStoragePluginConfig()
 {

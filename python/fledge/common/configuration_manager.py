@@ -461,6 +461,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         raise ValueError(type_mismatched_message)
                                     if not isinstance(eval_s, type_check):
                                         raise ValueError(type_mismatched_message)
+                        elif entry_name == 'items' and entry_val == "enumeration":
+                            eval_default_val = ast.literal_eval(get_entry_val("default"))
+                            ev_options = item_val['options']
+                            if item_val['type'] == 'kvlist':
+                                for ek, ev in eval_default_val.items():
+                                    if ev not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options '
+                                                         'for item name {} and entry_name {}'.format(
+                                            category_name, ev, item_name, ek))
+                            else:
+                                for s in eval_default_val:
+                                    if s not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options for item '
+                                                         'name {}'.format(category_name, s, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
                     if entry_name in ('properties', 'options'):
@@ -746,7 +760,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
-
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
@@ -762,7 +775,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise TypeError('new value should be a valid dict Or a string literal, in double quotes')
                 elif not isinstance(new_val, str):
                     raise TypeError('new value should be of type string')
-
                 if cat_info[item_name]['type'] == 'enumeration':
                     if new_val == '':
                         raise ValueError('entry_val cannot be empty')
@@ -780,6 +792,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                     "Dict cannot be set as empty. A value must be given for {}".format(item_name))
                         elif not len(new_val.strip()):
                             raise ValueError("A value must be given for {}".format(item_name))
+                if cat_info[item_name]['type'] in ('list', 'kvlist') and cat_info[item_name]['items'] == 'enumeration':
+                    try:
+                        eval_new_val = ast.literal_eval(new_val)
+                    except:
+                        raise TypeError("Malformed payload for given {} category".format(category_name))
+                    ev_options = cat_info[item_name]['options']
+                    if cat_info[item_name]['type'] == 'kvlist':
+                        if not isinstance(eval_new_val, dict):
+                            raise TypeError("New value should be in KV pair format")
+                        for ek, ev in eval_new_val.items():
+                            if ev == '':
+                                raise ValueError('For {}, enum value cannot be empty'.format(ek))
+                            if ev not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(ek))
+                    else:
+                        if not isinstance(eval_new_val, list):
+                            raise TypeError("New value should be passed in list")
+                        if not eval_new_val:
+                            raise ValueError('enum value cannot be empty')
+                        for s in eval_new_val:
+                            if s not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
                 # Validations on the basis of optional attributes

@@ -128,6 +128,8 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
+	Logger::getLogger()->error("SQLite3 library version %s", SQLITE_VERSION);
+
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	STORAGE_CONFIGURATION storageConfig;

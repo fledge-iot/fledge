@@ -218,9 +218,10 @@ async def asset(request):
             _logger.debug("DTS: {} most_recent_ts: {}".format(date_times, most_recent_ts))
             window = int(request.query['seconds'])
             to_ts = most_recent_ts - datetime.timedelta(seconds=window)
-            # Add "0001" to upper limit date string: this allows right query execution
+            # As the returned timestamp in the above qury is 'utc',
+            # we can add "+00:00" to upper limit date string: this allows right query execution
             # for Sqlite engines, Postgres is fine too with that.
-            most_recent_str = most_recent_ts.strftime(dt_format) + "0001"
+            most_recent_str = most_recent_ts.strftime(dt_format) + "+00:00"
             to_str = to_ts.strftime(dt_format)
             _logger.debug("user_ts <={} TO user_ts>{}".format(most_recent_str, to_str))
             _and_where = PayloadBuilder(_where).AND_WHERE(['user_ts', '<=', most_recent_str]).AND_WHERE(

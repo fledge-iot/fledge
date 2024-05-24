@@ -218,7 +218,7 @@ async def asset(request):
             _logger.debug("DTS: {} most_recent_ts: {}".format(date_times, most_recent_ts))
             window = int(request.query['seconds'])
             to_ts = most_recent_ts - datetime.timedelta(seconds=window)
-            # As the returned timestamp in the above qury is 'utc',
+            # As the returned timestamp in the above query is 'utc',
             # we can add "+00:00" to upper limit date string: this allows right query execution
             # for Sqlite engines, Postgres is fine too with that.
             most_recent_str = most_recent_ts.strftime(dt_format) + "+00:00"

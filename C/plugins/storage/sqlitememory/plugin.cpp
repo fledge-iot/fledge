@@ -101,6 +101,8 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 
 int poolSize = 5;
 
+	Logger::getLogger()->info("sqlitememory plugin, SQLite3 library version %s", SQLITE_VERSION);
+
 	if (category->itemExists("poolSize"))
 	{
 		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);

@@ -238,7 +238,7 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     delete readings3;
     std::vector<std::shared_ptr<ReadingSet>> buff3 = buffer.extract();
     ASSERT_EQ(buff3.size(),1);
-    ASSERT_EQ(buff3[0]->getAllReadings()[0]->getAssetName(), "R3"); 
+    ASSERT_EQ(buff3[0]->getAllReadings()[0]->getAssetName(), "R3"); //Buffer is Full
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -250,6 +250,8 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     delete readings4;
     std::vector<std::shared_ptr<ReadingSet>> buff4 = buffer.extract();
     ASSERT_EQ(buff4.size(),1);
-    ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R3");
+    // m_head and m_tail pointer set correctly to fetch the reading which came after buffer is full
+    ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R4");
 
 }
+

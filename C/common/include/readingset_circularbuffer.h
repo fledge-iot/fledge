@@ -27,6 +27,8 @@ class ReadingSetCircularBuffer {
 
 		void	insert(ReadingSet*);
 		void	insert(ReadingSet&);
+		bool	isBufferEmpty();
+		bool	isBufferFull();
 		std::vector<std::shared_ptr<ReadingSet>> extract(bool isExtractSingleElement=true);
 		
 

@@ -75,7 +75,7 @@ using namespace SimpleWeb;
  * Current groups used are
  *	"Authentication"	Items relating to authentication with the endpoint
  *	"Connection"		Connection tuning items
- *	"Formats & Types"	Controls for the way formats and tyoes are defined
+ *	"Formats & Types"	Controls for the way formats and types are defined
  *	"Asset Framework"	Asset framework configuration items
  *	"Cloud"			Things related to OCS or ADH only
  *	"Advanced"		Adds to the Advanced tab that already exists
@@ -162,11 +162,18 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "9",
 			"displayName": "Static Data"
 		},
+		"AssetDatapointNameDelimiter": {
+			"description": "Delimiter character between Asset and Datapoint in PI data stream names",
+			"type": "string",
+			"default": ".",
+			"order": "10",
+			"displayName": "Data Stream Name Delimiter"
+		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",
 			"default": "1",
-			"order": "10",
+			"order": "11",
 			"group": "Connection",
 			"displayName": "Sleep Time Retry"
 		},
@@ -174,7 +181,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Max number of retries for the communication with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "3",
-			"order": "11",
+			"order": "12",
 			"group": "Connection",
 			"displayName": "Maximum Retry"
 		},
@@ -182,7 +189,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "10",
-			"order": "12",
+			"order": "13",
 			"group": "Connection",
 			"displayName": "HTTP Timeout"
 		},
@@ -191,7 +198,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"default": "int64",
 			"options": ["int64", "int32", "int16", "uint64", "uint32", "uint16"],
-			"order": "13",
+			"order": "14",
 			"group": "Formats & Types",
 			"displayName": "Integer Format"
 		},
@@ -200,7 +207,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"default": "float64",
 			"options": ["float64", "float32"],
-			"order": "14",
+			"order": "15",
 			"group": "Formats & Types",
 			"displayName": "Number Format"
 		},
@@ -208,7 +215,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Compress readings data before sending to PI server",
 			"type": "boolean",
 			"default": "true",
-			"order": "15",
+			"order": "16",
 			"group": "Connection",
 			"displayName": "Compression"
 		},
@@ -216,7 +223,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Defines the default location in the Asset Framework hierarchy in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
-			"order": "16",
+			"order": "17",
 			"displayName": "Default Asset Framework Location",
 			"group" : "Asset Framework",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
@@ -225,7 +232,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
-			"order": "17",
+			"order": "18",
 			"group" : "Asset Framework",
 			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
@@ -236,14 +243,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "18" ,
+			"order": "19" ,
 			"readonly": "true"
 		},
 		"streamId": {
 			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
 			"type": "integer",
 			"default": "0",
-			"order": "19" ,
+			"order": "20" ,
 			"readonly": "true"
 		},
 		"PIWebAPIAuthenticationMethod": {
@@ -251,7 +258,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "20",
+			"order": "21",
 			"group": "Authentication",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
@@ -260,7 +267,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "21",
+			"order": "22",
 			"group": "Authentication",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
@@ -269,7 +276,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "22" ,
+			"order": "23" ,
 			"group": "Authentication",
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
@@ -278,7 +285,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "23" ,
+			"order": "24" ,
 			"group": "Authentication",
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
@@ -287,7 +294,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Specifies the namespace where the information are stored and it is used for the interaction with AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "name_space",
-			"order": "24",
+			"order": "25",
 			"group" : "Cloud",
 			"displayName" : "Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -296,7 +303,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Tenant id associated to the specific AVEVA Data Hub or OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
-			"order": "25",
+			"order": "26",
 			"group" : "Cloud",
 			"displayName" : "Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -305,7 +312,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client id associated to the specific account, it is used to authenticate when using the AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "ocs_client_id",
-			"order": "26",
+			"order": "27",
 			"group" : "Cloud",
 			"displayName" : "Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -314,7 +321,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client secret associated to the specific account, it is used to authenticate with AVEVA Data Hub or OCS",
 			"type" : "password",
 			"default": "ocs_client_secret",
-			"order": "27",
+			"order": "28",
 			"group" : "Cloud",
 			"displayName" : "Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -323,14 +330,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
-			"order": "28" ,
+			"order": "29" ,
 			"readonly": "true"
 		},
 		"Legacy": {
 			"description": "Force all data to be sent using complex OMF types",
 			"type": "boolean",
 			"default": "false",
-			"order": "29",
+			"order": "30",
 			"group": "Formats & Types",
 			"displayName": "Complex Types"
 		}

@@ -98,7 +98,7 @@ enum OMF_ENDPOINT_PORT {
 /**
  * A class that holds the configuration information for the OMF plugin.
  *
- * Note this is the first stage of refactoring the OMF pluigns and represents
+ * Note this is the first stage of refactoring the OMF plugins and represents
  * the CONNECTOR_INFO structure of original plugin as a class
  */
 class OMFInformation {
@@ -137,6 +137,7 @@ class OMFInformation {
 		unsigned int	m_maxRetry;	        // Max number of retries in the communication
 		unsigned int	m_timeout;	        // connect and operation timeout
 		string		m_path;		        // PI Server application path
+		string		m_delimiter;			// delimiter between Asset and Datapoint in PI data stream names
 		long		m_typeId;		        // OMF protocol type-id prefix
 		string		m_producerToken;	        // PI Server connector token
 		string		m_formatNumber;	        // OMF protocol Number format

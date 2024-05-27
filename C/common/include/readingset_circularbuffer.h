@@ -27,16 +27,15 @@ class ReadingSetCircularBuffer {
 
 		void	insert(ReadingSet*);
 		void	insert(ReadingSet&);
-		bool	isBufferEmpty();
-		bool	isBufferFull();
+		bool	isEmpty();
+		bool	isFull();
 		std::vector<std::shared_ptr<ReadingSet>> extract(bool isExtractSingleElement=true);
 		
 
 	private:
-		std::mutex		m_mutex;
+		std::mutex	m_mutex;
 		unsigned long	m_maxBufferSize;
-		unsigned long	m_head; //Marker to extract element from the buffer
-		unsigned long	m_tail; //Marker to add last element into the buffer
+		unsigned long	m_nextReadIndex;
 		void appendReadingSet(const std::vector<Reading *>& readings);
 		ReadingSetCircularBuffer (const ReadingSetCircularBuffer&) = delete;
 		ReadingSetCircularBuffer&	operator=(const ReadingSetCircularBuffer&) = delete;

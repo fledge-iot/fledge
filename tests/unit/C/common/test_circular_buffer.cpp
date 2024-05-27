@@ -25,7 +25,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
     delete readings1;
-    ASSERT_EQ(buffer.extract(false).size(),1);
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -35,7 +34,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
     delete readings2;
-    ASSERT_EQ(buffer.extract(false).size(),2);
 
     //Third ReadingSet
     long dpVal3 = 40;
@@ -45,7 +43,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs3 = new  ReadingSet(readings3);
     buffer.insert(rs3);
     delete readings3;
-    ASSERT_EQ(buffer.extract(false).size(),3);
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -55,7 +52,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs4 = new  ReadingSet(readings4);
     buffer.insert(rs4);
     delete readings4;
-    ASSERT_EQ(buffer.extract(false).size(),4);
 
     //Fifth ReadingSet
     long dpVal5 = 86;
@@ -65,7 +61,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs5 = new  ReadingSet(readings5);
     buffer.insert(rs5);
     delete readings5;
-    ASSERT_EQ(buffer.extract(false).size(),5);
 
     //Sixth ReadingSet
     long dpVal6 = 75;
@@ -75,7 +70,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs6 = new  ReadingSet(readings6);
     buffer.insert(rs6);
     delete readings6;
-    ASSERT_EQ(buffer.extract(false).size(),6);
 
     //Seventh ReadingSet
     long dpVal7 = 49;
@@ -85,7 +79,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs7 = new  ReadingSet(readings7);
     buffer.insert(rs7);
     delete readings7;
-    ASSERT_EQ(buffer.extract(false).size(),7);
 
     //Eighth ReadingSet
     long dpVal8 = 15;
@@ -95,7 +88,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs8 = new  ReadingSet(readings8);
     buffer.insert(rs8);
     delete readings8;
-    ASSERT_EQ(buffer.extract(false).size(),8);
 
     //Ninth ReadingSet
     long dpVal9 = 23;
@@ -105,7 +97,6 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs9 = new  ReadingSet(readings9);
     buffer.insert(rs9);
     delete readings9;
-    ASSERT_EQ(buffer.extract(false).size(),9);
 
     //Tenth ReadingSet
     long dpVal10 = 38;
@@ -126,8 +117,9 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     buffer.insert(rs11);
     delete readings11;
     
-    ASSERT_EQ(buffer.extract(false).size(),10); // Buffer size can't exceed the default MaxLimit
+    ASSERT_EQ(buffer.extract(false).size(),1); // Buffer size can't exceed the default MaxLimit
 }
+
 
 
 TEST(TESTCircularBuffer, TestCustomSizeBuffer)
@@ -141,7 +133,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
     delete readings1;
-    ASSERT_EQ(buffer.extract(false).size(),1);
+    ASSERT_EQ(buffer.extract().size(),1);
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -151,7 +143,6 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
     delete readings2;
-    ASSERT_EQ(buffer.extract(false).size(),2);
 
     //Third ReadingSet
     long dpVal3 = 40;
@@ -161,7 +152,6 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs3 = new  ReadingSet(readings3);
     buffer.insert(rs3);
     delete readings3;
-    ASSERT_EQ(buffer.extract(false).size(),3);
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -171,7 +161,6 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs4 = new  ReadingSet(readings4);
     buffer.insert(rs4);
     delete readings4;
-    ASSERT_EQ(buffer.extract(false).size(),4);
 
     //Fifth ReadingSet
     long dpVal5 = 86;
@@ -181,7 +170,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs5 = new  ReadingSet(readings5);
     buffer.insert(rs5);
     delete readings5;
-    ASSERT_EQ(buffer.extract(false).size(),5);
+    ASSERT_EQ(buffer.extract(false).size(),4); // Remaining item in buffer
 
     //Sixth ReadingSet
     long dpVal6 = 75;
@@ -191,8 +180,9 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs6 = new  ReadingSet(readings6);
     buffer.insert(rs6);
     delete readings6;
-    ASSERT_EQ(buffer.extract(false).size(),5); // Buffer size can't exceed the default MaxLimit
+    ASSERT_EQ(buffer.extract(false).size(),1); // Buffer size can't exceed the default MaxLimit
 }
+
 
 TEST(TESTCircularBuffer, TestExtactFromEmptyBuffer)
 {
@@ -200,6 +190,9 @@ TEST(TESTCircularBuffer, TestExtactFromEmptyBuffer)
     ASSERT_EQ(buffer.extract(false).size(),0); // Buffer size zero in case of extract from an empty buffer
 
 }
+
+
+
 
 TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
 {
@@ -251,7 +244,35 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     std::vector<std::shared_ptr<ReadingSet>> buff4 = buffer.extract();
     ASSERT_EQ(buff4.size(),1);
     // m_head and m_tail pointer set correctly to fetch the reading which came after buffer is full
-    ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R4");
+    ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R4"); 
 
+}
+
+TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
+{
+    ReadingSetCircularBuffer buffer(0);
+    //First ReadingSet
+    vector<Reading *> *readings1 = new vector<Reading *>;
+    long dpVal1 = 30;
+    DatapointValue dpv1(dpVal1);
+    readings1->emplace_back(new Reading("R1", new Datapoint("DP1", dpv1)));
+    ReadingSet* rs1 = new  ReadingSet(readings1);
+    buffer.insert(rs1);
+    delete readings1;
+    std::vector<std::shared_ptr<ReadingSet>> buff1 = buffer.extract();
+    ASSERT_EQ(buff1.size(),1);
+    ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");
+
+    //Second ReadingSet
+    long dpVal2 = 50;
+    DatapointValue dpv2(dpVal2);
+    vector<Reading *> *readings2 = new vector<Reading *>;
+    readings2->emplace_back(new Reading("R2", new Datapoint("DP2", dpv2)));
+    ReadingSet* rs2 = new  ReadingSet(readings2);
+    buffer.insert(rs2);
+    delete readings2;
+    std::vector<std::shared_ptr<ReadingSet>> buff2 = buffer.extract();
+    ASSERT_EQ(buff2.size(),1);
+    ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2");
 }
 

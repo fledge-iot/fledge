@@ -27,7 +27,7 @@
 
 /**
  * In order to cut down on the number of string copies made whilst building
- * the OMF message for a reading we reseeve a number of bytes in a string and
+ * the OMF message for a reading we reserve a number of bytes in a string and
  * each time we get close to filling the string we reserve more. The value below
  * defines the increment we use to grow the string reservation.
  */
@@ -111,7 +111,7 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
 
 	bool needDelim = delim;
-	auto assetLookup = m_linkedAssetState->find(originalAssetName + ".");
+	auto assetLookup = m_linkedAssetState->find(originalAssetName + m_delimiter);
 	if (assetLookup == m_linkedAssetState->end())
 	{
 		// Panic Asset lookup not created
@@ -182,8 +182,8 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			}
 
 			// Create the link for the asset if not already created
-			string link = assetName + "." + dpName;
-			string dpLookupName = originalAssetName + "." + dpName;
+			string link = assetName + m_delimiter + dpName;
+			string dpLookupName = originalAssetName + m_delimiter + dpName;
 			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
 			string baseType = getBaseType(dp, format);
@@ -272,7 +272,7 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 }
 
 /**
- * If the entries are needed in the lookup table for this bblock of readings then create them
+ * If the entries are needed in the lookup table for this block of readings then create them
  *
  * @param readings	A block of readings to process
  */
@@ -287,7 +287,7 @@ void OMFLinkedData::buildLookup(const vector<Reading *>& readings)
 		// Apply any TagName hints to modify the containerid
 		LALookup empty;
 
-		string assetKey = assetName + ".";
+		string assetKey = assetName + m_delimiter;
 		if (m_linkedAssetState->count(assetKey) == 0)
 			m_linkedAssetState->insert(pair<string, LALookup>(assetKey, empty));
 
@@ -312,7 +312,7 @@ void OMFLinkedData::buildLookup(const vector<Reading *>& readings)
 			{
 				continue;
 			}
-			string link = assetName + "." + dpName;
+			string link = assetName + m_delimiter + dpName;
 			if (m_linkedAssetState->count(link) == 0)
 				m_linkedAssetState->insert(pair<string, LALookup>(link, empty));
 		}

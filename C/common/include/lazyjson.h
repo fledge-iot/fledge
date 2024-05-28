@@ -32,6 +32,7 @@ class LazyJSON {
 		LazyJSON(const char *str);
 		LazyJSON(const std::string& str);
 		~LazyJSON();
+		const char		*getDocument() {return m_str; };
 		const char		*getAttribute(const std::string& name);
 		inline bool		isObject(const char *p) { return *p == '{'; };
 		inline bool		isArray(const char *p) { return *p == '['; };
@@ -43,6 +44,7 @@ class LazyJSON {
 		bool			isFalse(const char *p);
 		const char		*getArray(const char *p);
 		const char		*nextArrayElement(const char *p);
+		int			getArraySize(const char *p);
 		const char		*getObject(const char *p);
 		char			*getRawObject(const char *p);
 		char			*getString(const char *p);

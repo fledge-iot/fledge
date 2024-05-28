@@ -7,6 +7,7 @@
  *
  * Author: Mark Riddoch
  */
+#include <logger.h>
 #include <lazyjson.h>
 #include <ctype.h>
 #include <string.h>
@@ -101,8 +102,10 @@ const char *LazyJSON::getAttribute(const string& name)
 		{
 			// Found the key value
 			p += len;
+			p += 2;
 			while (*p && (isspace(*p) || *p == ':'))
 				p++;
+			return p;
 		}
 		p++;
 	}
@@ -198,8 +201,8 @@ const char *LazyJSON::getArray(const char *p)
 }
 
 /**
- * Get the next element in an array given a position somewhere in an
- * array element.
+ * Get the next element in an array given the position of the start
+ * of the previous element in the array
  *
  * @param p	Position within an array element
  * @return	Start of next element or NULL
@@ -221,6 +224,10 @@ const char *LazyJSON::nextArrayElement(const char *p)
 		else if (*p == '{' && escaped == false)
 		{
 			object++;
+		}
+		else if (*p == '}' && escaped == false)
+		{
+			object--;
 		}
 		else if (quoted == false && *p == '[')
 		{
@@ -254,6 +261,74 @@ const char *LazyJSON::nextArrayElement(const char *p)
 	}
 
 	return NULL;
+}
+
+/**
+ * Return the number of remaining elements in the array
+ * @param p	Point to start of an element in the array
+ * @return	Numebr of elements
+ */
+int LazyJSON::getArraySize(const char *p)
+{
+	int nested = 0, object = 0, size = 1;
+	bool quoted = false, escaped = false;
+
+	while (*p)
+	{
+		if (*p == '"' && escaped == false)
+		{
+			quoted = !quoted;
+		}
+		else if (*p == '\\' && escaped == false)
+		{
+			escaped = true;
+		}
+		else if (*p == '{' && escaped == false)
+		{
+			object++;
+		}
+		else if (*p == '}' && escaped == false)
+		{
+			object--;
+		}
+		else if (quoted == false && *p == '[')
+		{
+			nested++;
+		}
+		else if (quoted == false && nested > 0 && *p == ']')
+		{
+			nested--;
+		}
+		else if (quoted == false && nested == 0 && *p == ']')
+		{
+			return size;	// End of the array
+		}
+		else if (quoted == false && nested == 0 && object == 0 && *p == ',')
+		{
+			escaped = false;
+			p++;
+			while (*p && isspace(*p))
+				p++;
+			if (*p)
+			{
+				size++;
+				p--;	// Process non-space character
+			}
+			else
+			{
+				Logger::getLogger()->error("Unterminated array in JSON document, document has trailing ','");
+				return -1;
+			}
+		}
+		else
+		{
+			escaped = false;
+		}
+		p++;
+	}
+
+	Logger::getLogger()->error("Unterminated array in JSON document");
+	return -1;
 }
 
 /**
@@ -292,9 +367,25 @@ const char *LazyJSON::getObject(const char *p)
 char *LazyJSON::getRawObject(const char *p)
 {
 	const char *end = objectEnd(p);
-	int len = end - p;
+	int len = 1 + end - p;
 	char *rval = (char *)malloc(len + 1);
-	strncpy(rval, p, len);
+	// Copy data dealing with escaping
+	char *p2 = rval;
+	bool escaped = false;
+	while (*p && p <= end)
+	{
+		if (*p == '\\' && escaped == false)
+		{
+			escaped = true;
+		}
+		else
+		{
+			*p2++ = *p;
+			escaped = false;
+		}
+		p++;
+	}
+	*p2 = 0;
 	return rval;
 }
 
@@ -316,7 +407,7 @@ void LazyJSON::popState()
  * @param p	Pointer to the string to retrieve
  * @return	char* The string content
  */
-char *getString(const char *p)
+char *LazyJSON::getString(const char *p)
 {
 	if (*p == '"')
 		p++;
@@ -339,8 +430,23 @@ char *getString(const char *p)
 		// At end of string
 		int len = p1 - p;
 		char *rval = (char *)malloc(len);
-		strncpy(rval, p, len - 1);
-		rval[len] = 0;
+		// Copy data dealing with escaping
+		char *p2 = rval;
+		escaped = false;
+		while (*p && p < p1)
+		{
+			if (*p == '\\' && escaped == false)
+			{
+				escaped = true;
+			}
+			else
+			{
+				*p2++ = *p;
+				escaped = false;
+			}
+			p++;
+		}
+		*p2 = 0;
 		return rval;
 	}
 	return NULL;

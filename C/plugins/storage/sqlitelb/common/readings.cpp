@@ -14,6 +14,7 @@
 #include <sqlite_common.h>
 #include <reading_stream.h>
 #include <random>
+#include <lazyjson.h>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
@@ -750,6 +751,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	return rowNumber;
 }
 
+#if USE_RAPIDJSON
 /**
  * Append a set of readings to the readings table
  */
@@ -1170,6 +1172,453 @@ int sleep_time_ms = 0;
 
 	return row;
 }
+#else
+/**
+ * Append a set of readings to the readings table
+ */
+int Connection::appendReadings(const char *readings)
+{
+// Default template parameter uses UTF8 and MemoryPoolAllocator.
+int      row = 0;
+bool     add_row = false;
+
+// Variables related to the SQLite insert using prepared command
+char   *user_ts;
+char   *asset_code;
+string        reading;
+sqlite3_stmt *stmt, *batch_stmt;
+int           sqlite3_resut;
+string        now;
+
+// Retry mechanism
+int retries = 0;
+int sleep_time_ms = 0;
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+#if INSTRUMENT
+	Logger::getLogger()->warn("appendReadings start thread :%s:", threadId.str().c_str());
+
+	struct timeval	start, t1, t2, t3, t4, t5;
+#endif
+
+#if INSTRUMENT
+	gettimeofday(&start, NULL);
+#endif
+
+	int len = strlen(readings) + 1;
+	char *readingsCopy = NULL;
+
+	LazyJSON lj(readings);
+	const char *doc = lj.getDocument();
+	const char *readingsStart = lj.getAttribute("readings");
+	if (!readingsStart)
+	{
+ 		raiseError("appendReadings", "Payload is missing a readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
+		return -1;
+	}
+	if (!lj.isArray(readingsStart))
+	{
+		raiseError("appendReadings", "Payload is missing the readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
+		return -1;
+	}
+	const char *readingArray = lj.getArray(readingsStart);
+
+	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	string cmd = sql_cmd;
+	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	{
+		cmd.append(", (?,?,?)");
+	}
+
+	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
+	{
+	m_writeAccessOngoing.fetch_add(1);
+	//unique_lock<mutex> lck(db_mutex);
+	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+#if INSTRUMENT
+	gettimeofday(&t1, NULL);
+#endif
+
+	SizeType nReadings = lj.getArraySize(readingArray);
+	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
+       	for (int batch = 0; batch < nBatches; batch++)
+	{
+		int varNo = 1;
+		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+		{
+			if (!lj.isObject(readingArray))
+			{
+				char err[132];
+				snprintf(err, sizeof(err),
+						"Each reading in the readings array must be an object. Reading %d of batch %d", readingNo, batch);
+				raiseError("appendReadings",err);
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+				if (readingsCopy)
+				{
+					free(readingsCopy);
+				}
+				return -1;
+			}
+			lj.getObject(readingArray);
+
+			add_row = true;
+
+			// Handles - user_ts
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			const char *att = lj.getAttribute("user_ts");
+			if (lj.isString(att))
+			{
+				user_ts = lj.getString(att);
+			}
+			else
+			{
+				// Error
+			}
+			if (strcmp(user_ts, "now()") == 0)
+			{
+				getNow(now);
+				free(user_ts);
+				user_ts = strdup(now.c_str());
+			}
+			else
+			{
+				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+				{
+					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					add_row = false;
+				}
+				else
+				{
+					user_ts = strdup(formatted_date);
+				}
+			}
+
+			if (add_row)
+			{
+				// Handles - asset_code
+				const char *att = lj.getAttribute("asset_code");
+				if (lj.isString(att))
+				{
+					asset_code = lj.getString(att);
+				}
+				else
+				{
+					// Error
+				}
+
+				if (asset_code == NULL || strlen(asset_code) == 0)
+				{
+					Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
+					continue;
+				}
+				// Handles - reading
+				att = lj.getAttribute("reading");
+				char *rawReading = lj.getRawObject(att);
+				if (!rawReading)
+				{
+					Logger::getLogger()->error("Failed to extract reading object: %s", att);
+					continue;
+				}
+				reading = escape(rawReading);
+
+				if (stmt != NULL)
+				{
+
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_TRANSIENT);
+				}
+				free(user_ts);
+				free(asset_code);
+				free(rawReading);
+			}
+
+			lj.popState();
+			readingArray = lj.nextArrayElement(readingArray);
+			if (!readingArray)
+				break;
+		}
+
+
+		retries =0;
+		sleep_time_ms = 0;
+
+		// Retry mechanism in case SQLlite DB is locked
+		do {
+			// Insert the row using a lock to ensure one insert at time
+			{
+
+				sqlite3_resut = sqlite3_step(batch_stmt);
+
+			}
+			if (sqlite3_resut == SQLITE_LOCKED  )
+			{
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+			if (sqlite3_resut == SQLITE_BUSY)
+			{
+				ostringstream threadId;
+				threadId << std::this_thread::get_id();
+
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+		} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+		if (sqlite3_resut == SQLITE_DONE)
+		{
+			row += APPEND_BATCH_SIZE;
+
+			sqlite3_clear_bindings(batch_stmt);
+			sqlite3_reset(batch_stmt);
+		}
+		else
+		{
+			raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+				asset_code,
+				sqlite3_errmsg(dbHandle),
+				reading.c_str());
+
+			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
+			return -1;
+		}
+
+
+	}
+
+	Logger::getLogger()->debug("Now do the remaining readings");
+	// Do individual inserts for the remainder of the readings
+	while ((readingArray = lj.nextArrayElement(readingArray)) != NULL)
+	{
+		if (!lj.isObject(readingArray))
+		{
+			raiseError("appendReadings","Each reading in the readings array must be an object");
+			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
+			return -1;
+		}
+		lj.getObject(readingArray);
+
+		add_row = true;
+
+		// Handles - user_ts
+		char formatted_date[LEN_BUFFER_DATE] = {0};
+		const char *att = lj.getAttribute("user_ts");
+		if (lj.isString(att))
+		{
+			user_ts = lj.getString(att);
+		}
+		else
+		{
+			// Error
+		}
+		if (strcmp(user_ts, "now()") == 0)
+		{
+			getNow(now);
+			free(user_ts);
+			user_ts = strdup(now.c_str());
+		}
+		else
+		{
+			if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+			{
+				raiseError("appendReadings", "Invalid date |%s|", user_ts);
+				add_row = false;
+			}
+			else
+			{
+				user_ts = strdup(formatted_date);
+			}
+		}
+
+		if (add_row)
+		{
+			// Handles - asset_code
+			const char *att = lj.getAttribute("asset_code");
+			if (lj.isString(att))
+			{
+				asset_code = lj.getString(att);
+			}
+			else
+			{
+				// Error
+			}
+
+			if (strlen(asset_code) == 0)
+			{
+				Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
+				continue;
+			}
+
+			// Handles - reading
+			att = lj.getAttribute("reading");
+			char *rawReading = lj.getRawObject(att);
+			reading = escape(rawReading);
+
+			if(stmt != NULL) {
+
+				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_TRANSIENT);
+
+				free(user_ts);
+				free(asset_code);
+				free(rawReading);
+
+				retries =0;
+				sleep_time_ms = 0;
+
+				// Retry mechanism in case SQLlite DB is locked
+				do {
+					// Insert the row using a lock to ensure one insert at time
+					{
+
+						sqlite3_resut = sqlite3_step(stmt);
+
+					}
+					if (sqlite3_resut == SQLITE_LOCKED  )
+					{
+						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+						retries++;
+
+						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
+						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+					}
+					if (sqlite3_resut == SQLITE_BUSY)
+					{
+						ostringstream threadId;
+						threadId << std::this_thread::get_id();
+
+						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+						retries++;
+
+						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+
+						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+					}
+				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+				if (sqlite3_resut == SQLITE_DONE)
+				{
+					row++;
+
+					sqlite3_clear_bindings(stmt);
+					sqlite3_reset(stmt);
+				}
+				else
+				{
+					raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+						asset_code,
+						sqlite3_errmsg(dbHandle),
+						reading.c_str());
+
+					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					if (readingsCopy)
+					{
+						free(readingsCopy);
+					}
+					return -1;
+				}
+			}
+		}
+		lj.popState();
+	}
+
+	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
+	if (sqlite3_resut != SQLITE_OK)
+	{
+		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
+		row = -1;
+	}
+	m_writeAccessOngoing.fetch_sub(1);
+	//db_cv.notify_all();
+	}
+
+#if INSTRUMENT
+		gettimeofday(&t2, NULL);
+#endif
+
+	if(stmt != NULL)
+	{
+		if (sqlite3_finalize(stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
+
+	if (readingsCopy)
+	{
+		free(readingsCopy);
+	}
+#if INSTRUMENT
+		gettimeofday(&t3, NULL);
+#endif
+
+#if INSTRUMENT
+		struct timeval tm;
+		double timeT1, timeT2, timeT3;
+
+		timersub(&t1, &start, &tm);
+		timeT1 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t2, &t1, &tm);
+		timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		timersub(&t3, &t2, &tm);
+		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+
+		Logger::getLogger()->warn("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+								   threadId.str().c_str(),
+								   strlen(readings),
+								   row,
+								   timeT1,
+								   timeT2,
+								   timeT3
+		);
+
+#endif
+
+	return row;
+}
+
+#endif
 
 /**
  * Fetch a block of readings from the reading table

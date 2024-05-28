@@ -106,7 +106,7 @@ Performance counters are collected in the service and a report is written once p
 
 In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Or via the REST API. Future releases will include tools for the retrieval and analysis of these performance counters.
 
-To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitor/{service name} to retrieve counters for a single service.
+To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitors/{service name} to retrieve counters for a single service.
 
 When collection is enabled the following counters will be collected for the south service that is enabled.
 
@@ -209,7 +209,7 @@ Performance counters are collected in the service and a report is written once p
 
 In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
 
-To access the performance counters via the REST API use the entry point */fledge/monitors* to retrieve all counters, or */fledge/monitor/{service name}* to retrieve counters for a single service.
+To access the performance counters via the REST API use the entry point */fledge/monitors* to retrieve all counters, or */fledge/monitors/{service name}* to retrieve counters for a single service.
 
 .. code-block:: bash
 
@@ -610,11 +610,11 @@ Performance counters are collected in the storage service and a report is writte
 
   - The average value of the counter observed within the current minute.
 
-  - The number of samples of the counter collected within the current minute. Since one sample is made per call to the storage API, this value actually gives you the number of insert, update or delete calls made to the storage layer.
+  - The number of samples of the counter collected within the current minute. Since one sample is made per call to the storage API, this value actually gives you the number of insert, update, delete or reading append calls made to the storage layer.
 
 In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Or via the REST API. Future releases will include tools for the retrieval and analysis of these performance counters.
 
-To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitor/Storage to retrieve counters for just the storage service.
+To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitors/Storage to retrieve counters for just the storage service.
 
 When collection is enabled the following counters will be collected for the storage service that is enabled.
 
@@ -638,10 +638,10 @@ When collection is enabled the following counters will be collected for the stor
       - A set of counters, one per table, that indicate the number of inserts into the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to insert rows. The minimum, average and maximum values refer to the number of rows inserted in a single insert call.
       - The action to take is very much related to which table is involved. For example if it is the statistics table then reducing the number of statistics maintained by the system will reduce the load on the system to store them.
     * - update rows <table>
-      - A set of counters, one per table, that indicate the number of updates of the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to update rows. The minimum, average and maximum values refer to the number of rows updated in a single insert call.
+      - A set of counters, one per table, that indicate the number of updates of the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to update rows. The minimum, average and maximum values refer to the number of rows updated in a single call.
       - The action to take is very much related to which table is involved. For example if it is the statistics table then reducing the number of statistics maintained by the system will reduce the load on the system to store them.
     * - delete rows <table>
-      - A set of counters, one per table, that indicate the number of delete calls related to the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to update rows. The minimum, average and maximum values refer to the number of rows deleted in a single call.
+      - A set of counters, one per table, that indicate the number of delete calls related to the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to delete rows. The minimum, average and maximum values refer to the number of rows deleted in a single call.
       - The delete API is not frequently used and there is little that is configurable that will impact its usage.
     * - insert Payload Size <table>
       - The size of the JSON payload in the insert calls to the storage layer for the given table.
@@ -685,6 +685,15 @@ Looking at long term trends in performance counters that report queue length is 
 Processing times increasing can also indicate that something north of that location in the pipeline, or the location itself, is unable to obtain sufficient resource to maintain the processing load requested of it.
 
 Increasing payload sizes or row counts in the case of storage performance counters is an indication that the components south of the the counter are presenting data faster than it can be processed and more and more data is being buffered in those service.
+
+Removing Monitors
+-----------------
+
+The performance monitors are stored in the configuration database of the Fledge instance in a single tables named *monitors*. These will remain in the database until manually removed. This removal may be done using the API or by directly accessing the database table. The API to remove monitors using the DELETE method in the API call. The URL's used are identical to those when fetching the performance counters. To remove all performance monitors use the URL /fledge/monitor with the DELETE method, to remove just those for a particular service then use a URL of the form /fledge/monitors/{service}.
+
+.. code-block:: console
+
+   curl -X DELETE http://localhost:8081/fledge/monitors
 
 Cautions
 --------

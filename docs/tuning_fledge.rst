@@ -689,7 +689,7 @@ Increasing payload sizes or row counts in the case of storage performance counte
 Removing Monitors
 -----------------
 
-The performance monitors are stored in the configuration database of the Fledge instance in a single tables named *monitors*. These will remain in the database until manually removed. This removal may be done using the API or by directly accessing the database table. The API to remove monitors using the DELETE method in the API call. The URL's used are identical to those when fetching the performance counters. To remove all performance monitors use the URL /fledge/monitor with the DELETE method, to remove just those for a particular service then use a URL of the form /fledge/monitors/{service}.
+The performance monitors are stored in the configuration database of the Fledge instance in a single tables named *monitors*. These will remain in the database until manually removed. This removal may be done using the API or by directly accessing the database table. The API to remove monitors using the DELETE method in the API call. The URL's used are identical to those when fetching the performance counters. To remove all performance monitors use the URL /fledge/monitors with the DELETE method, to remove just those for a particular service then use a URL of the form /fledge/monitors/{service}.
 
 .. code-block:: console
 
@@ -708,4 +708,7 @@ Care should be taken when using performance counters, as with almost any system 
 
   - Database growth. There is no automatic process for purging performance counters. This must be done manually via the API or directly on the monitors table.
 
-Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
+.. note::
+
+  Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
+

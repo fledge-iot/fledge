@@ -79,17 +79,17 @@ Finally, select the new Fledge application. Click "More" at the bottom of the Co
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen. Continue with the configuration, choosing the connector relay as the end point to be connected.
 
-OSISoft Cloud Services
+OSIsoft Cloud Services
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The original cloud services from OSISoft, this has now been superseded by AVEVA Data Hub, and should only be used to support existing workloads. All new installations should use AVEVA Data Hub.
+The original cloud services from OSIsoft, this has now been superseded by AVEVA Data Hub, and should only be used to support existing workloads. All new installations should use AVEVA Data Hub.
 
 Configuration
 -------------
 
 The configuration of the plugin is split into a number of tabs in order to reduce the size of each set of values to enter. Each tab contains a set of related items.
 
-  - **Default Configuration**: This tab contains the base set of configuration items that are most commonly changed.
+  - **Basic**: This tab contains the base set of configuration items that are most commonly changed.
 
   - **Asset Framework**: The configuration that impacts the location with the asset framework in which the data will be placed.
 
@@ -107,10 +107,10 @@ The configuration of the plugin is split into a number of tabs in order to reduc
 
   - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developer.
 
-Default Configuration
-~~~~~~~~~~~~~~~~~~~~~
+Basic
+~~~~~
 
-The *Default Configuration* tab contains the most commonly modified items
+The *Basic* tab contains the most commonly modified items
 
 +---------------+
 | |OMF_Default| |
@@ -128,9 +128,9 @@ The *Default Configuration* tab contains the most commonly modified items
 
     - *Connector Relay* - The previous way to send data to a PI Server before PI Web API supported OMF. This should only be used for older PI Servers that do not have the support available within PI Web API.
 
-    - *OSISoft Cloud Services* - The original OSISoft cloud service, this is currently being replaced with the AVEVA Data Hub.
+    - *OSIsoft Cloud Services* - The original OSIsoft cloud service, this is currently being replaced with the AVEVA Data Hub.
 
-    - *Edge Data Store* - The OSISoft Edge Data Store 
+    - *Edge Data Store* - The OSIsoft Edge Data Store 
 
   - **Create AF Structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
      
@@ -148,6 +148,8 @@ The *Default Configuration* tab contains the most commonly modified items
 
   - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 
+  - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
+    The default delimiter is a dot (".").
 
 Asset Framework
 ~~~~~~~~~~~~~~~
@@ -193,25 +195,25 @@ The *Authentication* tab allows the configuration of authentication between the 
 Cloud
 ~~~~~
 
-The *Cloud* tab contains configuration items that are required if the chosen OMF end point is either AVEVA Data Hub or OSISoft Cloud Services.
+The *Cloud* tab contains configuration items that are required if the chosen OMF end point is either AVEVA Data Hub or OSIsoft Cloud Services.
 
 +-------------+
 | |OMF_Cloud| |
 +-------------+
 
-  - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSISoft Cloud Services service is located.
+  - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSIsoft Cloud Services service is located.
 
     +---------------+
     | |ADH_Regions| |
     +---------------+
 
-  - **Namespace**: Your namespace within the AVEVA Data Hub or OSISoft Cloud Service.
+  - **Namespace**: Your namespace within the AVEVA Data Hub or OSIsoft Cloud Service.
 
-  - **Tenant ID**: Your AVEVA Data Hub or OSISoft Cloud Services Tenant ID for your account.
+  - **Tenant ID**: Your AVEVA Data Hub or OSIsoft Cloud Services Tenant ID for your account.
 
-  - **Client ID**: Your AVEVA Data Hub or OSISoft Cloud Services Client ID for your account.
+  - **Client ID**: Your AVEVA Data Hub or OSIsoft Cloud Services Client ID for your account.
 
-  - **Client Secret**: Your AVEVA Data Hub or OSISoft Cloud Services Client Secret.
+  - **Client Secret**: Your AVEVA Data Hub or OSIsoft Cloud Services Client Secret.
 
 Connection
 ~~~~~~~~~~

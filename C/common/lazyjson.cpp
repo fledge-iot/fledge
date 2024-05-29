@@ -209,6 +209,11 @@ const char *LazyJSON::getArray(const char *p)
  */
 const char *LazyJSON::nextArrayElement(const char *p)
 {
+	if (!p)
+	{
+		Logger::getLogger()->error("nextArrayElement called with NULL");
+		return NULL;
+	}
 	int nested = 0, object = 0;
 	bool quoted = false, escaped = false;
 	while (*p)

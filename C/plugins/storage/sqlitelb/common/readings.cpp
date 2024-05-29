@@ -16,6 +16,7 @@
 #include <random>
 #include <lazyjson.h>
 
+#define USE_RAPIDJSON	0
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
@@ -1232,6 +1233,7 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 	const char *readingArray = lj.getArray(readingsStart);
+	bool atStart = true;
 
 	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 	string cmd = sql_cmd;
@@ -1347,6 +1349,7 @@ int sleep_time_ms = 0;
 			}
 
 			lj.popState();
+			atStart = false;
 			readingArray = lj.nextArrayElement(readingArray);
 			if (!readingArray)
 				break;
@@ -1413,9 +1416,15 @@ int sleep_time_ms = 0;
 	}
 
 	Logger::getLogger()->debug("Now do the remaining readings");
-	// Do individual inserts for the remainder of the readings
-	while ((readingArray = lj.nextArrayElement(readingArray)) != NULL)
+	// Do individual inserts for the remainder of the readings if there are any
+	// We may have had too few readings to do full blocks and in that case we are
+	// at the start of the array and should not get the nextElement on the first
+	// iteration.
+	// Thre is also an option that there is no residual, in which case readingArray
+	// will be NULL.
+	while (readingArray && (atStart || ((readingArray = lj.nextArrayElement(readingArray)) != NULL)))
 	{
+		atStart = false;
 		if (!lj.isObject(readingArray))
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");

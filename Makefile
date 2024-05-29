@@ -25,7 +25,7 @@ ifneq ("$(PLATFORM_RH)","")
 else
 	PIP_INSTALL_REQUIREMENTS := python3 -m pip install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
-	CMAKE := cmake
+	CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
 endif
 
 MKDIR_PATH := mkdir -p

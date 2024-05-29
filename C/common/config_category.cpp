@@ -590,6 +590,8 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_listSize;
 				case ITEM_TYPE_ATTR:
 					return m_items[i]->m_listItemType;
+				case LIST_NAME_ATTR:
+				    return m_items[i]->m_listName;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -663,6 +665,9 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case ITEM_TYPE_ATTR:
 					m_items[i]->m_listItemType = value;
+					return true;
+				case LIST_NAME_ATTR:
+					m_items[i]->m_listName = value;
 					return true;
 				default:
 					return false;
@@ -1321,6 +1326,17 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			throw new runtime_error("ListSize configuration item property is not a string");
 		}
 	}
+	if (item.HasMember("listName"))
+	{
+		if (item["listName"].IsString())
+		{
+			m_listName = item["listName"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("ListName configuration item property is not a string");
+		}
+	}
 
 	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
@@ -1607,6 +1623,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_bucketProperties = rhs.m_bucketProperties;
 	m_listSize = rhs.m_listSize;
 	m_listItemType = rhs.m_listItemType;
+	m_listName = rhs.m_listName;
 }
 
 /**
@@ -1727,6 +1744,10 @@ ostringstream convert;
 		{
 			convert << ", \"items\" : \"" << m_listItemType << "\"";
 		}
+		if (!m_listName.empty())
+		{
+			convert << ", \"listName\" : \"" << m_listName << "\"";
+		}
 	}
 	convert << " }";
 
@@ -1822,6 +1843,11 @@ ostringstream convert;
 	{
 		convert << ", \"items\" : \"" << m_listItemType << "\"";
 	}
+	if (!m_listName.empty())
+	{
+	    convert << ", \"listName\" : \"" << m_listName << "\"";
+	}
+
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||

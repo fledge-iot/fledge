@@ -42,7 +42,7 @@ class TestConfigurationManager:
 
     def test_supported_optional_items(self):
         expected_types = ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
-                          'readonly', 'rule', 'validity', 'listSize']
+                          'readonly', 'rule', 'validity', 'listSize', 'listName']
         assert len(expected_types) == len(_optional_items)
         assert sorted(expected_types) == _optional_items
 
@@ -669,6 +669,17 @@ class TestConfigurationManager:
                       "items": "enumeration", "options": ["999"], "listSize": "1"}}, ValueError,
          "For {} category, 0 value does not exist in options for item name {}".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"0\"]",
+                      "items": "integer", "listSize": "1", "listName": 2}}, TypeError,
+         "For {} category, listName type must be a string for item name {}; got <class 'int'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"0\"]",
+                      "items": "string", "listSize": "1", "listName": ""}}, ValueError,
+         "For {} category, listName cannot be empty for item name {}".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
+         ValueError,"For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
@@ -810,6 +821,20 @@ class TestConfigurationManager:
                       "items": "enumeration", "options": ["integer", "2"], "listSize": "1"}}, ValueError,
          "For {} category, 1 value does not exist in options for item name {} and entry_name key1".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"1\"}",
+                      "items": "enumeration", "options": ["integer", "2"], "listSize": "1", "listName": 1}},
+         TypeError, "For {} category, listName type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"1\"}",
+                      "items": "enumeration", "options": ["integer", "2"], "listSize": "1", "listName": ""}},
+         ValueError, "For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"width\": \"12\"}", "items":
+            "object", "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
+         ValueError, "For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listName": 2}},
+         TypeError, "For {} category, listName type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

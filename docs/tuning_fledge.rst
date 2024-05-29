@@ -47,7 +47,7 @@ The south services within Fledge each have a set of advanced configuration optio
 
   - *Reading Rate* - The rate at which polling occurs for this south service. This parameter only has effect if your south plugin is polled, asynchronous south services do not use this parameter. The units are defined by the setting of the *Reading Rate Per* item.
 
-  - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variablility in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
+  - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variability in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
 
   - *Reading Rate Per* - This defines the units to be used in the *Reading Rate* value. It allows the selection of per *second*, *minute* or *hour*.
 
@@ -106,7 +106,7 @@ Performance counters are collected in the service and a report is written once p
 
 In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Or via the REST API. Future releases will include tools for the retrieval and analysis of these performance counters.
 
-To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitor/{service name} to retrieve counters for a single service.
+To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitors/{service name} to retrieve counters for a single service.
 
 When collection is enabled the following counters will be collected for the south service that is enabled.
 
@@ -190,7 +190,7 @@ In a similar way to the south services, north services and tasks also have advan
 
   - *Stream update frequency* - This controls how frequently the north service updates the current position it has reached in the stream of data it is sending north. The value is expressed as a number of data blocks between updates. Increasing this value will write the position to the storage less frequently, increasing the performance. However in the event of a failure data in the stream may be repeated for this number of blocks.
 
-  - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variablility in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
+  - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variability in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
 
   - *Performance Counters* - This option allows for collection of performance counters that can be use to help tune the north service.
 
@@ -211,7 +211,7 @@ Performance counters are collected in the service and a report is written once p
 
 In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
 
-To access the performance counters via the REST API use the entry point */fledge/monitors* to retrieve all counters, or */fledge/monitor/{service name}* to retrieve counters for a single service.
+To access the performance counters via the REST API use the entry point */fledge/monitors* to retrieve all counters, or */fledge/monitors/{service name}* to retrieve counters for a single service.
 
 .. code-block:: bash
 
@@ -589,4 +589,128 @@ The storage plugin configuration can be found in the *Advanced* section of the *
  - **Persist File**: This defines the name of the file to which the in-memory database will be persisted.
 
  - **Purge Block Size**: The maximum number of rows that will be deleted within a single transactions when performing a purge operation on the readings data. Large block sizes are potential the most efficient in terms of the time to complete the purge operation, however this will increase database contention as a database lock is required that will cause any ingest operations to be stalled until the purge completes. By setting a lower block size the purge will take longer, nut ingest operations can be interleaved with the purging of blocks.
+
+Performance Counters
+--------------------
+
+A number of performance counters can be collected in the storage service to help characterise the performance of the service. This is intended to provide input into the tuning of the service and the collection of these counters should not be left on during production use of the service.
+
+The performance counters are turned on and off using a toggle control in the storage service configuration 
+that can be found by selecting the *Advanced* item in the *Configuration* page categories shown. Then select the *Storage* category within *Advanced* from the category tree display. The following will be displayed.
+
++------------------+
+| |storage_config| |
++------------------+
+
+The **Performance Counters** tick box indicates the current state of collection of storage layer statistics. Unlike a number of the other items within this configuration category it does not require a reboot of the system for the new setting to take effect.
+
+Performance counters are collected in the storage service and a report is written once per minute to the configuration database for later retrieval. The values written are
+
+  - The minimum value of the counter observed within the current minute.
+
+  - The maximum value of the counter observed within the current minute.
+
+  - The average value of the counter observed within the current minute.
+
+  - The number of samples of the counter collected within the current minute. Since one sample is made per call to the storage API, this value actually gives you the number of insert, update, delete or reading append calls made to the storage layer.
+
+In the current release the performance counters can only be retrieved by direct access to the configuration and statistics database, they are stored in the *monitors* table. Or via the REST API. Future releases will include tools for the retrieval and analysis of these performance counters.
+
+To access the performance counters via the REST API use the entry point /fledge/monitors to retrieve all counters, or /fledge/monitors/Storage to retrieve counters for just the storage service.
+
+When collection is enabled the following counters will be collected for the storage service that is enabled.
+
+.. list-table::
+    :widths: 15 30 55
+    :header-rows: 1
+
+    * - Counter
+      - Description
+      - Causes & Remedial Actions
+    * - Reading Append Time (ms)
+      - The amount of time it took to append the readings to the storage system
+      - High values of this could result from high levels of contention within the system or if the underlying storage system does not have enough bandwidth to handle the rate of data ingestion. A number of things can be tried to reduce high values observed here. Reducing the number of calls by increasing the maximum block size and latency setting in the south service. Switching to a faster plugin or improving the storage subsystem if the machine hosting Fledge.
+    * - Reading Append Rows <plugin>
+      - The number of readings inserted in each call to the storage layer.
+      - Low values of this can be an indication that the south services are configured with either a latency value that is too low or a maximum number of readings to buffer that is too low. If performance is not sufficient then increasing the number of readings sent to the storage service per call can improve the performance.
+    * - Reading Append PayloadSize <plugin>
+      - The size of the JSON payload containing the readings
+      - High payload sizes with small rows counts indicates very rich reading contents, reducing the payload size by filtering or processing the data will improve performance and reduce the storage requirements for the Fledge instance.
+    * - insert rows <table>
+      - A set of counters, one per table, that indicate the number of inserts into the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to insert rows. The minimum, average and maximum values refer to the number of rows inserted in a single insert call.
+      - The action to take is very much related to which table is involved. For example if it is the statistics table then reducing the number of statistics maintained by the system will reduce the load on the system to store them.
+    * - update rows <table>
+      - A set of counters, one per table, that indicate the number of updates of the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to update rows. The minimum, average and maximum values refer to the number of rows updated in a single call.
+      - The action to take is very much related to which table is involved. For example if it is the statistics table then reducing the number of statistics maintained by the system will reduce the load on the system to store them.
+    * - delete rows <table>
+      - A set of counters, one per table, that indicate the number of delete calls related to the table within the one minute collection time. The number of samples equates to the number of calls to the storage API to delete rows. The minimum, average and maximum values refer to the number of rows deleted in a single call.
+      - The delete API is not frequently used and there is little that is configurable that will impact its usage.
+    * - insert Payload Size <table>
+      - The size of the JSON payload in the insert calls to the storage layer for the given table.
+      - There is little an end user can influence regarding the payload size, however it gives an indication of bandwidth usage for the storage API.
+    * - update Payload Size <table>
+      - The size of the JSON payload in the update calls to the storage layer for the given table.
+      - There is little an end user can influence regarding the payload size, however it gives an indication of bandwidth usage for the storage API.
+    * - delete Payload Size <table>
+      - The size of the JSON payload in the delete calls to the storage layer for the given table.
+      - There is little an end user can influence regarding the payload size, however it gives an indication of bandwidth usage for the storage API.
+
+Using Performance Counters
+==========================
+
+Performance counters are a way to look at specific indicators within a service to ascertain greater insights into the performance of the individual services and the system as a whole. The documentation above describes the usage of these counters for a number of the different services, however to aid in interpreting those counters it is useful to understand in more depth how the data is collected and what it means.
+
+Performance counters are implemented internally within the services to collect data over a fixed period of time and present a summary of the values collected. Each counter, or monitor is collected for one minutes and then four items of data are stored regarding the counter.
+
+ - The number of samples collected during that minute.
+
+ - The minimum value observed within the minute.
+
+ - The maximum value observed within the minute.
+
+ - The average value observed within the minute.
+
+These values are recorded against the counter name and a timestamp that represent the end of the minute during which the values were collected.
+
+Sampling
+--------
+
+Sampling is perhaps a slightly misleading term regarding a number of the counters. In the majority of cases a sample is taken when an event occurs, for example in the case of the storage service each sample represents one of the storage APIs receiving a call. Therefore, in the case of the storage service the number of samples gives you the number of API calls made within the minute. The counter name tells you which API call it was, and in the case of storage also the table on which that call was made. The values, for these API calls tell you something about the parameters passed to the API call.
+
+In the south and north services the events related to data ingest, forwarding and reading. Most commonly a sample is taken when a block of data, which consists of one or more readings is processed by the system. Again the sample quantity is a indication of the number of operations per minute the service is making and the values represent the volume of data processed in most cases.
+
+Identifying bottlenecks
+-----------------------
+
+Looking at long term trends in performance counters that report queue length is a useful way to determine where a bottleneck might exist within a system. Ideally queue lengths should be proportional to the volume of data being read and should be stable over time if the data volumes are stable. If there are not stable and are growing it is an indication that something north of that queue is unable to handle the sustained data volumes being presented. If queue lengths are decreasing it indicates that something south of the queue is not managing to maintain the load offered to it.
+
+Processing times increasing can also indicate that something north of that location in the pipeline, or the location itself, is unable to obtain sufficient resource to maintain the processing load requested of it.
+
+Increasing payload sizes or row counts in the case of storage performance counters is an indication that the components south of the the counter are presenting data faster than it can be processed and more and more data is being buffered in those service.
+
+Removing Monitors
+-----------------
+
+The performance monitors are stored in the configuration database of the Fledge instance in a single tables named *monitors*. These will remain in the database until manually removed. This removal may be done using the API or by directly accessing the database table. The API to remove monitors using the DELETE method in the API call. The URL's used are identical to those when fetching the performance counters. To remove all performance monitors use the URL /fledge/monitors with the DELETE method, to remove just those for a particular service then use a URL of the form /fledge/monitors/{service}.
+
+.. code-block:: console
+
+   curl -X DELETE http://localhost:8081/fledge/monitors
+
+Cautions
+--------
+
+Care should be taken when using performance counters, as with almost any system the act of observing the system impacts the behavior of the system. This is certainly true of the performance counters.
+
+  - Collection time. Although internally the performance counters are stored in a memory structure, this is indexed by the counter name and does take a finite amount of time to collect. This will detract from the overall system performance to a small degree.
+
+  - Memory usage. Performance counters are keep in memory, with values recorded for each sample. This can take significant memory when working in a system we large number of events that trigger performance counter sampling taking place. This not just impacts the size of the system, but also the performance as it requires dynamic memory allocation to take place.
+
+  - Storing counters. The Performance counters are stored in the configuration database of the storage layer. The storing of these counters not only puts more load on the storage system, making API calls to insert rows into the monitors table, but also increases contention on the configuration database.
+
+  - Database growth. There is no automatic process for purging performance counters. This must be done manually via the API or directly on the monitors table.
+
+.. note::
+
+  Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
 

@@ -162,7 +162,7 @@ void Ingest::updateStats()
 {
 	unique_lock<mutex> lck(m_statsMutex);
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
-		m_statsCv.wait(lck);
+		m_statsCv.wait_for(lck, std::chrono::seconds(FLUSH_STATS_INTERVAL));
 
 	if (statsPendingEntries.empty())
 	{
@@ -953,7 +953,6 @@ void Ingest::processQueue()
 			delete m_data;
 			m_data = NULL;
 		}
-		signalStatsUpdate();
 	} while (! m_fullQueues.empty());
 }
 

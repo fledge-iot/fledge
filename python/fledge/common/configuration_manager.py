@@ -46,7 +46,7 @@ RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api
 class ConfigurationCache(object):
     """Configuration Cache Manager"""
 
-    MAX_CACHE_SIZE = 10
+    MAX_CACHE_SIZE = 200
 
     def __init__(self):
         """

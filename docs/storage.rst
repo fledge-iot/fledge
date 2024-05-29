@@ -69,7 +69,9 @@ user interface to set the storage engine and its options.
 
   - The *Readings Plugin* may be set to any of the above and may also be set to use the SQLite In Memory plugin by entering the value *sqlitememory* into the configuration field.
 
-  - The *Database threads* field allows for the number of threads used for database housekeeping to be controlled. In normal circumstances 1 is sufficient. If performance issues are seen this can be increased however it is rarely required to be greater than 1 and can have counter productive effects on heavily loaded systems.
+  - The *Storage API threads* field allows for the number of threads used by the Storage service API for handling incoming requests.
+
+  - The *Worker thread pool* is used for executing operations against the readings data with Fledge. The number of threads in this thread pool is control via this setting. Increasing the thread pool size will increase the number of operations the can be executed in parallel, however care should be exercised as increasing this will increase any contention issues within the storage layer and will become counter productive once the storage plugin is overloaded.
 
   - The *Manage Storage* option is only used when the database storage uses an external database server, such as PostgreSQL. Toggling this option on causes Fledge to start as stop the database server when Fledge is started and stopped. If it s left off then Fledge will assume the database server is running when it starts.
 

@@ -33,7 +33,7 @@ ReadingSetCircularBuffer::ReadingSetCircularBuffer(unsigned long maxBufferSize)
  */
 ReadingSetCircularBuffer::~ReadingSetCircularBuffer()
 {
-	std::lock_guard<std::recursive_mutex> guard(m_mutex);
+	lock_guard<mutex> guard(m_mutex);
 	/* Delete the readings */
 	m_circularBuffer.clear();
 }
@@ -65,8 +65,8 @@ void ReadingSetCircularBuffer::insert(ReadingSet* readings)
  */
 void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& readings)
 {
-	std::lock_guard<std::recursive_mutex> guard(m_mutex);
-	bool isBufferFull = isFull();
+	lock_guard<mutex> guard(m_mutex);
+	bool isBufferFull = (m_circularBuffer.size() == m_maxBufferSize);
 
 	//Check if there is space available to insert a new ReadingSet
 	if (isBufferFull)
@@ -98,8 +98,8 @@ void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& re
 std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool isExtractSingleElement)
 {
 	
-    std::lock_guard<std::recursive_mutex> guard(m_mutex);
-    bool isUnreadDataInBuffer = isEmpty() || (m_nextReadIndex == m_circularBuffer.size());
+    lock_guard<mutex> guard(m_mutex);
+    bool isUnreadDataInBuffer = m_circularBuffer.empty() || (m_nextReadIndex == m_circularBuffer.size());
     std::vector<std::shared_ptr<ReadingSet>> bufferedItem;
     // Check for empty buffer
     if (isUnreadDataInBuffer)
@@ -128,28 +128,4 @@ std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool 
 
     m_nextReadIndex =  m_circularBuffer.size();
 	return bufferedItem;
-}
-
-/**
- * Check if circular buffer is empty
- *
- * @return	Return true if circular buffer is empty otherwise false
- *
- */
-bool ReadingSetCircularBuffer::isEmpty()
-{
-	std::lock_guard<std::recursive_mutex> guard(m_mutex);
-	return m_circularBuffer.empty();
-}
-
-/**
- * Check if circular buffer is full
- *
- * @return	Return true if circular buffer is full otherwise false
- *
- */
-bool ReadingSetCircularBuffer::isFull()
-{
-	std::lock_guard<std::recursive_mutex> guard(m_mutex);
-	return (m_circularBuffer.size() == m_maxBufferSize);
 }

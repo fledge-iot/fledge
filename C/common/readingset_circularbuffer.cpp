@@ -99,10 +99,10 @@ std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool 
 {
 	
     lock_guard<mutex> guard(m_mutex);
-    bool isUnreadDataInBuffer = m_circularBuffer.empty() || (m_nextReadIndex == m_circularBuffer.size());
+    bool isNoDataToRead = m_circularBuffer.empty() || (m_nextReadIndex == m_circularBuffer.size());
     std::vector<std::shared_ptr<ReadingSet>> bufferedItem;
     // Check for empty buffer
-    if (isUnreadDataInBuffer)
+    if (isNoDataToRead)
     {
 		Logger::getLogger()->info("ReadingSet circular buffer is empty");
         return  bufferedItem;

@@ -33,7 +33,7 @@ ReadingSetCircularBuffer::ReadingSetCircularBuffer(unsigned long maxBufferSize)
  */
 ReadingSetCircularBuffer::~ReadingSetCircularBuffer()
 {
-	lock_guard<mutex> guard(m_mutex);
+	std::lock_guard<std::recursive_mutex> guard(m_mutex);
 	/* Delete the readings */
 	m_circularBuffer.clear();
 }

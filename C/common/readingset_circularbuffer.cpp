@@ -104,8 +104,8 @@ std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool 
     // Check for empty buffer
     if (isNoDataToRead)
     {
-		Logger::getLogger()->info("ReadingSet circular buffer is empty");
-        return  bufferedItem;
+	Logger::getLogger()->info("There is no more data to read in ReadingSet circualr buffer");
+	return  bufferedItem;
     }
 
     // Return single item from buffer

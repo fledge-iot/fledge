@@ -65,8 +65,9 @@ void ReadingSetCircularBuffer::insert(ReadingSet* readings)
  */
 void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& readings)
 {
+	std::lock_guard<std::recursive_mutex> guard(m_mutex);
 	bool isBufferFull = isFull();
-	lock_guard<mutex> guard(m_mutex);
+
 	//Check if there is space available to insert a new ReadingSet
 	if (isBufferFull)
 	{
@@ -97,16 +98,16 @@ void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& re
 std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool isExtractSingleElement)
 {
 	
-    bool isBufferEmpty = isEmpty();
+    std::lock_guard<std::recursive_mutex> guard(m_mutex);
+    bool isUnreadDataInBuffer = isEmpty() || (m_nextReadIndex == m_circularBuffer.size());
     std::vector<std::shared_ptr<ReadingSet>> bufferedItem;
     // Check for empty buffer
-    if (isBufferEmpty)
+    if (isUnreadDataInBuffer)
     {
 		Logger::getLogger()->info("ReadingSet circular buffer is empty");
         return  bufferedItem;
     }
 
-    lock_guard<mutex> guard(m_mutex);
     // Return single item from buffer
     if (isExtractSingleElement)
     {
@@ -137,8 +138,8 @@ std::vector<std::shared_ptr<ReadingSet>> ReadingSetCircularBuffer::extract(bool 
  */
 bool ReadingSetCircularBuffer::isEmpty()
 {
-	lock_guard<mutex> guard(m_mutex);
-	return m_circularBuffer.empty() || (m_nextReadIndex == m_circularBuffer.size());
+	std::lock_guard<std::recursive_mutex> guard(m_mutex);
+	return m_circularBuffer.empty();
 }
 
 /**
@@ -149,6 +150,6 @@ bool ReadingSetCircularBuffer::isEmpty()
  */
 bool ReadingSetCircularBuffer::isFull()
 {
-	lock_guard<mutex> guard(m_mutex);
+	std::lock_guard<std::recursive_mutex> guard(m_mutex);
 	return (m_circularBuffer.size() == m_maxBufferSize);
 }

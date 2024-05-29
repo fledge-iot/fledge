@@ -191,9 +191,6 @@ TEST(TESTCircularBuffer, TestExtactFromEmptyBuffer)
 
 }
 
-
-
-
 TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
 {
 	ReadingSetCircularBuffer buffer(3);
@@ -204,10 +201,12 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     readings1->emplace_back(new Reading("R1", new Datapoint("DP1", dpv1)));
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
-    delete readings1;
     std::vector<std::shared_ptr<ReadingSet>> buff1 = buffer.extract();
     ASSERT_EQ(buff1.size(),1);
-    ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");    
+    ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");
+    ASSERT_EQ(buff1[0]->getAllReadings()[0]->getDatapointsJSON(), readings1->at(0)->getDatapointsJSON());
+    delete readings1;
+
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -216,10 +215,12 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     readings2->emplace_back(new Reading("R2", new Datapoint("DP2", dpv2)));
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
-    delete readings2;
+    
     std::vector<std::shared_ptr<ReadingSet>> buff2 = buffer.extract();
     ASSERT_EQ(buff2.size(),1);
-    ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2"); 
+    ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2");
+    ASSERT_EQ(buff2[0]->getAllReadings()[0]->getDatapointsJSON(), readings2->at(0)->getDatapointsJSON());
+    delete readings2;
 
     //Third ReadingSet
     long dpVal3 = 40;
@@ -228,10 +229,12 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     readings3->emplace_back(new Reading("R3", new Datapoint("DP3", dpv3)));
     ReadingSet* rs3 = new  ReadingSet(readings3);
     buffer.insert(rs3);
-    delete readings3;
+    
     std::vector<std::shared_ptr<ReadingSet>> buff3 = buffer.extract();
     ASSERT_EQ(buff3.size(),1);
     ASSERT_EQ(buff3[0]->getAllReadings()[0]->getAssetName(), "R3"); //Buffer is Full
+    ASSERT_EQ(buff3[0]->getAllReadings()[0]->getDatapointsJSON(), readings3->at(0)->getDatapointsJSON());
+    delete readings3;
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -240,17 +243,20 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     readings4->emplace_back(new Reading("R4", new Datapoint("DP4", dpv4)));
     ReadingSet* rs4 = new  ReadingSet(readings4);
     buffer.insert(rs4);
-    delete readings4;
+    
     std::vector<std::shared_ptr<ReadingSet>> buff4 = buffer.extract();
     ASSERT_EQ(buff4.size(),1);
     // m_head and m_tail pointer set correctly to fetch the reading which came after buffer is full
     ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R4"); 
+    ASSERT_EQ(buff4[0]->getAllReadings()[0]->getDatapointsJSON(), readings4->at(0)->getDatapointsJSON());
+    delete readings4;
 
 }
 
 TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
 {
     ReadingSetCircularBuffer buffer(0);
+
     //First ReadingSet
     vector<Reading *> *readings1 = new vector<Reading *>;
     long dpVal1 = 30;
@@ -258,10 +264,12 @@ TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
     readings1->emplace_back(new Reading("R1", new Datapoint("DP1", dpv1)));
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
-    delete readings1;
+
     std::vector<std::shared_ptr<ReadingSet>> buff1 = buffer.extract();
     ASSERT_EQ(buff1.size(),1);
     ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");
+    ASSERT_EQ(buff1[0]->getAllReadings()[0]->getDatapointsJSON(), readings1->at(0)->getDatapointsJSON());
+    delete readings1;
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -270,9 +278,12 @@ TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
     readings2->emplace_back(new Reading("R2", new Datapoint("DP2", dpv2)));
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
-    delete readings2;
+
     std::vector<std::shared_ptr<ReadingSet>> buff2 = buffer.extract();
     ASSERT_EQ(buff2.size(),1);
     ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2");
+    ASSERT_EQ(buff2[0]->getAllReadings()[0]->getDatapointsJSON(), readings2->at(0)->getDatapointsJSON());
+    delete readings2;
+
 }
 

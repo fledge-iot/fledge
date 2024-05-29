@@ -33,7 +33,7 @@ class ReadingSetCircularBuffer {
 		
 
 	private:
-		std::mutex	m_mutex;
+		std::recursive_mutex	m_mutex;
 		unsigned long	m_maxBufferSize;
 		unsigned long	m_nextReadIndex;
 		void appendReadingSet(const std::vector<Reading *>& readings);

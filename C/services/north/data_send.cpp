@@ -349,7 +349,7 @@ void DataSender::flushStatistics()
 			}
 		}
 
-		Logger::getLogger()->error("Flushing '%s': %d",
+		Logger::getLogger()->debug("Flushing statistics '%s': %d",
 				it->first.c_str(),
 				it->second);
 	}

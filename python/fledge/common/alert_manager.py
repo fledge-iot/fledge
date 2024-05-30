@@ -101,9 +101,12 @@ class AlertManager(AlertManagerSingleton):
         try:
             payload = {}
             message = "Nothing to delete."
-            key_exists = -1
+            key_exists = {}
             if key is not None:
-                key_exists = [index for index, item in enumerate(self.alerts) if item['key'] == key]
+                for index, item in enumerate(self.alerts):
+                    if item['key'] == key:
+                        key_exists = item
+                        break
                 if key_exists:
                     payload = PayloadBuilder().WHERE(["key", "=", key]).payload()
                 else:
@@ -117,7 +120,7 @@ class AlertManager(AlertManagerSingleton):
                     else:
                         message = "{} alert is deleted.".format(key)
                         if key_exists:
-                            del self.alerts[key_exists[0]]
+                            self.alerts.remove(key_exists)
         except KeyError:
             raise KeyError
         except Exception as ex:

@@ -242,6 +242,28 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		}
 	} while (pos != string::npos);
 
+	// Set Asset/Datapoint data stream name delimiter
+	m_delimiter = config->getValue("AssetDatapointNameDelimiter");
+	if (m_delimiter.empty())
+	{
+		// Delimiter can't be empty. If the user has cleared it, set it to the default.
+		m_delimiter = ".";
+	}
+	else
+	{
+		StringTrim(m_delimiter);
+		if (m_delimiter.empty())
+		{
+			// If trimming emptied the string, the delimiter is a blank which is legal
+			m_delimiter = " ";
+		}
+		else
+		{
+			// Delimiter must be a single character
+			m_delimiter.resize(1);
+		}
+	}
+
 	{
 		// NamingScheme handling
 		if(NamingScheme.compare("Concise") == 0)
@@ -323,6 +345,18 @@ void OMFInformation::start(const string& storedData)
 		{
 			m_typeId = atol(JSONData[TYPE_ID_KEY].GetString());
 		}
+	}
+
+	// Check if the configured Asset/Datapoint delimiter is legal in OMF which uses PI and AF rules
+	bool changed = false;
+	OMF::ApplyPIServerNamingRulesInvalidChars(m_delimiter, &changed);
+	if (changed)
+	{
+		m_logger->error("Asset/Datapoint name delimiter '%s' is not legal in OMF", m_delimiter.c_str());
+	}
+	else
+	{
+		m_logger->info("Asset/Datapoint name delimiter set to '%s'", m_delimiter.c_str());
 	}
 
 	// Load sentdataTypes
@@ -479,6 +513,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 				m_producerToken);
 
 		m_omf->setSendFullStructure(m_sendFullStructure);
+		m_omf->setDelimiter(m_delimiter);
 
 		// Set PIServerEndpoint configuration
 		m_omf->setNamingScheme(m_NamingScheme);

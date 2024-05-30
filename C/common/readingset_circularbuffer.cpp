@@ -16,6 +16,8 @@ using namespace rapidjson;
 
 /**
  * Construct an empty reading set circular buffer
+ *
+ * @param maxBufferSize Maximum size of the ReadingSet circular buffer. It should be atleast one.
  */
 ReadingSetCircularBuffer::ReadingSetCircularBuffer(unsigned long maxBufferSize)
 {
@@ -90,7 +92,7 @@ void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& re
 }
 
 /**
- * Extract the ReadingSet from circular buffer
+ * Fetch the vector of ReadingSet from circular buffer
  *
  * @param isExtractSingleElement True to extract single ReadingSet otherwise for extract entire buffer 
  * @return		Return a vector of shared pointer to ReadingSet

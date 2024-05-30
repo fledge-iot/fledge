@@ -15,6 +15,7 @@
 #include <rapidjson/writer.h>
 #include <fstream>
 #include <iostream>
+#include <unordered_set>
 #include <unistd.h>
 #include <plugin_api.h>
 #include <plugin_manager.h>
@@ -342,7 +343,7 @@ bool forceUpdate = false;
 bool writeCacheRequired = false;
 
 	/*
-	 * If the cached version of the configuration that has been read in
+	 * If the cached version of the configuFration that has been read in
 	 * does not contain an item in the default configuration, then copy
 	 * that item from the default configuration.
 	 *
@@ -375,7 +376,116 @@ bool writeCacheRequired = false;
 				writeCacheRequired = true;
 			}
 		}
+
+		// if storage plugins are updated after cache is created, update exisitng cache
+		// with new/removed plugins
+		if (document->HasMember("plugin") && newdoc->HasMember("plugin"))
+		{
+			Value& currentItem = (*newdoc)["plugin"];
+			Value& cacheItem = (*document)["plugin"];
+			// check for difference between cached plugin options and 
+			// currently installed storage plugins
+			unordered_set<std::string>cacheOptions;
+			unordered_set<std::string>currentOptions;
+			
+			// build list of plugins
+			for (auto& options : currentItem["options"].GetArray())
+			{
+				currentOptions.insert(options.GetString());
+			}
+			if (cacheItem.HasMember("options") && cacheItem["options"].IsArray())
+			{
+				for (auto& options : cacheItem["options"].GetArray())
+				{
+					if (options.IsString()) 
+					{
+						cacheOptions.insert(options.GetString());
+					}
+				}
+			}
+			// check for difference between cached and current plugins
+			bool updateOptions = false;
+			if (cacheOptions.size() != currentOptions.size()) 
+			{
+				updateOptions = true;
+			} 
+			else 
+			{
+				for (const std::string& element : currentOptions) {
+					if (cacheOptions.find(element) == cacheOptions.end()) {
+						updateOptions = true;
+						break;
+					}
+				}
+
+			}
+			if (updateOptions) 
+			{
+				// Update cached plugins option
+				Document::AllocatorType& a = document->GetAllocator();
+				cacheItem["options"].SetArray();
+				for (auto& option : currentOptions)
+				{
+					cacheItem["options"].PushBack(Value().SetString(option.c_str(),a), a);
+				}
+				writeCacheRequired = true;
+			}
+		}
+
+		if (document->HasMember("readingPlugin") && newdoc->HasMember("readingPlugin"))
+		{
+			Value& currentItem = (*newdoc)["readingPlugin"];
+			Value& cacheItem = (*document)["readingPlugin"];
+			// check for difference between cached plugin options and 
+			// currently installed storage plugins
+			unordered_set<std::string>cacheOptions;
+			unordered_set<std::string>currentOptions;
+			
+			// build list of plugins
+			for (auto& options : currentItem["options"].GetArray())
+			{
+				currentOptions.insert(options.GetString());
+			}
+			if (cacheItem.HasMember("options") && cacheItem["options"].IsArray())
+			{
+				for (auto& options : cacheItem["options"].GetArray())
+				{
+					if (options.IsString()) 
+					{
+						cacheOptions.insert(options.GetString());
+					}
+				}
+			}
+			// check for difference between cached and current plugins
+			bool updateOptions = false;
+			if (cacheOptions.size() != currentOptions.size()) 
+			{
+				updateOptions = true;
+			} 
+			else 
+			{
+				for (const std::string& element : currentOptions) {
+					if (cacheOptions.find(element) == cacheOptions.end()) {
+						updateOptions = true;
+						break;
+					}
+				}
+
+			}
+			if (updateOptions) 
+			{
+				// Update cached plugins option
+				Document::AllocatorType& a = document->GetAllocator();
+				cacheItem["options"].SetArray();
+				for (auto& option : currentOptions)
+				{
+					cacheItem["options"].PushBack(Value().SetString(option.c_str(),a), a);
+				}
+				writeCacheRequired = true;
+			}
+		}
 	}
+
 	delete newdoc;
 
 	if (writeCacheRequired)

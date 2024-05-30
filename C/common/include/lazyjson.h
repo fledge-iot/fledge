@@ -13,6 +13,31 @@
 #include <string>
 #include <ctype.h>
 
+#define	INTERNAL_BUFFER_INIT_LENGTH	128	// The initial length of internal buffers
+
+/**
+ * A resusable string buffer used to limit use of malloc and free. The
+ * buffer works by maintianign a current size and reusing the same memory
+ * if the required buffer will fit in the current memory. If not it will
+ * free the current memory and allocated new memory. 
+ *
+ * This class is used both internally by the LazyJSON class and in its interface. In
+ * the later case the expected use pattern is for a user to create a buffer for
+ * particular attributes in a JSON document and reuse that buffer when fetching
+ * new attributes. This is particularly useful when iterating over arrays of
+ * data, suhc as readings, in a JSON payload.
+ */
+class LazyJSONBuffer {
+	public:
+		LazyJSONBuffer();
+		~LazyJSONBuffer();
+		inline char 	*str() { return m_str; };
+		int		size(size_t request);
+		int		size() { return m_size; };
+	private:
+		char		*m_str;
+		size_t		m_size;
+};
 
 /**
  * The LazyJSON class is an attempt to improve performane by having a highly customised
@@ -23,9 +48,14 @@
  * 	Allow extraction of raw JSON objects without the need to fully parse and serialise them
  *
  * As we don't parse the JSON document completely at the start we loose the ability to immediately
- * determine if the JSON document is valid or not. This is somehting we have sacrificed for the
+ * determine if the JSON document is valid or not. This is something we have sacrificed for the
  * above behaviours and means we should only really use LazyJSON if we are fairly confident in the
  * validity of the JSON we are parsing.
+ *
+ * In order to reduce the number of free and malloc calls made the class uses pre-allocated buffers
+ * that may grow as required. The user is returned one of these by the getRawObject call. This buffer
+ * must not be free'd by the user and must be used before the next call to getRawObject as the contents
+ * will be overwritten.
  */
 class LazyJSON {
 	public:
@@ -47,7 +77,9 @@ class LazyJSON {
 		int			getArraySize(const char *p);
 		const char		*getObject(const char *p);
 		char			*getRawObject(const char *p);
+		char			*getRawObject(const char *p, const char esc);
 		char			*getString(const char *p);
+		bool			getString(const char *p, LazyJSONBuffer& buffer);
 		void			popState();
 	private:
 		class LazyJSONState {
@@ -64,8 +96,8 @@ class LazyJSON {
 		std::stack<LazyJSONState *>
 				m_stateStack;
 		LazyJSONState	*m_state;
-		char		*m_searchFor;	// Preallocated buffer
-		int		m_searchForLength;
+		LazyJSONBuffer	m_searchFor;	// Preallocated buffer
+		LazyJSONBuffer	m_rawBuffer;
 };
 #endif
 

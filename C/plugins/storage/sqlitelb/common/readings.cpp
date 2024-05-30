@@ -1175,7 +1175,10 @@ int sleep_time_ms = 0;
 }
 #else
 /**
- * Append a set of readings to the readings table
+ * Append a set of readings to the readings table using the LazyJSON
+ * parsing class.
+ *
+ * @param readings	JSON payload
  */
 int Connection::appendReadings(const char *readings)
 {
@@ -1184,9 +1187,8 @@ int      row = 0;
 bool     add_row = false;
 
 // Variables related to the SQLite insert using prepared command
-char   *user_ts;
-char   *asset_code;
-string        reading;
+LazyJSONBuffer user_ts, asset_code;
+char		*rawReading;
 sqlite3_stmt *stmt, *batch_stmt;
 int           sqlite3_resut;
 string        now;
@@ -1209,7 +1211,6 @@ int sleep_time_ms = 0;
 #endif
 
 	int len = strlen(readings) + 1;
-	char *readingsCopy = NULL;
 
 	LazyJSON lj(readings);
 	const char *doc = lj.getDocument();
@@ -1217,19 +1218,11 @@ int sleep_time_ms = 0;
 	if (!readingsStart)
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
-		if (readingsCopy)
-		{
-			free(readingsCopy);
-		}
 		return -1;
 	}
 	if (!lj.isArray(readingsStart))
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
-		if (readingsCopy)
-		{
-			free(readingsCopy);
-		}
 		return -1;
 	}
 	const char *readingArray = lj.getArray(readingsStart);
@@ -1268,10 +1261,6 @@ int sleep_time_ms = 0;
 						"Each reading in the readings array must be an object. Reading %d of batch %d", readingNo, batch);
 				raiseError("appendReadings",err);
 				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-				if (readingsCopy)
-				{
-					free(readingsCopy);
-				}
 				return -1;
 			}
 			lj.getObject(readingArray);
@@ -1283,28 +1272,29 @@ int sleep_time_ms = 0;
 			const char *att = lj.getAttribute("user_ts");
 			if (lj.isString(att))
 			{
-				user_ts = lj.getString(att);
+				lj.getString(att, user_ts);
 			}
 			else
 			{
 				// Error
 			}
-			if (strcmp(user_ts, "now()") == 0)
+			if (strcmp(user_ts.str(), "now()") == 0)
 			{
 				getNow(now);
-				free(user_ts);
-				user_ts = strdup(now.c_str());
+				user_ts.size(now.length());
+				strcpy(user_ts.str(), now.c_str());
 			}
 			else
 			{
-				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts.str()) )
 				{
-					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					raiseError("appendReadings", "Invalid date |%s|", user_ts.str());
 					add_row = false;
 				}
 				else
 				{
-					user_ts = strdup(formatted_date);
+					user_ts.size(strlen(formatted_date) + 1);
+					strcpy(user_ts.str(), formatted_date);
 				}
 			}
 
@@ -1314,38 +1304,33 @@ int sleep_time_ms = 0;
 				const char *att = lj.getAttribute("asset_code");
 				if (lj.isString(att))
 				{
-					asset_code = lj.getString(att);
+					lj.getString(att, asset_code);
 				}
 				else
 				{
 					// Error
 				}
 
-				if (asset_code == NULL || strlen(asset_code) == 0)
+				if (*(asset_code.str()) == 0)
 				{
 					Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
 					continue;
 				}
 				// Handles - reading
 				att = lj.getAttribute("reading");
-				char *rawReading = lj.getRawObject(att);
+				rawReading = lj.getRawObject(att, '\'');
 				if (!rawReading)
 				{
 					Logger::getLogger()->error("Failed to extract reading object: %s", att);
 					continue;
 				}
-				reading = escape(rawReading);
-
 				if (stmt != NULL)
 				{
 
-					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_TRANSIENT);
-					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_TRANSIENT);
-					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts.str(), -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code.str(), -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, rawReading, -1, SQLITE_TRANSIENT);
 				}
-				free(user_ts);
-				free(asset_code);
-				free(rawReading);
 			}
 
 			lj.popState();
@@ -1402,13 +1387,9 @@ int sleep_time_ms = 0;
 			raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 				asset_code,
 				sqlite3_errmsg(dbHandle),
-				reading.c_str());
+				rawReading);
 
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-			if (readingsCopy)
-			{
-				free(readingsCopy);
-			}
 			return -1;
 		}
 
@@ -1429,10 +1410,6 @@ int sleep_time_ms = 0;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-			if (readingsCopy)
-			{
-				free(readingsCopy);
-			}
 			return -1;
 		}
 		lj.getObject(readingArray);
@@ -1444,28 +1421,29 @@ int sleep_time_ms = 0;
 		const char *att = lj.getAttribute("user_ts");
 		if (lj.isString(att))
 		{
-			user_ts = lj.getString(att);
+			lj.getString(att, user_ts);
 		}
 		else
 		{
 			// Error
 		}
-		if (strcmp(user_ts, "now()") == 0)
+		if (strcmp(user_ts.str(), "now()") == 0)
 		{
 			getNow(now);
-			free(user_ts);
-			user_ts = strdup(now.c_str());
+			user_ts.size(now.length());
+			strcpy(user_ts.str(), now.c_str());
 		}
 		else
 		{
-			if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+			if (! formatDate(formatted_date, sizeof(formatted_date), user_ts.str()) )
 			{
-				raiseError("appendReadings", "Invalid date |%s|", user_ts);
+				raiseError("appendReadings", "Invalid date |%s|", user_ts.str());
 				add_row = false;
 			}
 			else
 			{
-				user_ts = strdup(formatted_date);
+				user_ts.size(strlen(formatted_date) + 1);
+				strcpy(user_ts.str(), formatted_date);
 			}
 		}
 
@@ -1475,14 +1453,14 @@ int sleep_time_ms = 0;
 			const char *att = lj.getAttribute("asset_code");
 			if (lj.isString(att))
 			{
-				asset_code = lj.getString(att);
+				lj.getString(att, asset_code);
 			}
 			else
 			{
 				// Error
 			}
 
-			if (strlen(asset_code) == 0)
+			if (*(asset_code.str()) == 0)
 			{
 				Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
 				continue;
@@ -1490,18 +1468,13 @@ int sleep_time_ms = 0;
 
 			// Handles - reading
 			att = lj.getAttribute("reading");
-			char *rawReading = lj.getRawObject(att);
-			reading = escape(rawReading);
+			rawReading = lj.getRawObject(att, '\'');
 
 			if(stmt != NULL) {
 
-				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_TRANSIENT);
-				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_TRANSIENT);
-				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_TRANSIENT);
-
-				free(user_ts);
-				free(asset_code);
-				free(rawReading);
+				sqlite3_bind_text(stmt, 1, user_ts.str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 2, asset_code.str(), -1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 3, rawReading, -1, SQLITE_TRANSIENT);
 
 				retries =0;
 				sleep_time_ms = 0;
@@ -1549,13 +1522,9 @@ int sleep_time_ms = 0;
 					raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 						asset_code,
 						sqlite3_errmsg(dbHandle),
-						reading.c_str());
+						rawReading);
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-					if (readingsCopy)
-					{
-						free(readingsCopy);
-					}
 					return -1;
 				}
 			}
@@ -1592,10 +1561,6 @@ int sleep_time_ms = 0;
 		}
 	}
 
-	if (readingsCopy)
-	{
-		free(readingsCopy);
-	}
 #if INSTRUMENT
 		gettimeofday(&t3, NULL);
 #endif

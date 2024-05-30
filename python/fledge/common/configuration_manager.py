@@ -38,7 +38,7 @@ _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', '
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
                               'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group', 'listSize'])
+                          'validity', 'mandatory', 'group', 'listSize', 'listName'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -269,7 +269,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'listSize': 0}
+                                     'group': 0, 'listSize': 0, 'listName': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -341,6 +341,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if 'items' not in item_val:
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if 'listName' in item_val:
+                        list_name = item_val['listName']
+                        if not isinstance(list_name, str):
+                            raise TypeError('For {} category, listName type must be a string for item name {}; '
+                                            'got {}'.format(category_name, item_name, type(list_name)))
+                        list_name = item_val['listName'].strip()
+                        if not list_name:
+                            raise ValueError('For {} category, listName cannot be empty for item name '
+                                             '{}'.format(category_name, item_name))
+                        item_val['listName'] = list_name
                     if entry_name == 'items':
                         if entry_val not in ("string", "float", "integer", "object", "enumeration"):
                             raise ValueError("For {} category, items value should either be in string, float, "
@@ -503,7 +513,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name in ('displayName', 'group', 'rule', 'validity'):
+                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
@@ -548,7 +558,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
             if 'mandatory' in item_val:
                 item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
-
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
@@ -1945,7 +1954,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if len(eval_new_val) > list_size:
                             raise TypeError("For config item {} value {} list size limit to {}".format(
                                 item_name, msg, list_size))
-
                 type_mismatched_message = "For config item {} all elements should be of same {} type".format(
                     item_name, storage_value_entry['items'])
                 type_check = str

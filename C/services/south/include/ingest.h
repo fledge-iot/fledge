@@ -31,6 +31,8 @@
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
+#define FLUSH_STATS_INTERVAL 5		// Period between flushing of stats to storage (seconds)
+
 #define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
 
 #define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache

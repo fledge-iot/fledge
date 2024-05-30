@@ -58,6 +58,7 @@ DataLoad::~DataLoad()
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
+	flushLastSentId();
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
 	while (! m_queue.empty())
@@ -200,7 +201,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 			if (m_perfMonitor)
 			{
 				m_perfMonitor->collect("No of waits for data", n_waits);
-				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+				m_perfMonitor->collect("Block utilisation %", (long)((readings->getCount() * 100) / blockSize));
 			}
 			return;
 		}
@@ -357,12 +358,12 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	m_queue.push_back(readings);
 	if (m_perfMonitor)
 	{
-		m_perfMonitor->collect("Readings added to buffer", readings->getCount());
-		m_perfMonitor->collect("Reading sets buffered", m_queue.size());
-		long i = 0;
+		m_perfMonitor->collect("Readings added to buffer", (long)(readings->getCount()));
+		m_perfMonitor->collect("Reading sets buffered", (long)(m_queue.size()));
+		unsigned long i = 0;
 		for (auto& set : m_queue)
 			i += set->getCount();
-		m_perfMonitor->collect("Total readings buffered", i);
+		m_perfMonitor->collect("Total readings buffered", (long)i);
 	}
 	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
@@ -449,11 +450,24 @@ InsertValues streamValues;
  */
 void DataLoad::updateLastSentId(unsigned long id)
 {
+	m_streamSent = id;
+	if (m_nextStreamUpdate-- <= 0)
+	{
+		flushLastSentId();
+		m_nextStreamUpdate = m_streamUpdate;
+	}
+}
+
+/**
+ * Flush the last sent Id to the storeage layer
+ */
+void DataLoad::flushLastSentId()
+{
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
 
-	lastId.push_back(InsertValue("last_object", (long)id));
+	lastId.push_back(InsertValue("last_object", (long)m_streamSent));
 	m_storage->updateTable("streams", lastId, where);
 }
 

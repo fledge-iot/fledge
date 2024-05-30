@@ -31,6 +31,7 @@ class DataLoad : public ServiceHandler {
 		bool			setDataSource(const std::string& source);
 		void			triggerRead(unsigned int blockSize);
 		void			updateLastSentId(unsigned long id);
+		void			flushLastSentId();
 		ReadingSet		*fetchReadings(bool wait);
 		static void		passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
@@ -46,6 +47,11 @@ class DataLoad : public ServiceHandler {
 		void			setBlockSize(unsigned long blockSize)
 					{
 						m_blockSize = blockSize;
+					};
+		void			setStreamUpdate(unsigned long streamUpdate)
+					{
+						m_streamUpdate = streamUpdate;
+						m_nextStreamUpdate = streamUpdate;
 					};
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
 		const std::string	&getName() { return m_name; };
@@ -81,5 +87,8 @@ class DataLoad : public ServiceHandler {
 		std::mutex		m_pipelineMutex;
 		unsigned long		m_blockSize;
 		PerformanceMonitor	*m_perfMonitor;
+		int			m_streamUpdate;
+		unsigned long		m_streamSent;
+		int			m_nextStreamUpdate;
 };
 #endif

@@ -31,8 +31,6 @@ LazyJSON::LazyJSON(const char *str) : m_str(str)
 		m_state->objectEnd = objectEnd(m_str);
 	}
 	m_stateStack.push(m_state);
-	m_searchForLength = 128;
-	m_searchFor = (char *)malloc(m_searchForLength);
 }
 
 /**
@@ -52,8 +50,6 @@ LazyJSON::LazyJSON(const string& str) : m_str(str.c_str())
 		m_state->objectEnd = objectEnd(m_str);
 	}
 	m_stateStack.push(m_state);
-	m_searchForLength = 128;
-	m_searchFor = (char *)malloc(m_searchForLength);
 }
 
 /**
@@ -61,7 +57,6 @@ LazyJSON::LazyJSON(const string& str) : m_str(str.c_str())
  */
 LazyJSON::~LazyJSON()
 {
-	free(m_searchFor);
 	while (! m_stateStack.empty())
 	{
 		delete m_stateStack.top();
@@ -83,22 +78,16 @@ const char *LazyJSON::getAttribute(const string& name)
 		return NULL;
 	}
 	int len = name.length();
-	if (m_searchForLength < len + 3)
-	{
-		// Our preallocated buffer is too small, free it
-		// and create a new large one
-		free(m_searchFor);
-		m_searchForLength = len + 3;
-		m_searchFor = (char *)malloc(m_searchForLength);
-	}
-	*m_searchFor = '"';
-	strcpy(&m_searchFor[1], name.c_str());
-	m_searchFor[len + 1] = '"';
-	m_searchFor[len + 2] = 0;
+	m_searchFor.size(len + 3);
+	char  *searchFor = m_searchFor.str();
+	*searchFor = '"';
+	strcpy(&searchFor[1], name.c_str());
+	searchFor[len + 1] = '"';
+	searchFor[len + 2] = 0;
 	const char *p = m_state->object;
 	while (p < m_state->objectEnd)
 	{
-		if (strncmp(p, m_searchFor, len) == 0)
+		if (strncmp(p, searchFor, len) == 0)
 		{
 			// Found the key value
 			p += len;
@@ -273,7 +262,7 @@ const char *LazyJSON::nextArrayElement(const char *p)
  * @param p	Point to start of an element in the array
  * @return	Numebr of elements
  */
-int LazyJSON::getArraySize(const char *p)
+int LazyJSON::getArraySize(register const char *p)
 {
 	int nested = 0, object = 0, size = 1;
 	bool quoted = false, escaped = false;
@@ -360,11 +349,12 @@ const char *LazyJSON::getObject(const char *p)
 	return p;
 }
 
-
 /**
  * Given we are positioned at the start of an object, return
  * the raw unparsed JSON object.  The pointer returned points
- * to allocated memory that the caller must free.
+ * to an internally allocated memory buffer that the caller
+ * must not free. This buffer will be overwrriten by the net
+ * call to getRawObject.
  *
  * @param p	The start of our object
  * @return char*	The object contents in a malloc'd buffer
@@ -373,7 +363,45 @@ char *LazyJSON::getRawObject(const char *p)
 {
 	const char *end = objectEnd(p);
 	int len = 1 + end - p;
-	char *rval = (char *)malloc(len + 1);
+	m_rawBuffer.size(len);
+	char *rval = m_rawBuffer.str();
+	// Copy data dealing with escaping
+	register char *p2 = rval;
+	bool escaped = false;
+	while (*p && p <= end)
+	{
+		if (*p == '\\' && escaped == false)
+		{
+			escaped = true;
+		}
+		else
+		{
+			*p2++ = *p;
+			escaped = false;
+		}
+		p++;
+	}
+	*p2 = 0;
+	return rval;
+}
+
+/**
+ * Given we are positioned at the start of an object, return
+ * the raw unparsed JSON object.  The pointer returned points
+ * to an internally allocated memory buffer that the caller
+ * must not free. This buffer will be overwrriten by the net
+ * call to getRawObject.
+ *
+ * @param p	The start of our object
+ * @param esc	A character to escape
+ * @return char*	The object contents in a malloc'd buffer
+ */
+char *LazyJSON::getRawObject(const char *p, const char esc)
+{
+	const char *end = objectEnd(p);
+	int len = 3 + end - p;
+	m_rawBuffer.size(len);
+	char *rval = m_rawBuffer.str();
 	// Copy data dealing with escaping
 	char *p2 = rval;
 	bool escaped = false;
@@ -385,6 +413,10 @@ char *LazyJSON::getRawObject(const char *p)
 		}
 		else
 		{
+			if (*p == esc)
+			{
+				*p2++ = '\\';
+			}
 			*p2++ = *p;
 			escaped = false;
 		}
@@ -433,7 +465,7 @@ char *LazyJSON::getString(const char *p)
 	if (*p1 == '"')
 	{
 		// At end of string
-		int len = p1 - p;
+		int len = (p1 - p) + 1;
 		char *rval = (char *)malloc(len);
 		// Copy data dealing with escaping
 		char *p2 = rval;
@@ -455,6 +487,58 @@ char *LazyJSON::getString(const char *p)
 		return rval;
 	}
 	return NULL;
+}
+
+/**
+ * Get the contents of a string value
+ *
+ * @param p	Pointer to the string to retrieve
+ * @param buffer	A buffer to populate
+ * @return	bool	Return true if the string was extracted
+ */
+bool LazyJSON::getString(const char *p, LazyJSONBuffer& buffer)
+{
+	if (*p == '"')
+		p++;
+	const char *p1 = p;
+	bool escaped = false;
+	while (*p1 && (*p1 != '"' || escaped))
+	{
+		if (*p1 == '\\' && escaped == false)
+		{
+			escaped = true;
+		}
+		else
+		{
+			escaped = false;
+		}
+		p1++;
+	}
+	if (*p1 == '"')
+	{
+		// At end of string
+		int len = (p1 - p) + 1;
+		buffer.size(len);
+		// Copy data dealing with escaping
+		char *p2 = buffer.str();
+		escaped = false;
+		while (*p && p < p1)
+		{
+			if (*p == '\\' && escaped == false)
+			{
+				escaped = true;
+			}
+			else
+			{
+				*p2++ = *p;
+				escaped = false;
+			}
+			p++;
+		}
+		*p2 = 0;
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -509,4 +593,41 @@ const char *LazyJSON::objectEnd(const char *start)
 	}
 
 	return NULL;
+}
+
+/**
+ * Construct a LazyJSON Buffer to hold string data
+ */
+LazyJSONBuffer::LazyJSONBuffer() : m_size(INTERNAL_BUFFER_INIT_LENGTH)
+{
+	m_str = (char *)malloc(m_size);
+}
+
+/**
+ * Destroy the buffer
+ */
+LazyJSONBuffer::~LazyJSONBuffer()
+{
+	if (m_str)
+	{
+		free(m_str);
+	}
+}
+
+/**
+ * Possibly resize the buffer if the current size is
+ * less than the requested size
+ *
+ * @param size	Requested buffer size
+ * @return int	The current size of the buffer
+ */
+int  LazyJSONBuffer::size(size_t size)
+{
+	if (size > m_size)
+	{
+		m_size = size;
+		free(m_str);
+		m_str = (char *)malloc(size);
+	}
+	return m_size;
 }

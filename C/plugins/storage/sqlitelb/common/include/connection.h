@@ -160,6 +160,7 @@ class Connection {
 		char		*trim(char *str);
 		const std::string
 				escape(const std::string&);
+		char		*escape(char *str);
 		bool		applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,
 						std::string& newDate);

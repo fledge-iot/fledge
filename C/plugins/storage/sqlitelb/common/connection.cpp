@@ -3152,6 +3152,40 @@ string  newString;
 }
 
 /**
+ * String escape routine. This will repalce any single quotes
+ * with a \' combination
+ *
+ * @param str	The string to escape
+ * @return char*	The escaped string
+ */
+char *Connection::escape(char *str)
+{
+char    *buffer;
+const char    *p1;
+char  *p2;
+
+    buffer = (char *)malloc(strlen(str) * 2);
+
+    p1 = str;
+    p2 = buffer;
+    while (*p1)
+    {
+        if (*p1 == '\'')
+        {
+            *p2++ = '\'';
+            *p2++ = '\'';
+            p1++;
+        }
+        else
+        {
+            *p2++ = *p1++;
+        }
+    }
+    *p2 = 0;
+    return buffer;
+}
+
+/**
  * Optionally log SQL statement execution
  *
  * @param	tag	A string tag that says why the SQL is being executed

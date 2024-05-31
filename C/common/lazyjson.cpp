@@ -490,7 +490,8 @@ char *LazyJSON::getString(const char *p)
 }
 
 /**
- * Get the contents of a string value
+ * Get the contents of a string value and populate the
+ * supplied LazyJSONBuffer with the string.
  *
  * @param p	Pointer to the string to retrieve
  * @param buffer	A buffer to populate
@@ -596,7 +597,9 @@ const char *LazyJSON::objectEnd(const char *start)
 }
 
 /**
- * Construct a LazyJSON Buffer to hold string data
+ * Construct a LazyJSON Buffer to hold string data. We initialise
+ * the buffer size to a fixed amount, this will grow during the
+ * lifetime of the buffer.
  */
 LazyJSONBuffer::LazyJSONBuffer() : m_size(INTERNAL_BUFFER_INIT_LENGTH)
 {
@@ -604,7 +607,7 @@ LazyJSONBuffer::LazyJSONBuffer() : m_size(INTERNAL_BUFFER_INIT_LENGTH)
 }
 
 /**
- * Destroy the buffer
+ * Destroy the buffer and associated memory
  */
 LazyJSONBuffer::~LazyJSONBuffer()
 {

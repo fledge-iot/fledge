@@ -405,9 +405,9 @@ async def create_user(request):
 
     if access_method != 'cert':
         if password is not None:
-            if not re.match(PASSWORD_REGEX_PATTERN, str(password)):
-                raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
-
+            error_msg = await validate_password(password)
+            if error_msg:
+                raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     if not (await is_valid_role(role_id)):
         msg = "Invalid role ID."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -816,3 +816,40 @@ def has_admin_permissions(request):
         if int(request.user["role_id"]) != ADMIN_ROLE_ID:
             return False
     return True
+
+async def validate_password(password) -> str:
+    from fledge.common.configuration_manager import ConfigurationManager
+    from fledge.services.core import connect
+    import string
+    message = ""
+    storage_client = connect.get_storage_async()
+    cfg_mgr = ConfigurationManager(storage_client)
+    category = await cfg_mgr.get_category_all_items('password') #.get_category_item('password', 'policy')
+    policy = category['policy']['value']
+    min_chars = category['length']['value']
+    max_chars = category['length']['maximum']
+    if len(password) < int(min_chars):
+        message = "Password length is minimum of {} characters.".format(min_chars)
+    if len(password) > int(max_chars):
+        message = "Password length is maximum of {} characters.".format(max_chars)
+    if not message:
+        has_lower = any(pwd.islower() for pwd in password)
+        has_upper = any(pwd.isupper() for pwd in password)
+        has_numeric = any(pwd.isdigit() for pwd in password)
+        has_special = any(pwd in string.punctuation for pwd in password)
+        if policy == 'Mixed case Alphabetic':
+            mixed_case = has_lower and has_upper
+            if not mixed_case:
+                message = "Password does not contain both lowercase and uppercase letters."
+        elif policy == 'Mixed case and numeric':
+            mixed_numeric_case = has_lower and has_upper and has_numeric
+            if not mixed_numeric_case:
+                message = "Password does not contain lowercase, uppercase and numeric characters."
+        elif policy == 'Mixed case, numeric and special characters':
+            mixed_numeric_special_case = has_lower and has_upper and has_numeric and has_special
+            if not mixed_numeric_special_case:
+                message = "Password does not contain lowercase, uppercase, numeric and special characters."
+        else:
+            # Any characters
+            pass
+    return message

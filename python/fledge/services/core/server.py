@@ -509,7 +509,7 @@ class Server:
                     'order': '3'
                 }
             }
-            category = 'password_policy'
+            category = 'password'
             await cls._configuration_manager.create_category(category, config, 'To control the password policy', True,
                                                              display_name="Password Policy")
             await cls._configuration_manager.create_child_category("rest_api", [category])

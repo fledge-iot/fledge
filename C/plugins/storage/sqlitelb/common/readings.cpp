@@ -1225,6 +1225,12 @@ int sleep_time_ms = 0;
 		raiseError("appendReadings", "Payload is missing the readings array");
 		return -1;
 	}
+	const char *count = lj.getAttribute("count");
+	SizeType nReadings = 0;
+	if (count)
+	{
+		nReadings = lj.getInt(count);
+	}
 	const char *readingArray = lj.getArray(readingsStart);
 	bool atStart = true;
 
@@ -1246,7 +1252,10 @@ int sleep_time_ms = 0;
 	gettimeofday(&t1, NULL);
 #endif
 
-	SizeType nReadings = lj.getArraySize(readingArray);
+	if (!count)
+	{
+		nReadings = lj.getArraySize(readingArray);
+	}
 	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
 	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
        	for (int batch = 0; batch < nBatches; batch++)

@@ -80,6 +80,7 @@ class LazyJSON {
 		char			*getRawObject(const char *p, const char esc);
 		char			*getString(const char *p);
 		bool			getString(const char *p, LazyJSONBuffer& buffer);
+		long			getInt(const char *p);
 		void			popState();
 	private:
 		class LazyJSONState {

@@ -260,5 +260,15 @@ Connection        *connection = manager->allocate();
 	manager->release(connection);
 	return deleted;
 }
+
+/**
+ * Setup performance monitoring
+ */
+void plugin_performanceMonitor(PLUGIN_HANDLE handle, PerformanceMonitor *perfMon)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+
+	manager->performanceMonitor(perfMon);
+}
 };
 

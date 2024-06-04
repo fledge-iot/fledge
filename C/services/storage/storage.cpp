@@ -420,7 +420,12 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			string perf = config->getValue("perfmon");
 			if (perf.compare("true") == 0)
 			{
-				api->getPerformanceMonitor()->setCollecting(true);
+				PerformanceMonitor *monitor = api->getPerformanceMonitor();
+				monitor->setCollecting(true);
+				if (storagePlugin)
+					storagePlugin->performanceMonitor(monitor);
+				if (readingPlugin)
+					readingPlugin->performanceMonitor(monitor);
 			}
 			else
 			{

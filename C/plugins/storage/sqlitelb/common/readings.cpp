@@ -27,7 +27,7 @@
 /*
  * The number of readings to insert in a single prepared statement
  */
-#define APPEND_BATCH_SIZE	100
+#define MAX_APPEND_BATCH_SIZE	100
 
 /*
  * JSON parsing requires a lot of mempry allocation, which is slow and causes
@@ -108,10 +108,6 @@ unsigned long numStatements = 0;
 int	      maxQueue = 0;
 #endif
 
-static std::atomic<int> m_waiting(0);
-static std::atomic<int> m_writeAccessOngoing(0);
-static std::mutex	db_mutex;
-static std::condition_variable	db_cv;
 static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 #define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
@@ -426,7 +422,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 	const char *sql_cmd = "INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 	string cmd = sql_cmd;
-	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	for (int i = 0; i < MAX_APPEND_BATCH_SIZE - 1; i++)
 	{
 		cmd.append(", (?,?,?)");
 	}
@@ -465,12 +461,12 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	try
 	{
 		
-		unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+		unsigned int nBatches = nReadings / MAX_APPEND_BATCH_SIZE;
 		int curReading = 0;
 	       	for (int batch = 0; batch < nBatches; batch++)
 		{
 			int varNo = 1;
-			for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+			for (int readingNo = 0; readingNo < MAX_APPEND_BATCH_SIZE; readingNo++)
 			{
 				add_row = true;
 
@@ -526,16 +522,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 			// Retry mechanism in case SQLlite DB is locked
 			do {
-				// Insert the row using a lock to ensure one insert at time
-				{
-					m_writeAccessOngoing.fetch_add(1);
-					//unique_lock<mutex> lck(db_mutex);
-
-					sqlite3_resut = sqlite3_step(batch_stmt);
-
-					m_writeAccessOngoing.fetch_sub(1);
-					//db_cv.notify_all();
-				}
+				sqlite3_resut = sqlite3_step(batch_stmt);
 
 				if (sqlite3_resut == SQLITE_LOCKED  )
 				{
@@ -636,16 +623,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 			// Retry mechanism in case SQLlite DB is locked
 			do {
-				// Insert the row using a lock to ensure one insert at time
-				{
-					m_writeAccessOngoing.fetch_add(1);
-					//unique_lock<mutex> lck(db_mutex);
-
-					sqlite3_resut = sqlite3_step(stmt);
-
-					m_writeAccessOngoing.fetch_sub(1);
-					//db_cv.notify_all();
-				}
+				sqlite3_resut = sqlite3_step(stmt);
 
 				if (sqlite3_resut == SQLITE_LOCKED  )
 				{
@@ -835,7 +813,7 @@ int sleep_time_ms = 0;
 
 	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 	string cmd = sql_cmd;
-	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	for (int i = 0; i < MAX_APPEND_BATCH_SIZE - 1; i++)
 	{
 		cmd.append(", (?,?,?)");
 	}
@@ -843,8 +821,6 @@ int sleep_time_ms = 0;
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
 	{
-	m_writeAccessOngoing.fetch_add(1);
-	//unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
@@ -853,12 +829,12 @@ int sleep_time_ms = 0;
 
 	Value::ConstValueIterator itr = readingsValue.Begin();
 	SizeType nReadings = readingsValue.Size();
-	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
-	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
+	unsigned int nBatches = nReadings / MAX_APPEND_BATCH_SIZE;
+	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, MAX_APPEND_BATCH_SIZE);
        	for (int batch = 0; batch < nBatches; batch++)
 	{
 		int varNo = 1;
-		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+		for (int readingNo = 0; readingNo < MAX_APPEND_BATCH_SIZE; readingNo++)
 		{
 			if (!itr->IsObject())
 			{
@@ -965,7 +941,7 @@ int sleep_time_ms = 0;
 
 		if (sqlite3_resut == SQLITE_DONE)
 		{
-			row += APPEND_BATCH_SIZE;
+			row += MAX_APPEND_BATCH_SIZE;
 
 			sqlite3_clear_bindings(batch_stmt);
 			sqlite3_reset(batch_stmt);
@@ -1116,8 +1092,6 @@ int sleep_time_ms = 0;
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
 	}
-	m_writeAccessOngoing.fetch_sub(1);
-	//db_cv.notify_all();
 	}
 
 #if INSTRUMENT
@@ -1192,6 +1166,7 @@ char		*rawReading;
 sqlite3_stmt *stmt, *batch_stmt;
 int           sqlite3_resut;
 string        now;
+int		totalRetries = 0;
 
 // Retry mechanism
 int retries = 0;
@@ -1233,35 +1208,46 @@ int sleep_time_ms = 0;
 	}
 	const char *readingArray = lj.getArray(readingsStart);
 	bool atStart = true;
+	if (!count)
+	{
+		nReadings = lj.getArraySize(readingArray);
+	}
 
 	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 	string cmd = sql_cmd;
-	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	int batch_size = (nReadings < MAX_APPEND_BATCH_SIZE) ? nReadings : MAX_APPEND_BATCH_SIZE;
+	for (int i = 0; i < batch_size - 1; i++)
 	{
 		cmd.append(", (?,?,?)");
 	}
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
+	if (m_performanceMonitor && m_performanceMonitor->isCollecting())
 	{
-	m_writeAccessOngoing.fetch_add(1);
-	//unique_lock<mutex> lck(db_mutex);
+		int txn_state = sqlite3_txn_state(dbHandle,READINGS_DB_NAME_BASE);
+		switch (txn_state)
+		{
+			case 1:
+				m_performanceMonitor->collect("Reading Append Txn State Read", 1);
+				break;
+			case 2:
+				m_performanceMonitor->collect("Reading Append Txn State Write", 1);
+				break;
+		}
+	}
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
 	gettimeofday(&t1, NULL);
 #endif
 
-	if (!count)
-	{
-		nReadings = lj.getArraySize(readingArray);
-	}
-	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
-	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
+	unsigned int nBatches = nReadings / batch_size;
+	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, batch_size);
        	for (int batch = 0; batch < nBatches; batch++)
 	{
 		int varNo = 1;
-		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+		for (int readingNo = 0; readingNo < batch_size; readingNo++)
 		{
 			if (!lj.isObject(readingArray))
 			{
@@ -1383,10 +1369,11 @@ int sleep_time_ms = 0;
 				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 			}
 		} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+		totalRetries += retries;
 
 		if (sqlite3_resut == SQLITE_DONE)
 		{
-			row += APPEND_BATCH_SIZE;
+			row += batch_size;
 
 			sqlite3_clear_bindings(batch_stmt);
 			sqlite3_reset(batch_stmt);
@@ -1518,6 +1505,7 @@ int sleep_time_ms = 0;
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+				totalRetries += retries;
 
 				if (sqlite3_resut == SQLITE_DONE)
 				{
@@ -1546,9 +1534,6 @@ int sleep_time_ms = 0;
 	{
 		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
 		row = -1;
-	}
-	m_writeAccessOngoing.fetch_sub(1);
-	//db_cv.notify_all();
 	}
 
 #if INSTRUMENT
@@ -1598,6 +1583,10 @@ int sleep_time_ms = 0;
 
 #endif
 
+	if (m_performanceMonitor && m_performanceMonitor->isCollecting())
+	{
+		m_performanceMonitor->collect("Reading Append Retries", totalRetries);
+	}
 	return row;
 }
 
@@ -2321,16 +2310,6 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 			unsentPurged = unsent;
 		}
 	}
-#if 0
-	if (m_writeAccessOngoing)
-	{
-		while (m_writeAccessOngoing)
-		{
-			logger->warn("Yielding for another write access");
-			std::this_thread::yield();
-		}
-	}
-#endif
 
 	unsigned int deletedRows = 0;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
@@ -2364,9 +2343,6 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		sqlite3_bind_int(stmt, 1,(unsigned long) rowidMin);
 		rowsAvailableToPurge = true;
 		{
-			//unique_lock<mutex> lck(db_mutex);
-//		if (m_writeAccessOngoing) db_cv.wait(lck);
-
 			START_TIME;
 			// Exec DELETE query: no callback, no resultset
 			rc = SQLstep(stmt);
@@ -2703,16 +2679,6 @@ unsigned int rowsAffected = 0;
 	int rc;
 
 	logSQL("ReadingsAssetPurge", query);
-
-#if 0
-	if (m_writeAccessOngoing)
-	{
-		while (m_writeAccessOngoing)
-		{
-			std::this_thread::yield();
-		}
-	}
-#endif
 
 	START_TIME;
 	// Exec DELETE query: no callback, no resultset

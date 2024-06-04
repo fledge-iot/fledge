@@ -211,3 +211,17 @@ void ConnectionManager::background()
 		}
 	}
 }
+
+/**
+ * Set the performance monitor in the plugin. The monitor
+ * may be NULL to disable collection
+ *
+ * @param monitor	Pointer to the monitor object
+ */
+void ConnectionManager::performanceMonitor(void *monitor)
+{
+	for (auto& c : inUse)
+		c->setPerformanceMonitor(monitor);
+	for (auto& c : idle)
+		c->setPerformanceMonitor(monitor);
+}

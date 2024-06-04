@@ -20,6 +20,8 @@
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
 #define STORAGE_PURGE_SIZE	     0x0004U
 
+class PerformanceMonitor;
+
 /**
  * Class that represents a storage plugin.
  *
@@ -61,6 +63,13 @@ public:
 			*getConfig() { return m_config; };
 	const std::string
 			&getName() { return m_name; };
+	void		performanceMonitor(PerformanceMonitor  *perfMon)
+			{
+				if (performanceMonitorPtr)
+				{
+					(*performanceMonitorPtr)(instance, perfMon);
+				}
+			};
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -86,6 +95,7 @@ private:
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
         int 		(*createSchemaPtr)(PLUGIN_HANDLE, const char*);
+        void 		(*performanceMonitorPtr)(PLUGIN_HANDLE, PerformanceMonitor*);
 	std::string	m_name;
 	StoragePluginConfiguration
 			*m_config;

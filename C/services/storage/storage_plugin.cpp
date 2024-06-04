@@ -15,6 +15,8 @@ using namespace std;
 
 #define DEFAULT_SCHEMA "fledge"
 
+class PerformanceMonitor;
+
 /**
  * Constructor for the class that wraps the storage plugin
  *
@@ -134,6 +136,9 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 	createSchemaPtr = 
               		(int (*)(PLUGIN_HANDLE, const char*))
                               manager->resolveSymbol(handle, "plugin_createSchema");
+	performanceMonitorPtr = 
+              		(void (*)(PLUGIN_HANDLE, PerformanceMonitor *))
+                              manager->resolveSymbol(handle, "plugin_performanceMonitor");
 }
 
 /**

@@ -147,7 +147,7 @@ bool StorageClient::readingAppend(Reading& reading)
 	try {
 		ostringstream convert;
 
-		convert << "{ \"readings\" : [ ";
+		convert << "{ \"count\" : 1, \"readings\" : [ ";
 		convert << reading.toJSON();
 		convert << " ] }";
 		auto res = this->getHttpClient()->request("POST", "/storage/reading", convert.str());
@@ -214,7 +214,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		gettimeofday(&start, NULL);
 #endif
 		ostringstream convert;
-		convert << "{ \"readings\" : [ ";
+		convert << "{ \"count\" : " << readings.size() << ", \"readings\" : [ ";
 		for (vector<Reading *>::const_iterator it = readings.cbegin();
 						 it != readings.cend(); ++it)
 		{

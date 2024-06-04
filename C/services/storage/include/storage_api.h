@@ -180,16 +180,19 @@ class StoragePerformanceMonitor : public PerformanceMonitor {
 	public:
 		// Constructor with StorageApi pointer passed (also calling parent PerformanceMonitor constructor)
 		StoragePerformanceMonitor(const std::string& name, StorageApi *api) :
-					PerformanceMonitor(name, NULL), m_name(name), m_instance(api) {
+					PerformanceMonitor(name, NULL), m_name(name), m_storage(api)
+		{
+			m_instance = this;
 		};
 		// Direct write to storage of monitor data
-		void writeData(const std::string& table, const InsertValues& values) {
-			m_instance->getStoragePlugin()->commonInsert(table,
+		void writeData(const std::string& table, const InsertValues& values)
+		{
+			m_storage->getStoragePlugin()->commonInsert(table,
 								values.toJSON());
 		}
 	private:
 		std::string	m_name;
-		StorageApi *m_instance;
+		StorageApi	*m_storage;
 };
 
 #endif

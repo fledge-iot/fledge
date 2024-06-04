@@ -20,6 +20,7 @@
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>
 #endif
+#include <perfmonitors.h>
 
 #define _DB_NAME                  "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"
@@ -128,6 +129,10 @@ class Connection {
 				{
 					m_purgeBlockSize = purgeBlockSize;
 				};
+		void		setPerformanceMonitor(void *monitor)
+				{
+					m_performanceMonitor = (PerformanceMonitor *)monitor;
+				};
 
 	private:
 #ifndef MEMORY_READING_PLUGIN
@@ -171,5 +176,7 @@ class Connection {
 							std::vector<std::string> &asset_codes,
 							int level);
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
+		PerformanceMonitor
+				*m_performanceMonitor;
 };
 #endif

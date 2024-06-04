@@ -490,6 +490,28 @@ char *LazyJSON::getString(const char *p)
 }
 
 /**
+ * Get the contents of an integer value
+ *
+ * @param p	Pointer to the integer to retrieve
+ * @return	long The integer value
+ */
+long LazyJSON::getInt(const char *p)
+{
+	long rval = 0, sign = 1;
+	if (*p == '-')
+	{
+		sign = -1;
+		p++;
+	}
+	while (*p && isdigit(*p))
+	{
+		rval = (rval * 10) + *p - '0';
+		p++;
+	}
+	return rval * sign;
+}
+
+/**
  * Get the contents of a string value and populate the
  * supplied LazyJSONBuffer with the string.
  *

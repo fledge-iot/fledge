@@ -116,7 +116,6 @@ Connection::Connection()
 				  NULL,
 				  NULL);
 	}
-
 }
 
 /** 

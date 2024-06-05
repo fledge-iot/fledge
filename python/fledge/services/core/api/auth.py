@@ -582,10 +582,11 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if new_password and not re.match(PASSWORD_REGEX_PATTERN, new_password):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
+        err_msg = "New password should be in string format."
+        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
+    error_msg = await validate_password(new_password)
+    if error_msg:
+        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     if current_password == new_password:
         msg = "New password should not be the same as current password."
         raise web.HTTPBadRequest(reason=msg)

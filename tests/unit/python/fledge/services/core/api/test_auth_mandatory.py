@@ -530,15 +530,18 @@ class TestAuthMandatory:
         ({"current_pwd": "fledge", "new_pwd": "fledge1"}, "Current or new password is missing."),
         ({"current_password": "F0gl@mp", "new_password": "F0gl@mp"},
          "New password should not be the same as current password."),
-        ({"current_password": "F0gl@mp", "new_password": "fledge"}, PASSWORD_ERROR_MSG),
-        ({"current_password": "F0gl@mp", "new_password": 1}, PASSWORD_ERROR_MSG)
+        ({"current_password": "F0gl@mp", "new_password": "fledge"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"current_password": "F0gl@mp", "new_password": 1}, "New password should be in string format.")
     ])
     async def test_update_password_with_bad_data(self, client, request_data, msg):
         uid = 2
+        rv1 = await mock_coro(msg) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_coro(msg)))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-            assert 400 == resp.status
-            assert msg == resp.reason
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                assert 400 == resp.status
+                assert msg == resp.reason
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'PUT',
                                                    '/fledge/user/{}/password'.format(uid))
 
@@ -548,13 +551,19 @@ class TestAuthMandatory:
         msg = 'Invalid current password.'
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(None)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(None))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                assert 404 == resp.status
-                assert msg == resp.reason
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                    assert 404 == resp.status
+                    assert msg == resp.reason
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -567,15 +576,21 @@ class TestAuthMandatory:
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
         uid = 2
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(uid) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(uid))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(uid)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(uid))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
-                    resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                    assert status_code == resp.status
-                    assert msg == resp.reason
-                patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
+                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                        assert status_code == resp.status
+                        assert msg == resp.reason
+                    patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -585,18 +600,24 @@ class TestAuthMandatory:
         msg = 'Something went wrong'
         logger_msg = 'Failed to update the user ID:<{}>.'.format(uid)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(uid) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(uid))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(uid)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(uid))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
-                    with patch.object(auth._logger, 'error') as patch_logger:
-                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                        assert 500 == resp.status
-                        assert msg == resp.reason
-                    args = patch_logger.call_args
-                    assert logger_msg == args[0][1]
-                patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
+                        with patch.object(auth._logger, 'error') as patch_logger:
+                            resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                            assert 500 == resp.status
+                            assert msg == resp.reason
+                        args = patch_logger.call_args
+                        assert logger_msg == args[0][1]
+                    patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -609,24 +630,27 @@ class TestAuthMandatory:
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(user_id)
-            _rv2 = await mock_coro(ret_val)
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(user_id)
+            rv3 = await mock_coro(ret_val)
         else:
-            _rv1 = asyncio.ensure_future(mock_coro(user_id))
-            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(user_id))
+            rv3 = asyncio.ensure_future(mock_coro(ret_val))
         
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv1) as patch_user_exists:
-                with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
-                    with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                        resp = await client.put('/fledge/user/{}/password'.format(user_id),
-                                                data=json.dumps(request_data))
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        assert {'message': msg} == json.loads(r)
-                    patch_auth_logger_info.assert_called_once_with(msg)
-                patch_update.assert_called_once_with(user_id, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(user_id), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', return_value=rv3) as patch_update:
+                        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+                            resp = await client.put('/fledge/user/{}/password'.format(user_id),
+                                                    data=json.dumps(request_data))
+                            assert 200 == resp.status
+                            r = await resp.text()
+                            assert {'message': msg} == json.loads(r)
+                        patch_auth_logger_info.assert_called_once_with(msg)
+                    patch_update.assert_called_once_with(user_id, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(user_id), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(user_id))
 

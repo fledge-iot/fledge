@@ -9,6 +9,9 @@
 .. |multi_graph1| image:: ../images/multi_graph1.jpg
 .. |multi_graph2| image:: ../images/multi_graph2.jpg
 .. |multi_graph3| image:: ../images/multi_graph3.jpg
+.. |latest_icon| image:: ../images/latest_icon.jpg
+.. |current_icon| image:: ../images/current_icon.jpg
+.. |latest_graph| image:: ../images/latest_graph.jpg
 
 Viewing Data
 ############
@@ -46,6 +49,26 @@ It is also possible to change the default duration of a graph when it is first d
 
 This can be useful when very high frequency data is ingested into the system as it will prevent the initial graph that is displayed from pulling large amounts of data from the system and slowing down the response of the system and the GUI.
 
+When an asset does not continuously ingest data you may need to move back in time in order to see the last data that was ingested for an ingest. The interface provides a convenient shortcut to allow you to quickly navigate back in time to see the last data that was ingested. Simply click in the icon to the left of the time navigation buttons.
+
++---------------+
+| |latest_icon| |
++---------------+
+
+The graph will change to show the latest data available for the chosen asset.
+
++----------------+
+| |latest_graph| |
++----------------+
+
+Notice that the icon used to get this graph has now changed.
+
++----------------+
+| |current_icon| |
++----------------+
+
+Clicking on this icon will cause the graph to run to the current time frame and show any data that is freshly ingested.
+
 Where an asset contains multiple data points each of these is displayed in a different colour. Graphs for particular data points can be toggled on and off by clicking on the key at the top of the graph. Those data points not should will be indicated by striking through the name of the data point.
 
 +-------------+
@@ -69,7 +92,6 @@ All the data points from that asset will then be added to the graph. Multiple as
 +----------------+
 | |multi_graph3| |
 +----------------+
-
 
 A summary tab is also available, this will show the minimum, maximum and average values for each of the data points. Click on *Summary* to show the summary tab.
 

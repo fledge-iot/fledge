@@ -12,6 +12,7 @@ import pytest
 import sys
 
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
 from fledge.common.web.ssl_wrapper import SSLVerifier
@@ -1248,3 +1249,114 @@ class TestAuthMandatory:
                 assert 401 == resp.status
                 actual = await resp.text()
                 assert "401: {}".format(expected) == actual
+
+    @pytest.mark.parametrize("pwd, error_msg, policy", [
+        ("pass", "Password length is minimum of 6 characters.", "Any characters"),
+        ("passwords", "Password length is maximum of 8 characters.", "Any characters"),
+        ("password", "Password does not contain both lowercase and uppercase letters.", "Mixed case Alphabetic"),
+        ("password", "Password does not contain lowercase, uppercase and numeric characters.", "Mixed case and numeric"),
+        ("password", "Password does not contain lowercase, uppercase, numeric and special characters.", "Mixed case, numeric and special characters"),
+    ])
+    async def test_bad_validate_password(self, pwd, error_msg, policy):
+        async def mock_cat():
+            return {
+            "policy": {
+                "description": "Password policy",
+                "type": "enumeration",
+                "options": [
+                    "Any characters",
+                    "Mixed case Alphabetic",
+                    "Mixed case and numeric",
+                    "Mixed case, numeric and special characters"
+                ],
+                "default": "Any characters",
+                "displayName": "Policy",
+                "order": "1",
+                "value": policy
+            },
+            "length": {
+                "description": "Minimum password length",
+                "type": "integer",
+                "default": "6",
+                "displayName": "Minimum Length",
+                "minimum": "6",
+                "maximum": "8",
+                "order": "2",
+                "value": "6"
+            },
+            "expiration": {
+                "description": "Number of days after which passwords must be changed",
+                "type": "integer",
+                "default": "0",
+                "displayName": "Expiry (in Days)",
+                "order": "3",
+                "value": "0"
+            }
+        }
+        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_cat()))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
+                msg = await auth.validate_password(pwd)
+                assert error_msg == msg
+            patch_get_cat.assert_called_once_with('password')
+
+    @pytest.mark.parametrize("pwd, policy", [
+        ("password", "Any characters"), ("Password", "Any characters"), ("Passw0rd", "Any characters"),
+        ("passw0rd", "Any characters"), ("PaSsw0#d", "Any characters"), ("paSsw0#1", "Any characters"),
+        ("Password", "Mixed case Alphabetic"), ("PassworD", "Mixed case Alphabetic"),
+        ("Pass123", "Mixed case Alphabetic"), ("Pass!23", "Mixed case Alphabetic"),
+        ("Passw0rd", "Mixed case and numeric"), ("paSSw0rd", "Mixed case and numeric"),
+        ("1ass0Rd", "Mixed case and numeric"), ("PASSw0rD", "Mixed case and numeric"),
+        ("pAss@!1", "Mixed case, numeric and special characters"),
+        ("@Aswe12", "Mixed case, numeric and special characters"),
+        ("(Aswe1)", "Mixed case, numeric and special characters"),
+        ("s!@#$%G2", "Mixed case, numeric and special characters"),
+        ("Fl@3737", "Mixed case, numeric and special characters")
+    ])
+    async def test_good_validate_password(self, pwd, policy):
+        async def mock_cat():
+            return {
+            "policy": {
+                "description": "Password policy",
+                "type": "enumeration",
+                "options": [
+                    "Any characters",
+                    "Mixed case Alphabetic",
+                    "Mixed case and numeric",
+                    "Mixed case, numeric and special characters"
+                ],
+                "default": "Any characters",
+                "displayName": "Policy",
+                "order": "1",
+                "value": policy
+            },
+            "length": {
+                "description": "Minimum password length",
+                "type": "integer",
+                "default": "6",
+                "displayName": "Minimum Length",
+                "minimum": "6",
+                "maximum": "8",
+                "order": "2",
+                "value": "6"
+            },
+            "expiration": {
+                "description": "Number of days after which passwords must be changed",
+                "type": "integer",
+                "default": "0",
+                "displayName": "Expiry (in Days)",
+                "order": "3",
+                "value": "0"
+            }
+        }
+        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_cat()))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
+                msg = await auth.validate_password(pwd)
+                assert "" == msg
+            patch_get_cat.assert_called_once_with('password')
+

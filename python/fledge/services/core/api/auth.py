@@ -819,10 +819,11 @@ async def validate_password(password) -> str:
     from fledge.common.configuration_manager import ConfigurationManager
     from fledge.services.core import connect
     import string
+    
     message = ""
     storage_client = connect.get_storage_async()
     cfg_mgr = ConfigurationManager(storage_client)
-    category = await cfg_mgr.get_category_all_items('password') #.get_category_item('password', 'policy')
+    category = await cfg_mgr.get_category_all_items('password')
     policy = category['policy']['value']
     min_chars = category['length']['value']
     max_chars = category['length']['maximum']

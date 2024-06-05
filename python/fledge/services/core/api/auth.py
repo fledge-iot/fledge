@@ -52,10 +52,6 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
-PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
-PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
-                     'and length of minimum 6 characters.'
-
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 
 # TODO: remove me, use from roles table
@@ -716,10 +712,11 @@ async def reset(request):
         return web.HTTPBadRequest(reason=msg)
 
     if password and not isinstance(password, str):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if password and not re.match(PASSWORD_REGEX_PATTERN, password):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
+        err_msg = "New password should be in string format."
+        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
+    error_msg = await validate_password(password)
+    if error_msg:
+        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})

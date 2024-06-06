@@ -380,7 +380,7 @@ class TestOMFNorthService:
         put_url = "/fledge/category/{}".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "Admin" == resp["PIWebAPIUserId"]["value"]
-
+        time.sleep(5)
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase

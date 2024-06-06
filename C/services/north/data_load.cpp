@@ -34,6 +34,8 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	{
 		m_streamId = createNewStream();
 	}
+	m_nextStreamUpdate = 1;
+	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);

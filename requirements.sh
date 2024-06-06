@@ -106,7 +106,7 @@ sqlite3_build_prepare(){
 	fi
 	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
 	cd /tmp/
-	git clone -b 3.45.3 https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
+	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
 	cd ${SQLITE_PKG_REPO_NAME}
 	cd src
 	echo "Compiling SQLite3 static library for Fledge ..."

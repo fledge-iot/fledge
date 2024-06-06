@@ -426,7 +426,7 @@ bool retCode;
 /**
  * Create a SQLite3 database connection
  */
-Connection::Connection() : m_purgeBlockSize(10000)
+Connection::Connection() : m_purgeBlockSize(10000), m_performanceMonitor(NULL)
 {
 	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");

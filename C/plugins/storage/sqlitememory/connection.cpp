@@ -26,7 +26,7 @@ static time_t connectErrorTime = 0;
 /**
  * Create a SQLite3 database connection
  */
-Connection::Connection()
+Connection::Connection() : m_performanceMonitor(NULL)
 {
 	if (getenv("FLEDGE_TRACE_SQL"))
 	{

@@ -123,7 +123,8 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		readBlock(block);
+		while (m_queue.size() < 5)      // Read another block if we have less than 5 already queued
+			readBlock(block);
 	}
 }
 

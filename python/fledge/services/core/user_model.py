@@ -19,7 +19,6 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core import connect
-
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -71,6 +70,9 @@ class User:
         pass
 
     class TokenExpired(Exception):
+        pass
+
+    class SessionTimeout(Exception):
         pass
 
     class Objects:
@@ -395,7 +397,8 @@ class User:
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
                 return uid, jwt_token, True
-
+            # Save session in memory for idle disconnection
+            await cls.user_session(action="SAVE", data={"uid": uid, "token": jwt_token})
             return uid, jwt_token, False
 
         @classmethod
@@ -434,7 +437,8 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of user id
+            await cls.user_session(action="REMOVE", data={"uid": user_id})
             return res
 
         @classmethod
@@ -447,13 +451,38 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of token
+            await cls.user_session(action="REMOVE", data={"token": token})
             return res
 
         @classmethod
         async def delete_all_user_tokens(cls):
             storage_client = connect.get_storage_async()
             await storage_client.delete_from_tbl("user_logins")
+            await cls.user_session(action="REMOVE")
+
+        @classmethod
+        async def user_session(cls, action, data=None):
+            # To avoid cyclic import
+            from fledge.services.core import server
+
+            if action == "FETCH":
+                return server.Server._user_session_details
+            elif action == "SAVE":
+                server.Server._user_session_details.append(data)
+            elif action == "REMOVE":
+                session = server.Server._user_session_details
+                if data is None:
+                    server.Server._user_session_details = []
+                else:
+                    if 'token' in data:
+                        for s in session:
+                            if s['token'] == data['token']:
+                                server.Server._user_session_details.remove(s)
+                    else:
+                        for s in session:
+                            if s['uid'] == int(data['uid']):
+                                server.Server._user_session_details.remove(s)
 
         @classmethod
         def hash_password(cls, password):

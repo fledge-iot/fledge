@@ -203,6 +203,7 @@ class Server:
     cert_file_name = ''
     """ cert file name """
 
+
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
@@ -330,6 +331,9 @@ class Server:
 
     _package_cache_manager = None
     """ Package Cache Manager """
+
+    _user_session_details = []
+    """ Disconnect idle user sessions/logins """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {

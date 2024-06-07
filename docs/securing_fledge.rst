@@ -132,23 +132,23 @@ This popup can be used to change your password. On successfully changing your pa
 Password Policy
 ---------------
 
-Fledge provides different policies to control the passwords. Below options are currently available:
+Fledge provides different policies to control the passwords. The following options are currently available:
 
 +-------------------+
 | |password_policy| |
 +-------------------+
 
-- *Any characters* - password can contain any characters.
+- *Any characters* - there are no restrictions placed on the characters within a password.
 
-- *Mixed case Alphabetic* - password must contain upper and lower case letters, but free to add numeric values and special characters.
+- *Mixed case Alphabetic* -  passwords must contain upper and lower case letters. The user is free to add numeric values and special characters if they wish, but there is no requirement to add these.
 
 - *Mixed case and numeric* - password must contain upper, lower case letters and numeric values.
 
-- *Mixed case, numeric and special characters* - password must contain upper, lower case letters and numeric values and special characters.
+- *Mixed case, numeric and special characters* - password must contain atleast one upper and lower case letter, numeric and special characters.
 
 .. note::
 
-    Minimum password length is by default 6 and can be controlled with 'Minimum length' configuration item and Maximum password length not more than 80 characters.
+    In addition to the above rules on password content, the minimum password length is by default 6 and can be controlled with the 'Minimum length' configuration item. The maximum password length that can be configured is 80 characters.
 
 Password Rotation Mechanism
 ---------------------------

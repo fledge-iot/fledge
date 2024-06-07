@@ -839,15 +839,15 @@ async def validate_password(password) -> str:
         if policy == 'Mixed case Alphabetic':
             mixed_case = has_lower and has_upper
             if not mixed_case:
-                message = "Password does not contain both lowercase and uppercase letters."
+                message = "Password must contain upper and lower case letters."
         elif policy == 'Mixed case and numeric':
             mixed_numeric_case = has_lower and has_upper and has_numeric
             if not mixed_numeric_case:
-                message = "Password does not contain lowercase, uppercase and numeric characters."
+                message = "Password must contain upper, lower case, uppercase and numeric values."
         elif policy == 'Mixed case, numeric and special characters':
             mixed_numeric_special_case = has_lower and has_upper and has_numeric and has_special
             if not mixed_numeric_special_case:
-                message = "Password does not contain lowercase, uppercase, numeric and special characters."
+                message = "Password must contain atleast one upper and lower case letter, numeric and special characters."
         else:
             # Any characters
             pass

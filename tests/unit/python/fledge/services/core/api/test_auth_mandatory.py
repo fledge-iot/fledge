@@ -1253,9 +1253,9 @@ class TestAuthMandatory:
     @pytest.mark.parametrize("pwd, error_msg, policy", [
         ("pass", "Password length is minimum of 6 characters.", "Any characters"),
         ("passwords", "Password length is maximum of 8 characters.", "Any characters"),
-        ("password", "Password does not contain both lowercase and uppercase letters.", "Mixed case Alphabetic"),
-        ("password", "Password does not contain lowercase, uppercase and numeric characters.", "Mixed case and numeric"),
-        ("password", "Password does not contain lowercase, uppercase, numeric and special characters.", "Mixed case, numeric and special characters"),
+        ("password", "Password must contain upper and lower case letters.", "Mixed case Alphabetic"),
+        ("password", "Password must contain upper, lower case, uppercase and numeric values.", "Mixed case and numeric"),
+        ("password", "Password must contain atleast one upper and lower case letter, numeric and special characters.", "Mixed case, numeric and special characters"),
     ])
     async def test_bad_validate_password(self, pwd, error_msg, policy):
         async def mock_cat():

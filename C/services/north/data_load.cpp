@@ -11,6 +11,9 @@
 #include <data_load.h>
 #include <north_service.h>
 
+#define INITIAL_BLOCK_WAIT	10
+#define MAX_WAIT_PERIOD		200
+
 using namespace std;
 
 static void threadMain(void *arg)
@@ -34,6 +37,8 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	{
 		m_streamId = createNewStream();
 	}
+	m_nextStreamUpdate = 1;
+	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
@@ -71,7 +76,7 @@ DataLoad::~DataLoad()
 }
 
 /**
- * External call to shutdown
+ * External call to shutdown the north service
  */
 void DataLoad::shutdown()
 {
@@ -81,7 +86,7 @@ void DataLoad::shutdown()
 }
 
 /**
- * External call to restart
+ * External call to restart the north service
  */
 void DataLoad::restart()
 {
@@ -123,7 +128,10 @@ void DataLoad::loadThread()
 }
 
 /**
- * Wait for a read request to be made
+ * Wait for a read request to be made. Read requests come from consumer
+ * threads calling the triggerRead call that wil cause a block of reading
+ * data (or whatever the source of data is) to be added to the reading
+ * buffer.
  *
  * @return int	The size of the block to read
  */
@@ -141,7 +149,8 @@ unsigned int DataLoad::waitForReadRequest()
 }
 
 /**
- * Trigger the loading thread to read a block of data
+ * Trigger the loading thread to read a block of data. This is called by
+ * any thread to request that dat abe added to the buffer ready for collection.
  */
 void DataLoad::triggerRead(unsigned int blockSize)
 {
@@ -151,13 +160,14 @@ void DataLoad::triggerRead(unsigned int blockSize)
 }
 
 /**
- * Read a block of readings from the storage service
+ * Read a block of readings, statistics or audiot date  from the storage service
  *
  * @param blockSize	The number of readings to fetch
  */
 void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
+	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
 		ReadingSet* readings = nullptr;
@@ -217,7 +227,10 @@ void DataLoad::readBlock(unsigned int blockSize)
 		if (!m_shutdown)
 		{
 			// TODO improve this
-			this_thread::sleep_for(chrono::milliseconds(250));
+			this_thread::sleep_for(chrono::milliseconds(waitPeriod));
+			waitPeriod *= 2;
+			if (waitPeriod > MAX_WAIT_PERIOD)
+				waitPeriod = MAX_WAIT_PERIOD;
 			n_waits++;
 		}
 	} while (m_shutdown == false);
@@ -330,7 +343,9 @@ unsigned long DataLoad::getLastSentId()
 }
 
 /**
- * Buffer a block of readings
+ * Buffer a block of readings. Called after a block of data has been
+ * read to add that block to the queue reading for collection by the
+ * consuming thread.
  *
  * @param readings	The readings to buffer
  */
@@ -356,7 +371,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
-	if (m_perfMonitor)
+	if (m_perfMonitor && m_perfMonitor->isCollecting())
 	{
 		m_perfMonitor->collect("Readings added to buffer", (long)(readings->getCount()));
 		m_perfMonitor->collect("Reading sets buffered", (long)(m_queue.size()));
@@ -380,6 +395,10 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	unique_lock<mutex> lck(m_qMutex);
 	while (m_queue.empty())
 	{
+		if (m_perfMonitor && m_perfMonitor->isCollecting())
+		{
+			m_perfMonitor->collect("No data avialable to fetch", 1);
+		}
 		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)
 		{

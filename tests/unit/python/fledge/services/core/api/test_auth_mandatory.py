@@ -12,6 +12,7 @@ import pytest
 import sys
 
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
 from fledge.common.web.ssl_wrapper import SSLVerifier
@@ -26,8 +27,7 @@ __version__ = "${VERSION}"
 
 ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin_user_token'}
 NORMAL_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'normal_user_token'}
-PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
-                     'and length of minimum 6 characters.'
+PASSWORD_MIN_LENGTH_ERROR_MSG = "Password length is minimum of 6 characters."
 
 async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
@@ -79,27 +79,33 @@ class TestAuthMandatory:
         ({"username": "aj.aj", "access_method": 1}, "Values should be passed in string."),
         ({"username": "aj.aj", "access_method": 'pwd'}, "Password should not be an empty."),
         ({"username": "aj_123!"}, "Dot, hyphen, underscore special characters are allowed for username."),
-        ({"username": "aj_123", "password": 1}, PASSWORD_ERROR_MSG),
-        ({"username": "12-aj", "password": "blah"}, PASSWORD_ERROR_MSG),
-        ({"username": "12-aj", "password": "12B l"}, PASSWORD_ERROR_MSG),
-        ({"username": "aj.123", "password": "a!23"}, PASSWORD_ERROR_MSG),
-        ({"username": "aj.123", "password": "A!23"}, PASSWORD_ERROR_MSG),
-        ({"username": "aj.aj", "access_method": "any", "password": "blah"}, PASSWORD_ERROR_MSG),
-        ({"username": "aj.aj", "access_method": "pwd", "password": "blah"}, PASSWORD_ERROR_MSG)
+        ({"username": "aj_123", "password": 1}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "12-aj", "password": "blah"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "12-aj", "password": "12B l"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "aj.123", "password": "a!23"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "aj.123", "password": "A!23"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "aj.aj", "access_method": "any", "password": "blah"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"username": "aj.aj", "access_method": "pwd", "password": "blah"}, PASSWORD_MIN_LENGTH_ERROR_MSG)
     ])
     async def test_create_bad_user(self, client, mocker, payload, msg):
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
-            resp = await client.post('/fledge/admin/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
-            assert 400 == resp.status
-            assert msg == resp.reason
-            result = await resp.text()
-            json_response = json.loads(result)
-            assert {"message": msg} == json_response
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(msg)
+            rv2 = await mock_coro(ret_val)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(msg))
+            rv2 = asyncio.ensure_future(mock_coro(ret_val))
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv2) as patch_role_id:
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                resp = await client.post('/fledge/admin/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
+                assert 400 == resp.status
+                assert msg == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": msg} == json_response
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -118,18 +124,21 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(False)
+            _rv3 = await mock_coro("")
         else:
             _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(False))        
+            _rv2 = asyncio.ensure_future(mock_coro(False))
+            _rv3 = asyncio.ensure_future(mock_coro(""))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
-                resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
-                assert 400 == resp.status
-                assert msg == resp.reason
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert {"message": msg} == json_response
-            patch_role.assert_called_once_with(request_data['role_id'])
+            with patch.object(auth, 'validate_password', return_value=_rv3):
+                with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
+                    resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
+                    assert 400 == resp.status
+                    assert msg == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": msg} == json_response
+                patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -154,6 +163,7 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _rv5 = await mock_coro(valid_user)
             _rv6 = await mock_coro(users)
+            _rv7 = await mock_coro("")
         else:
             _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
             _rv2 = asyncio.ensure_future(mock_coro(None))
@@ -161,24 +171,28 @@ class TestAuthMandatory:
             _rv4 = asyncio.ensure_future(mock_coro(True))
             _rv5 = asyncio.ensure_future(mock_coro(valid_user))
             _rv6 = asyncio.ensure_future(mock_coro(users))
-            
+            _rv7 = asyncio.ensure_future(mock_coro(""))
+
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', return_value=_rv5) as patch_user_get:
                         with patch.object(User.Objects, 'all', return_value=_rv6) as patch_user_all:
-                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
-                                with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
-                                    with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                                        resp = await client.post('/fledge/admin/user', data=json.dumps(request_data),
-                                                                 headers=ADMIN_USER_HEADER)
-                                        assert 409 == resp.status
-                                        assert msg == resp.reason
-                                        result = await resp.text()
-                                        json_response = json.loads(result)
-                                        assert {"message": msg} == json_response
-                                    patch_logger_warning.assert_called_once_with(msg)
-                                patch_role.assert_called_once_with(2)
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                with patch.object(auth, 'validate_password', return_value=_rv7):
+                                    with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
+                                        with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                                            resp = await client.post('/fledge/admin/user', data=json.dumps(
+                                                request_data), headers=ADMIN_USER_HEADER)
+                                            assert 409 == resp.status
+                                            assert msg == resp.reason
+                                            result = await resp.text()
+                                            json_response = json.loads(result)
+                                            assert {"message": msg} == json_response
+                                        patch_logger_warning.assert_called_once_with(msg)
+                                    patch_role.assert_called_once_with(2)
                             patch_role_id.assert_called_once_with('admin')
                         patch_user_all.assert_called_once_with()
                     patch_user_get.assert_called_once_with(uid=valid_user['id'])
@@ -209,6 +223,7 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _rv5 = await mock_coro(ret_val)
             _rv6 = await mock_coro(users)
+            _rv7 = await mock_coro("")
             _se1 = await mock_coro(valid_user)
             _se2 = await mock_coro(data)
         else:
@@ -218,6 +233,7 @@ class TestAuthMandatory:
             _rv4 = asyncio.ensure_future(mock_coro(True))
             _rv5 = asyncio.ensure_future(mock_coro(ret_val))
             _rv6 = asyncio.ensure_future(mock_coro(users))
+            _rv7 = asyncio.ensure_future(mock_coro(""))
             _se1 = asyncio.ensure_future(mock_coro(valid_user))
             _se2 = asyncio.ensure_future(mock_coro(data))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
@@ -225,25 +241,28 @@ class TestAuthMandatory:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', side_effect=[_se1, _se2]) as patch_user_get:
                         with patch.object(User.Objects, 'all', return_value=_rv6) as patch_user_all:
-                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
-                                with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
-                                    with patch.object(User.Objects, 'create', return_value=_rv5) as patch_create_user:
-                                        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                                            resp = await client.post('/fledge/admin/user',
-                                                                     data=json.dumps(request_data),
-                                                                     headers=ADMIN_USER_HEADER)
-                                            assert 200 == resp.status
-                                            r = await resp.text()
-                                            actual = json.loads(r)
-                                            assert msg == actual['message']
-                                            assert expected['id'] == actual['user']['userId']
-                                            assert expected['uname'] == actual['user']['userName']
-                                            assert expected['role_id'] == actual['user']['roleId']
-                                        patch_auth_logger_info.assert_called_once_with(msg)
-                                    patch_create_user.assert_called_once_with(request_data['username'],
-                                                                              request_data['password'],
-                                                                              int(expected['role_id']), 'any', '', '')
-                                patch_role.assert_called_once_with(int(expected['role_id']))
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                with patch.object(auth, 'validate_password', return_value=_rv7):
+                                    with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
+                                        with patch.object(User.Objects, 'create', return_value=_rv5
+                                                          ) as patch_create_user:
+                                            with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+                                                resp = await client.post('/fledge/admin/user',
+                                                                         data=json.dumps(request_data),
+                                                                         headers=ADMIN_USER_HEADER)
+                                                assert 200 == resp.status
+                                                r = await resp.text()
+                                                actual = json.loads(r)
+                                                assert msg == actual['message']
+                                                assert expected['id'] == actual['user']['userId']
+                                                assert expected['uname'] == actual['user']['userName']
+                                                assert expected['role_id'] == actual['user']['roleId']
+                                            patch_auth_logger_info.assert_called_once_with(msg)
+                                        patch_create_user.assert_called_once_with(
+                                            request_data['username'], request_data['password'],
+                                            int(expected['role_id']), 'any', '', '')
+                                    patch_role.assert_called_once_with(int(expected['role_id']))
                             patch_role_id.assert_called_once_with('admin')
                         patch_user_all.assert_called_once_with()
                     assert 2 == patch_user_get.call_count
@@ -269,6 +288,7 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _rv5 = await mock_coro(valid_user)
             _rv6 = await mock_coro(users)
+            _rv7 = await mock_coro("")
         else:
             _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
             _rv2 = asyncio.ensure_future(mock_coro(None))
@@ -276,29 +296,33 @@ class TestAuthMandatory:
             _rv4 = asyncio.ensure_future(mock_coro(True))
             _rv5 = asyncio.ensure_future(mock_coro(valid_user))
             _rv6 = asyncio.ensure_future(mock_coro(users))
+            _rv7 = asyncio.ensure_future(mock_coro(""))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', return_value=_rv5) as patch_user_get:
                         with patch.object(User.Objects, 'all', return_value=_rv6) as patch_user_all:
-                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
-                                with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
-                                    with patch.object(User.Objects, 'create', side_effect=Exception(
-                                            exc_msg)) as patch_create_user:
-                                        with patch.object(auth._logger, 'error') as patch_logger:
-                                            resp = await client.post('/fledge/admin/user',
-                                                                     data=json.dumps(request_data),
-                                                                     headers=ADMIN_USER_HEADER)
-                                            assert 500 == resp.status
-                                            assert exc_msg == resp.reason
-                                            result = await resp.text()
-                                            json_response = json.loads(result)
-                                            assert {"message": exc_msg} == json_response
-                                        args = patch_logger.call_args
-                                        assert 'Failed to create user.' == args[0][1]
-                                    patch_create_user.assert_called_once_with(
-                                        request_data['username'], request_data['password'], 2, 'any', '', '')
-                                patch_role.assert_called_once_with(2)
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                with patch.object(auth, 'validate_password', return_value=_rv7):
+                                    with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
+                                        with patch.object(User.Objects, 'create', side_effect=Exception(
+                                                exc_msg)) as patch_create_user:
+                                            with patch.object(auth._logger, 'error') as patch_logger:
+                                                resp = await client.post('/fledge/admin/user',
+                                                                         data=json.dumps(request_data),
+                                                                         headers=ADMIN_USER_HEADER)
+                                                assert 500 == resp.status
+                                                assert exc_msg == resp.reason
+                                                result = await resp.text()
+                                                json_response = json.loads(result)
+                                                assert {"message": exc_msg} == json_response
+                                            args = patch_logger.call_args
+                                            assert 'Failed to create user.' == args[0][1]
+                                        patch_create_user.assert_called_once_with(
+                                            request_data['username'], request_data['password'], 2, 'any', '', '')
+                                    patch_role.assert_called_once_with(2)
                             patch_role_id.assert_called_once_with('admin')
                         patch_user_all.assert_called_once_with()
                     patch_user_get.assert_called_once_with(uid=valid_user['id'])
@@ -320,6 +344,7 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _rv5 = await mock_coro(valid_user)
             _rv6 = await mock_coro(users)
+            _rv7 = await mock_coro("")
         else:
             _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
             _rv2 = asyncio.ensure_future(mock_coro(None))
@@ -327,25 +352,29 @@ class TestAuthMandatory:
             _rv4 = asyncio.ensure_future(mock_coro(True))
             _rv5 = asyncio.ensure_future(mock_coro(valid_user))
             _rv6 = asyncio.ensure_future(mock_coro(users))
+            _rv7 = asyncio.ensure_future(mock_coro(""))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', return_value=_rv5) as patch_user_get:
                         with patch.object(User.Objects, 'all', return_value=_rv6) as patch_user_all:
-                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
-                                with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
-                                    with patch.object(User.Objects, 'create', side_effect=ValueError(
-                                            exc_msg)) as patch_create_user:
-                                        resp = await client.post('/fledge/admin/user', data=json.dumps(request_data),
-                                                                 headers=ADMIN_USER_HEADER)
-                                        assert 400 == resp.status
-                                        assert exc_msg == resp.reason
-                                        result = await resp.text()
-                                        json_response = json.loads(result)
-                                        assert {"message": exc_msg} == json_response
-                                    patch_create_user.assert_called_once_with(
-                                        request_data['username'], request_data['password'], 2, 'any', '', '')
-                                patch_role.assert_called_once_with(2)
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                with patch.object(auth, 'validate_password', return_value=_rv7):
+                                    with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
+                                        with patch.object(User.Objects, 'create', side_effect=ValueError(
+                                                exc_msg)) as patch_create_user:
+                                            resp = await client.post('/fledge/admin/user', data=json.dumps(
+                                                request_data), headers=ADMIN_USER_HEADER)
+                                            assert 400 == resp.status
+                                            assert exc_msg == resp.reason
+                                            result = await resp.text()
+                                            json_response = json.loads(result)
+                                            assert {"message": exc_msg} == json_response
+                                        patch_create_user.assert_called_once_with(
+                                            request_data['username'], request_data['password'], 2, 'any', '', '')
+                                    patch_role.assert_called_once_with(2)
                             patch_role_id.assert_called_once_with('admin')
                         patch_user_all.assert_called_once_with()
                     patch_user_get.assert_called_once_with(uid=valid_user['id'])
@@ -500,15 +529,18 @@ class TestAuthMandatory:
         ({"current_pwd": "fledge", "new_pwd": "fledge1"}, "Current or new password is missing."),
         ({"current_password": "F0gl@mp", "new_password": "F0gl@mp"},
          "New password should not be the same as current password."),
-        ({"current_password": "F0gl@mp", "new_password": "fledge"}, PASSWORD_ERROR_MSG),
-        ({"current_password": "F0gl@mp", "new_password": 1}, PASSWORD_ERROR_MSG)
+        ({"current_password": "F0gl@mp", "new_password": "FL"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"current_password": "F0gl@mp", "new_password": 1}, "New password should be in string format.")
     ])
     async def test_update_password_with_bad_data(self, client, request_data, msg):
         uid = 2
+        rv1 = await mock_coro(msg) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_coro(msg)))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-            assert 400 == resp.status
-            assert msg == resp.reason
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                assert 400 == resp.status
+                assert msg == resp.reason
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'PUT',
                                                    '/fledge/user/{}/password'.format(uid))
 
@@ -518,13 +550,19 @@ class TestAuthMandatory:
         msg = 'Invalid current password.'
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(None)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(None))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                assert 404 == resp.status
-                assert msg == resp.reason
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                    assert 404 == resp.status
+                    assert msg == resp.reason
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -537,15 +575,21 @@ class TestAuthMandatory:
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
         uid = 2
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(uid) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(uid))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(uid)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(uid))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
-                    resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                    assert status_code == resp.status
-                    assert msg == resp.reason
-                patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
+                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                        assert status_code == resp.status
+                        assert msg == resp.reason
+                    patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -555,18 +599,24 @@ class TestAuthMandatory:
         msg = 'Something went wrong'
         logger_msg = 'Failed to update the user ID:<{}>.'.format(uid)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(uid) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(uid))
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(uid)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(uid))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
-                with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
-                    with patch.object(auth._logger, 'error') as patch_logger:
-                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
-                        assert 500 == resp.status
-                        assert msg == resp.reason
-                    args = patch_logger.call_args
-                    assert logger_msg == args[0][1]
-                patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
+                        with patch.object(auth._logger, 'error') as patch_logger:
+                            resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
+                            assert 500 == resp.status
+                            assert msg == resp.reason
+                        args = patch_logger.call_args
+                        assert logger_msg == args[0][1]
+                    patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(uid))
 
@@ -579,24 +629,27 @@ class TestAuthMandatory:
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(user_id)
-            _rv2 = await mock_coro(ret_val)
+            rv1 = await mock_coro("")
+            rv2 = await mock_coro(user_id)
+            rv3 = await mock_coro(ret_val)
         else:
-            _rv1 = asyncio.ensure_future(mock_coro(user_id))
-            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
+            rv1 = asyncio.ensure_future(mock_coro(""))
+            rv2 = asyncio.ensure_future(mock_coro(user_id))
+            rv3 = asyncio.ensure_future(mock_coro(ret_val))
         
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
-            with patch.object(User.Objects, 'is_user_exists', return_value=_rv1) as patch_user_exists:
-                with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
-                    with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                        resp = await client.put('/fledge/user/{}/password'.format(user_id),
-                                                data=json.dumps(request_data))
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        assert {'message': msg} == json.loads(r)
-                    patch_auth_logger_info.assert_called_once_with(msg)
-                patch_update.assert_called_once_with(user_id, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(str(user_id), request_data['current_password'])
+            with patch.object(auth, 'validate_password', return_value=rv1):
+                with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
+                    with patch.object(User.Objects, 'update', return_value=rv3) as patch_update:
+                        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+                            resp = await client.put('/fledge/user/{}/password'.format(user_id),
+                                                    data=json.dumps(request_data))
+                            assert 200 == resp.status
+                            r = await resp.text()
+                            assert {'message': msg} == json.loads(r)
+                        patch_auth_logger_info.assert_called_once_with(msg)
+                    patch_update.assert_called_once_with(user_id, {'password': request_data['new_password']})
+                patch_user_exists.assert_called_once_with(str(user_id), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
                                                    'PUT', '/fledge/user/{}/password'.format(user_id))
 
@@ -960,19 +1013,26 @@ class TestAuthMandatory:
     @pytest.mark.parametrize("request_data, msg", [
         ({}, "Nothing to update the user."),
         ({"invalid": 1}, "Nothing to update the user."),
-        ({"password": "fledge"}, PASSWORD_ERROR_MSG),
-        ({"password": 1}, PASSWORD_ERROR_MSG)
+        ({"password": "FL"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
+        ({"password": 1}, "New password should be in string format.")
     ])
     async def test_reset_with_bad_data(self, client, mocker, request_data, msg):
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
-            resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
-            assert 400 == resp.status
-            assert msg == resp.reason
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(ret_val)
+            rv2 = await mock_coro(msg)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(ret_val))
+            rv2 = asyncio.ensure_future(mock_coro(msg))
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
+            with patch.object(auth, 'validate_password', return_value=rv2):
+                resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data),
+                                        headers=ADMIN_USER_HEADER)
+                assert 400 == resp.status
+                assert msg == resp.reason
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -990,7 +1050,7 @@ class TestAuthMandatory:
             _rv2 = await mock_coro(False)
         else:
             _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(False))        
+            _rv2 = asyncio.ensure_future(mock_coro(False))
 
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
@@ -1017,23 +1077,25 @@ class TestAuthMandatory:
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(True)
+            rv1 = await mock_coro([{'id': '1'}])
+            rv2 = await mock_coro(True)
+            rv3 = await mock_coro("")
         else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(True))
-
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
-                with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
-                    with patch.object(auth._logger, 'warning') as patch_logger:
-                        resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data),
-                                                headers=ADMIN_USER_HEADER)
-                        assert status_code == resp.status
-                        assert msg == resp.reason
-                    if exception_name == User.PasswordAlreadyUsed:
-                        patch_logger.assert_called_once_with(msg)
-                patch_update.assert_called_once_with(str(user_id), request_data)
+            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            rv2 = asyncio.ensure_future(mock_coro(True))
+            rv3 = asyncio.ensure_future(mock_coro(""))
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
+                with patch.object(auth, 'validate_password', return_value=rv3):
+                    with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
+                        with patch.object(auth._logger, 'warning') as patch_logger:
+                            resp = await client.put('/fledge/admin/{}/reset'.format(user_id),
+                                                    data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
+                            assert status_code == resp.status
+                            assert msg == resp.reason
+                        if exception_name == User.PasswordAlreadyUsed:
+                            patch_logger.assert_called_once_with(msg)
+                    patch_update.assert_called_once_with(str(user_id), request_data)
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
@@ -1051,23 +1113,26 @@ class TestAuthMandatory:
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(True)
+            rv1 = await mock_coro([{'id': '1'}])
+            rv2 = await mock_coro(True)
+            rv3 = await mock_coro("")
         else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(True))
+            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            rv2 = asyncio.ensure_future(mock_coro(True))
+            rv3 = asyncio.ensure_future(mock_coro(""))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
-                with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
-                    with patch.object(auth._logger, 'error') as patch_logger:
-                        resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data),
-                                                headers=ADMIN_USER_HEADER)
-                        assert 500 == resp.status
-                        assert msg == resp.reason
-                    args = patch_logger.call_args
-                    assert logger_msg == args[0][1]
-                patch_update.assert_called_once_with(str(user_id), request_data)
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
+                with patch.object(auth, 'validate_password', return_value=rv3):
+                    with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
+                        with patch.object(auth._logger, 'error') as patch_logger:
+                            resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data),
+                                                    headers=ADMIN_USER_HEADER)
+                            assert 500 == resp.status
+                            assert msg == resp.reason
+                        args = patch_logger.call_args
+                        assert logger_msg == args[0][1]
+                    patch_update.assert_called_once_with(str(user_id), request_data)
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
@@ -1085,25 +1150,28 @@ class TestAuthMandatory:
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(True)
-            _rv3 = await mock_coro(ret_val)
+            rv1 = await mock_coro([{'id': '1'}])
+            rv2 = await mock_coro(True)
+            rv3 = await mock_coro(ret_val)
+            rv4 = await mock_coro("")
         else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(True))
-            _rv3 = asyncio.ensure_future(mock_coro(ret_val))
+            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            rv2 = asyncio.ensure_future(mock_coro(True))
+            rv3 = asyncio.ensure_future(mock_coro(ret_val))
+            rv4 = asyncio.ensure_future(mock_coro(""))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
-                with patch.object(User.Objects, 'update', return_value=_rv3) as patch_update:
-                    with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                        resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data),
-                                                headers=ADMIN_USER_HEADER)
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        assert {'message': msg} == json.loads(r)
-                    patch_auth_logger_info.assert_called_once_with(msg)
-                patch_update.assert_called_once_with(str(user_id), request_data)
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
+                with patch.object(auth, 'validate_password', return_value=rv4):
+                    with patch.object(User.Objects, 'update', return_value=rv3) as patch_update:
+                        with patch.object(auth._logger, 'info') as patch_auth_logger_info:
+                            resp = await client.put('/fledge/admin/{}/reset'.format(user_id),
+                                                    data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
+                            assert 200 == resp.status
+                            r = await resp.text()
+                            assert {'message': msg} == json.loads(r)
+                        patch_auth_logger_info.assert_called_once_with(msg)
+                    patch_update.assert_called_once_with(str(user_id), request_data)
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
@@ -1181,3 +1249,114 @@ class TestAuthMandatory:
                 assert 401 == resp.status
                 actual = await resp.text()
                 assert "401: {}".format(expected) == actual
+
+    @pytest.mark.parametrize("pwd, error_msg, policy", [
+        ("pass", "Password length is minimum of 6 characters.", "Any characters"),
+        ("passwords", "Password length is maximum of 8 characters.", "Any characters"),
+        ("password", "Password must contain upper and lower case letters.", "Mixed case Alphabetic"),
+        ("password", "Password must contain upper, lower case, uppercase and numeric values.", "Mixed case and numeric"),
+        ("password", "Password must contain atleast one upper and lower case letter, numeric and special characters.", "Mixed case, numeric and special characters"),
+    ])
+    async def test_bad_validate_password(self, pwd, error_msg, policy):
+        async def mock_cat():
+            return {
+            "policy": {
+                "description": "Password policy",
+                "type": "enumeration",
+                "options": [
+                    "Any characters",
+                    "Mixed case Alphabetic",
+                    "Mixed case and numeric",
+                    "Mixed case, numeric and special characters"
+                ],
+                "default": "Any characters",
+                "displayName": "Policy",
+                "order": "1",
+                "value": policy
+            },
+            "length": {
+                "description": "Minimum password length",
+                "type": "integer",
+                "default": "6",
+                "displayName": "Minimum Length",
+                "minimum": "6",
+                "maximum": "8",
+                "order": "2",
+                "value": "6"
+            },
+            "expiration": {
+                "description": "Number of days after which passwords must be changed",
+                "type": "integer",
+                "default": "0",
+                "displayName": "Expiry (in Days)",
+                "order": "3",
+                "value": "0"
+            }
+        }
+        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_cat()))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
+                msg = await auth.validate_password(pwd)
+                assert error_msg == msg
+            patch_get_cat.assert_called_once_with('password')
+
+    @pytest.mark.parametrize("pwd, policy", [
+        ("password", "Any characters"), ("Password", "Any characters"), ("Passw0rd", "Any characters"),
+        ("passw0rd", "Any characters"), ("PaSsw0#d", "Any characters"), ("paSsw0#1", "Any characters"),
+        ("Password", "Mixed case Alphabetic"), ("PassworD", "Mixed case Alphabetic"),
+        ("Pass123", "Mixed case Alphabetic"), ("Pass!23", "Mixed case Alphabetic"),
+        ("Passw0rd", "Mixed case and numeric"), ("paSSw0rd", "Mixed case and numeric"),
+        ("1ass0Rd", "Mixed case and numeric"), ("PASSw0rD", "Mixed case and numeric"),
+        ("pAss@!1", "Mixed case, numeric and special characters"),
+        ("@Aswe12", "Mixed case, numeric and special characters"),
+        ("(Aswe1)", "Mixed case, numeric and special characters"),
+        ("s!@#$%G2", "Mixed case, numeric and special characters"),
+        ("Fl@3737", "Mixed case, numeric and special characters")
+    ])
+    async def test_good_validate_password(self, pwd, policy):
+        async def mock_cat():
+            return {
+            "policy": {
+                "description": "Password policy",
+                "type": "enumeration",
+                "options": [
+                    "Any characters",
+                    "Mixed case Alphabetic",
+                    "Mixed case and numeric",
+                    "Mixed case, numeric and special characters"
+                ],
+                "default": "Any characters",
+                "displayName": "Policy",
+                "order": "1",
+                "value": policy
+            },
+            "length": {
+                "description": "Minimum password length",
+                "type": "integer",
+                "default": "6",
+                "displayName": "Minimum Length",
+                "minimum": "6",
+                "maximum": "8",
+                "order": "2",
+                "value": "6"
+            },
+            "expiration": {
+                "description": "Number of days after which passwords must be changed",
+                "type": "integer",
+                "default": "0",
+                "displayName": "Expiry (in Days)",
+                "order": "3",
+                "value": "0"
+            }
+        }
+        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_cat()))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
+                msg = await auth.validate_password(pwd)
+                assert "" == msg
+            patch_get_cat.assert_called_once_with('password')
+

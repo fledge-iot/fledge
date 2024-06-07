@@ -29,7 +29,8 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL),
+	m_prefetchLimit(2)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -123,7 +124,8 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		while (m_queue.size() < 5)      // Read another block if we have less than 5 already queued
+		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
+		       						// the prefetch limit already queued
 			readBlock(block);
 	}
 }
@@ -412,7 +414,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	if (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}

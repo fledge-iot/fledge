@@ -455,49 +455,78 @@ If you are curious to see which categories are available in Fledge, simply type:
 
   $ curl -s http://localhost:8081/fledge/category ; echo
   {
-    "categories":
-    [
-      {
-        "key": "SCHEDULER",
-         "description": "Scheduler configuration",
-         "displayName": "Scheduler"
-      },
-      {
-        "key": "SMNTR",
-        "description": "Service Monitor",
-        "displayName": "Service Monitor"
-      },
-      {
-        "key": "rest_api",
-        "description": "Fledge Admin and User REST API",
-        "displayName": "Admin API"
-      },
-      {
-        "key": "service",
-        "description": "Fledge Service",
-        "displayName": "Fledge Service"
-      },
-      {
-        "key": "Installation",
-        "description": "Installation",
-        "displayName": "Installation"
-      },
-      {
-        "key": "General",
-        "description": "General",
-        "displayName": "General"
-      },
-      {
-        "key": "Advanced",
-        "description": "Advanced",
-        "displayName": "Advanced"
-      },
-      {
-        "key": "Utilities",
-        "description": "Utilities",
-        "displayName": "Utilities"
-      }
-    ]
+      "categories": [
+        {
+          "key": "Storage",
+          "description": "Storage configuration",
+          "displayName": "Storage"
+        },
+        {
+          "key": "Advanced",
+          "description": "Advanced",
+          "displayName": "Advanced"
+        },
+        {
+          "key": "LOGGING",
+          "description": "Logging Level of Core Server",
+          "displayName": "Logging"
+        },
+        {
+          "key": "SCHEDULER",
+          "description": "Scheduler configuration",
+          "displayName": "Scheduler"
+        },
+        {
+          "key": "SMNTR",
+          "description": "Service Monitor",
+          "displayName": "Service Monitor"
+        },
+        {
+          "key": "rest_api",
+          "description": "Fledge Admin and User REST API",
+          "displayName": "Admin API"
+        },
+        {
+          "key": "password",
+          "description": "To control the password policy",
+          "displayName": "Password Policy"
+        },
+        {
+          "key": "service",
+          "description": "Fledge Service",
+          "displayName": "Fledge Service"
+        },
+        {
+          "key": "Installation",
+          "description": "Installation",
+          "displayName": "Installation"
+        },
+        {
+          "key": "sqlite",
+          "description": "Storage Plugin",
+          "displayName": "sqlite"
+        },
+        {
+          "key": "General",
+          "description": "General",
+          "displayName": "General"
+        },
+        {
+          "key": "Utilities",
+          "description": "Utilities",
+          "displayName": "Utilities"
+        },
+        {
+          "key": "purge_system",
+          "description": "Configuration of the Purge System",
+          "displayName": "Purge System"
+        },
+        {
+          "key": "PURGE_READ",
+          "description": "Purge the readings, log, statistics history table",
+          "displayName": "Purge"
+        }
+      ]
   }
   $
 

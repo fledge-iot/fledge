@@ -9,6 +9,7 @@
 .. |profile| image:: images/profile.jpg
 .. |password| image:: images/password.jpg
 .. |password_rotation| image:: images/password_rotation.jpg
+.. |password_policy| image:: images/password_policy.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
 .. |update_user| image:: images/update_user.jpg
@@ -127,6 +128,27 @@ Towards the bottom of this profile display the *change password* option appears.
 +------------+
 
 This popup can be used to change your password. On successfully changing your password you will be logged out of the user interface and will be required to log back in using this new password.
+
+Password Policy
+---------------
+
+Fledge provides different policies to control the passwords. The following options are currently available:
+
++-------------------+
+| |password_policy| |
++-------------------+
+
+- *Any characters* - there are no restrictions placed on the characters within a password.
+
+- *Mixed case Alphabetic* -  passwords must contain upper and lower case letters. The user is free to add numeric values and special characters if they wish, but there is no requirement to add these.
+
+- *Mixed case and numeric* - password must contain upper, lower case letters and numeric values.
+
+- *Mixed case, numeric and special characters* - password must contain atleast one upper and lower case letter, numeric and special characters.
+
+.. note::
+
+    In addition to the above rules on password content, the minimum password length is by default 6 and can be controlled with the 'Minimum length' configuration item. The maximum password length that can be configured is 80 characters.
 
 Password Rotation Mechanism
 ---------------------------

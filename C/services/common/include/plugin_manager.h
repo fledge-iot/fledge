@@ -16,6 +16,7 @@
 #include <string>
 #include <list>
 #include <map>
+#include <vector>
 
 typedef enum PluginType
 {
@@ -52,7 +53,7 @@ class PluginManager {
 						    std::list<std::string>& plugins);
 		void setPluginType(tPluginType type);
 		PLUGIN_TYPE getPluginImplType(const PLUGIN_HANDLE hndl) { return pluginImplTypes[hndl]; }
-
+		std::vector<std::string> getPluginsByFlags(const std::string& type, unsigned int flags);
 	public:
                 static PluginManager* instance;
 

@@ -58,6 +58,7 @@ DataLoad::~DataLoad()
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
+	flushLastSentId();
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
 	while (! m_queue.empty())
@@ -200,7 +201,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 			if (m_perfMonitor)
 			{
 				m_perfMonitor->collect("No of waits for data", n_waits);
-				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+				m_perfMonitor->collect("Block utilisation %", (long)((readings->getCount() * 100) / blockSize));
 			}
 			return;
 		}
@@ -357,12 +358,12 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	m_queue.push_back(readings);
 	if (m_perfMonitor)
 	{
-		m_perfMonitor->collect("Readings added to buffer", readings->getCount());
-		m_perfMonitor->collect("Reading sets buffered", m_queue.size());
-		long i = 0;
+		m_perfMonitor->collect("Readings added to buffer", (long)(readings->getCount()));
+		m_perfMonitor->collect("Reading sets buffered", (long)(m_queue.size()));
+		unsigned long i = 0;
 		for (auto& set : m_queue)
 			i += set->getCount();
-		m_perfMonitor->collect("Total readings buffered", i);
+		m_perfMonitor->collect("Total readings buffered", (long)i);
 	}
 	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
@@ -449,11 +450,24 @@ InsertValues streamValues;
  */
 void DataLoad::updateLastSentId(unsigned long id)
 {
+	m_streamSent = id;
+	if (m_nextStreamUpdate-- <= 0)
+	{
+		flushLastSentId();
+		m_nextStreamUpdate = m_streamUpdate;
+	}
+}
+
+/**
+ * Flush the last sent Id to the storeage layer
+ */
+void DataLoad::flushLastSentId()
+{
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
 
-	lastId.push_back(InsertValue("last_object", (long)id));
+	lastId.push_back(InsertValue("last_object", (long)m_streamSent));
 	m_storage->updateTable("streams", lastId, where);
 }
 
@@ -580,75 +594,6 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 	load->m_queue.push_back(readingSet);
 	load->m_fetchCV.notify_all();
 }
-
-/**
- * Update the sent statistics
- *
- * @param increment	Increment of the number of readings sent
- */
-void DataLoad::updateStatistics(uint32_t increment)
-{
-	updateStatistic(m_name, m_name + " Readings Sent", increment);
-	updateStatistic("Readings Sent", "Readings Sent North", increment);
-}
-
-/**
- * Update a particular statstatistic
- *
- * @param key		The statistic key
- * @param description	The statistic description
- * @param increment	Increment of the number of readings sent
- */
-void DataLoad::updateStatistic(const string& key, const string& description, uint32_t increment)
-{
-	const Condition conditionStat(Equals);
-	Where wLastStat("key", conditionStat, key);
-
-	// Prepare value = value + inc
-	ExpressionValues updateValue;
-	updateValue.push_back(Expression("value", "+", (int)increment));
-
-	// Perform UPDATE fledge.statistics SET value = value + x WHERE key = 'name'
-	int row_affected = m_storage->updateTable("statistics", updateValue, wLastStat);
-
-	if (row_affected < 1)
-	{
-		// The required row is not in the statistics table yet
-		// this situation happens only at the initial setup
-		// adding the required row.
-
-		Logger::getLogger()->info("Adding a new row into the statistics as it is not present yet, key -%s- description -%s-",
-				key.c_str(), description.c_str()); 
-		InsertValues values;
-		values.push_back(InsertValue("key",         key));
-		values.push_back(InsertValue("description", description));
-		values.push_back(InsertValue("value",       (long)increment));
-		string table = "statistics";
-
-		if (m_storage->insertTable(table, values) != 1)
-		{
-			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
-			{
-				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
-			}
-			else
-			{
-				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
-			}
-		}
-		else
-		{
-			Logger::getLogger()->info("New row added into the %s, key -%s- description -%s-",
-				table.c_str(), key.c_str(), description.c_str());
-
-                }
-	}
-	else if (row_affected > 1)
-	{
-		Logger::getLogger()->error("There appear to be multiple rows in the statistics table for %s", key.c_str());
-	}
-}
-
 
 /**
  * Configuration change for one of the filters or to the pipeline.

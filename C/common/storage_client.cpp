@@ -83,6 +83,30 @@ StorageClient::~StorageClient()
 	}
 }
 
+
+/**
+ * Delete HttpClient object for current thread
+ */
+bool StorageClient::deleteHttpClient()
+{
+	std::thread::id thread_id = std::this_thread::get_id();
+
+	lock_guard<mutex> guard(sto_mtx_client_map);
+
+	if(m_client_map.find(thread_id) == m_client_map.end())
+		return false;
+
+	ostringstream ss;
+	ss << thread_id;
+	Logger::getLogger()->debug("Storage client deleting HttpClient object @ %p for thread %s", m_client_map[thread_id], ss.str().c_str());
+	
+	delete m_client_map[thread_id];
+	m_client_map.erase(thread_id);
+
+	return true;
+}
+
+
 /**
  * Creates a HttpClient object for each thread
  * it stores/retrieves the reference to the HttpClient and the associated thread id in a map

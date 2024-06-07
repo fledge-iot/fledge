@@ -699,8 +699,8 @@ string  responsePayload;
 
 			if (m_perfMonitor->isCollecting())
 			{
-				m_perfMonitor->collect("insertTable_rows", rval);
-				m_perfMonitor->collect("insertTable_payloadSize", payload.length());
+				m_perfMonitor->collect("insert rows " + tableName, rval);
+				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
 			}
 		}
 		else
@@ -782,8 +782,8 @@ string	responsePayload;
 
 			if (m_perfMonitor->isCollecting())
 			{
-				m_perfMonitor->collect("updateTable_rows", rval);
-				m_perfMonitor->collect("updateTable_payloadSize", payload.length());
+				m_perfMonitor->collect("update rows " + tableName, rval);
+				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
 			}
 		}
 		else
@@ -912,8 +912,8 @@ string  responsePayload;
 
 			if (m_perfMonitor->isCollecting())
 			{
-				m_perfMonitor->collect("deleteTable_rows", rval);
-				m_perfMonitor->collect("deleteTable_payloadSize", payload.length());
+				m_perfMonitor->collect("delete rows " + tableName, rval);
+				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
 			}
 		}
 		else
@@ -937,6 +937,12 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 {
 string payload;
 string  responsePayload;
+struct timeval	tStart, tEnd;
+
+	if (m_perfMonitor->isCollecting())
+	{
+		gettimeofday(&tStart, NULL);
+	}
 	
 	auto header_seq = request->header.find("SeqNum");
 	if(header_seq != request->header.end())
@@ -992,12 +998,16 @@ string  responsePayload;
 
 			if (m_perfMonitor->isCollecting())
 			{
-				m_perfMonitor->collect("readingsAppendRows_" +
+				gettimeofday(&tEnd, NULL);
+				m_perfMonitor->collect("Reading Append Rows " +
 						(readingPlugin ? readingPlugin : plugin)->getName(),
 						rval);
-				m_perfMonitor->collect("readingsAppendPayloadSize_" +
+				m_perfMonitor->collect("Reading Append PayloadSize " +
 						(readingPlugin ? readingPlugin : plugin)->getName(),
 						payload.length());
+				struct timeval diff;
+				timersub(&tEnd, &tStart, &diff);
+				m_perfMonitor->collect("Reading Append Time (ms)", diff.tv_sec * 1000 + diff.tv_usec / 1000);
 			}
 		}
 		else
@@ -1708,6 +1718,11 @@ string  responsePayload;
                 int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("insert rows " + tableName, rval);
+				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
+			}
 			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
                         responsePayload += to_string(rval);
@@ -1787,6 +1802,11 @@ string  responsePayload;
                 int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("update rows " + tableName, rval);
+				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
+			}
 			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
@@ -1826,6 +1846,11 @@ string  responsePayload;
                 int rval = plugin->commonDelete(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("delete rows " + tableName, rval);
+				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
+			}
 			registry.processTableDelete(tableName, payload);
                         responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);

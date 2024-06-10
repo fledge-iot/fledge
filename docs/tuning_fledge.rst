@@ -371,7 +371,7 @@ When collection is enabled the following counters will be collected for the sout
       - If this value is significantly less than the block size it is an indication that the block size can be lowered. If it is always close to the block size then consider increasing the block size.
     * - No data available to fetch
       - Signifies how often there was no data available to be sent to the north plugin.
-      - This performance monitor is useful to aid in tuning the number of buffers to prefetch. It is set to one each time the north plugin s ready to consume more data and no data is available. The count of samples will indicate how often this condition was true within the one minute sampling period.
+      - This performance monitor is useful to aid in tuning the number of buffers to prefetch. It is set to one each time the north plugin is ready to consume more data and no data is available. The count of samples will indicate how often this condition was true within the one minute sampling period.
 
 Health Monitoring
 =================

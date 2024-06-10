@@ -136,7 +136,7 @@ void DataLoad::loadThread()
 
 /**
  * Wait for a read request to be made. Read requests come from consumer
- * threads calling the triggerRead call that wil cause a block of reading
+ * threads calling the triggerRead call that will cause a block of reading
  * data (or whatever the source of data is) to be added to the reading
  * buffer.
  *
@@ -157,7 +157,7 @@ unsigned int DataLoad::waitForReadRequest()
 
 /**
  * Trigger the loading thread to read a block of data. This is called by
- * any thread to request that dat abe added to the buffer ready for collection.
+ * any thread to request that data be added to the buffer ready for collection.
  */
 void DataLoad::triggerRead(unsigned int blockSize)
 {
@@ -167,7 +167,7 @@ void DataLoad::triggerRead(unsigned int blockSize)
 }
 
 /**
- * Read a block of readings, statistics or audiot date  from the storage service
+ * Read a block of readings, statistics or audit date  from the storage service
  *
  * @param blockSize	The number of readings to fetch
  */
@@ -404,7 +404,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	{
 		if (m_perfMonitor && m_perfMonitor->isCollecting())
 		{
-			m_perfMonitor->collect("No data avialable to fetch", 1);
+			m_perfMonitor->collect("No data available to fetch", 1);
 		}
 		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)

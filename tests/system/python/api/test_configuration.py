@@ -114,7 +114,16 @@ class TestConfiguration:
                              'key': 'rest_api',
                              'description': 'Fledge Admin and User REST API',
                              'displayName': 'Admin API',
-                             'children': []
+                             'children': [
+                                 {
+                                     "key": "password",
+                                     "description": "To control the password policy",
+                                     "displayName": "Password Policy",
+                                     "children": [
+
+                                     ]
+                                 }
+                             ]
                          },
                          {
                               'key': 'Installation',
@@ -151,8 +160,7 @@ class TestConfiguration:
         expected = {'httpsPort': {'displayName': 'HTTPS Port', 'description': 'Port to accept HTTPS connections on', 'type': 'integer', 'order': '3', 'value': '1995', 'default': '1995', 'validity': 'enableHttp=="false"'},
                     'authCertificateName': {'displayName': 'Auth Certificate', 'description': 'Auth Certificate name', 'type': 'string', 'order': '7', 'value': 'ca', 'default': 'ca'},
                     'certificateName': {'displayName': 'Certificate Name', 'description': 'Certificate file name', 'type': 'string', 'order': '4', 'value': 'fledge', 'default': 'fledge', 'validity': 'enableHttp=="false"'},
-                    'authProviders': {'displayName': 'Auth Providers', 'description': 'Authentication providers to use for the interface (JSON array object)', 'type': 'JSON', 'order': '10', 'value': '{"providers": ["username", "ldap"] }', 'default': '{"providers": ["username", "ldap"] }'},
-                    'passwordChange': {'displayName': 'Password Expiry Days', 'description': 'Number of days after which passwords must be changed', 'type': 'integer', 'order': '9', 'value': '0', 'default': '0'},
+                    'authProviders': {'displayName': 'Auth Providers', 'description': 'Authentication providers to use for the interface (JSON array object)', 'type': 'JSON', 'order': '9', 'value': '{"providers": ["username", "ldap"] }', 'default': '{"providers": ["username", "ldap"] }'},
                     'authentication': {'displayName': 'Authentication', 'description': 'API Call Authentication', 'type': 'enumeration', 'options': ['mandatory', 'optional'], 'order': '5', 'value': 'optional', 'default': 'optional'},
                     'authMethod': {'displayName': 'Authentication method', 'description': 'Authentication method', 'type': 'enumeration', 'options': ['any', 'password', 'certificate'], 'order': '6', 'value': 'any', 'default': 'any'},
                     'httpPort': {'displayName': 'HTTP Port', 'description': 'Port to accept HTTP connections on', 'type': 'integer', 'order': '2', 'value': '8081', 'default': '8081'},

@@ -23,8 +23,6 @@ __version__ = "${VERSION}"
 
 _logger = FLCoreLogger().get_logger(__name__)
 
-# TODO: make configurable?
-IDLE_SESSION_TIMEOUT = 5 * 60  # 5 minutes
 
 async def error_middleware(app, handler):
     async def middleware_handler(request):
@@ -54,7 +52,7 @@ async def optional_auth_middleware(app, handler):
 
 async def auth_middleware(app, handler):
     async def _disconnect_idle_logins(uid):
-        session = await User.Objects.user_session(action="FETCH")
+        timeout, session = await User.Objects.user_session(action="FETCH")
         fmt = "%Y-%m-%d %H:%M:%S.%f"
         current_time = datetime.now().strftime(fmt)
         for se in session:
@@ -63,7 +61,7 @@ async def auth_middleware(app, handler):
                     se['ts'] = current_time
                 else:
                     diff = datetime.strptime(current_time, fmt) - datetime.strptime(se['ts'], fmt)
-                    if diff.seconds > IDLE_SESSION_TIMEOUT:
+                    if diff.seconds > timeout:
                         raise User.SessionTimeout("Session disconnected, please login again!")
                     se['ts'] = current_time
                 break
@@ -90,8 +88,9 @@ async def auth_middleware(app, handler):
             try:
                 # validate the token and get user id
                 uid = await User.Objects.validate_token(token)
-                # disconnect idle logins for non-admin users
-                await _disconnect_idle_logins(uid)
+                if not str(handler).startswith("<function ping"):
+                    # disconnect idle user logins
+                    await _disconnect_idle_logins(uid)
                 # extend the token expiry, as token is valid
                 # and no bad token exception raised
                 await User.Objects.refresh_token_expiry(token)

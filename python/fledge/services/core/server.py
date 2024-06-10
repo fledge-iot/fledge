@@ -273,6 +273,15 @@ class Server:
             'displayName': 'Auth Providers',
             'order': '9'
         },
+        'disconnectIdleUserSession': {
+            'description': 'Disconnect idle user session after certain period of inactivity',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Idle User Session Disconnection (in Mins)',
+            'order': '10',
+            'minimum': '1',
+            'maximum': '1440'
+        }
     }
 
     _LOGGING_DEFAULT_CONFIG = {
@@ -327,6 +336,8 @@ class Server:
 
     _user_session_details = []
     """ Disconnect idle user sessions/logins """
+
+    _user_idle_session_timeout = 15
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
@@ -480,6 +491,10 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
+            try:
+                cls._user_idle_session_timeout = int(config['disconnectIdleUserSession']['value']) * 60
+            except:
+                cls._user_idle_session_timeout = 15 * 60
         except Exception as ex:
             _logger.exception(ex)
             raise

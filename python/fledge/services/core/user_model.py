@@ -394,11 +394,11 @@ class User:
                     pass  # retry INSERT
                 raise ValueError(ERROR_MSG)
 
+            # Save session in memory for idle disconnection
+            await cls.user_session(action="SAVE", data={"uid": uid, "token": jwt_token})
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
                 return uid, jwt_token, True
-            # Save session in memory for idle disconnection
-            await cls.user_session(action="SAVE", data={"uid": uid, "token": jwt_token})
             return uid, jwt_token, False
 
         @classmethod
@@ -467,7 +467,8 @@ class User:
             from fledge.services.core import server
 
             if action == "FETCH":
-                return server.Server._user_session_details
+                session_data = (server.Server._user_idle_session_timeout, server.Server._user_session_details)
+                return session_data
             elif action == "SAVE":
                 server.Server._user_session_details.append(data)
             elif action == "REMOVE":

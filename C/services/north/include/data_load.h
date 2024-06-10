@@ -95,5 +95,6 @@ class DataLoad : public ServiceHandler {
 		unsigned long		m_streamSent;
 		int			m_nextStreamUpdate;
 		unsigned int		m_prefetchLimit;
+		bool			m_flushRequired;
 };
 #endif

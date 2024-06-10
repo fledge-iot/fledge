@@ -41,6 +41,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_nextStreamUpdate = 1;
 	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
+	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
 }
@@ -64,7 +65,10 @@ DataLoad::~DataLoad()
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
-	flushLastSentId();
+	if (m_flushRequired)
+	{
+		flushLastSentId();
+	}
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
 	while (! m_queue.empty())
@@ -473,6 +477,7 @@ InsertValues streamValues;
 void DataLoad::updateLastSentId(unsigned long id)
 {
 	m_streamSent = id;
+	m_flushRequired = true;
 	if (m_nextStreamUpdate-- <= 0)
 	{
 		flushLastSentId();

@@ -75,6 +75,7 @@ async def fetch_support_bundle(request):
     return web.json_response({"bundles": found_files})
 
 
+@has_permission("admin")
 async def fetch_support_bundle_item(request):
     """ check existence of a bundle support by name
 

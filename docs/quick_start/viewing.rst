@@ -1,5 +1,5 @@
 .. Images
-.. |viewing_data| image:: ../images/viewing_data.JPG
+.. |viewing_data| image:: ../images/viewing_data.jpg
 .. |view_graph| image:: ../images/view_graph.jpg
 .. |view_hide| image:: ../images/view_hide.jpg
 .. |view_summary| image:: ../images/view_summary.jpg
@@ -7,19 +7,20 @@
 .. |view_times| image:: ../images/view_times.jpg
 .. |view_spreadsheet| image:: ../images/view_spreadsheet.jpg
 .. |gui_settings| image:: ../images/gui_settings.jpg
-.. |graph_buttons| image:: ../images/graph_buttons.jpg
-.. |graph_paused| image:: ../images/graph_paused.jpg
+.. |graph_buttons| image:: ../images/view_buttons.jpg
+.. |graph_paused| image:: ../images/view_paused.jpg
 .. |multi_graph1| image:: ../images/multi_graph1.jpg
 .. |multi_graph2| image:: ../images/multi_graph2.jpg
 .. |multi_graph3| image:: ../images/multi_graph3.jpg
 .. |latest_icon| image:: ../images/latest_icon.jpg
 .. |current_icon| image:: ../images/current_icon.jpg
 .. |latest_graph| image:: ../images/latest_graph.jpg
-.. |must_recent_icon| image:: ../images/must_recent_icon.jpg
-.. |must_recent_data| image:: ../images/must_recent_data.jpg
+.. |most_recent_icon| image:: ../images/most_recent_icon.jpg
+.. |most_recent_data| image:: ../images/most_recent_data.jpg
 
 Viewing Data
 ############
+
 +----------------+
 | |viewing_data| |
 +----------------+
@@ -28,8 +29,8 @@ You can inspect all the data buffered by the Fledge system on the Assets page.  
 
 This screen will display a list of every data asset in the system.  Alongside each asset are two icons; one to display a graph of the asset and another to download the data stored for that asset as a CSV file.
 
-Display Graph
-~~~~~~~~~~~~~
+Displaying A Graph
+------------------
 
 .. image:: ../images/graph_icon.jpg
    :align: left
@@ -60,8 +61,8 @@ Where an asset contains multiple data points each of these is displayed in a dif
 | |view_hide| |
 +-------------+
 
-Adjusting Timeframe
-###################
+Adjusting The Timeframe
+~~~~~~~~~~~~~~~~~~~~~~~
 
 There are a number of button on the top left of the graph window that can be used to control the time period of the graph that is shown. 
 
@@ -79,15 +80,24 @@ Before you can use the two navigation buttons to navigate the graph you must fir
 
 If you click on the play button the graph will once move switch to automatically updating and will shown the time window for the current time.
 
-The two double arrow button allow you to move backwards and forwards in time. Clicking the arrows facing left will move you back in time by the current window of data that is shown and clicking the right arrows moves you forwards in time.
+The two double arrow buttons allow you to move backwards and forwards in time. 
 
-When an asset does not continuously ingest data you may need to move back in time in order to see the last data that was ingested for an ingest. The interface provides a convenient shortcut to allow you to quickly navigate back in time to see the last data that was ingested. Simply click in the icon to the left of the time navigation buttons.
+.. image:: ../images/older.jpg
+   :align: left
 
-+---------------+
-| |latest_icon| |
-+---------------+
+Clicking the arrows facing left will move you back in time by the current window of data that is shown. This will result in older dta being seen.
 
-The graph will change to show the latest data available for the chosen asset.
+.. image:: ../images/newer.jpg
+   :align: left
+
+Clicking the right arrows moves you forwards in time, newer data will now be seen.
+
+When an asset does not continuously ingest data you may need to move back in time in order to see the last data that was ingested for an ingest. The interface provides a convenient shortcut to allow you to quickly navigate back in time to see the last data that was ingested.
+
+.. image:: ../images/current_icon.jpg
+   :align: left
+
+Simply click in the icon to the left of the time navigation buttons. The graph will change to show the latest data available for the chosen asset.
 
 +----------------+
 | |latest_graph| |
@@ -102,7 +112,7 @@ Notice that the icon used to get this graph has now changed.
 Clicking on this icon will cause the graph to run to the current time frame and show any data that is freshly ingested.
 
 Viewing Multiple Assets
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
 It is also possible to overlay the graphs for other assets onto the asset you are viewing.
 
@@ -123,7 +133,7 @@ All the data points from that asset will then be added to the graph. Multiple as
 +----------------+
 
 Non-graphical Data
-##################
+~~~~~~~~~~~~~~~~~~
 
 Some types data are not capable of being displayed in a graph, such as string data and images. These are shown in separates tabs on the screen. String data will be shown in a *Tabular Data* tab.
 
@@ -138,7 +148,7 @@ A summary tab is also available, this will show the minimum, maximum and average
 +----------------+
 
 Download Data
-~~~~~~~~~~~~~
+-------------
 
 .. image:: ../images/download_icon.jpg
    :align: left
@@ -151,8 +161,8 @@ The file contains a header row with the names of the data points within the asse
 | |view_spreadsheet| |
 +--------------------+
 
-Must Recent Data
-~~~~~~~~~~~~~~~~
+Most Recent Data
+----------------
 
 .. image:: ../images/most_recent_icon.jpg
    :align: left

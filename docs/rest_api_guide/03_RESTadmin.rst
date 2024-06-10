@@ -289,49 +289,78 @@ The response payload is a JSON object with an array of JSON objects, one per val
 
   $ curl -X GET http://localhost:8081/fledge/category
   {
-    "categories":
-    [
-      {
-        "key": "SCHEDULER",
-         "description": "Scheduler configuration",
-         "displayName": "Scheduler"
-      },
-      {
-        "key": "SMNTR",
-        "description": "Service Monitor",
-        "displayName": "Service Monitor"
-      },
-      {
-        "key": "rest_api",
-        "description": "Fledge Admin and User REST API",
-        "displayName": "Admin API"
-      },
-      {
-        "key": "service",
-        "description": "Fledge Service",
-        "displayName": "Fledge Service"
-      },
-      {
-        "key": "Installation",
-        "description": "Installation",
-        "displayName": "Installation"
-      },
-      {
-        "key": "General",
-        "description": "General",
-        "displayName": "General"
-      },
-      {
-        "key": "Advanced",
-        "description": "Advanced",
-        "displayName": "Advanced"
-      },
-      {
-        "key": "Utilities",
-        "description": "Utilities",
-        "displayName": "Utilities"
-      }
-    ]
+      "categories": [
+        {
+          "key": "Storage",
+          "description": "Storage configuration",
+          "displayName": "Storage"
+        },
+        {
+          "key": "Advanced",
+          "description": "Advanced",
+          "displayName": "Advanced"
+        },
+        {
+          "key": "LOGGING",
+          "description": "Logging Level of Core Server",
+          "displayName": "Logging"
+        },
+        {
+          "key": "SCHEDULER",
+          "description": "Scheduler configuration",
+          "displayName": "Scheduler"
+        },
+        {
+          "key": "SMNTR",
+          "description": "Service Monitor",
+          "displayName": "Service Monitor"
+        },
+        {
+          "key": "rest_api",
+          "description": "Fledge Admin and User REST API",
+          "displayName": "Admin API"
+        },
+        {
+          "key": "password",
+          "description": "To control the password policy",
+          "displayName": "Password Policy"
+        },
+        {
+          "key": "service",
+          "description": "Fledge Service",
+          "displayName": "Fledge Service"
+        },
+        {
+          "key": "Installation",
+          "description": "Installation",
+          "displayName": "Installation"
+        },
+        {
+          "key": "sqlite",
+          "description": "Storage Plugin",
+          "displayName": "sqlite"
+        },
+        {
+          "key": "General",
+          "description": "General",
+          "displayName": "General"
+        },
+        {
+          "key": "Utilities",
+          "description": "Utilities",
+          "displayName": "Utilities"
+        },
+        {
+          "key": "purge_system",
+          "description": "Configuration of the Purge System",
+          "displayName": "Purge System"
+        },
+        {
+          "key": "PURGE_READ",
+          "description": "Purge the readings, log, statistics history table",
+          "displayName": "Purge"
+        }
+      ]
   }
   $
 
@@ -393,98 +422,90 @@ The response payload is a set of configuration items within the category, each i
 
   $ curl -X GET http://localhost:8081/fledge/category/rest_api
   {
-    "enableHttp": {
-       "description": "Enable HTTP (disable to use HTTPS)",
-       "type": "boolean",
-       "default": "true",
-       "displayName": "Enable HTTP",
-       "order": "1",
-       "value": "true"
-    },
-    "httpPort": {
-       "description": "Port to accept HTTP connections on",
-       "type": "integer",
-       "default": "8081",
-       "displayName": "HTTP Port",
-       "order": "2",
-       "value": "8081"
-    },
-    "httpsPort": {
-       "description": "Port to accept HTTPS connections on",
-       "type": "integer",
-       "default": "1995",
-       "displayName": "HTTPS Port",
-       "order": "3",
-       "validity": "enableHttp==\"false\"",
-       "value": "1995"
-    },
-    "certificateName": {
-      "description": "Certificate file name",
-      "type": "string",
-      "default": "fledge",
-      "displayName": "Certificate Name",
-      "order": "4",
-      "validity": "enableHttp==\"false\"",
-			"value": "fledge"
-    },
-    "authentication": {
-      "description": "API Call Authentication",
-      "type": "enumeration",
-      "options": [
-        "mandatory",
-        "optional"
-      ],
-      "default": "optional",
-      "displayName": "Authentication",
-       "order": "5",
-       "value": "optional"
-    },
-    "authMethod": {
-      "description": "Authentication method",
-      "type": "enumeration",
-      "options": [
-        "any",
-        "password",
-        "certificate"
-      ],
-      "default": "any",
-      "displayName": "Authentication method",
-      "order": "6",
-      "value": "any"
-    },
-    "authCertificateName": {
-      "description": "Auth Certificate name",
-      "type": "string",
-      "default": "ca",
-      "displayName": "Auth Certificate",
-      "order": "7",
-      "value": "ca"
-    },
-    "allowPing": {
-      "description": "Allow access to ping, regardless of the authentication required and authentication header",
-      "type": "boolean",
-      "default": "true",
-      "displayName": "Allow Ping",
-      "order": "8",
-      "value": "true"
-    },
-    "passwordChange": {
-      "description": "Number of days after which passwords must be changed",
-      "type": "integer",
-      "default": "0",
-      "displayName": "Password Expiry Days",
-      "order": "9",
-      "value": "0"
-    },
-    "authProviders": {
-       "description": "Authentication providers to use for the interface (JSON array object)",
-       "type": "JSON",
-       "default": "{\"providers\": [\"username\", \"ldap\"] }",
-       "displayName": "Auth Providers",
-       "order": "10",
-       "value": "{\"providers\": [\"username\", \"ldap\"] }"
-    }
-	}
+      "enableHttp": {
+        "description": "Enable HTTP (disable to use HTTPS)",
+        "type": "boolean",
+        "default": "true",
+        "displayName": "Enable HTTP",
+        "order": "1",
+        "value": "true"
+      },
+      "httpPort": {
+        "description": "Port to accept HTTP connections on",
+        "type": "integer",
+        "default": "8081",
+        "displayName": "HTTP Port",
+        "order": "2",
+        "value": "8081"
+      },
+      "httpsPort": {
+        "description": "Port to accept HTTPS connections on",
+        "type": "integer",
+        "default": "1995",
+        "displayName": "HTTPS Port",
+        "order": "3",
+        "validity": "enableHttp==\"false\"",
+        "value": "1995"
+      },
+      "certificateName": {
+        "description": "Certificate file name",
+        "type": "string",
+        "default": "fledge",
+        "displayName": "Certificate Name",
+        "order": "4",
+        "validity": "enableHttp==\"false\"",
+        "value": "fledge"
+      },
+      "authentication": {
+        "description": "API Call Authentication",
+        "type": "enumeration",
+        "options": [
+          "mandatory",
+          "optional"
+        ],
+        "default": "optional",
+        "displayName": "Authentication",
+        "order": "5",
+        "value": "optional"
+      },
+      "authMethod": {
+        "description": "Authentication method",
+        "type": "enumeration",
+        "options": [
+          "any",
+          "password",
+          "certificate"
+        ],
+        "default": "any",
+        "displayName": "Authentication method",
+        "order": "6",
+        "value": "any"
+      },
+      "authCertificateName": {
+        "description": "Auth Certificate name",
+        "type": "string",
+        "default": "ca",
+        "displayName": "Auth Certificate",
+        "order": "7",
+        "value": "ca"
+      },
+      "allowPing": {
+        "description": "Allow access to ping, regardless of the authentication required and authentication header",
+        "type": "boolean",
+        "default": "true",
+        "displayName": "Allow Ping",
+        "order": "8",
+        "value": "true"
+      },
+      "authProviders": {
+        "description": "Authentication providers to use for the interface (JSON array object)",
+        "type": "JSON",
+        "default": "{\"providers\": [\"username\", \"ldap\"] }",
+        "displayName": "Auth Providers",
+        "order": "9",
+        "value": "{\"providers\": [\"username\", \"ldap\"] }"
+      }
+  }
   $
 
 |br|

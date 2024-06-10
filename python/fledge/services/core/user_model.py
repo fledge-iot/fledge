@@ -336,7 +336,7 @@ class User:
             # check password change configuration
             storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
-            category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
+            category_item = await cfg_mgr.get_category_item('password', 'expiration')
             age = int(category_item['value'])
 
             # get user info on the basis of username

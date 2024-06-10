@@ -490,7 +490,7 @@ class TestUserModel:
                 assert 'users' == args[0]
                 p = json.loads(args[1])
                 assert payload == p
-            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     async def test_login_if_invalid_password(self):
         async def mock_get_category_item():
@@ -522,7 +522,7 @@ class TestUserModel:
                 assert 'users' == args[0]
                 p = json.loads(args[1])
                 assert payload == p
-            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     async def test_login_age_pwd_expiration(self):
         async def mock_get_category_item():
@@ -552,7 +552,7 @@ class TestUserModel:
                 assert 'users' == args[0]
                 p = json.loads(args[1])
                 assert payload == p
-            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     @pytest.mark.parametrize("user_data", [
         ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}),
@@ -595,7 +595,7 @@ class TestUserModel:
                 assert 'users' == args1[0]
                 p = json.loads(args1[1])
                 assert payload == p
-            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     async def test_login_exception(self):
         async def mock_get_category_item():
@@ -627,7 +627,7 @@ class TestUserModel:
                 assert 'users' == args[0]
                 p = json.loads(args[1])
                 assert payload == p
-            mock_get_cat_patch.assert_called_once_with('rest_api', 'passwordChange')
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     async def test_delete_user_tokens(self):
         expected = {'response': 'deleted', 'rows_affected': 1}

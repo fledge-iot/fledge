@@ -265,19 +265,12 @@ class Server:
             'displayName': 'Allow Ping',
             'order': '8'
         },
-        'passwordChange': {
-            'description': 'Number of days after which passwords must be changed',
-            'type': 'integer',
-            'default': '0',
-            'displayName': 'Password Expiry Days',
-            'order': '9'
-        },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
             'displayName': 'Auth Providers',
-            'order': '10'
+            'order': '9'
         },
     }
 
@@ -486,6 +479,44 @@ class Server:
         except Exception as ex:
             _logger.exception(ex)
             raise
+
+    @classmethod
+    async def password_config(cls):
+        try:
+            config = {
+                'policy': {
+                    'description': 'Password policy',
+                    'type': 'enumeration',
+                    'options': ['Any characters', 'Mixed case Alphabetic', 'Mixed case and numeric', 'Mixed case, numeric and special characters'],
+                    'default': 'Any characters',
+                    'displayName': 'Policy',
+                    'order': '1'
+                },
+                'length': {
+                    'description': 'Minimum password length',
+                    'type': 'integer',
+                    'default': '6',
+                    'displayName': 'Minimum Length',
+                    'minimum': '6',
+                    'maximum': '80',
+                    'order': '2'
+                },
+                'expiration': {
+                    'description': 'Number of days after which passwords must be changed',
+                    'type': 'integer',
+                    'default': '0',
+                    'displayName': 'Expiry (in Days)',
+                    'order': '3'
+                }
+            }
+            category = 'password'
+            await cls._configuration_manager.create_category(category, config, 'To control the password policy', True,
+                                                             display_name="Password Policy")
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
 
     @classmethod
     async def service_config(cls):
@@ -864,6 +895,7 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             loop.run_until_complete(cls.rest_api_config())
+            loop.run_until_complete(cls.password_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context

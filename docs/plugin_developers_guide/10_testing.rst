@@ -213,27 +213,27 @@ The easiest approach to run under a debugger is
 
      - User and password login
 
-         .. code-block:: console
+       .. code-block:: console
 
-             curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
+          curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
 
        Successful authentication will produce a response as shown below.
 
        .. code-block:: console
 
-           {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
+          {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
 
      - Certificate login
 
-         .. code-block:: console
+       .. code-block:: console
 
-            curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
+          curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
 
-        Successful authentication will produce a response as shown below.    
+       Successful authentication will produce a response as shown below.
 
        .. code-block:: console
 
-            {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
+          {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
 
    It is now possible to call the API endpoint to retrieve a startup token by passing the authentication token given in the authentication request.
 
@@ -241,15 +241,15 @@ The easiest approach to run under a debugger is
 
       curl -X POST 127.0.0.1:8081/fledge/service/ServiceName/otp -H 'authorization: Token'
 
-      Where *ServiceName* is the name you gave your service when you created it and *Token* received by the authentication request above.
+   Where *ServiceName* is the name you gave your service when you created it and *Token* received by the authentication request above.
 
-      This call will respond with a startup token that can be used to start the service you are debugging. An example response is shown below.
+   This call will respond with a startup token that can be used to start the service you are debugging. An example response is shown below.
 
-     .. code-block:: console
+   .. code-block:: console
 
-     {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
+      {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
 
-     *startupToken* will be passed as service start argument: --token=*startupToken*
+   *startupToken* will be passed as service start argument: --token=*startupToken*
 
    - Load the service you wish to use to run your plugin, e.g. a south service, under the debugger. This should be run from the FLEDGE_ROOT directory
 

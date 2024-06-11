@@ -190,6 +190,8 @@ In a similar way to the south services, north services and tasks also have advan
 
   - *Stream update frequency* - This controls how frequently the north service updates the current position it has reached in the stream of data it is sending north. The value is expressed as a number of data blocks between updates. Increasing this value will write the position to the storage less frequently, increasing the performance. However in the event of a failure data in the stream may be repeated for this number of blocks.
 
+  - *Data block prefetch* - The north service has a read-ahead buffering scheme to allow a thread to prefetch buffers of readings data ready to be consumed by the thread sending to the plugin. This value allows the number of blocks that will be prefetched to be tuned. If the sending thread is starved of data, and data is available to be sent, increasing this value can increase the overall throughput of the north service. Caution should however be exercised as increasing this value will also increase the amount of memory consumed.
+
   - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variability in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
 
   - *Performance Counters* - This option allows for collection of performance counters that can be use to help tune the north service.
@@ -367,6 +369,9 @@ When collection is enabled the following counters will be collected for the sout
     * - Readings added to buffer
       - An absolute count of the number of readings read into each block.
       - If this value is significantly less than the block size it is an indication that the block size can be lowered. If it is always close to the block size then consider increasing the block size.
+    * - No data available to fetch
+      - Signifies how often there was no data available to be sent to the north plugin.
+      - This performance monitor is useful to aid in tuning the number of buffers to prefetch. It is set to one each time the north plugin is ready to consume more data and no data is available. The count of samples will indicate how often this condition was true within the one minute sampling period.
 
 Health Monitoring
 =================

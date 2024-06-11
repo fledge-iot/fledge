@@ -445,7 +445,7 @@ StorageApi *StorageApi::getInstance()
 {
 	if (m_instance == NULL)
 	{
-		Logger::getLogger()->warn("Creating a default storage API instance, tunign parameters willbe ignored");
+		Logger::getLogger()->warn("Creating a default storage API instance, tuning parameters will be ignored");
 		m_instance = new StorageApi(0, 1, 5);
 	}
 	return m_instance;
@@ -632,9 +632,9 @@ void StorageApi::worker()
 }
 
 /**
- * Append a request to the readingfs request queue
+ * Append a request to the readings request queue
  *
- * If the queu is startign to get long delay the return as
+ * If the queue is starting to get long delay the return as
  * a primitive way to throttle incoming requests
  *
  * @param op	The operation to perform

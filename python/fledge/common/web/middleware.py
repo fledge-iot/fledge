@@ -52,7 +52,7 @@ async def optional_auth_middleware(app, handler):
 
 async def auth_middleware(app, handler):
     async def _disconnect_idle_logins(user_token):
-        timeout, sessions = await User.Objects.user_session(action="FETCH")
+        timeout, sessions = await User.Sessions.get()
         fmt = "%Y-%m-%d %H:%M:%S.%f"
         current_time = datetime.now().strftime(fmt)
         for session in sessions:

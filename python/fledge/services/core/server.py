@@ -335,7 +335,7 @@ class Server:
     """ Package Cache Manager """
 
     _user_sessions = []
-    """ Disconnect idle user sessions/logins """
+    """ User sessions information to disconnect when idle for a certain period """
 
     _user_idle_session_timeout = 15 * 60
     """ User idle session timeout (in minutes) """

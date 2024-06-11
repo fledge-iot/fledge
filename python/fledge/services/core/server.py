@@ -277,7 +277,7 @@ class Server:
             'description': 'Disconnect idle user session after certain period of inactivity',
             'type': 'integer',
             'default': '15',
-            'displayName': 'Idle User Session Disconnection (in Mins)',
+            'displayName': 'Idle User Session Disconnection (In Minutes)',
             'order': '10',
             'minimum': '1',
             'maximum': '1440'
@@ -334,10 +334,11 @@ class Server:
     _package_cache_manager = None
     """ Package Cache Manager """
 
-    _user_session_details = []
+    _user_sessions = []
     """ Disconnect idle user sessions/logins """
 
-    _user_idle_session_timeout = 15
+    _user_idle_session_timeout = 15 * 60
+    """ User idle session timeout (in minutes) """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {

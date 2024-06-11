@@ -30,7 +30,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
-
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _logger = FLCoreLogger().get_logger(__name__)
 
 
@@ -309,12 +309,8 @@ class User:
 
             r = result['rows'][0]
             token_expiry = r["token_expiration"]
-
             curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-            fmt = "%Y-%m-%d %H:%M:%S.%f"
-            diff = datetime.strptime(token_expiry, fmt) - datetime.strptime(curr_time, fmt)
-
+            diff = datetime.strptime(token_expiry, DATE_FORMAT) - datetime.strptime(curr_time, DATE_FORMAT)
             if diff.seconds < 0:
                 raise User.TokenExpired("The token has expired, login again")
 
@@ -395,7 +391,9 @@ class User:
                 raise ValueError(ERROR_MSG)
 
             # Save session in memory for idle disconnection
-            await cls.user_session(action="SAVE", data={"uid": uid, "token": jwt_token})
+            current_time = datetime.now().strftime(DATE_FORMAT)
+            await cls.user_session(action="SAVE", data={"uid": uid, "token": jwt_token,
+                                                        "last_accessed_ts": current_time})
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
                 return uid, jwt_token, True
@@ -467,23 +465,23 @@ class User:
             from fledge.services.core import server
 
             if action == "FETCH":
-                session_data = (server.Server._user_idle_session_timeout, server.Server._user_session_details)
+                session_data = (server.Server._user_idle_session_timeout, server.Server._user_sessions)
                 return session_data
             elif action == "SAVE":
-                server.Server._user_session_details.append(data)
+                server.Server._user_sessions.append(data)
             elif action == "REMOVE":
-                session = server.Server._user_session_details
+                session = server.Server._user_sessions
                 if data is None:
-                    server.Server._user_session_details = []
+                    server.Server._user_sessions = []
                 else:
                     if 'token' in data:
                         for s in session:
                             if s['token'] == data['token']:
-                                server.Server._user_session_details.remove(s)
+                                server.Server._user_sessions.remove(s)
                     else:
                         for s in session:
                             if s['uid'] == int(data['uid']):
-                                server.Server._user_session_details.remove(s)
+                                server.Server._user_sessions.remove(s)
 
         @classmethod
         def hash_password(cls, password):

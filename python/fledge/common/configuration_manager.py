@@ -38,7 +38,7 @@ _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', '
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
                               'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group', 'listSize'])
+                          'validity', 'mandatory', 'group', 'listSize', 'listName'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -269,7 +269,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'listSize': 0}
+                                     'group': 0, 'listSize': 0, 'listName': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -341,6 +341,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if 'items' not in item_val:
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if 'listName' in item_val:
+                        list_name = item_val['listName']
+                        if not isinstance(list_name, str):
+                            raise TypeError('For {} category, listName type must be a string for item name {}; '
+                                            'got {}'.format(category_name, item_name, type(list_name)))
+                        list_name = item_val['listName'].strip()
+                        if not list_name:
+                            raise ValueError('For {} category, listName cannot be empty for item name '
+                                             '{}'.format(category_name, item_name))
+                        item_val['listName'] = list_name
                     if entry_name == 'items':
                         if entry_val not in ("string", "float", "integer", "object", "enumeration"):
                             raise ValueError("For {} category, items value should either be in string, float, "
@@ -425,7 +435,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                       "value for item name {}".format(
                                                     category_name, item_name))
                                 if list_size >= 0:
-                                    if len(eval_default_val) != list_size:
+                                    if len(eval_default_val) > list_size:
                                         raise ArithmeticError("For {} category, default value {} list size limit to "
                                                               "{} for item name {}".format(category_name, msg,
                                                                                            list_size, item_name))
@@ -461,6 +471,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         raise ValueError(type_mismatched_message)
                                     if not isinstance(eval_s, type_check):
                                         raise ValueError(type_mismatched_message)
+                        elif entry_name == 'items' and entry_val == "enumeration":
+                            eval_default_val = ast.literal_eval(get_entry_val("default"))
+                            ev_options = item_val['options']
+                            if item_val['type'] == 'kvlist':
+                                for ek, ev in eval_default_val.items():
+                                    if ev not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options '
+                                                         'for item name {} and entry_name {}'.format(
+                                            category_name, ev, item_name, ek))
+                            else:
+                                for s in eval_default_val:
+                                    if s not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options for item '
+                                                         'name {}'.format(category_name, s, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
                     if entry_name in ('properties', 'options'):
@@ -489,7 +513,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name in ('displayName', 'group', 'rule', 'validity'):
+                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
@@ -534,7 +558,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
             if 'mandatory' in item_val:
                 item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
-
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
@@ -746,7 +769,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
-
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
@@ -762,7 +784,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise TypeError('new value should be a valid dict Or a string literal, in double quotes')
                 elif not isinstance(new_val, str):
                     raise TypeError('new value should be of type string')
-
                 if cat_info[item_name]['type'] == 'enumeration':
                     if new_val == '':
                         raise ValueError('entry_val cannot be empty')
@@ -780,6 +801,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                     "Dict cannot be set as empty. A value must be given for {}".format(item_name))
                         elif not len(new_val.strip()):
                             raise ValueError("A value must be given for {}".format(item_name))
+                if cat_info[item_name]['type'] in ('list', 'kvlist') and cat_info[item_name]['items'] == 'enumeration':
+                    try:
+                        eval_new_val = ast.literal_eval(new_val)
+                    except:
+                        raise TypeError("Malformed payload for given {} category".format(category_name))
+                    ev_options = cat_info[item_name]['options']
+                    if cat_info[item_name]['type'] == 'kvlist':
+                        if not isinstance(eval_new_val, dict):
+                            raise TypeError("New value should be in KV pair format")
+                        for ek, ev in eval_new_val.items():
+                            if ev == '':
+                                raise ValueError('For {}, enum value cannot be empty'.format(ek))
+                            if ev not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(ek))
+                    else:
+                        if not isinstance(eval_new_val, list):
+                            raise TypeError("New value should be passed in list")
+                        if not eval_new_val:
+                            raise ValueError('enum value cannot be empty')
+                        for s in eval_new_val:
+                            if s not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
                 # Validations on the basis of optional attributes
@@ -1908,10 +1951,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if 'listSize' in storage_value_entry:
                     list_size = int(storage_value_entry['listSize'])
                     if list_size >= 0:
-                        if len(eval_new_val) != list_size:
+                        if len(eval_new_val) > list_size:
                             raise TypeError("For config item {} value {} list size limit to {}".format(
                                 item_name, msg, list_size))
-
                 type_mismatched_message = "For config item {} all elements should be of same {} type".format(
                     item_name, storage_value_entry['items'])
                 type_check = str

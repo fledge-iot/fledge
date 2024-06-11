@@ -34,6 +34,5 @@ class CheckUpdates : public FledgeProcess
 		std::string getPackageManager();
 		std::vector<std::string> getUpgradablePackageList();
 		void processEnd();
-	
 };
 #endif

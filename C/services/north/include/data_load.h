@@ -31,8 +31,8 @@ class DataLoad : public ServiceHandler {
 		bool			setDataSource(const std::string& source);
 		void			triggerRead(unsigned int blockSize);
 		void			updateLastSentId(unsigned long id);
+		void			flushLastSentId();
 		ReadingSet		*fetchReadings(bool wait);
-		void			updateStatistics(uint32_t increment);
 		static void		passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
@@ -48,7 +48,14 @@ class DataLoad : public ServiceHandler {
 					{
 						m_blockSize = blockSize;
 					};
+		void			setStreamUpdate(unsigned long streamUpdate)
+					{
+						m_streamUpdate = streamUpdate;
+						m_nextStreamUpdate = streamUpdate;
+					};
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
+		const std::string	&getName() { return m_name; };
+		StorageClient		*getStorage() { return m_storage; }; 
 
 	private:
 		void			readBlock(unsigned int blockSize);
@@ -59,7 +66,7 @@ class DataLoad : public ServiceHandler {
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
 		bool			loadFilters(const std::string& category);
-		void			updateStatistic(const std::string& key, const std::string& description, uint32_t increment);
+
 	private:
 		const std::string&	m_name;
 		long			m_streamId;
@@ -80,5 +87,9 @@ class DataLoad : public ServiceHandler {
 		std::mutex		m_pipelineMutex;
 		unsigned long		m_blockSize;
 		PerformanceMonitor	*m_perfMonitor;
+		int			m_streamUpdate;
+		unsigned long		m_streamSent;
+		int			m_nextStreamUpdate;
+		bool			m_flushRequired;
 };
 #endif

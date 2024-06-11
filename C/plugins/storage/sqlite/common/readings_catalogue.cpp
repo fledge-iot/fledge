@@ -102,12 +102,12 @@ bool ReadingsCatalogue::configurationRetrieve(sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
+		m_ReadingsGlobalId = sqlite3_column_int64(stmt, 0);
 		m_dbIdLast = sqlite3_column_int(stmt, 1);
 		m_storageConfigCurrent.nReadingsPerDb = sqlite3_column_int(stmt, 2);
 		m_storageConfigCurrent.nDbPreallocate = sqlite3_column_int(stmt, 3);
 	}
-	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %d dbIdLast %d ", (int) m_ReadingsGlobalId, m_dbIdLast);
+	Logger::getLogger()->debug("configurationRetrieve: ReadingsGlobalId %lu dbIdLast %d ", m_ReadingsGlobalId.load(), m_dbIdLast);
 
 	sqlite3_finalize(stmt);
 
@@ -127,7 +127,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 {
 	string sql_cmd;
 	int rc;
-	int id;
+	long id;
 	int nCols;
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
@@ -169,11 +169,11 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		m_ReadingsGlobalId = sqlite3_column_int(stmt, 0);
+		m_ReadingsGlobalId = sqlite3_column_int64(stmt, 0);
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %d", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lu", id);
 
 	if (m_ReadingsGlobalId == -1)
 	{
@@ -181,7 +181,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	}
 
 	id = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %d", id);
+	Logger::getLogger()->debug("evaluateGlobalId - global id from the DB %lu", id);
 
 	// Set the global_id in the DB to -1 to force a calculation at the restart
 	// in case the shutdown is not executed and the proper value stored
@@ -213,9 +213,9 @@ bool ReadingsCatalogue::storeGlobalId ()
 	sqlite3_stmt *stmt;
 	sqlite3 *dbHandle;
 
-	int i;
+	unsigned long i;
 	i = m_ReadingsGlobalId;
-	Logger::getLogger()->debug("storeGlobalId m_globalId %d ", i);
+	Logger::getLogger()->debug("storeGlobalId m_globalId %lu ", i);
 
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
@@ -246,14 +246,14 @@ bool ReadingsCatalogue::storeGlobalId ()
  * @param dbHandle Database connection to use for the operations
  *
  */
-int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
+long ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	int id;
+	unsigned long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -322,7 +322,7 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		id = sqlite3_column_int(stmt, 0);
+		id = sqlite3_column_int64(stmt, 0);
 		// m_globalId stores then next value to be used
 		id++;
 	}
@@ -339,14 +339,14 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
  * @param dbHandle Database connection to use for the operations
  *
  */
-int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
+long ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 {
 	string sql_cmd;
 	string dbReadingsName;
 	string dbName;
 
 	int rc;
-	int id;
+	unsigned long id;
 	int nCols;
 
 	sqlite3_stmt *stmt;
@@ -415,10 +415,10 @@ int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
 	else
 	{
 		nCols = sqlite3_column_count(stmt);
-		id = sqlite3_column_int(stmt, 0);
+		id = sqlite3_column_int64(stmt, 0);
 	}
 
-	Logger::getLogger()->debug("%s - global id evaluated %d", __FUNCTION__, id);
+	Logger::getLogger()->debug("%s - global id evaluated %lu", __FUNCTION__, id);
 
 	sqlite3_finalize(stmt);
 
@@ -772,7 +772,7 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 	{
 		item = dbIdList.back();
 
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		Logger::getLogger()->debug(
@@ -811,7 +811,7 @@ bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 
 	for(int item : dbIdList)
 	{
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		result = attachDb(dbHandle, dbPathReadings, dbAlias, item);
@@ -854,7 +854,7 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 
 	for (int item : dbIdList)
 	{
-		dbPathReadings = generateDbFilePah(item);
+		dbPathReadings = generateDbFilePath(item);
 		dbAlias = generateDbAlias(item);
 
 		enableWAL(dbPathReadings);
@@ -1237,7 +1237,7 @@ void ReadingsCatalogue::dbsRemove(int startId, int endId)
 	for (dbId = startId; dbId <= endId; dbId++)
 	{
 		dbAlias = generateDbAlias(dbId);
-		dbPath  = generateDbFilePah(dbId);
+		dbPath  = generateDbFilePath(dbId);
 
 		Logger::getLogger()->debug("dbsRemove - db alias '%s' db path '%s'", dbAlias.c_str(), dbPath.c_str());
 
@@ -1532,7 +1532,7 @@ void ReadingsCatalogue::preallocateReadingsTables(int dbId)
  * @return     Generated the full path
  *
  */
-string ReadingsCatalogue::generateDbFilePah(int dbId)
+string ReadingsCatalogue::generateDbFilePath(int dbId)
 {
 	string dbPathReadings;
 
@@ -1638,7 +1638,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	}
 
 	// Creates the DB data file
-	dbPathReadings = generateDbFilePah(newDbId);
+	dbPathReadings = generateDbFilePath(newDbId);
 
 	dbAlreadyPresent = false;
 	if(stat(dbPathReadings.c_str(),&st) == 0)

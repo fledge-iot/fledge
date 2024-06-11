@@ -23,6 +23,8 @@
 
 #define ASSET_TRACKER_FLUSH_INTERVAL	5
 
+#define MIN_ASSET_TRACKER_UPDATE	500 // The minimum interval for asset tracker updates
+
 /**
  * Tracking abstract base class to be passed in the process data queue
  */
@@ -276,6 +278,7 @@ public:
 		*getStorageAssetTrackingCacheData(StorageAssetTrackingTuple* tuple);
 	void	run();
 	void	cleanup();
+	bool	tune(unsigned long updateInterval);
 
 private:
 	std::string
@@ -299,6 +302,7 @@ private:
 	std::string				m_fledgeName;
 	StorageClient				*m_storageClient;
 	StorageAssetCacheMap			storageAssetTrackerTuplesCache;
+	unsigned int				m_updateInterval;
 };
 
 /**

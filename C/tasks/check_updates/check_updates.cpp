@@ -17,6 +17,7 @@
 #include <fstream>
 #include <errno.h>
 #include <cstring>
+#include <sstream>
 
 using namespace std;
 
@@ -74,9 +75,17 @@ void CheckUpdates::raiseAlerts()
 	m_logger->debug("raiseAlerts running");
 	try
 	{
-		for (auto key: getUpgradablePackageList())
+		int availableUpdates = getUpgradablePackageList().size();
+
+		if (availableUpdates > 0)
 		{
-			std::string message = "A newer version of " + key + " is available for upgrade";
+			std::string key = "package_updates";
+			std::string message = "";
+			if (availableUpdates == 1)
+				message = "There is " + std::to_string(availableUpdates) + " update available to be installed";
+			else
+				message = "There are " + std::to_string(availableUpdates) + " updates available to be installed";
+
 			std::string urgency = "normal";
 			if (!m_mgtClient->raiseAlert(key,message,urgency))
 			{
@@ -153,10 +162,10 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 	std::vector<std::string> packageList;
 	if(!packageManager.empty())
 	{
-		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep '^fledge' | cut -d'/' -f1 ";
+		std::string command = "(sudo apt update && sudo apt list --upgradeable) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		if (packageManager.find("yum") != std::string::npos)
 		{
-			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep '^fledge' | cut -d' ' -f1 ";
+			command = "(sudo yum check-update && sudo yum list updates) 2>/dev/null | grep -v '^fledge-manage' | grep '^fledge' |  tr -s ' ' | cut -d' ' -f-1,2 ";
 		}	
 
 		FILE* pipe = popen(command.c_str(), "r");
@@ -166,12 +175,12 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 			return packageList;
 		}
 
-		char buffer[128];
+		char buffer[1024];
 		while (!feof(pipe))
 		{
-			if (fgets(buffer, 128, pipe) != NULL)
+			if (fgets(buffer, sizeof(buffer), pipe) != NULL)
 			{
-				//strip out newline characher
+				//strip out newline character
 				int len = strlen(buffer) - 1;
 				if (*buffer && buffer[len] == '\n')
 					buffer[len] = '\0';
@@ -186,4 +195,3 @@ std::vector<std::string> CheckUpdates::getUpgradablePackageList()
 
 	return packageList;
 }
-

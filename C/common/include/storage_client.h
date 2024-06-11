@@ -104,6 +104,7 @@ class StorageClient {
 								std::vector<std::string> keyValues, const std::string& operation, const std::string& callbackUrl);
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 		bool 		createSchema(const std::string&);
+		bool		deleteHttpClient();
 
 	private:
 		void		handleUnexpectedResponse(const char *operation,

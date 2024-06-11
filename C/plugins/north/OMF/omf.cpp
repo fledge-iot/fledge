@@ -1168,6 +1168,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Create the class that deals with the linked data generation
 	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setSendFullStructure(m_sendFullStructure);
+	linkedData.setDelimiter(m_delimiter);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
 
 	// Create the lookup data for this block of readings
@@ -1394,7 +1395,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		{
 			// We do this before the send so we know if it was sent for the first time
 			// in the processReading call
-			auto lookup = m_linkedAssetState.find(m_assetName + ".");
+			auto lookup = m_linkedAssetState.find(m_assetName + m_delimiter);
 			// Send data for this reading using the new mechanism
 			if (linkedData.processReading(payload, pendingSeparator, *reading, AFHierarchyPrefix, hints))
 				pendingSeparator = true;
@@ -1624,7 +1625,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 
 			m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
-			auto lookup = m_linkedAssetState.find(m_assetName + ".");
+			auto lookup = m_linkedAssetState.find(m_assetName + m_delimiter);
 			if (lookup->second.afLinkState() == false)
 			{
 				// If the hierarchy has not already been sent then send it
@@ -3286,7 +3287,7 @@ void OMF::setDefaultAFLocation(const string &DefaultAFLocation)
 
 /**
  * Set the rules to address where assets should be placed in the AF hierarchy.
- * Decodes the JSON and assign to the structures the values about the Names rulues
+ * Decodes the JSON and assign to the structures the values about the Names rules
  *
  */
 bool OMF::HandleAFMapNames(Document& JSon)
@@ -3583,7 +3584,7 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
 	auto it = m_OMFDataTypes->find(keyComplete);
 	if (it != m_OMFDataTypes->end())
 	{
-		// Clear teh OMF types cache per asset, keep type-id
+		// Clear the OMF types cache per asset, keep type-id
 		OMF::clearCreatedTypes(keyComplete);
 	}
 	else
@@ -3805,7 +3806,7 @@ string OMF::getAssetNameFromError(const char* message)
 		if (found != std::string::npos)
 		{
 			tmp = tmp.substr(0, found);
-			found = tmp.find_first_of('.');
+			found = tmp.find_first_of(m_delimiter[0]);
 			if (found != std::string::npos &&
 			    found < tmp.length())
 			{

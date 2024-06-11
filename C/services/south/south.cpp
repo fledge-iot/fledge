@@ -95,6 +95,22 @@ bool	       dryrun = false;
 		}
 	}
 
+#ifdef PROFILING
+	char profilePath[200]{0};
+	if (getenv("FLEDGE_DATA")) 
+	{
+		snprintf(profilePath, sizeof(profilePath), "%s/%s_Profile", getenv("FLEDGE_DATA"), myName.c_str());
+	} else if (getenv("FLEDGE_ROOT"))
+	{
+		snprintf(profilePath, sizeof(profilePath), "%s/data/%s_Profile", getenv("FLEDGE_ROOT"), myName.c_str());
+	} else 
+	{
+		snprintf(profilePath, sizeof(profilePath), "/usr/local/fledge/data/%s_Profile", myName.c_str());
+	}
+	mkdir(profilePath, 0777);
+	chdir(profilePath);
+#endif
+
 	if (daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
@@ -423,6 +439,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			string interval = m_configAdvanced.getValue("assetTrackerInterval");
+			unsigned long i = strtoul(interval.c_str(), NULL, 10);
+			if (m_assetTracker)
+				m_assetTracker->tune(i);
+		}
 
 		{
 		// Instantiate the Ingest class
@@ -1023,6 +1046,13 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			{
 				m_throttle = false;
 			}
+		}
+		if (m_configAdvanced.itemExists("assetTrackerInterval"))
+		{
+			string interval = m_configAdvanced.getValue("assetTrackerInterval");
+			unsigned long i = strtoul(interval.c_str(), NULL, 10);
+			if (m_assetTracker)
+				m_assetTracker->tune(i);
 		}
 	}
 

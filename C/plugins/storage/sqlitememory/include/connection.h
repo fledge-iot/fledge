@@ -38,6 +38,10 @@ class Connection {
 		bool		vacuum();
 		bool		loadDatabase(const std::string& filname);
 		bool		saveDatabase(const std::string& filname);
+		void		setPurgeBlockSize(unsigned long purgeBlockSize)
+				{
+					m_purgeBlockSize = purgeBlockSize;
+				}
 	private:
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
@@ -60,5 +64,6 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
+		unsigned long	m_purgeBlockSize;
 };
 #endif

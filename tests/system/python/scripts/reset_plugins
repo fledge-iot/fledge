@@ -11,28 +11,24 @@ __version__="1.0.0"
 # $FLEDGE_ROOT/tests/system/python/scripts/reset_plugins
 #########################################################
 
-remove_south_python () {
+remove_south () {
+    rm -rf $FLEDGE_ROOT/plugins/south
     path="$FLEDGE_ROOT/python/fledge/plugins/south"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(__init__.py)' | xargs rm -rf
 }
 
-remove_south_c () {
-    rm -rf $FLEDGE_ROOT/plugins/south
-}
-
-remove_north_python () {
-    path="$FLEDGE_ROOT/python/fledge/plugins/north"
-    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(common|empty|README.rst|__init__.py)' | xargs rm -rf
-}
-
-remove_north_c () {
+remove_north () {
     path="$FLEDGE_ROOT/plugins/north"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(OMF)' | xargs rm -rf
+    path="$FLEDGE_ROOT/python/fledge/plugins/north"
+    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(common|empty|README.rst|__init__.py)' | xargs rm -rf
 }
 
 remove_filter () {
     path="$FLEDGE_ROOT/plugins/filter"
     find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(common)' | xargs rm -rf
+    path="$FLEDGE_ROOT/python/fledge/plugins/filter"
+    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(__init__.py)' | xargs rm -rf
 }
 
 remove_notification_delivery () {
@@ -46,10 +42,8 @@ remove_notification_rule () {
 }
 
 remove_all () {
-    remove_south_python
-    remove_south_c
-    remove_north_python
-    remove_north_c
+    remove_south
+    remove_north
     remove_filter
     remove_notification_delivery
     remove_notification_rule

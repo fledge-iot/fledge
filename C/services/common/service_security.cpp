@@ -581,6 +581,10 @@ bool ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::R
  */
 void ServiceAuthHandler::refreshBearerToken()
 {
+	int max_retries = 10;
+	time_t expires_in = 0;
+	int k = 0;
+	bool tokenVerified = false;
 	string currentToken;
 	time_t expiry = 0;
 	// Fetch current bearer token
@@ -605,7 +609,7 @@ void ServiceAuthHandler::refreshBearerToken()
 				Logger::getLogger()->warn("Service is being restarted " \
 						"due to bearer token refresh error");
 				this->restart();
-				break;
+				return;
 			}
 		}
 
@@ -618,6 +622,7 @@ void ServiceAuthHandler::refreshBearerToken()
 				currentToken = bToken.token();
 				expiry = bToken.getExpiration();
 			}
+		}
 	}
 	if (expiry < time(0))
 	{

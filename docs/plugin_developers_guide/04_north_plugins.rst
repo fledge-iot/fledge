@@ -386,7 +386,7 @@ The *plugin_shutdown* entry point is called when the plugin is no longer require
 
 .. code-block:: C
 
-   uint32_t plugin_shutdown(PLUGIN_HANDLE handle)
+   void plugin_shutdown(PLUGIN_HANDLE handle)
    {
         myNorthPlugin *plugin = (myNorthPlugin *)handle;
         delete plugin;

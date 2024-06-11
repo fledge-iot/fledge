@@ -426,7 +426,7 @@ bool retCode;
 /**
  * Create a SQLite3 database connection
  */
-Connection::Connection()
+Connection::Connection() : m_purgeBlockSize(10000)
 {
 	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
@@ -868,7 +868,16 @@ unsigned long nRows = 0, nCols = 0;
 						else
 						{
 							// JSON parsing ok, use the document
-							value = Value(d, allocator);
+							// if string value is not "null"
+							if (strcmp(str, "null") != 0)
+							{
+								value = Value(d, allocator);
+							}
+							else
+							{
+								// Use (char *) value for "null"
+								value = Value(str, allocator);
+							}
 						}
 					}
 					else

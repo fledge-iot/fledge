@@ -35,12 +35,12 @@
 #endif
 
 // Retry mechanism
-#define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
-#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
+#define PREP_CMD_MAX_RETRIES		50	// Maximum no. of retries when a lock is encountered
+#define PREP_CMD_RETRY_BASE 		50	// Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		50	// Variable time to wait for
 
 #define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
+#define RETRY_BACKOFF			50	// Multipler to backoff DB retry on lock
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows

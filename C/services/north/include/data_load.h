@@ -90,5 +90,6 @@ class DataLoad : public ServiceHandler {
 		int			m_streamUpdate;
 		unsigned long		m_streamSent;
 		int			m_nextStreamUpdate;
+		bool			m_flushRequired;
 };
 #endif

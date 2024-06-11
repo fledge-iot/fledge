@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 from collections import Counter
 from aiohttp import web
 import pytest
+from fledge.common.web import middleware
 from fledge.services.core import routes
 from fledge.services.core import connect
 
@@ -43,7 +44,7 @@ class TestBackup:
     """
     @pytest.fixture
     def client(self, loop, test_client):
-        app = web.Application(loop=loop)
+        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
@@ -289,7 +290,7 @@ class TestRestore:
 
     @pytest.fixture
     def client(self, loop, test_client):
-        app = web.Application(loop=loop)
+        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
         return loop.run_until_complete(test_client(app))

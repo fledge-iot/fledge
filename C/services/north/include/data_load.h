@@ -56,6 +56,10 @@ class DataLoad : public ServiceHandler {
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
 		const std::string	&getName() { return m_name; };
 		StorageClient		*getStorage() { return m_storage; }; 
+		void			setPrefetchLimit(unsigned int limit)
+					{
+						m_prefetchLimit = limit;
+					};
 
 	private:
 		void			readBlock(unsigned int blockSize);
@@ -90,5 +94,7 @@ class DataLoad : public ServiceHandler {
 		int			m_streamUpdate;
 		unsigned long		m_streamSent;
 		int			m_nextStreamUpdate;
+		unsigned int		m_prefetchLimit;
+		bool			m_flushRequired;
 };
 #endif

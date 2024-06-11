@@ -16,6 +16,7 @@ from aiohttp import web
 from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.logger import FLCoreLogger
+from fledge.common.web.middleware import has_permission
 from fledge.services.core.support import SupportBuilder
 
 
@@ -74,6 +75,7 @@ async def fetch_support_bundle(request):
     return web.json_response({"bundles": found_files})
 
 
+@has_permission("admin")
 async def fetch_support_bundle_item(request):
     """ check existence of a bundle support by name
 
@@ -99,6 +101,7 @@ async def fetch_support_bundle_item(request):
     return web.FileResponse(path=p)
 
 
+@has_permission("admin")
 async def create_support_bundle(request):
     """ Create a support bundle by name
 

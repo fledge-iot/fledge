@@ -18,6 +18,10 @@
 .. |most_recent_icon| image:: ../images/most_recent_icon.jpg
 .. |most_recent_data| image:: ../images/most_recent_data.jpg
 
+.. |br| raw:: html
+
+   <br />
+
 Viewing Data
 ############
 
@@ -47,7 +51,7 @@ It is possible to change the time period to which the graph refers by use of the
 | |view_times| |
 +--------------+
 
-It is also possible to change the default duration of a graph when it is first displayed. This is done via the Settings* menu item.
+It is also possible to change the default duration of a graph when it is first displayed. This is done via the *Settings* menu item.
 
 +----------------+
 | |gui_settings| |
@@ -92,12 +96,16 @@ Clicking the arrows facing left will move you back in time by the current window
 
 Clicking the right arrows moves you forwards in time, newer data will now be seen.
 
+|br|
+
 When an asset does not continuously ingest data you may need to move back in time in order to see the last data that was ingested for an ingest. The interface provides a convenient shortcut to allow you to quickly navigate back in time to see the last data that was ingested.
 
 .. image:: ../images/current_icon.jpg
    :align: left
 
-Simply click in the icon to the left of the time navigation buttons. The graph will change to show the latest data available for the chosen asset.
+Simply click on the icon to the left of the time navigation buttons. The graph will change to show the latest data available for the chosen asset.
+
+|br|
 
 +----------------+
 | |latest_graph| |
@@ -108,7 +116,9 @@ Notice that the icon used to get this graph has now changed.
 .. image:: ../images/current_icon.jpg
    :align: left
 
-Clicking on this icon will cause the graph to return to showing the current time frame and refresh as data is freshly ingested.
+Clicking on the icon will cause the graph to return to showing the current time frame and refresh as data is freshly ingested.
+
+|br|
 
 Viewing Multiple Assets
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -64,7 +64,7 @@ Where an asset contains multiple data points each of these is displayed in a dif
 Adjusting The Timeframe
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are a number of button on the top left of the graph window that can be used to control the time period of the graph that is shown. 
+There are a number of button on the top right of the graph window that can be used to control the time period of the graph that is shown. 
 
 +-----------------+
 | |graph_buttons| |
@@ -85,7 +85,7 @@ The two double arrow buttons allow you to move backwards and forwards in time.
 .. image:: ../images/older.jpg
    :align: left
 
-Clicking the arrows facing left will move you back in time by the current window of data that is shown. This will result in older dta being seen.
+Clicking the arrows facing left will move you back in time by the current window of data that is shown. This will result in older data being seen.
 
 .. image:: ../images/newer.jpg
    :align: left
@@ -105,11 +105,10 @@ Simply click in the icon to the left of the time navigation buttons. The graph w
 
 Notice that the icon used to get this graph has now changed.
 
-+----------------+
-| |current_icon| |
-+----------------+
+.. image:: ../images/current_icon.jpg
+   :align: left
 
-Clicking on this icon will cause the graph to run to the current time frame and show any data that is freshly ingested.
+Clicking on this icon will cause the graph to return to showing the current time frame and refresh as data is freshly ingested.
 
 Viewing Multiple Assets
 ~~~~~~~~~~~~~~~~~~~~~~~

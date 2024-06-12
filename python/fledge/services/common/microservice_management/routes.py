@@ -73,6 +73,10 @@ def setup(app, obj, is_core=False):
 
         app.router.add_route('GET', '/fledge/ACL/{acl_name}', obj.get_control_acl)
 
+        # alerts
+        app.router.add_route('GET', '/fledge/alert/{key}', obj.get_alert)
+        app.router.add_route('POST', '/fledge/alert', obj.add_alert)
+
         # Proxy API setup for a microservice
         proxy.setup(app)
 

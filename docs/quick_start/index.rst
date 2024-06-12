@@ -4,6 +4,7 @@ Quick Start Guide
 
 .. toctree::
 
+    platforms
     installing
     starting
     troubleshooting
@@ -14,4 +15,5 @@ Quick Start Guide
     ../OMF
     backup
     support
+    update
     uninstalling

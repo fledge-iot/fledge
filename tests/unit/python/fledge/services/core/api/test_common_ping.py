@@ -27,9 +27,9 @@ import sys
 import aiohttp
 from aiohttp import web
 
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.services.core import connect, routes, server as core_server
 from fledge.services.core.api.common import _logger
+from fledge.common.alert_manager import AlertManager
 from fledge.common.web import middleware
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
@@ -85,13 +85,14 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
     host_name, ip_addresses = get_machine_detail
     attrs = {"query_tbl_with_payload.return_value": await mock_coro()}
     mock_storage_client_async = MagicMock(spec=StorageClientAsync, **attrs)
+    core_server.Server._alert_manager = AlertManager(mock_storage_client_async)
+    core_server.Server._alert_manager.alerts = []
     with patch.object(middleware._logger, 'debug') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
             with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
-
                     server = await aiohttp_server(app)
                     await server.start_server(loop=loop)
 
@@ -115,6 +116,7 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
                     assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -172,6 +174,7 @@ async def test_ping_http_allow_ping_false(aiohttp_server, aiohttp_client, loop, 
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
                     assert re.search(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
         logger_info.assert_called_once_with(*log_params)
@@ -236,6 +239,7 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
                     assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
                 mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
             query_patch.assert_called_once_with('statistics', payload)
         log_params = 'Received %s request for %s', 'GET', '/fledge/ping'
@@ -361,6 +365,7 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
                     assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -426,6 +431,7 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
                     assert content_dict['ipAddresses'] == ip_addresses
                     assert content_dict['health'] == "green"
                     assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
             query_patch.assert_called_once_with('statistics', payload)
         logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')
 
@@ -503,6 +509,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                     assert content_dict['health'] == "green"
                     assert content_dict['safeMode'] is False
                     assert re.match(SEMANTIC_VERSIONING_REGEX, content_dict['version']) is not None
+                    assert content_dict['alerts'] == 0
                     mock_get_cat.assert_called_once_with('rest_api', 'allowPing')
                 query_patch.assert_called_once_with('statistics', payload)
             logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/ping')

@@ -31,6 +31,8 @@
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
+#define FLUSH_STATS_INTERVAL 5		// Period between flushing of stats to storage (seconds)
+
 #define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
 
 #define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache
@@ -144,6 +146,8 @@ private:
 	std::unordered_set<std::string> statsDbEntriesCache;  // confirmed stats table entries
 	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
 	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
+	bool				m_10Latency;	      // Latency within 10%
+	time_t				m_reportedLatencyTime;// Last tiem we reported high latency
 	int				m_failCnt;
 	bool				m_storageFailed;
 	int				m_storesFailed;

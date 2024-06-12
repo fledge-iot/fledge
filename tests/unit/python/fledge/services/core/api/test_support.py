@@ -4,17 +4,16 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import os
-import pathlib
+import json, os, pathlib, sys
 from pathlib import PosixPath
 
 from unittest.mock import patch, mock_open, Mock, MagicMock
 
+import asyncio
 from aiohttp import web
 import pytest
-import sys
-import asyncio
 
+from fledge.common.web import middleware
 from fledge.services.core import routes
 from fledge.services.core.api import support
 from fledge.services.core.support import *
@@ -31,10 +30,11 @@ class TestBundleSupport:
 
     @pytest.fixture
     def client(self, loop, test_client):
-        app = web.Application(loop=loop)
+        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
+
 
     @pytest.fixture
     def support_bundles_dir_path(self):

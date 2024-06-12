@@ -169,7 +169,7 @@ class TestAPIEndpointsWithViewUserType:
         # backup & restore
         ("GET", "/fledge/backup", 200), ("POST", "/fledge/backup", 403), ("POST", "/fledge/backup/upload", 403),
         ("GET", "/fledge/backup/status", 200), ("GET", "/fledge/backup/123", 404),
-        ("DELETE", "/fledge/backup/123", 403), ("GET", "/fledge/backup/123/download", 404),
+        ("DELETE", "/fledge/backup/123", 403), ("GET", "/fledge/backup/123/download", 403),
         ("PUT", "/fledge/backup/123/restore", 403),
         # package update
         # ("GET", "/fledge/update", 200), -- checked manually and commented out only to avoid apt-update run
@@ -178,7 +178,7 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/certificate", 200), ("POST", "/fledge/certificate", 403),
         ("DELETE", "/fledge/certificate/user", 403),
         # support bundle
-        ("GET", "/fledge/support", 200), ("GET", "/fledge/support/foo", 400), ("POST", "/fledge/support", 403),
+        ("GET", "/fledge/support", 200), ("GET", "/fledge/support/foo", 403), ("POST", "/fledge/support", 403),
         # syslogs & package logs
         ("GET", "/fledge/syslog", 200), ("GET", "/fledge/package/log", 200), ("GET", "/fledge/package/log/foo", 400),
         ("GET", "/fledge/package/install/status", 404),
@@ -222,7 +222,13 @@ class TestAPIEndpointsWithViewUserType:
         ("POST", "/fledge/notification", 403), ("PUT", "/fledge/notification/N1", 403),
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 404),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # performance monitors
+        ("GET", "/fledge/monitors", 200), ("GET", "/fledge/monitors/SVC", 200),
+        ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 403),
+        ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
+        # alerts
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -372,7 +378,13 @@ class TestAPIEndpointsWithDataViewUserType:
         ("POST", "/fledge/notification", 403), ("PUT", "/fledge/notification/N1", 403),
         ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 403),
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 403),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # performance monitors
+        ("GET", "/fledge/monitors", 403), ("GET", "/fledge/monitors/SVC", 403),
+        ("GET", "/fledge/monitors/Svc/Counter", 403), ("DELETE", "/fledge/monitors", 403),
+        ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
+        # alerts
+        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -469,11 +481,11 @@ class TestAPIEndpointsWithControlUserType:
         ("POST", "/fledge/audit", 500), ("GET", "/fledge/audit", 200), ("GET", "/fledge/audit/logcode", 200),
         ("GET", "/fledge/audit/severity", 200),
         # backup & restore
-        ("GET", "/fledge/backup", 200),  # ("POST", "/fledge/backup", 200), -- checked manually
-        ("POST", "/fledge/backup/upload", 500),
+        ("GET", "/fledge/backup", 200), ("POST", "/fledge/backup", 403),
+        ("POST", "/fledge/backup/upload", 403),
         ("GET", "/fledge/backup/status", 200), ("GET", "/fledge/backup/123", 404),
-        ("DELETE", "/fledge/backup/123", 404), ("GET", "/fledge/backup/123/download", 404),
-        ("PUT", "/fledge/backup/123/restore", 200),
+        ("DELETE", "/fledge/backup/123", 403), ("GET", "/fledge/backup/123/download", 403),
+        ("PUT", "/fledge/backup/123/restore", 403),
         # package update
         # ("GET", "/fledge/update", 200), -- checked manually and commented out only to avoid apt-update run
         # ("PUT", "/fledge/update", 200), -- checked manually
@@ -481,8 +493,7 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/certificate", 200), ("POST", "/fledge/certificate", 400),
         ("DELETE", "/fledge/certificate/user", 403),
         # support bundle
-        ("GET", "/fledge/support", 200), ("GET", "/fledge/support/foo", 400),
-        # ("POST", "/fledge/support", 200), - checked manually
+        ("GET", "/fledge/support", 200), ("GET", "/fledge/support/foo", 403), ("POST", "/fledge/support", 403),
         # syslogs & package logs
         ("GET", "/fledge/syslog", 200), ("GET", "/fledge/package/log", 200), ("GET", "/fledge/package/log/foo", 400),
         ("GET", "/fledge/package/install/status", 404),
@@ -527,7 +538,13 @@ class TestAPIEndpointsWithControlUserType:
         ("POST", "/fledge/notification", 404), ("PUT", "/fledge/notification/N1", 404),
         ("DELETE", "/fledge/notification/N1", 404), ("GET", "/fledge/notification/N1/delivery", 404),
         ("POST", "/fledge/notification/N1/delivery", 400), ("GET", "/fledge/notification/N1/delivery/C1", 404),
-        ("DELETE", "/fledge/notification/N1/delivery/C1", 404)
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 404),
+        # performance monitors
+        ("GET", "/fledge/monitors", 200), ("GET", "/fledge/monitors/SVC", 200),
+        ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 200),
+        ("DELETE", "/fledge/monitors/SVC", 200), ("DELETE", "/fledge/monitors/Svc/Counter", 200),
+        # alerts
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)

@@ -79,17 +79,17 @@ Finally, select the new Fledge application. Click "More" at the bottom of the Co
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen. Continue with the configuration, choosing the connector relay as the end point to be connected.
 
-OSISoft Cloud Services
+OSIsoft Cloud Services
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The original cloud services from OSISoft, this has now been superseded by AVEVA Data Hub, and should only be used to support existing workloads. All new installations should use AVEVA Data Hub.
+The original cloud services from OSIsoft, this has now been superseded by AVEVA Data Hub, and should only be used to support existing workloads. All new installations should use AVEVA Data Hub.
 
 Configuration
 -------------
 
 The configuration of the plugin is split into a number of tabs in order to reduce the size of each set of values to enter. Each tab contains a set of related items.
 
-  - **Default Configuration**: This tab contains the base set of configuration items that are most commonly changed.
+  - **Basic**: This tab contains the base set of configuration items that are most commonly changed.
 
   - **Asset Framework**: The configuration that impacts the location with the asset framework in which the data will be placed.
 
@@ -107,10 +107,10 @@ The configuration of the plugin is split into a number of tabs in order to reduc
 
   - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developer.
 
-Default Configuration
-~~~~~~~~~~~~~~~~~~~~~
+Basic
+~~~~~
 
-The *Default Configuration* tab contains the most commonly modified items
+The *Basic* tab contains the most commonly modified items
 
 +---------------+
 | |OMF_Default| |
@@ -128,9 +128,9 @@ The *Default Configuration* tab contains the most commonly modified items
 
     - *Connector Relay* - The previous way to send data to a PI Server before PI Web API supported OMF. This should only be used for older PI Servers that do not have the support available within PI Web API.
 
-    - *OSISoft Cloud Services* - The original OSISoft cloud service, this is currently being replaced with the AVEVA Data Hub.
+    - *OSIsoft Cloud Services* - The original OSIsoft cloud service, this is currently being replaced with the AVEVA Data Hub.
 
-    - *Edge Data Store* - The OSISoft Edge Data Store 
+    - *Edge Data Store* - The OSIsoft Edge Data Store 
 
   - **Create AF Structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
      
@@ -148,6 +148,8 @@ The *Default Configuration* tab contains the most commonly modified items
 
   - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 
+  - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
+    The default delimiter is a dot (".").
 
 Asset Framework
 ~~~~~~~~~~~~~~~
@@ -193,25 +195,25 @@ The *Authentication* tab allows the configuration of authentication between the 
 Cloud
 ~~~~~
 
-The *Cloud* tab contains configuration items that are required if the chosen OMF end point is either AVEVA Data Hub or OSISoft Cloud Services.
+The *Cloud* tab contains configuration items that are required if the chosen OMF end point is either AVEVA Data Hub or OSIsoft Cloud Services.
 
 +-------------+
 | |OMF_Cloud| |
 +-------------+
 
-  - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSISoft Cloud Services service is located.
+  - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSIsoft Cloud Services service is located.
 
     +---------------+
     | |ADH_Regions| |
     +---------------+
 
-  - **Namespace**: Your namespace within the AVEVA Data Hub or OSISoft Cloud Service.
+  - **Namespace**: Your namespace within the AVEVA Data Hub or OSIsoft Cloud Service.
 
-  - **Tenant ID**: Your AVEVA Data Hub or OSISoft Cloud Services Tenant ID for your account.
+  - **Tenant ID**: Your AVEVA Data Hub or OSIsoft Cloud Services Tenant ID for your account.
 
-  - **Client ID**: Your AVEVA Data Hub or OSISoft Cloud Services Client ID for your account.
+  - **Client ID**: Your AVEVA Data Hub or OSIsoft Cloud Services Client ID for your account.
 
-  - **Client Secret**: Your AVEVA Data Hub or OSISoft Cloud Services Client Secret.
+  - **Client Secret**: Your AVEVA Data Hub or OSIsoft Cloud Services Client Secret.
 
 Connection
 ~~~~~~~~~~
@@ -235,6 +237,7 @@ Formats & Types
 ~~~~~~~~~~~~~~~
 
 The *Formats & Types* tab provides a means to specify the detail types that will be used and the way complex assets are mapped to OMF types to also be configured.
+See the section :ref:`Numeric Data Types` for more information on configuring data types.
 
 +--------------+
 | |OMF_Format| |
@@ -464,6 +467,7 @@ Number Format Hints
 A number format hint tells the plugin what number format to use when inserting data
 into the PI Server. The following will cause all numeric data within
 the asset to be written using the format *float32*.
+See the section :ref:`Numeric Data Types`.
 
 .. code-block:: console
 
@@ -477,10 +481,11 @@ Integer Format Hints
 An integer format hint tells the plugin what integer format to use when inserting
 data into the PI Server. The following will cause all integer data
 within the asset to be written using the format *integer32*.
+See the section :ref:`Numeric Data Types`.
 
 .. code-block:: console
 
-   "OMFHint"  : { "number" : "integer32" }
+   "OMFHint"  : { "integer" : "integer32" }
 
 The value of the *number* hint may be any numeric format that is supported by the PI Server.
 
@@ -521,17 +526,6 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 .. code-block:: console
 
    "OMFHint"  : { "tagName" : "AC1246" }
-
-Legacy Type Hint
-~~~~~~~~~~~~~~~~
-
-Use legacy style complex types for this reading rather that the newer linked data types.
-
-.. code-block:: console
-
-   "OMFHint" : { "LegacyType" : "true" }
-
-The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
 
 Source Hint
 ~~~~~~~~~~~
@@ -658,6 +652,70 @@ the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
 
+.. _Numeric Data Types:
+
+Numeric Data Types
+------------------
+
+Configuring Numeric Data Types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to configure the exact data types used to send data to the PI Server using OMF.
+To configure the data types for all integers and numbers (that is, floating point values), you can use the *Formats & Types* tab in the Fledge GUI.
+To influence the data types for specific assets or datapoints, you can create an OMFHint of type *number* or *integer*.
+
+You must create your data type configurations before starting your OMF North plugin instance.
+After your plugin has run for the first time,
+OMF messages sent by the plugin to the PI Server will cause AF Attributes and PI Points to be created using data types defined by your configuration.
+The data types of the AF Attributes and PI Points will not change if you edit your OMF North plugin instance configuration.
+For example, if you disable an *integer* OMFHint,
+you will change the OMF messages sent to PI but the data in the messages will no longer match the AF Attributes and PI Points in your PI Server.
+
+Detecting the Data Type Mismatch Problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Editing your data type choices in OMF North will cause the following messages to appear in the System Log:
+
+.. code-block:: console
+
+   WARNING: The OMF endpoint reported a conflict when sending containers: 1 messages
+   WARNING: Message 0: Error, A container with the supplied ID already exists, but does not match the supplied container.,
+
+These errors will cause the plugin to retry sending container information a number of times determined the *Maximum Retry* count on the *Connection* tab in the Fledge GUI.
+The default is 3.
+The plugin will then send numeric data values to PI continuously.
+Unfortunately, the PI Web API returns no HTTP error when this happens so no messages are logged.
+In PI, you will see that timestamps are correct but all numeric values are zero.
+
+Recovering from the Data Type Mismatch Problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As you experiment with configurations, you may discover that your original assumptions about your data types were not correct and need to be changed.
+It is possible to repair your PI Server so that you do not need to discard your AF Database and start over.
+This is the procedure:
+
+- Shut down your OMF North instance.
+- Using PI System Explorer, locate the problematic PI Points.
+  These are points with a value of zero.
+  The PI Points are mapped to AF Attributes using the PI Point Data Reference.
+  For each AF Attribute, you can see the name of the PI Point in the Settings pane.
+- Using PI System Management Tools (PI SMT), open the Point Builder tool (under Points) and locate the problematic PI Points.
+- In the General tab in the Point Builder, locate the Extended Descriptor (*Exdesc*).
+  It will contain a long character string with several OMF tokens such as *OmfPropertyIndexer*, *OmfContainerId* and *OmfTypeId*.
+  Clear the *Excdesc* field completely and save your change.
+- Start up your OMF North instance.
+
+Clearing the Extended Descriptor will cause OMF to "adopt" the PI Point.
+OMF will update the Extended Descriptor with new values of the OMF tokens.
+Watch the System Log during startup to see if any problems occur.
+
+Further Troubleshooting
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are unable to locate your problematic PI Points using the PI System Explorer, or if there are simply too many of them, there are advanced techniques available to troubleshoot
+and repair your system.
+Contact Technical Support for assistance.
+
 .. _Linked_Types:
 
 Linked Types
@@ -684,10 +742,10 @@ These are the OMF versions the plugin will use to post data:
 |           |- 2021 SP3|                     |
 |           |- 2023    |                     |
 +-----------+----------+---------------------+
-|        1.1|- 2019    |                     |
-|           |- 2019 SP1|                     |
+|        1.1|          |                     |
 +-----------+----------+---------------------+
-|        1.0|          |- 2020               |
+|        1.0|- 2019    |- 2020               |
+|           |- 2019 SP1|                     |
 +-----------+----------+---------------------+
 
 The AVEVA Data Hub (ADH) is cloud-deployed and is always at the latest version of OMF support which is 1.2.

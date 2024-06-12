@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <plugin.h>
@@ -59,6 +59,8 @@ public:
 	int 		createSchema(const std::string& payload);
 	StoragePluginConfiguration
 			*getConfig() { return m_config; };
+	const std::string
+			&getName() { return m_name; };
 
 private:
 	PLUGIN_HANDLE	instance;

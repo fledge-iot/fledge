@@ -972,7 +972,7 @@ class TestService:
                     assert 'install' == actual['action']
                     assert -1 == actual['status']
                     assert '' == actual['log_file_uri']
-                patch_fetch_available_package.assert_called_once_with('service')
+                patch_fetch_available_package.assert_called_once_with()
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
             actual = json.loads(args[1])
@@ -1019,7 +1019,7 @@ class TestService:
                     resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
                     assert 404 == resp.status
                     assert "'{} service is not available for the given repository'".format(pkg_name) == resp.reason
-                patch_fetch_available_package.assert_called_once_with('service')
+                patch_fetch_available_package.assert_called_once_with()
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
             assert payload == json.loads(args[1])
@@ -1161,7 +1161,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                        assert {'name': 'management', 'priority': 300, 'script': '["services/management"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_management_service_schedule(self, client):
@@ -1221,7 +1221,7 @@ class TestService:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                        assert {'name': 'management', 'priority': 300, 'script': '["services/management"]'} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     @pytest.mark.parametrize("param", [

@@ -39,6 +39,7 @@ class MemConnectionManager {
 					     }
 		bool			     persist() { return m_persist; };
 		std::string		     filename() { return m_filename; };
+		void			     setPurgeBlockSize(unsigned long purgeBlockSize);
 
 	private:
 		MemConnectionManager();
@@ -52,6 +53,7 @@ class MemConnectionManager {
 		bool			     m_trace;
 		bool			     m_persist;
 		std::string		     m_filename;
+		unsigned long		     m_purgeBlockSize;
 };
 
 #endif

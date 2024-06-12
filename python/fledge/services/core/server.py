@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from fledge.common import logger
+from fledge.common.alert_manager import AlertManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.exceptions import *
@@ -202,6 +203,7 @@ class Server:
     cert_file_name = ''
     """ cert file name """
 
+
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
@@ -264,20 +266,22 @@ class Server:
             'displayName': 'Allow Ping',
             'order': '8'
         },
-        'passwordChange': {
-            'description': 'Number of days after which passwords must be changed',
-            'type': 'integer',
-            'default': '0',
-            'displayName': 'Password Expiry Days',
-            'order': '9'
-        },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
             'displayName': 'Auth Providers',
-            'order': '10'
+            'order': '9'
         },
+        'disconnectIdleUserSession': {
+            'description': 'Disconnect idle user session after certain period of inactivity',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Idle User Session Disconnection (In Minutes)',
+            'order': '10',
+            'minimum': '1',
+            'maximum': '1440'
+        }
     }
 
     _LOGGING_DEFAULT_CONFIG = {
@@ -321,11 +325,20 @@ class Server:
     _asset_tracker = None
     """ Asset tracker """
 
+    _alert_manager = None
+    """ Alert Manager """
+
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
 
     _package_cache_manager = None
     """ Package Cache Manager """
+
+    _user_sessions = []
+    """ User sessions information to disconnect when idle for a certain period """
+
+    _user_idle_session_timeout = 15 * 60
+    """ User idle session timeout (in minutes) """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
@@ -479,9 +492,51 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
+            try:
+                cls._user_idle_session_timeout = int(config['disconnectIdleUserSession']['value']) * 60
+            except:
+                cls._user_idle_session_timeout = 15 * 60
         except Exception as ex:
             _logger.exception(ex)
             raise
+
+    @classmethod
+    async def password_config(cls):
+        try:
+            config = {
+                'policy': {
+                    'description': 'Password policy',
+                    'type': 'enumeration',
+                    'options': ['Any characters', 'Mixed case Alphabetic', 'Mixed case and numeric', 'Mixed case, numeric and special characters'],
+                    'default': 'Any characters',
+                    'displayName': 'Policy',
+                    'order': '1'
+                },
+                'length': {
+                    'description': 'Minimum password length',
+                    'type': 'integer',
+                    'default': '6',
+                    'displayName': 'Minimum Length',
+                    'minimum': '6',
+                    'maximum': '80',
+                    'order': '2'
+                },
+                'expiration': {
+                    'description': 'Number of days after which passwords must be changed',
+                    'type': 'integer',
+                    'default': '0',
+                    'displayName': 'Expiry (in Days)',
+                    'order': '3'
+                }
+            }
+            category = 'password'
+            await cls._configuration_manager.create_category(category, config, 'To control the password policy', True,
+                                                             display_name="Password Policy")
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
 
     @classmethod
     async def service_config(cls):
@@ -732,44 +787,38 @@ class Server:
 
     @classmethod
     def _reposition_streams_table(cls, loop):
-
         _logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
-                     "force reset of 'fledge.streams' last_objects")
+                     "force reset of last_object column in 'fledge.streams'")
 
-        configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
-        rows = configuration['rows']
-        if len(rows) > 0:
-            streams_id = []
-            # Identifies the sending process handling the readings table
-            for _item in rows:
-                try:
-                    if _item['value']['source']['value'] is not None:
-                        if _item['value']['source']['value'] == "readings":
-                            # Sending process in C++
-                            try:
-                                streams_id.append(_item['value']['streamId']['value'])
-                            except KeyError:
-                                # Sending process in Python
-                                try:
-                                    streams_id.append(_item['value']['stream_id']['value'])
-                                except KeyError:
-                                    pass
-                except KeyError:
-                    pass
-
-            # Reset identified rows of the streams table
-            if len(streams_id) >= 0:
-                for _stream_id in streams_id:
-
-                    # Checks if there is the row in the Stream table to avoid an error during the update
-                    where = 'id={0}'.format(_stream_id)
-                    streams = loop.run_until_complete(cls._readings_client_async.query_tbl('streams', where))
-                    rows = streams['rows']
-
-                    if len(rows) > 0:
-                        payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()')\
-                            .WHERE(['id', '=', _stream_id]).payload()
-                        loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+        def _reset_last_object_in_streams(_stream_id):
+            payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()').WHERE(
+                ['id', '=', _stream_id]).payload()
+            loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
+        try:
+            # Find the child categories of parent North
+            query_payload = payload_builder.PayloadBuilder().SELECT("child").WHERE(["parent", "=", "North"]).payload()
+            north_children = loop.run_until_complete(cls._storage_client_async.query_tbl_with_payload(
+                'category_children', query_payload))
+            rows = north_children['rows']
+            if len(rows) > 0:
+                configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
+                for nc in rows:
+                    for cat in configuration['rows']:
+                        if nc['child'] == cat['key']:
+                            cat_value = cat['value']
+                            stream_id = cat_value['streamId']['value']
+                            # reset last_object in streams table as per streamId with following scenarios
+                            # a) if source KV pair is present and having value 'readings'
+                            # b) if source KV pair is not present
+                            if 'source' in cat_value:
+                                source_val = cat_value['source']['value']
+                                if source_val == 'readings':
+                                    _reset_last_object_in_streams(stream_id)
+                            else:
+                                _reset_last_object_in_streams(stream_id)
+                            break
+        except Exception as ex:
+            _logger.error(ex, "last_object of 'fledge.streams' reset is failed.")
 
     @classmethod
     def _check_readings_table(cls, loop):
@@ -818,6 +867,11 @@ class Server:
         await cls._asset_tracker.load_asset_records()
 
     @classmethod
+    async def _get_alerts(cls):
+        cls._alert_manager = AlertManager(cls._storage_client_async)
+        await cls._alert_manager.get_all()
+
+    @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
             _logger.info("Starting in SAFE MODE ...")
@@ -861,6 +915,7 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             loop.run_until_complete(cls.rest_api_config())
+            loop.run_until_complete(cls.password_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context
@@ -927,6 +982,10 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+
+                # Start Alert Manager
+                loop.run_until_complete(cls._get_alerts())
+
                 # If dispatcher installation:
                 # a) not found then add it as a StartUp service
                 # b) found then check the status of its schedule and take action
@@ -1907,6 +1966,9 @@ class Server:
                 if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
                     _logger.info("Dispatcher service found but not in enabled state. "
                                  "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
+                    # reset process_script priority for the service
+                    cls.scheduler._process_scripts['dispatcher_c'] = (
+                        cls.scheduler._process_scripts['dispatcher_c'][0], 999)
                     await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
                     return True
                 elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':
@@ -1987,3 +2049,51 @@ class Server:
         request.is_core_mgt = True
         res = await acl_management.get_acl(request)
         return res
+
+    @classmethod
+    async def get_alert(cls, request):
+        name = request.match_info.get('key', None)
+        try:
+            alert = await cls._alert_manager.get_by_key(name)
+        except KeyError as err:
+            msg = str(err.args[0])
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to get an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response({"alert": alert})
+
+    @classmethod
+    async def add_alert(cls, request):
+        try:
+            data = await request.json()
+            key = data.get("key")
+            message = data.get("message")
+            urgency = data.get("urgency")
+            if any(elem is None for elem in [key, message, urgency]):
+                msg = 'key, message, urgency post params are required to raise an alert.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            if not all(isinstance(i, str) for i in [key, message, urgency]):
+                msg = 'key, message, urgency KV pair must be passed as string.'
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            urgency = urgency.lower().capitalize()
+            if urgency not in cls._alert_manager.urgency:
+                msg = 'Urgency value should be from list {}'.format(list(cls._alert_manager.urgency.keys()))
+                return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            key_exists = [a for a in cls._alert_manager.alerts if a['key'] == key]
+            if key_exists:
+                # Delete existing key
+                await cls._alert_manager.delete(key)
+            param = {"key": key, "message": message, "urgency": cls._alert_manager.urgency[urgency]}
+            response = await cls._alert_manager.add(param)
+            if response is None:
+                raise Exception
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to add an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            response['alert']['urgency'] = cls._alert_manager._urgency_name_by_value(response['alert']['urgency'])
+            return web.json_response(response)

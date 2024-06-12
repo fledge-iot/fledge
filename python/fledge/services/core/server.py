@@ -203,6 +203,7 @@ class Server:
     cert_file_name = ''
     """ cert file name """
 
+
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
@@ -272,6 +273,15 @@ class Server:
             'displayName': 'Auth Providers',
             'order': '9'
         },
+        'disconnectIdleUserSession': {
+            'description': 'Disconnect idle user session after certain period of inactivity',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Idle User Session Disconnection (In Minutes)',
+            'order': '10',
+            'minimum': '1',
+            'maximum': '1440'
+        }
     }
 
     _LOGGING_DEFAULT_CONFIG = {
@@ -323,6 +333,12 @@ class Server:
 
     _package_cache_manager = None
     """ Package Cache Manager """
+
+    _user_sessions = []
+    """ User sessions information to disconnect when idle for a certain period """
+
+    _user_idle_session_timeout = 15 * 60
+    """ User idle session timeout (in minutes) """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
@@ -476,6 +492,10 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
+            try:
+                cls._user_idle_session_timeout = int(config['disconnectIdleUserSession']['value']) * 60
+            except:
+                cls._user_idle_session_timeout = 15 * 60
         except Exception as ex:
             _logger.exception(ex)
             raise

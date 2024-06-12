@@ -181,6 +181,16 @@ class User:
             if 'role_id' in user_data:
                 old_kwargs["role_id"] = old_data['role_id']
                 new_kwargs.update({"role_id": user_data['role_id']})
+            if 'failed_attempts' in user_data:
+                old_kwargs["failed_attempts"] = old_data['failed_attempts']
+                new_kwargs.update({"failed_attempts": user_data['failed_attempts']})
+            if 'block_until' in user_data:
+                old_kwargs["block_until"] = old_data['block_until']
+                new_kwargs.update({"block_until": str(user_data['block_until'])})
+            if 'unblock_user' in user_data:
+                old_kwargs["block_until"] = old_data['block_until']
+                new_kwargs.update({"block_until": ""})
+
             storage_client = connect.get_storage_async()
             hashed_pwd = None
             pwd_history_list = []
@@ -249,7 +259,7 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description").WHERE(
+            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description", "block_until", "failed_attempts").WHERE(
                 ['enabled', '=', 't'])
 
             if user_id is not None:
@@ -338,9 +348,11 @@ class User:
             cfg_mgr = ConfigurationManager(storage_client)
             category_item = await cfg_mgr.get_category_item('password', 'expiration')
             age = int(category_item['value'])
+            block_until=""
+            failed_attempts=0
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description")\
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description", "block_until", "failed_attempts")\
                 .WHERE(['uname', '=', username])\
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
@@ -362,13 +374,50 @@ class User:
                 # user will be forced to change their password.
                 raise User.PasswordExpired(found_user['id'])
 
+            failed_attempts = found_user['failed_attempts']
+            block_until = found_user['block_until']
+            #Do not block already blocked account further
+            if found_user['block_until']:
+                curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+                fmt = "%Y-%m-%d %H:%M:%S.%f"
+                diff =  datetime.strptime(curr_time, fmt) - datetime.strptime(found_user['block_until'], fmt)
+
+                if datetime.strptime(found_user['block_until'], fmt) > datetime.strptime(curr_time, fmt):
+                    raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(found_user['block_until'].split('.')[0]))
+
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
             if not is_valid_pwd:
                 # Another condition to check password is ONLY for the case:
                 # when we have requested password with hashed value and this comes only with microservice to get token
                 if found_user['pwd'] != str(password):
-                    raise User.PasswordDoesNotMatch('Username or Password do not match')
+                    audit = AuditLogger(storage_client)
+                    failed_attempts += 1
+                    # account blocking for the admin user is maximum 60 second
+                    if failed_attempts >= 5 and int(found_user['role_id']) > 1:
+                        block_until = datetime.now() + timedelta(hours=24)
+                        found_user['block_until'] =  block_until
+                        found_user['failed_attempts'] =  failed_attempts
+                        found_user.pop("pwd")
+                        await cls.update(found_user['role_id'],found_user)
+                        #USRBK audit trail entry
+                        await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
+                            "message": "'{}' user has been blocked for 24 hours.".format(username)})
+                        raise User.PasswordDoesNotMatch('Username or Password do not match. Account is blocked for 24 hours')
+                    else:
+                        block_until = datetime.now() + timedelta(seconds=60)
+                        found_user['block_until'] =  block_until
+                        found_user['failed_attempts'] =  failed_attempts
+                        found_user.pop("pwd")
+                        await cls.update(found_user['role_id'],found_user)
+                        #USRBK audit trail entry
+                        await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
+                            "message": "'{}' user has been blocked for 60 second.".format(username)})
+                        raise User.PasswordDoesNotMatch('Username or Password do not match. Account will be blocked 60 seconds')
+
+            # Clear Failed Attempts
+            if int(found_user['failed_attempts']) > 0:
+                await cls.update(found_user['role_id'],{'failed_attempts': 0})
 
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin

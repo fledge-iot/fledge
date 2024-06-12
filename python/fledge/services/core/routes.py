@@ -55,6 +55,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/admin/{user_id}/delete', auth.delete_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}', auth.update_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/enable', auth.enable_user)
+    app.router.add_route('PUT', '/fledge/admin/{user_id}/unblock', auth.unblock_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/reset', auth.reset)
 
     # Configuration

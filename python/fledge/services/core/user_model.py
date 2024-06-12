@@ -27,11 +27,11 @@ __version__ = "${VERSION}"
 
 # TODO: move to common  / config
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
-
+HASH_PWD_ALGORITHM = 'SHA512'
 _logger = FLCoreLogger().get_logger(__name__)
 
 
@@ -105,7 +105,8 @@ class User:
             """
 
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password, "SHA512") if password else '',
+            payload = PayloadBuilder().INSERT(uname=username,
+                                              pwd=cls.hash_password(password, HASH_PWD_ALGORITHM) if password else '',
                                               access_method=access_method, role_id=role_id, real_name=real_name,
                                               description=description).payload()
             try:

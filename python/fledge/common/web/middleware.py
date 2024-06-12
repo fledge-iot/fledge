@@ -88,6 +88,8 @@ async def auth_middleware(app, handler):
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
                 raise web.HTTPUnauthorized(reason=e)
+            except jwt.exceptions.InvalidAlgorithmError:
+                raise web.HTTPUnauthorized(reason="The token has expired, login again.")
         else:
             if str(handler).startswith("<function ping"):
                 pass

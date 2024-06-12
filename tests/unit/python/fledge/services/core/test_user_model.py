@@ -747,22 +747,21 @@ class TestUserModel:
             assert payload == p
 
     async def test_validate_token(self):
-        token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE1MjEwNDAxNTksInVpZCI6IjIifQ.oeWfDuRStunPQciCuRSSGdZaT42wnh4ODavJ62LSEvI"
+        token = ("eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJ1aWQiOjIsImV4cCI6MTcxNzQxNzAwMH0."
+                 "J9y-y_ssMTQJm5vzZiBIj8OjcoreIPRDUskl3_X0HRibX5ck5f_J8Ii-_WXngeIFdOdEWGz6KG5mB6QQiPQYcg")
         valid_token_result = {'rows': [{"token_expiration": "2017-03-14 15:09:19.800648"}], 'count': 1}
         storage_client_mock = MagicMock(StorageClientAsync)
-        payload = {"return": [{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "token_expiration"}], "where": {"column": "token", "condition": "=", "value": token}}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(valid_token_result)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(valid_token_result))
+        payload = {"return": [{"column": "token_expiration", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias":
+            "token_expiration"}], "where": {"column": "token", "condition": "=", "value": token}}
+        _rv = await mock_coro(valid_token_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(mock_coro(valid_token_result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv
+                              ) as query_tbl_patch:
                 # FIXME: jwt.decode patch
                 uid = await User.Objects.validate_token(token)
-                assert '2' == uid
+                assert 2 == uid
             # FIXME: datetime.now() patch
             args, kwargs = query_tbl_patch.call_args
             assert 'user_logins' == args[0]

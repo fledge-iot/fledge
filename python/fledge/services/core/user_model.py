@@ -19,7 +19,6 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core import connect
-
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -31,7 +30,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
-
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _logger = FLCoreLogger().get_logger(__name__)
 
 
@@ -71,6 +70,9 @@ class User:
         pass
 
     class TokenExpired(Exception):
+        pass
+
+    class SessionTimeout(Exception):
         pass
 
     class Objects:
@@ -317,12 +319,8 @@ class User:
 
             r = result['rows'][0]
             token_expiry = r["token_expiration"]
-
             curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-            fmt = "%Y-%m-%d %H:%M:%S.%f"
-            diff = datetime.strptime(token_expiry, fmt) - datetime.strptime(curr_time, fmt)
-
+            diff = datetime.strptime(token_expiry, DATE_FORMAT) - datetime.strptime(curr_time, DATE_FORMAT)
             if diff.seconds < 0:
                 raise User.TokenExpired("The token has expired, login again")
 
@@ -441,10 +439,12 @@ class User:
                     pass  # retry INSERT
                 raise ValueError(ERROR_MSG)
 
+            # Save session in memory for idle disconnection
+            current_time = datetime.now().strftime(DATE_FORMAT)
+            await User.Sessions.save(data={"uid": uid, "token": jwt_token, "last_accessed_ts": current_time})
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
                 return uid, jwt_token, True
-
             return uid, jwt_token, False
 
         @classmethod
@@ -483,7 +483,8 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of user id
+            await User.Sessions.remove(data={"uid": user_id})
             return res
 
         @classmethod
@@ -496,13 +497,16 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of token
+            await User.Sessions.remove(data={"token": token})
             return res
 
         @classmethod
         async def delete_all_user_tokens(cls):
             storage_client = connect.get_storage_async()
             await storage_client.delete_from_tbl("user_logins")
+            # Clear all user sessions
+            await User.Sessions.clear()
 
         @classmethod
         def hash_password(cls, password):
@@ -550,3 +554,38 @@ class User:
             SSLVerifier.set_ca_cert(ca_cert_file)
             SSLVerifier.set_user_cert(cert)
             SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
+
+    class Sessions:
+
+        @classmethod
+        async def get(cls):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            return (server.Server._user_idle_session_timeout, server.Server._user_sessions)
+
+
+        @classmethod
+        async def save(cls, data):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            server.Server._user_sessions.append(data)
+
+        @classmethod
+        async def remove(cls, data):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            session = server.Server._user_sessions
+            if 'token' in data:
+                for s in session:
+                    if s['token'] == data['token']:
+                        server.Server._user_sessions.remove(s)
+            else:
+                for s in session:
+                    if s['uid'] == int(data['uid']):
+                        server.Server._user_sessions.remove(s)
+
+        @classmethod
+        async def clear(cls):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            server.Server._user_sessions = []

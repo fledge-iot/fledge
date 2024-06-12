@@ -165,7 +165,8 @@ class TestConfiguration:
                     'authMethod': {'displayName': 'Authentication method', 'description': 'Authentication method', 'type': 'enumeration', 'options': ['any', 'password', 'certificate'], 'order': '6', 'value': 'any', 'default': 'any'},
                     'httpPort': {'displayName': 'HTTP Port', 'description': 'Port to accept HTTP connections on', 'type': 'integer', 'order': '2', 'value': '8081', 'default': '8081'},
                     'allowPing': {'displayName': 'Allow Ping', 'description': 'Allow access to ping, regardless of the authentication required and authentication header', 'type': 'boolean', 'order': '8', 'value': 'true', 'default': 'true'},
-                    'enableHttp': {'displayName': 'Enable HTTP', 'description': 'Enable HTTP (disable to use HTTPS)', 'type': 'boolean', 'order': '1', 'value': 'true', 'default': 'true'}}
+                    'enableHttp': {'displayName': 'Enable HTTP', 'description': 'Enable HTTP (disable to use HTTPS)', 'type': 'boolean', 'order': '1', 'value': 'true', 'default': 'true'},
+                    'disconnectIdleUserSession': {'description': 'Disconnect idle user session after certain period of inactivity', 'type': 'integer', 'default': '15', 'displayName': 'Idle User Session Disconnection (In Minutes)', 'order': '10', 'minimum': '1', 'maximum': '1440', 'value': '15'}}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/category/rest_api')
         r = conn.getresponse()

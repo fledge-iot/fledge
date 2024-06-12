@@ -502,6 +502,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_dataLoad->setStreamUpdate(newStreamUpdate);
 			}
 		}
+		if (m_configAdvanced.itemExists("prefetchLimnit"))
+		{
+			unsigned long limit = strtoul(
+						m_configAdvanced.getValue("prefetchLimit").c_str(),
+						NULL,
+						10);
+			if (limit > 0)
+			{
+				m_dataLoad->setPrefetchLimit(limit);
+			}
+		}
 		if (m_configAdvanced.itemExists("assetTrackerInterval"))
 		{
 			unsigned long interval  = strtoul(
@@ -984,6 +995,16 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(1),
 		std::to_string(1));
 	defaultConfig.setItemDisplayName("streamUpdate", "Stream update frequency");
+	defaultConfig.setItemAttribute("streamUpdate", ConfigCategory::MINIMUM_ATTR, "1");
+	// Add prefetch limit item
+	defaultConfig.addItem("prefetchLimit",
+		"The maximum number of blocks to be prefetched and queued ready for transmission.",
+		"integer",
+		std::to_string(2),
+		std::to_string(2));
+	defaultConfig.setItemDisplayName("prefetchLimit", "Data block prefetch");
+	defaultConfig.setItemAttribute("prefetchLimit", ConfigCategory::MINIMUM_ATTR, "2");
+	defaultConfig.setItemAttribute("prefetchLimit", ConfigCategory::MAXIMUM_ATTR, "10");
 	defaultConfig.addItem("assetTrackerInterval",
 			"Number of milliseconds between updates of the asset tracker information",
 			"integer", std::to_string(MIN_ASSET_TRACKER_UPDATE),

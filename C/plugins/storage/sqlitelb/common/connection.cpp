@@ -807,6 +807,8 @@ Document doc;
 int rc;
 // Number of returned rows, number of columns
 unsigned long nRows = 0, nCols = 0;
+typedef enum { ColumnJSON, ColumnString, ColumnDate, ColumnOther } ColumnType;
+vector<ColumnType> types;
 
 	// Create the JSON document
 	doc.SetObject();
@@ -817,12 +819,72 @@ unsigned long nRows = 0, nCols = 0;
 	// Rows counter, set it to 0 now
 	Value count;
 	count.SetInt(0);
-
+bool first = true;
 	// Iterate over all the rows in the resultSet
 	while ((rc = SQLstep(pStmt)) == SQLITE_ROW)
 	{
 		// Get number of columns for current row
 		nCols = sqlite3_column_count(pStmt);
+
+		if (first)
+		{
+			Logger *logger = Logger::getLogger();
+			for (int t = 0; t < nCols; t++)
+			{
+				ColumnType type = ColumnOther;
+				if (sqlite3_column_type(pStmt, t) == SQLITE3_TEXT)
+				{
+					const char *dbName = sqlite3_column_database_name(pStmt, t);
+					const char *tableName = sqlite3_column_table_name(pStmt, t);
+					const char *columnName = sqlite3_column_name(pStmt, t);
+					const char *originName = sqlite3_column_origin_name(pStmt, t);
+					const char *dataType = NULL;
+					int retType = SQLITE_ERROR;
+					if (!dbName)
+					{
+						logger->debug("MapResultSet Column %d, %s no dbName", t, columnName);
+						string newDate;
+						if (applyColumnDateTimeFormat(pStmt, t, newDate))
+						{
+							type = ColumnDate;
+						}
+						else
+						{
+						}
+					}
+					else if (dbName && tableName && columnName)
+					{
+						retType	= sqlite3_table_column_metadata(dbHandle,
+										    dbName, tableName, columnName,
+										    &dataType,
+										    NULL, NULL, NULL, NULL);
+						if (retType != SQLITE_OK)
+						{
+							logger->debug("Column %d metadata returned %d", t, retType);
+						}
+						else
+						{
+							logger->debug("Column %d: %s Db %s Table %s Origin %s DataType %s",
+								t, columnName, dbName, tableName, originName, dataType);
+							if (strncasecmp(dataType, "JSON", 4) == 0)
+							{
+								type = ColumnJSON;
+							}
+							else if (strncasecmp(dataType, "character", 9) == 0)
+							{
+								type = ColumnString;
+							}
+							else
+							{
+								logger->error("Error mapping result set, no mappignfor type %s", dataType);
+							}
+						}
+					}
+				}
+				types.push_back(type);
+			}
+			first = false;
+		}
 		// Create the 'row' object
 		Value row(kObjectType);
 
@@ -847,43 +909,62 @@ unsigned long nRows = 0, nCols = 0;
 				case (SQLITE3_TEXT):
 				{
 
-					/**
-					 * Handle here possible unformatted DATETIME column type
-					 */
-					string newDate;
-					if (applyColumnDateTimeFormat(pStmt, i, newDate))
-					{
-						// Use new formatted datetime value
-						str = (char *)newDate.c_str();
-					}
-
 					Value value;
-					if (!d.Parse(str).HasParseError())
+					switch (types[i])
 					{
-						if (d.IsNumber())
+						case ColumnDate:
 						{
-							// Set string
+							/**
+							 * Handle here possible unformatted DATETIME column type
+							 */
+							string newDate;
+							if (applyColumnDateTimeFormat(pStmt, i, newDate))
+							{
+								// Use new formatted datetime value
+								str = (char *)newDate.c_str();
+							}
+							break;
+						}
+
+						case ColumnJSON:
+						{
+							if (!d.Parse(str).HasParseError())
+							{
+								if (d.IsNumber())
+								{
+									// Set string
+									value = Value(str, allocator);
+								}
+								else
+								{
+									// JSON parsing ok, use the document
+									// if string value is not "null"
+									if (strcmp(str, "null") != 0)
+									{
+										value = Value(d, allocator);
+									}
+									else
+									{
+										// Use (char *) value for "null"
+										value = Value(str, allocator);
+									}
+								}
+							}
+							break;
+						}
+
+						case ColumnString:
+						{
+							// Use (char *) value
 							value = Value(str, allocator);
+							break;
 						}
-						else
+						default:
 						{
-							// JSON parsing ok, use the document
-							// if string value is not "null"
-							if (strcmp(str, "null") != 0)
-							{
-								value = Value(d, allocator);
-							}
-							else
-							{
-								// Use (char *) value for "null"
-								value = Value(str, allocator);
-							}
+							// Use (char *) value
+							value = Value(str, allocator);
+							break;
 						}
-					}
-					else
-					{
-						// Use (char *) value
-						value = Value(str, allocator);
 					}
 					// Add name & value to the current row
 					row.AddMember(name, value, allocator);

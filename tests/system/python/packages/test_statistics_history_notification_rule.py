@@ -144,7 +144,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestStatisticsHistoryBasedNotificationRuleOnIngress:
-    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, start_notification, fledge_url,
+    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, update_stat_collection, start_notification, fledge_url,
                  skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages

@@ -218,7 +218,7 @@ def add_expression_filter(add_filter, fledge_url, NORTH_PLUGIN_NAME):
 
 class TestNorthAzureIoTHubDevicePlugin:
     
-    def test_send(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
+    def test_send(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, update_stat_collection, fledge_url, enable_schedule, 
                   disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
                   azure_storage_account_url, azure_storage_account_key, azure_storage_container):
         
@@ -260,7 +260,7 @@ class TestNorthAzureIoTHubDevicePlugin:
         _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
-    def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
+    def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north_service, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                                           azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                           azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
@@ -306,7 +306,7 @@ class TestNorthAzureIoTHubDevicePlugin:
         _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
-    def test_disable_enable(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
+    def test_disable_enable(self, reset_fledge, add_south_north_service, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                             azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                             azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
@@ -349,7 +349,7 @@ class TestNorthAzureIoTHubDevicePlugin:
             _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
     
        
-    def test_send_with_filter(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
+    def test_send_with_filter(self, reset_fledge, add_south_north_service, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                               azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                               azure_storage_container, wait_time, retries, skip_verify_north_interface, add_filter):
         
@@ -407,7 +407,7 @@ class TestNorthAzureIoTHubDevicePlugin:
 
 class TestNorthAzureIoTHubDevicePluginTask:
         
-    def test_send_as_a_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule, 
+    def test_send_as_a_task(self, reset_fledge, add_south_north_task, update_stat_collection, fledge_url, enable_schedule, disable_schedule, 
                             azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                             azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
@@ -448,7 +448,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
         _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
     
     
-    def test_mqtt_over_websocket_reconfig_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
+    def test_mqtt_over_websocket_reconfig_task(self, reset_fledge, add_south_north_task, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                                                azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                                azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
@@ -495,7 +495,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
         _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
-    def test_disable_enable_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
+    def test_disable_enable_task(self, reset_fledge, add_south_north_task, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                                  azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                  azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
@@ -536,7 +536,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
             
             _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
                 
-    def test_send_with_filter_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
+    def test_send_with_filter_task(self, reset_fledge, add_south_north_task, update_stat_collection, fledge_url, enable_schedule, disable_schedule,
                                    azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                    azure_storage_container, wait_time, retries, skip_verify_north_interface, add_filter):
         
@@ -595,7 +595,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
 
 class TestNorthAzureIoTHubDevicePluginInvalidConfig:
 
-    def test_invalid_connstr(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, wait_time, retries):
+    def test_invalid_connstr(self, reset_fledge, add_south, add_north, update_stat_collection, fledge_url, enable_schedule, disable_schedule, wait_time, retries):
         
         """ Test that checks connection string of north azure plugin is invalid or not.
         
@@ -618,7 +618,7 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
         # Update Asset name
         ASSET = "test9_FOGL-7352_system"
         config_south(fledge_url, ASSET)
-        
+        update_stat_collection( fledge_url, wait_time)
         # Enable South Service for 10 Seonds
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(wait_time)
@@ -630,7 +630,7 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
         verify_north_stats_on_invalid_config(fledge_url)
 
     
-    def test_invalid_connstr_sharedkey(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, 
+    def test_invalid_connstr_sharedkey(self, reset_fledge, add_south, add_north, update_stat_collection, fledge_url, enable_schedule, disable_schedule, 
                                        wait_time, retries, azure_host, azure_device, azure_key):
         
         """ Test that checks shared key passed to connection string of north azure plugin is invalid or not.
@@ -657,7 +657,7 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
         # Update Asset name
         ASSET = "test10_FOGL-7352_system"
         config_south(fledge_url, ASSET)
-        
+        update_stat_collection(fledge_url, wait_time)
         # Enable South Service for 10 Seonds
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(wait_time)
@@ -671,7 +671,7 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
 
 class TestNorthAzureIoTHubDevicePluginLongRun:
     
-    def test_send_long_run(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
+    def test_send_long_run(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, update_stat_collection, fledge_url, enable_schedule, 
                            disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
                            azure_storage_account_url, azure_storage_account_key, azure_storage_container, run_time):
         

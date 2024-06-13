@@ -179,7 +179,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestOMFNorthService:
-    def test_omf_service_with_restart(self, clean_setup_fledge_packages, reset_fledge, start_south_north,
+    def test_omf_service_with_restart(self, clean_setup_fledge_packages, reset_fledge, start_south_north, update_stat_collection,
                                       read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service before and after restarting fledge.
@@ -227,7 +227,7 @@ class TestOMFNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_enable_disable(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
+    def test_omf_service_with_enable_disable(self, reset_fledge, start_south_north, update_stat_collection, read_data_from_pi_web_api,
                                              skip_verify_north_interface,
                                              fledge_url, wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd,
                                              pi_db):
@@ -279,8 +279,8 @@ class TestOMFNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                         start_north_omf_as_a_service,
+    def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, update_stat_collection, 
+                                         read_data_from_pi_web_api, start_north_omf_as_a_service,
                                          skip_verify_north_interface, fledge_url, wait_time, retries, pi_host, pi_port,
                                          pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service by deleting and adding north service.
@@ -331,8 +331,8 @@ class TestOMFNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_reconfig(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                       skip_verify_north_interface, fledge_url,
+    def test_omf_service_with_reconfig(self, reset_fledge, start_south_north, update_stat_collection,
+                                       read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                        wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service by reconfiguring it.
             reset_fledge: Fixture to reset fledge
@@ -397,7 +397,7 @@ class TestOMFNorthService:
 
 
 class TestOMFNorthServicewithFilters:
-    def test_omf_service_with_filter(self, reset_fledge, start_south_north, add_configure_filter,
+    def test_omf_service_with_filter(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter,
                                      read_data_from_pi_web_api,
                                      skip_verify_north_interface, fledge_url, wait_time, retries, pi_host, pi_port,
                                      pi_admin, pi_passwd, pi_db):
@@ -438,7 +438,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_disable_enable_filter(self, reset_fledge, start_south_north, add_configure_filter,
+    def test_omf_service_with_disable_enable_filter(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter,
                                                     read_data_from_pi_web_api,
                                                     skip_verify_north_interface, fledge_url, wait_time, retries,
                                                     pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -491,7 +491,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_filter_reconfig(self, reset_fledge, start_south_north, add_configure_filter,
+    def test_omf_service_with_filter_reconfig(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter,
                                               read_data_from_pi_web_api,
                                               skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                               pi_port, pi_admin, pi_passwd, pi_db):
@@ -539,7 +539,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
+    def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter, add_filter,
                                          read_data_from_pi_web_api,
                                          start_north_omf_as_a_service, skip_verify_north_interface,
                                          fledge_url, wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -600,7 +600,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_delete_add_filter(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
+    def test_omf_service_with_delete_add_filter(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter, add_filter,
                                                 read_data_from_pi_web_api,
                                                 skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                                 pi_port, pi_admin, pi_passwd, pi_db):
@@ -658,7 +658,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_filter_reorder(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
+    def test_omf_service_with_filter_reorder(self, reset_fledge, start_south_north, update_stat_collection, add_configure_filter, add_filter,
                                              read_data_from_pi_web_api,
                                              skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                              pi_port, pi_admin, pi_passwd, pi_db):

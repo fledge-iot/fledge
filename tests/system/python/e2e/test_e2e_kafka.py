@@ -83,7 +83,7 @@ class TestE2EKafka:
                 "schedule_type": 3,
                 "schedule_day": 0,
                 "schedule_time": 0,
-                "schedule_repeat": 0,
+                "schedule_repeat": 5,
                 "schedule_enabled": "true",
                 "config": {"topic": {"value": topic},
                            "brokers": {"value": "{}:{}".format(host, port)}}
@@ -118,7 +118,7 @@ class TestE2EKafka:
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN_NAME))
         remove_directories("/tmp/fledge-north-{}".format(NORTH_PLUGIN_NAME.lower()))
 
-    def test_end_to_end(self, start_south_north, fledge_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
+    def test_end_to_end(self, start_south_north, update_stat_collection, fledge_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
                         skip_verify_north_interface):
         """ Test that data is inserted in Fledge and sent to Kafka
             start_south_north: Fixture that starts Fledge with south and north instance

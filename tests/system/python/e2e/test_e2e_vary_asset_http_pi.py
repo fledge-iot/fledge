@@ -120,7 +120,7 @@ class TestE2EAssetHttpPI:
         # Cleanup code that runs after the caller test is over
         remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, update_stat_collection, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that starts Fledge with south and north instance

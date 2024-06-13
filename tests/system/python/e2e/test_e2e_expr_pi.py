@@ -97,7 +97,7 @@ class TestE2eExprPi:
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
         remove_directories("/tmp/fledge-filter-{}".format(filter_plugin))
 
-    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, update_stat_collection, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using expression south plugin & metadata filter, and sent to PI
             start_south_north: Fixture that starts Fledge with south service, add filter and north instance

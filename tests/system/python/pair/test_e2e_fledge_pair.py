@@ -18,7 +18,7 @@ import time
 import pytest
 from collections import Counter
 import utils
-
+from urllib.parse import quote
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -36,6 +36,22 @@ remote_asset_name = "fogpair_playback"
 
 class TestE2eFogPairPi:
 
+    def update_stat_collection_remote(self, fledge_url, wait_time):
+        """Update the Statistics Collection of all south service to per asset & service"""
+
+        # Wait for the south service to be created
+        time.sleep(wait_time)
+        service_response_list = list()
+        response = utils.get_request(fledge_url, "/fledge/south")
+
+        for service in response["services"]:
+            put_url = "/fledge/category/{}Advanced".format(service["name"])
+            payload = {"statistics": "per asset & service"}
+            res = utils.put_request(fledge_url, quote(put_url), payload)
+            service_response_list.append(res)
+
+        return service_response_list
+    
     def get_asset_list(self, fledge_url):
         _connection = http.client.HTTPConnection(fledge_url)
         _connection.request("GET", '/fledge/asset')
@@ -95,7 +111,7 @@ class TestE2eFogPairPi:
 
     @pytest.fixture
     def start_south_north_remote(self, reset_and_start_fledge_remote, use_pip_cache, remote_user,
-                                 key_path, remote_fledge_path, remote_ip, south_branch,
+                                 key_path, remote_fledge_path, remote_ip, south_branch, wait_time,
                                  start_north_pi_server_c, pi_host, pi_port, pi_token,
                                  clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """Fixture that starts south and north plugins on remote machine
@@ -151,6 +167,8 @@ class TestE2eFogPairPi:
         r = r.read().decode()
         retval = json.loads(r)
         assert south_service == retval["name"]
+        
+        self.update_stat_collection_remote(fledge_url, wait_time)
 
         # Configure pi north plugin on remote machine
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
@@ -241,10 +259,8 @@ class TestE2eFogPairPi:
                                        "defaultAction": "exclude"}, "enable": "true"}
         add_filter("asset", filter_branch, "fasset", filter_cfg_asset, fledge_url, "NorthReadingsToHTTP")
 
-        # Enable all south and north schedules
-        enable_schedule(fledge_url, "fogpair_playbk")
-        enable_schedule(fledge_url, "fogpair_expr")
-        enable_schedule(fledge_url, "fogpair_sine")
+        
+        # Enable north schedule
         enable_schedule(fledge_url, "NorthReadingsToHTTP")
 
         yield self.start_south_north_local
@@ -281,8 +297,8 @@ class TestE2eFogPairPi:
 
         assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
 
-    def test_end_to_end(self, start_south_north_remote, start_south_north_local,
-                        read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north_remote, start_south_north_local, update_stat_collection,
+                        read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db, enable_schedule,
                         fledge_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in Fledge (local instance) using playback south plugin,
             sinusoid south plugin and expression south plugin and sent to http north (filter only playback data),
@@ -304,8 +320,13 @@ class TestE2eFogPairPi:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
+        # Enable all south schedules
+        enable_schedule(fledge_url, "fogpair_playbk")
+        enable_schedule(fledge_url, "fogpair_expr")
+        enable_schedule(fledge_url, "fogpair_sine")
+        
         # Wait for data to be sent to Fledge instance 2 and then to PI
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time * 4)
 
         # Fledge Instance 1 (Local) verification
         expected_asset_list = ["Expression", "fogpair_playback", "sinusoid"]

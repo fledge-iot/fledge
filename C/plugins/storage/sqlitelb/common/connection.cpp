@@ -270,6 +270,73 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	return false;
 }
 
+bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
+					   int i,
+					   const string& tableName,
+					   const string& originName)
+{
+	bool apply_format = false;
+	string formatStmt = {};
+
+
+	if ((originName.compare("user_ts") == 0) &&
+	    tableName.compare("readings") == 0 &&
+	    (strlen((char *) sqlite3_column_text(pStmt, i)) == 32))
+	{
+
+		apply_format = true;
+	}
+	else
+	{
+		/**
+		 * Handle here possible unformatted DATETIME column type
+		 * If (column_name == column_original_name) AND
+		 * (sqlite3_column_table_name() == "DATETIME")
+		 * we assume the column has not been formatted
+		 * by any datetime() or strftime() SQLite function.
+		 * Thus we apply default FLEDGE formatting:
+		 * "%Y-%m-%d %H:%M:%f"
+		 */
+		if (sqlite3_column_database_name(pStmt, i) != NULL &&
+		    sqlite3_column_table_name(pStmt, i) != NULL &&
+		    (strcmp(sqlite3_column_origin_name(pStmt, i),
+			    sqlite3_column_name(pStmt, i)) == 0))
+		{
+			const char *pzDataType;
+			int retType = sqlite3_table_column_metadata(dbHandle,
+								    sqlite3_column_database_name(pStmt, i),
+								    sqlite3_column_table_name(pStmt, i),
+								    sqlite3_column_name(pStmt, i),
+								    &pzDataType,
+								    NULL, NULL, NULL, NULL);
+
+			// Check whether to Apply dateformat
+			if (pzDataType != NULL &&
+			    retType == SQLITE_OK &&
+			    strcmp(pzDataType, SQLITE3_FLEDGE_DATETIME_TYPE) == 0 &&
+			    strcmp(sqlite3_column_origin_name(pStmt, i),
+				   sqlite3_column_name(pStmt, i)) == 0)
+			{
+				apply_format = true;
+
+			}
+			else
+			{
+				// Format not done
+				// Just log the error if present
+				if (retType != SQLITE_OK)
+				{
+					Logger::getLogger()->error("SQLite3 failed " \
+							"to call sqlite3_table_column_metadata() " \
+							"for column '%s'",
+								   sqlite3_column_name(pStmt, i));
+				}
+			}
+		}
+	}
+	return apply_format;
+}
+
 /**
  * Apply the specified date format
  * using the available formats in SQLite3
@@ -843,8 +910,7 @@ bool first = true;
 					if (!dbName)
 					{
 						logger->debug("MapResultSet Column %d, %s no dbName", t, columnName);
-						string newDate;
-						if (applyColumnDateTimeFormat(pStmt, t, newDate))
+						if (isColumnDateTimeFormat(pStmt, t, tableName, originName))
 						{
 							type = ColumnDate;
 						}

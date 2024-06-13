@@ -200,6 +200,10 @@ class Connection {
 		bool		applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 						int i,
 						std::string& newDate);
+		bool		isColumnDateTimeFormat(sqlite3_stmt *pStmt,
+						int i,
+						const std::string& tableName,
+						const std::string& originName);
 		void		logSQL(const char *, const char *);
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);

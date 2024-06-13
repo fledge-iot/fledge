@@ -699,6 +699,7 @@ CREATE INDEX fki_user_asset_permissions_fk2
 CREATE TABLE fledge.scheduled_processes (
              name   character varying(255)  NOT NULL, -- Name of the process
              script jsonb,                            -- Full path of the process
+             priority INTEGER NOT NULL DEFAULT 999,   -- priority to run for STARTUP
   CONSTRAINT scheduled_processes_pkey PRIMARY KEY ( name ) );
 
 
@@ -947,6 +948,15 @@ CREATE TABLE fledge.monitors (
 CREATE INDEX monitors_ix1
     ON fledge.monitors(service, monitor);
 
+-- Create alerts table
+
+CREATE TABLE fledge.alerts (
+       key         character varying(80)       NOT NULL,                                 -- Primary key
+       message     character varying(255)      NOT NULL,                                 -- Alert Message
+       urgency     smallint                    NOT NULL,                                 -- 1 Critical - 2 High - 3 Normal - 4 Low
+       ts          timestamp(6) with time zone NOT NULL DEFAULT now(),                   -- Timestamp, updated at every change
+       CONSTRAINT  alerts_pkey                 PRIMARY KEY (key) );
+
 
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
@@ -1025,7 +1035,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
-            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' )
+            ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
+            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' )
             ;
 
 --
@@ -1055,6 +1066,7 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge_system',
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update checker',      '["tasks/check_updates"]');
 
 -- Storage Tasks
 --
@@ -1063,13 +1075,13 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 
 -- South, Notification, North Tasks
 --
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',           '["services/south_c"]'          );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c',    '["services/notification_c"]'   );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',           '["tasks/north_c"]'             );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',             '["tasks/north"]'               );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',           '["services/north_C"]'          );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]'     );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]' );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',          100 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',   30  );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
+INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north',             '["tasks/north"]'                    );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',     20  );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]', 10  );
 
 -- Automation script tasks
 --
@@ -1129,6 +1141,18 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 true                                    -- enabled
               );
 
+-- Update checker 
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
+                                schedule_time, schedule_interval, exclusive, enabled )
+       VALUES ( '852cd8e4-3c29-440b-89ca-2c7691b0450d', -- id
+                'update checker',                       -- schedule_name
+                'update checker',                       -- process_name
+                2,                                      -- schedule_type (timed)
+                '00:05:00',                             -- schedule_time
+                '00:00:00',                             -- schedule_interval
+                true,                                   -- exclusive
+                true                                    -- enabled
+              );
 
 -- Check for expired certificates
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,

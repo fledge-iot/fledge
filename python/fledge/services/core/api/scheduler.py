@@ -431,6 +431,8 @@ async def enable_schedule_with_name(request):
             except (TypeError, ValueError):
                 raise web.HTTPNotFound(reason="No Schedule with ID {}".format(sch_id))
 
+        # Reset startup priority order
+        server.Server.scheduler.reset_process_script_priority()
         status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(sch_id))
 
         schedule = {
@@ -508,6 +510,8 @@ async def enable_schedule(request):
         except ValueError as ex:
             raise web.HTTPNotFound(reason="Invalid Schedule ID {}".format(schedule_id))
 
+        # Reset startup priority order
+        server.Server.scheduler.reset_process_script_priority()
         status, reason = await server.Server.scheduler.enable_schedule(uuid.UUID(schedule_id))
 
         schedule = {
@@ -515,7 +519,6 @@ async def enable_schedule(request):
             'status': status,
             'message': reason
         }
-
         return web.json_response(schedule)
     except (ValueError, ScheduleNotFoundError) as ex:
         raise web.HTTPNotFound(reason=str(ex))

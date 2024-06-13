@@ -1,12 +1,36 @@
 #!/usr/bin/env bash
 
+export FLEDGE_ROOT=$1
+echo "${FLEDGE_ROOT}"
+
+install_postgres() {
+  sudo apt install -y postgresql
+  sudo -u postgres createuser -d "$(whoami)"
+}
+
+_config_reading_db () {
+  if [[ "postgres" == @($1|$2) ]]
+  then
+    install_postgres
+  fi
+  [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "${1}" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+  [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "${2}" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+}
+
+# check for storage plugin
+. ./config.sh
+
+if [[  ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} == @(Use main plugin|sqlitememory|sqlite|postgres|sqlitelb) ]]
+then
+   _config_reading_db "${STORAGE}" "${READING_PLUGIN_DB}"
+else
+  echo "Invalid Storage Configuration"
+  exit 1
+fi
 
 echo "Stopping Fledge"
-export FLEDGE_ROOT=$1
-
 cd ${1}/scripts/ && ./fledge stop
-
-echo 'resetting fledge'
+echo 'Resetting Fledge'
 echo -e "YES\nYES" | ./fledge reset || exit 1
 echo
 echo "Starting Fledge"

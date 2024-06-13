@@ -45,6 +45,10 @@ class ServiceRecord : public JSONProvider {
 					{
 						m_protocol = protocol;
 					}
+		const std::string&	getProtocol() const
+					{
+						return m_protocol;
+					}
 		void			setManagementPort(const unsigned short managementPort)
 					{
 						m_managementPort = managementPort;

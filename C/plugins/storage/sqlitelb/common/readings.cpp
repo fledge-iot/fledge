@@ -48,9 +48,9 @@
 #define	RDS_PAYLOAD(stream, x)			&(stream[x]->assetCode[0]) + stream[x]->assetCodeLength
 
 // Retry mechanism
-#define PREP_CMD_MAX_RETRIES		20	    // Maximum no. of retries when a lock is encountered
-#define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
-#define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
+#define PREP_CMD_MAX_RETRIES		100	// Maximum no. of retries when a lock is encountered
+#define PREP_CMD_RETRY_BASE 		20	// Base time to wait for
+#define PREP_CMD_RETRY_BACKOFF		20 	// Variable time to wait for
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -149,6 +149,8 @@ bool aggregateAll(const Value& payload)
  */
 bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 {
+	vector<string>  asset_codes;
+
 	if (!payload.HasMember("where") ||
 	    !payload.HasMember("timebucket"))
 	{
@@ -300,7 +302,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 
 	// Add where condition
 	sql.append("WHERE ");
-	if (!jsonWhereClause(payload["where"], sql))
+	if (!jsonWhereClause(payload["where"], sql, asset_codes))
 	{
 		raiseError("retrieve", "aggregateQuery: failure while building WHERE clause");
 		return false;
@@ -535,7 +537,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 				if (sqlite3_resut == SQLITE_LOCKED  )
 				{
-					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 					retries++;
 
 					Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
@@ -547,7 +549,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 					ostringstream threadId;
 					threadId << std::this_thread::get_id();
 
-					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 					retries++;
 
 					Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
@@ -645,7 +647,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 				if (sqlite3_resut == SQLITE_LOCKED  )
 				{
-					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 					retries++;
 
 					Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
@@ -657,7 +659,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 					ostringstream threadId;
 					threadId << std::this_thread::get_id();
 
-					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 					retries++;
 
 					Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
@@ -716,6 +718,13 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 		if (sqlite3_finalize(stmt) != SQLITE_OK)
 		{
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
 
@@ -930,7 +939,7 @@ int sleep_time_ms = 0;
 			}
 			if (sqlite3_resut == SQLITE_LOCKED  )
 			{
-				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 				retries++;
 
 				Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
@@ -942,7 +951,7 @@ int sleep_time_ms = 0;
 				ostringstream threadId;
 				threadId << std::this_thread::get_id();
 
-				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 				retries++;
 
 				Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
@@ -1051,7 +1060,7 @@ int sleep_time_ms = 0;
 					}
 					if (sqlite3_resut == SQLITE_LOCKED  )
 					{
-						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+						sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 						retries++;
 
 						Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
@@ -1063,7 +1072,7 @@ int sleep_time_ms = 0;
 						ostringstream threadId;
 						threadId << std::this_thread::get_id();
 
-						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+						sleep_time_ms = PREP_CMD_RETRY_BASE + ((retries / 2 ) * (random() %  PREP_CMD_RETRY_BACKOFF));
 						retries++;
 
 						Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
@@ -1117,6 +1126,13 @@ int sleep_time_ms = 0;
 		if (sqlite3_finalize(stmt) != SQLITE_OK)
 		{
 			raiseError("appendReadings","freeing SQLite in memory structure - error :%s:", sqlite3_errmsg(dbHandle));
+		}
+	}
+	if(batch_stmt != NULL)
+	{
+		if (sqlite3_finalize(batch_stmt) != SQLITE_OK)
+		{
+			raiseError("appendReadings","freeing SQLite in memory batch structure - error :%s:", sqlite3_errmsg(dbHandle));
 		}
 	}
 
@@ -1254,6 +1270,7 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
 const char	*timezone = "utc";
+vector<string>  asset_codes;
 
 	try {
 		if (dbHandle == NULL)
@@ -1531,7 +1548,7 @@ const char	*timezone = "utc";
 			 
 				if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql))
+					if (!jsonWhereClause(document["where"], sql, asset_codes))
 					{
 						return false;
 					}
@@ -2146,7 +2163,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			return 0;
 		}
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + m_purgeBlockSize;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2193,7 +2210,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				unsentPurged += rowsAffected;
 			}
 		}
-		std::this_thread::yield();	// Give other threads a chane to run
+		std::this_thread::yield();	// Give other threads a chance to run
 	} while (rowcount > rows);
 
 	if (rowsAvailableToPurge)

@@ -11,6 +11,9 @@
 #include <data_load.h>
 #include <north_service.h>
 
+#define INITIAL_BLOCK_WAIT	10
+#define MAX_WAIT_PERIOD		200
+
 using namespace std;
 
 static void threadMain(void *arg)
@@ -26,7 +29,8 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL),
+	m_prefetchLimit(2)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -34,7 +38,10 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	{
 		m_streamId = createNewStream();
 	}
+	m_nextStreamUpdate = 1;
+	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
+	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
 }
@@ -58,6 +65,10 @@ DataLoad::~DataLoad()
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
+	if (m_flushRequired)
+	{
+		flushLastSentId();
+	}
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
 	while (! m_queue.empty())
@@ -70,7 +81,7 @@ DataLoad::~DataLoad()
 }
 
 /**
- * External call to shutdown
+ * External call to shutdown the north service
  */
 void DataLoad::shutdown()
 {
@@ -80,7 +91,7 @@ void DataLoad::shutdown()
 }
 
 /**
- * External call to restart
+ * External call to restart the north service
  */
 void DataLoad::restart()
 {
@@ -117,12 +128,17 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		readBlock(block);
+		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
+		       						// the prefetch limit already queued
+			readBlock(block);
 	}
 }
 
 /**
- * Wait for a read request to be made
+ * Wait for a read request to be made. Read requests come from consumer
+ * threads calling the triggerRead call that will cause a block of reading
+ * data (or whatever the source of data is) to be added to the reading
+ * buffer.
  *
  * @return int	The size of the block to read
  */
@@ -140,7 +156,8 @@ unsigned int DataLoad::waitForReadRequest()
 }
 
 /**
- * Trigger the loading thread to read a block of data
+ * Trigger the loading thread to read a block of data. This is called by
+ * any thread to request that data be added to the buffer ready for collection.
  */
 void DataLoad::triggerRead(unsigned int blockSize)
 {
@@ -150,17 +167,17 @@ void DataLoad::triggerRead(unsigned int blockSize)
 }
 
 /**
- * Read a block of readings from the storage service
+ * Read a block of readings, statistics or audit date  from the storage service
  *
  * @param blockSize	The number of readings to fetch
  */
 void DataLoad::readBlock(unsigned int blockSize)
 {
-ReadingSet *readings = NULL;
-int n_waits = 0;
-
+	int n_waits = 0;
+	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
+		ReadingSet* readings = nullptr;
 		try
 		{
 			switch (m_dataSource)
@@ -178,26 +195,30 @@ int n_waits = 0;
 				default:
 					Logger::getLogger()->fatal("Bad source for data to send");
 					break;
-
 			}
 		}
-	       	catch (ReadingSetException* e)
+		catch (ReadingSetException* e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
-	       	catch (exception& e)
+		catch (exception& e)
 		{
 			// Ignore, the exception has been reported in the layer below
+			// readings may contain erroneous data, clear it
+			readings = nullptr;
 		}
 		if (readings && readings->getCount())
 		{
-			Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
+			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
+							readings->getCount(), m_lastFetched);
 			bufferReadings(readings);
 			if (m_perfMonitor)
 			{
 				m_perfMonitor->collect("No of waits for data", n_waits);
-				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+				m_perfMonitor->collect("Block utilisation %", (long)((readings->getCount() * 100) / blockSize));
 			}
 			return;
 		}
@@ -211,9 +232,12 @@ int n_waits = 0;
 			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
-		{	
+		{
 			// TODO improve this
-			this_thread::sleep_for(chrono::milliseconds(250));
+			this_thread::sleep_for(chrono::milliseconds(waitPeriod));
+			waitPeriod *= 2;
+			if (waitPeriod > MAX_WAIT_PERIOD)
+				waitPeriod = MAX_WAIT_PERIOD;
 			n_waits++;
 		}
 	} while (m_shutdown == false);
@@ -326,7 +350,9 @@ unsigned long DataLoad::getLastSentId()
 }
 
 /**
- * Buffer a block of readings
+ * Buffer a block of readings. Called after a block of data has been
+ * read to add that block to the queue reading for collection by the
+ * consuming thread.
  *
  * @param readings	The readings to buffer
  */
@@ -352,14 +378,14 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
-	if (m_perfMonitor)
+	if (m_perfMonitor && m_perfMonitor->isCollecting())
 	{
-		m_perfMonitor->collect("Readings added to buffer", readings->getCount());
-		m_perfMonitor->collect("Reading sets buffered", m_queue.size());
-		long i = 0;
+		m_perfMonitor->collect("Readings added to buffer", (long)(readings->getCount()));
+		m_perfMonitor->collect("Reading sets buffered", (long)(m_queue.size()));
+		unsigned long i = 0;
 		for (auto& set : m_queue)
 			i += set->getCount();
-		m_perfMonitor->collect("Total readings buffered", i);
+		m_perfMonitor->collect("Total readings buffered", (long)i);
 	}
 	Logger::getLogger()->debug("Buffered %d readings for north processing", readings->getCount());
 	m_fetchCV.notify_all();
@@ -376,6 +402,10 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	unique_lock<mutex> lck(m_qMutex);
 	while (m_queue.empty())
 	{
+		if (m_perfMonitor && m_perfMonitor->isCollecting())
+		{
+			m_perfMonitor->collect("No data available to fetch", 1);
+		}
 		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)
 		{
@@ -388,7 +418,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	if (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}
@@ -446,11 +476,25 @@ InsertValues streamValues;
  */
 void DataLoad::updateLastSentId(unsigned long id)
 {
+	m_streamSent = id;
+	m_flushRequired = true;
+	if (m_nextStreamUpdate-- <= 0)
+	{
+		flushLastSentId();
+		m_nextStreamUpdate = m_streamUpdate;
+	}
+}
+
+/**
+ * Flush the last sent Id to the storeage layer
+ */
+void DataLoad::flushLastSentId()
+{
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
 
-	lastId.push_back(InsertValue("last_object", (long)id));
+	lastId.push_back(InsertValue("last_object", (long)m_streamSent));
 	m_storage->updateTable("streams", lastId, where);
 }
 
@@ -548,8 +592,28 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
-	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
+    unsigned long lastReadingId = 0;
+
+    for(auto rdngPtrItr = vecPtr->crbegin(); rdngPtrItr != vecPtr->crend(); rdngPtrItr++)
+    {
+        if((*rdngPtrItr)->hasId()) // only consider valid reading IDs
+        {
+            lastReadingId = (*rdngPtrItr)->getId();
+            break;
+        }
+    }
+    
+    Logger::getLogger()->debug("DataLoad::pipelineEnd(): readingSet->getCount()=%d, lastReadingId=%lu, " 
+                                "load->m_lastFetched=%lu",
+                                  readingSet->getCount(), lastReadingId, load->m_lastFetched);
+    
+	// Special case when all readings are filtered out 
+	// or new readings are appended by filter with id 0
+	if ((readingSet->getCount() == 0) || (lastReadingId == 0))
 	{
+	    Logger::getLogger()->debug("DataLoad::pipelineEnd(): updating with load->updateLastSentId(%d)", 
+	                                load->m_lastFetched);
 		load->updateLastSentId(load->m_lastFetched);
 	}
 
@@ -557,75 +621,6 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 	load->m_queue.push_back(readingSet);
 	load->m_fetchCV.notify_all();
 }
-
-/**
- * Update the sent statistics
- *
- * @param increment	Increment of the number of readings sent
- */
-void DataLoad::updateStatistics(uint32_t increment)
-{
-	updateStatistic(m_name, m_name + " Readings Sent", increment);
-	updateStatistic("Readings Sent", "Readings Sent North", increment);
-}
-
-/**
- * Update a particular statstatistic
- *
- * @param key		The statistic key
- * @param description	The statistic description
- * @param increment	Increment of the number of readings sent
- */
-void DataLoad::updateStatistic(const string& key, const string& description, uint32_t increment)
-{
-	const Condition conditionStat(Equals);
-	Where wLastStat("key", conditionStat, key);
-
-	// Prepare value = value + inc
-	ExpressionValues updateValue;
-	updateValue.push_back(Expression("value", "+", (int)increment));
-
-	// Perform UPDATE fledge.statistics SET value = value + x WHERE key = 'name'
-	int row_affected = m_storage->updateTable("statistics", updateValue, wLastStat);
-
-	if (row_affected < 1)
-	{
-		// The required row is not in the statistics table yet
-		// this situation happens only at the initial setup
-		// adding the required row.
-
-		Logger::getLogger()->info("Adding a new row into the statistics as it is not present yet, key -%s- description -%s-",
-				key.c_str(), description.c_str()); 
-		InsertValues values;
-		values.push_back(InsertValue("key",         key));
-		values.push_back(InsertValue("description", description));
-		values.push_back(InsertValue("value",       (int)increment));
-		string table = "statistics";
-
-		if (m_storage->insertTable(table, values) != 1)
-		{
-			if (m_storage->updateTable("statistics", updateValue, wLastStat) == 1)
-			{
-				Logger::getLogger()->warn("Statistics update has suceeded, the above failures are the likely result of a race condition between services and can be ignored");
-			}
-			else
-			{
-				Logger::getLogger()->error("Failed to insert a new row into the %s", table.c_str());
-			}
-		}
-		else
-		{
-			Logger::getLogger()->info("New row added into the %s, key -%s- description -%s-",
-				table.c_str(), key.c_str(), description.c_str());
-
-                }
-	}
-	else if (row_affected > 1)
-	{
-		Logger::getLogger()->error("There appear to be multiple rows in the statistics table for %s", key.c_str());
-	}
-}
-
 
 /**
  * Configuration change for one of the filters or to the pipeline.

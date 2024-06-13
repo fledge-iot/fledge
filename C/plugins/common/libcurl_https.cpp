@@ -31,6 +31,21 @@
 using namespace std;
 
 /**
+ * Creates a UTC time string for the current time
+ *
+ * @return		      Current UTC time
+ */
+static std::string CurrentTimeString()
+{
+	time_t now = time(NULL);
+	struct tm timeinfo;
+	gmtime_r(&now, &timeinfo);
+	char timeString[20];
+	strftime(timeString, sizeof(timeString), "%F %T", &timeinfo);
+	return std::string(timeString);
+}
+
+/**
  * Constructor: host:port, connect_timeout, request_timeout,
  *              retry_sleep_Time, max_retry
  *
@@ -312,6 +327,7 @@ int LibcurlHttps::sendRequest(
 
 	do
 	{
+		std::chrono::high_resolution_clock::time_point tStart;
 		try
 		{
 			exceptionRaised = none;
@@ -334,6 +350,7 @@ int LibcurlHttps::sendRequest(
 				}
 				m_ofs << "Payload:" << endl;
 				m_ofs << payload << endl;
+				tStart = std::chrono::high_resolution_clock::now();
 			}
 
 			// Execute the HTTP method
@@ -346,8 +363,10 @@ int LibcurlHttps::sendRequest(
 			httpResponseText = httpHeaderBuffer;
 			if (m_log)
 			{
+				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
 				m_ofs << "Response:" << endl;
 				m_ofs << "   Code: " << httpCode << endl;
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << CurrentTimeString() << endl;
 				m_ofs << "   Content: " << httpResponseText << endl << endl;
 			}
 			StringStripCRLF(httpResponseText);
@@ -408,6 +427,13 @@ int LibcurlHttps::sendRequest(
 					payload.c_str());
 			}
 #endif
+
+			if (m_log && !errorMessage.empty())
+			{
+				std::chrono::high_resolution_clock::time_point tEnd = std::chrono::high_resolution_clock::now();
+				m_ofs << "   Time: " << ((double)std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()) / 1.0E6 << " sec     " << CurrentTimeString() << endl;
+				m_ofs << "   Exception: " << errorMessage << endl;
+			}
 
 			if (retryCount < m_max_retry)
 			{

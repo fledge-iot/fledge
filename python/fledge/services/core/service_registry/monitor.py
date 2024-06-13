@@ -192,6 +192,32 @@ class Monitor(object):
         schedule = await server.Server.scheduler.get_schedule_by_name(service_record._name)
         await server.Server.scheduler.queue_task(schedule.schedule_id)
         self.restarted_services.remove(service_record._id)
+        # Raise an alert during restart service
+        await self.raise_an_alert(server.Server, service_record._name)
+
+    async def raise_an_alert(self, obj, svc_name):
+        async def _new_alert_entry(restart_count=1):
+            param = {"key": svc_name, "message": 'The Service {} restarted {} times'.format(
+                svc_name, restart_count), "urgency": "3"}
+            await obj._alert_manager.add(param)
+
+        try:
+            alert = await obj._alert_manager.get_by_key(svc_name)
+            message = alert['message'].strip()
+            key = alert['key']
+            if message.startswith('The Service {} restarted'.format(key)) and message.endswith("times"):
+                result = [int(s) for s in message.split() if s.isdigit()]
+                if result:
+                    await obj._alert_manager.delete(key)
+                    await _new_alert_entry(result[-1:][0] + 1)
+                else:
+                    await _new_alert_entry()
+            else:
+                await _new_alert_entry()
+        except KeyError:
+            await _new_alert_entry()
+        except Exception as ex:
+            self._logger.error(ex, "Failed to raise an alert on restarting {} service.".format(svc_name))
 
     async def start(self):
         await self._read_config()

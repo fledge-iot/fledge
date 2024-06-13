@@ -72,17 +72,17 @@ and their versions.
          "name": "http_north",
          "type": "north",
          "description": "HTTP North Plugin",
-         "version": "1.8.1",
+         "version": "2.2.0",
          "installedDirectory": "north/http_north",
          "packageName": "fledge-north-http-north"
        },
        {
-         "name": "GCP",
+         "name": "Kafka",
          "type": "north",
-         "description": "Google Cloud Platform IoT-Core",
-         "version": "1.8.1",
-         "installedDirectory": "north/GCP",
-         "packageName": "fledge-north-gcp"
+         "description": "Simple plugin to send data to Kafka topic",
+         "version": "2.2.0",
+         "installedDirectory": "north/Kafka",
+         "packageName": "fledge-north-kafka"
        },
    ...
    }
@@ -118,8 +118,9 @@ and the function to call, usually *plugin_info*.
 
 .. code-block:: console
 
-   $ get_plugin_info plugins/north/GCP/libGCP.so  plugin_info
-   {"name": "GCP", "version": "1.8.1", "type": "north", "interface": "1.0.0", "flag": 0, "config": { "plugin" : { "description" : "Google Cloud Platform IoT-Core", "type" : "string", "default" : "GCP", "readonly" : "true" }, "project_id" : { "description" : "The GCP IoT Core Project ID", "type" : "string", "default" : "", "order" : "1", "displayName" : "Project ID" }, "region" : { "description" : "The GCP Region", "type" : "enumeration", "options" : [ "us-central1", "europe-west1", "asia-east1" ], "default" : "us-central1", "order" : "2", "displayName" : "The GCP Region" }, "registry_id" : { "description" : "The Registry ID of the GCP Project", "type" : "string", "default" : "", "order" : "3", "displayName" : "Registry ID" }, "device_id" : { "description" : "Device ID within GCP IoT Core", "type" : "string", "default" : "", "order" : "4", "displayName" : "Device ID" }, "key" : { "description" : "Name of the key file to use", "type" : "string", "default" : "", "order" : "5", "displayName" : "Key Name" }, "algorithm" : { "description" : "JWT algorithm", "type" : "enumeration", "options" : [ "ES256", "RS256" ], "default" : "RS256", "order" : "6", "displayName" : "JWT Algorithm" }, "source": { "description" : "The source of data to send", "type" : "enumeration", "default" : "readings", "order" : "8", "displayName" : "Data Source", "options" : ["readings", "statistics"] } }}
+   $ ./get_plugin_info /usr/local/fledge/plugins/north/Kafka/libKafka.so plugin_info
+    {"name": "Kafka", "type": "north", "flag": 0, "version": "2.2.0", "interface": "1.0.0", "config": {"SSL_CERT": {"displayName": "Certificate Name", "description": "Name of client certificate for identity authentications", "default": "", "validity": "KafkaSecurityProtocol == \"SSL\" || KafkaSecurityProtocol == \"SASL_SSL\"", "group": "Encryption", "type": "string", "order": "10"}, "topic": {"mandatory": "true", "description": "The topic to send reading data on", "default": "Fledge", "displayName": "Kafka Topic", "type": "string", "order": "2"}, "brokers": {"displayName": "Bootstrap Brokers", "description": "The bootstrap broker list to retrieve full Kafka brokers", "default": "localhost:9092,kafka.local:9092", "mandatory": "true", "type": "string", "order": "1"}, "KafkaUserID": {"group": "Authentication", "description": "User ID to be used with SASL_PLAINTEXT security protocol", "default": "user", "validity": "KafkaSecurityProtocol == \"SASL_PLAINTEXT\" || KafkaSecurityProtocol == \"SASL_SSL\"", "displayName": "User ID", "type": "string", "order": "7"}, "KafkaSASLMechanism": {"group": "Authentication", "description": "Authentication mechanism to be used to connect to kafka broker", "default": "PLAIN", "displayName": "SASL Mechanism", "type": "enumeration", "order": "6", "validity": "KafkaSecurityProtocol == \"SASL_PLAINTEXT\" || KafkaSecurityProtocol == \"SASL_SSL\"", "options": ["PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"]}, "SSL_Password": {"displayName": "Certificate Password", "description": "Optional: Password to be used when loading the certificate chain", "default": "", "validity": "KafkaSecurityProtocol == \"SSL\" || KafkaSecurityProtocol == \"SASL_SSL\"", "group": "Encryption", "type": "password", "order": "12"}, "compression": {"displayName": "Compression Codec", "description": "The compression codec to be used to send data to the Kafka broker", "default": "none", "order": "4", "type": "enumeration", "options": ["none", "gzip", "snappy", "lz4"]}, "plugin": {"default": "Kafka", "readonly": "true", "type": "string", "description": "Simple plugin to send data to a Kafka topic"}, "KafkaSecurityProtocol": {"group": "Authentication", "description": "Security protocol to be used to connect to kafka broker", "default": "PLAINTEXT", "options": ["PLAINTEXT", "SASL_PLAINTEXT", "SSL", "SASL_SSL"], "displayName": "Security Protocol", "type": "enumeration", "order": "5"}, "source": {"displayName": "Data Source", "description": "The source of data to send", "default": "readings", "order": "13", "type": "enumeration", "options": ["readings", "statistics"]}, "json": {"displayName": "Send JSON", "description": "Send as JSON objects or as strings", "default": "Strings", "order": "3", "type": "enumeration", "options": ["Objects", "Strings"]}, "SSL_CA_File": {"displayName": "Root CA Name", "description": "Name of the root certificate authority that will be used to verify the certificate", "default": "", "validity": "KafkaSecurityProtocol == \"SSL\" || KafkaSecurityProtocol == \"SASL_SSL\"", "group": "Encryption", "type": "string", "order": "9"}, "SSL_Keyfile": {"displayName": "Private Key Name", "description": "Name of client private key required for communication", "default": "", "validity": "KafkaSecurityProtocol == \"SSL\" || KafkaSecurityProtocol == \"SASL_SSL\"", "group": "Encryption", "type": "string", "order": "11"}, "KafkaPassword": {"group": "Authentication", "description": "Password to be used with SASL_PLAINTEXT security protocol", "default": "pass", "validity": "KafkaSecurityProtocol == \"SASL_PLAINTEXT\" || KafkaSecurityProtocol == \"SASL_SSL\"", "displayName": "Password", "type": "password", "order": "8"}}}
+
 
 If there is an undefined symbol you will get an error from this
 utility. You can also check the validity of your JSON configuration by
@@ -127,7 +128,7 @@ piping the output to a program such as jq.
 
 .. code-block:: console
 
-   $ get_plugin_info plugins/south/Random/libRandom.so plugin_info | jq
+   $ ./get_plugin_info plugins/south/Random/libRandom.so plugin_info | jq
     {
       "name": "Random",
       "version": "1.9.2",
@@ -212,27 +213,27 @@ The easiest approach to run under a debugger is
 
      - User and password login
 
-         .. code-block:: console
+       .. code-block:: console
 
-             curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
+          curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
 
        Successful authentication will produce a response as shown below.
 
        .. code-block:: console
 
-           {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
+          {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
 
      - Certificate login
 
-         .. code-block:: console
+       .. code-block:: console
 
-            curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
+          curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
 
-        Successful authentication will produce a response as shown below.    
+       Successful authentication will produce a response as shown below.
 
        .. code-block:: console
 
-            {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
+          {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
 
    It is now possible to call the API endpoint to retrieve a startup token by passing the authentication token given in the authentication request.
 
@@ -240,15 +241,15 @@ The easiest approach to run under a debugger is
 
       curl -X POST 127.0.0.1:8081/fledge/service/ServiceName/otp -H 'authorization: Token'
 
-      Where *ServiceName* is the name you gave your service when you created it and *Token* received by the authentication request above.
+   Where *ServiceName* is the name you gave your service when you created it and *Token* received by the authentication request above.
 
-      This call will respond with a startup token that can be used to start the service you are debugging. An example response is shown below.
+   This call will respond with a startup token that can be used to start the service you are debugging. An example response is shown below.
 
-     .. code-block:: console
+   .. code-block:: console
 
-     {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
+      {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
 
-     *startupToken* will be passed as service start argument: --token=*startupToken*
+   *startupToken* will be passed as service start argument: --token=*startupToken*
 
    - Load the service you wish to use to run your plugin, e.g. a south service, under the debugger. This should be run from the FLEDGE_ROOT directory
 

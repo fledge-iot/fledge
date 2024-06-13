@@ -1,0 +1,16 @@
+[run]
+omit =
+    # Ignore files
+    */__init__.py
+    */__template__.py
+    */setup.py
+    # Omit directory
+    */python/fledge/plugins/common/*
+    */python/fledge/plugins/filter/*
+    */python/fledge/plugins/north/*
+    */python/fledge/plugins/south/*
+    */python/fledge/plugins/notificationDelivery/*
+    */python/fledge/plugins/notificationRule/*
+    */python/fledge/services/south/*
+    */python/fledge/tasks/north/sending_process.py
+    tests/*

@@ -17,11 +17,12 @@
 #include <http_sender.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include <omfbuffer.h>
 #include <linkedlookup.h>
 
 #define	OMF_HINT	"OMFHint"
 
-// The following will force the OMF version for EDs endpoints
+// The following will force the OMF version for EDS endpoints
 // Remove or comment out the line below to prevent the forcing
 // of the version
 #define EDS_OMF_VERSION	"1.0"
@@ -62,7 +63,7 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
  *
  * - typeId          = id of the type, it is incremented if the type is redefined
  * - types           = is a JSON string with datapoint names and types
- * - typesShort      = a numeric representation of the type used to quicly identify if a type has changed
+ * - typesShort      = a numeric representation of the type used to quickly identify if a type has changed
  * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..
  * - afhHash         = Asset hash based on the AF hierarchy
  * - afHierarchy     = Current position of the asset in the AF hierarchy
@@ -146,7 +147,7 @@ class OMF
 
 		// Method with vector (by reference) of readings
 		uint32_t sendToServer(const std::vector<Reading>& readings,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Method with vector (by reference) of reading pointers
 		uint32_t sendToServer(const std::vector<Reading *>& readings,
@@ -154,11 +155,11 @@ class OMF
 
 		// Send a single reading (by reference)
 		uint32_t sendToServer(const Reading& reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Send a single reading pointer
 		uint32_t sendToServer(const Reading* reading,
-				      bool skipSentDataTypes = true);
+				      bool skipSentDataTypes = true); // never called
 
 		// Set saved OMF formats
 		void setFormatType(const std::string &key, std::string &value);
@@ -193,6 +194,8 @@ class OMF
 		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
 
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
+
+		void setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
 
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
@@ -231,9 +234,6 @@ class OMF
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
-		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus);
-
 		void setLegacyMode(bool legacy) { m_legacy = legacy; };
 
 		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
@@ -266,7 +266,7 @@ private:
 		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints, bool legacy);
 
 		/**
-		 * Creata data for readings data content, with 'Data', for one row
+		 * Create data for readings data content, with 'Data', for one row
 		 * The new formatted data have to be added to a new JSON doc to send.
 		 * we want to avoid sending of one data row
 		 */
@@ -322,7 +322,7 @@ private:
 		// Set saved dataType
 		bool setCreatedTypes(const Reading& row, OMFHints *hints);
 
-		// Remove cached data types enttry for given asset name
+		// Remove cached data types entry for given asset name
 		void clearCreatedTypes(const std::string& keyComplete);
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
@@ -356,6 +356,7 @@ private:
 
 		// Start of support for using linked containers
 		bool sendBaseTypes();
+		bool sendAFLinks(Reading& reading, OMFHints *hints);
 		// End of support for using linked containers
 		//
 		string createAFLinks(Reading &reading, OMFHints *hints);
@@ -387,6 +388,7 @@ private:
 		NAMINGSCHEME_ENDPOINT m_NamingScheme;
 		std::string		      m_DefaultAFLocation;
 		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
+		std::string			  m_delimiter;
 
 		// Asset Framework Hierarchy Rules handling - Metadata MAP
 		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules
@@ -395,7 +397,6 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
-		bool            m_connected;  // true if calls to PI Web API are working 
 
 		vector<std::string>  m_afhHierarchyAlreadyCreated={
 
@@ -520,19 +521,23 @@ private:
  * The OMFData class.
  * A reading is formatted with OMF specifications using the original
  * type creation scheme implemented by the OMF plugin
+ *
+ * There is no good reason to retain this class any more, it is here
+ * mostly to reduce the scope of the change when introducing the OMFBuffer
  */
 class OMFData
 {
 	public:
-		OMFData(const Reading& reading,
+		OMFData(OMFBuffer & payload, 
+			const Reading& reading,
 			string measurementId,
+			bool needDelim,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);
-
-		const std::string& OMFdataVal() const;
+		bool	hasData() { return m_hasData; };
 	private:
-		std::string	m_value;
+		bool	m_hasData;
 };
 
 #endif

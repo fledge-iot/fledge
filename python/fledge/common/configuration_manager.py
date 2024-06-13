@@ -35,9 +35,10 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
-                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket'])
+                              'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
+                              'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group'])
+                          'validity', 'mandatory', 'group', 'listSize', 'listName'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -268,7 +269,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'properties': 0}
+                                     'group': 0, 'listSize': 0, 'listName': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -308,10 +309,187 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
                                             'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                            type(entry_val)))
-                elif 'type' in item_val and entry_val == 'bucket':
+                # Validate bucket type and mandatory properties item_name
+                elif 'type' in item_val and get_entry_val("type") == 'bucket':
                     if 'properties' not in item_val:
                         raise KeyError('For {} category, properties KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if entry_name == 'properties':
+                        prop_val = get_entry_val('properties')
+                        if not isinstance(prop_val, dict):
+                            raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
+                                             .format(category_name, item_name, type(entry_val)))
+                        if not prop_val:
+                            raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
+                                             ''.format(category_name, item_name))
+                        if 'key' not in prop_val:
+                            raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
+                    else:
+                        if type(entry_val) is not str:
+                            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                           type(entry_val)))
+                # Validate list type and mandatory items
+                elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
+                    if entry_name not in ('properties', 'options') and not isinstance(entry_val, str):
+                        raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                        'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                       type(entry_val)))
+                    if 'items' not in item_val:
+                        raise KeyError('For {} category, items KV pair must be required '
+                                       'for item name {}.'.format(category_name, item_name))
+                    if 'listName' in item_val:
+                        list_name = item_val['listName']
+                        if not isinstance(list_name, str):
+                            raise TypeError('For {} category, listName type must be a string for item name {}; '
+                                            'got {}'.format(category_name, item_name, type(list_name)))
+                        list_name = item_val['listName'].strip()
+                        if not list_name:
+                            raise ValueError('For {} category, listName cannot be empty for item name '
+                                             '{}'.format(category_name, item_name))
+                        item_val['listName'] = list_name
+                    if entry_name == 'items':
+                        if entry_val not in ("string", "float", "integer", "object", "enumeration"):
+                            raise ValueError("For {} category, items value should either be in string, float, "
+                                             "integer, object or enumeration for item name {}".format(
+                                category_name, item_name))
+                        if entry_val == 'object':
+                            if 'properties' not in item_val:
+                                raise KeyError('For {} category, properties KV pair must be required for item name {}'
+                                               ''.format(category_name, item_name))
+                            prop_val = get_entry_val('properties')
+                            if not isinstance(prop_val, dict):
+                                raise ValueError(
+                                    'For {} category, properties must be JSON object for item name {}; got {}'
+                                    .format(category_name, item_name, type(prop_val)))
+                            if not prop_val:
+                                raise ValueError(
+                                    'For {} category, properties JSON object cannot be empty for item name {}'
+                                    ''.format(category_name, item_name))
+                            for kp, vp in prop_val.items():
+                                if isinstance(vp, dict):
+                                    prop_keys = list(vp.keys())
+                                    if not prop_keys:
+                                        raise ValueError('For {} category, {} properties cannot be empty for '
+                                                         'item name {}'.format(category_name, kp, item_name))
+                                    diff = {'description', 'default', 'type'} - set(prop_keys)
+                                    if diff:
+                                        raise ValueError('For {} category, {} properties must have type, description, '
+                                                         'default keys for item name {}'.format(category_name,
+                                                                                                kp, item_name))
+                                else:
+                                    raise TypeError('For {} category, Properties must be a JSON object for {} key '
+                                                    'for item name {}'.format(category_name, kp, item_name))
+                        if entry_val == 'enumeration':
+                            if 'options' not in item_val:
+                                raise KeyError('For {} category, options required for item name {}'.format(
+                                    category_name, item_name))
+                            options = item_val['options']
+                            if type(options) is not list:
+                                raise TypeError('For {} category, entry value must be a list for item name {} and '
+                                                'entry name {}; got {}'.format(category_name, item_name,
+                                                                               entry_name, type(options)))
+                            if not options:
+                                raise ValueError(
+                                    'For {} category, options cannot be empty list for item_name {} and '
+                                    'entry_name {}'.format(category_name, item_name, entry_name))
+                        default_val = get_entry_val("default")
+                        list_size = -1
+                        if 'listSize' in item_val:
+                            list_size = item_val['listSize']
+                            if not isinstance(list_size, str):
+                                raise TypeError('For {} category, listSize type must be a string for item name {}; '
+                                                'got {}'.format(category_name, item_name, type(list_size)))
+                            if self._validate_type_value('listSize', list_size) is False:
+                                raise ValueError('For {} category, listSize value must be an integer value '
+                                                 'for item name {}'.format(category_name, item_name))
+                            list_size = int(item_val['listSize'])
+                        msg = "array" if item_val['type'] == 'list' else "KV pair"
+                        if entry_name == 'items' and entry_val not in ("object", "enumeration"):
+                            try:
+                                eval_default_val = ast.literal_eval(default_val)
+                                if item_val['type'] == 'list':
+                                    if len(eval_default_val) > len(set(eval_default_val)):
+                                        raise ArithmeticError("For {} category, default value {} elements are not "
+                                                              "unique for item name {}".format(category_name, msg,
+                                                                                               item_name))
+                                else:
+                                    if isinstance(eval_default_val, dict) and eval_default_val:
+                                        nv = default_val.replace("{", "")
+                                        unique_list = []
+                                        for pair in nv.split(','):
+                                            if pair:
+                                                k, v = pair.split(':')
+                                                ks = k.strip()
+                                                if ks not in unique_list:
+                                                    unique_list.append(ks)
+                                                else:
+                                                    raise ArithmeticError("For category {}, duplicate KV pair found "
+                                                                          "for item name {}".format(
+                                                        category_name, item_name))
+                                            else:
+                                                raise ArithmeticError("For {} category, KV pair invalid in default "
+                                                                      "value for item name {}".format(
+                                                    category_name, item_name))
+                                if list_size >= 0:
+                                    if len(eval_default_val) > list_size:
+                                        raise ArithmeticError("For {} category, default value {} list size limit to "
+                                                              "{} for item name {}".format(category_name, msg,
+                                                                                           list_size, item_name))
+                            except ArithmeticError as err:
+                                raise ValueError(err)
+                            except:
+                                raise TypeError("For {} category, default value should be passed {} list in string "
+                                                "format for item name {}".format(category_name, msg, item_name))
+                            type_check = str
+                            if entry_val == 'integer':
+                                type_check = int
+                            elif entry_val == 'float':
+                                type_check = float
+                            type_mismatched_message = ("For {} category, all elements should be of same {} type "
+                                                       "in default value for item name {}").format(category_name,
+                                                                                                   type_check, item_name)
+                            if item_val['type'] == 'kvlist':
+                                if not isinstance(eval_default_val, dict):
+                                    raise TypeError("For {} category, KV pair invalid in default value for item name {}"
+                                                    "".format(category_name, item_name))
+                                for k, v in eval_default_val.items():
+                                    try:
+                                        eval_s = v if entry_val == "string" else ast.literal_eval(v)
+                                    except:
+                                        raise ValueError(type_mismatched_message)
+                                    if not isinstance(eval_s, type_check):
+                                        raise ValueError(type_mismatched_message)
+                            else:
+                                for s in eval_default_val:
+                                    try:
+                                        eval_s = s if entry_val == "string" else ast.literal_eval(s)
+                                    except:
+                                        raise ValueError(type_mismatched_message)
+                                    if not isinstance(eval_s, type_check):
+                                        raise ValueError(type_mismatched_message)
+                        elif entry_name == 'items' and entry_val == "enumeration":
+                            eval_default_val = ast.literal_eval(get_entry_val("default"))
+                            ev_options = item_val['options']
+                            if item_val['type'] == 'kvlist':
+                                for ek, ev in eval_default_val.items():
+                                    if ev not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options '
+                                                         'for item name {} and entry_name {}'.format(
+                                            category_name, ev, item_name, ek))
+                            else:
+                                for s in eval_default_val:
+                                    if s not in ev_options:
+                                        raise ValueError('For {} category, {} value does not exist in options for item '
+                                                         'name {}'.format(category_name, s, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
+                    if entry_name in ('properties', 'options'):
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -331,16 +509,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         'For {} category, A default value must be given for {}'.format(category_name,
                                                                                                        item_name))
                     elif entry_name == 'minimum' or entry_name == 'maximum':
-                        if (self._validate_type_value('integer', entry_val) or self._validate_type_value('float',
-                                                                                                         entry_val)) is False:
+                        if (self._validate_type_value('integer', entry_val) or
+                            self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'properties'):
+                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
                     else:
-                        if self._validate_type_value('integer', entry_val) is False:
+                        if (self._validate_type_value('integer', entry_val) or
+                                self._validate_type_value('listSize', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
 
@@ -379,7 +558,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
             if 'mandatory' in item_val:
                 item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
-
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val['type'], item_val['default'])
                 item_val['value'] = item_val['default']
@@ -591,7 +769,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
-
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
@@ -607,7 +784,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise TypeError('new value should be a valid dict Or a string literal, in double quotes')
                 elif not isinstance(new_val, str):
                     raise TypeError('new value should be of type string')
-
                 if cat_info[item_name]['type'] == 'enumeration':
                     if new_val == '':
                         raise ValueError('entry_val cannot be empty')
@@ -625,6 +801,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                     "Dict cannot be set as empty. A value must be given for {}".format(item_name))
                         elif not len(new_val.strip()):
                             raise ValueError("A value must be given for {}".format(item_name))
+                if cat_info[item_name]['type'] in ('list', 'kvlist') and cat_info[item_name]['items'] == 'enumeration':
+                    try:
+                        eval_new_val = ast.literal_eval(new_val)
+                    except:
+                        raise TypeError("Malformed payload for given {} category".format(category_name))
+                    ev_options = cat_info[item_name]['options']
+                    if cat_info[item_name]['type'] == 'kvlist':
+                        if not isinstance(eval_new_val, dict):
+                            raise TypeError("New value should be in KV pair format")
+                        for ek, ev in eval_new_val.items():
+                            if ev == '':
+                                raise ValueError('For {}, enum value cannot be empty'.format(ek))
+                            if ev not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(ek))
+                    else:
+                        if not isinstance(eval_new_val, list):
+                            raise TypeError("New value should be passed in list")
+                        if not eval_new_val:
+                            raise ValueError('enum value cannot be empty')
+                        for s in eval_new_val:
+                            if s not in ev_options:
+                                raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
                 new_val = self._clean(cat_info[item_name]['type'], new_val)
                 # Validations on the basis of optional attributes
@@ -1604,7 +1802,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         if _type == 'boolean':
             return _str_to_bool(_value)
-        elif _type == 'integer':
+        elif _type in ('integer', 'listSize'):
             return _str_to_int(_value)
         elif _type == 'float':
             return _str_to_float(_value)
@@ -1676,21 +1874,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         def in_range(n, start, end):
             return start <= n <= end  # start and end inclusive
 
-        config_item_type = storage_value_entry['type']
-        if config_item_type == 'string':
+        def _validate_length(val):
             if 'length' in storage_value_entry:
-                if len(new_value_entry) > int(storage_value_entry['length']):
+                if len(val) > int(storage_value_entry['length']):
                     raise TypeError('For config item {} you cannot set the new value, beyond the length {}'.format(
                         item_name, storage_value_entry['length']))
 
-        if config_item_type == 'integer' or config_item_type == 'float':
+        def _validate_min_max(_type, val):
             if 'minimum' in storage_value_entry and 'maximum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _min_value = int(storage_value_entry['minimum'])
                     _max_value = int(storage_value_entry['maximum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _min_value = float(storage_value_entry['minimum'])
                     _max_value = float(storage_value_entry['maximum'])
 
@@ -1698,22 +1895,103 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise TypeError('For config item {} you cannot set the new value, beyond the range ({},{})'.format(
                         item_name, storage_value_entry['minimum'], storage_value_entry['maximum']))
             elif 'minimum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _min_value = int(storage_value_entry['minimum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _min_value = float(storage_value_entry['minimum'])
                 if _new_value < _min_value:
                     raise TypeError('For config item {} you cannot set the new value, below {}'.format(item_name,
                                                                                                        _min_value))
             elif 'maximum' in storage_value_entry:
-                if config_item_type == 'integer':
-                    _new_value = int(new_value_entry)
+                if _type == 'integer':
+                    _new_value = int(val)
                     _max_value = int(storage_value_entry['maximum'])
                 else:
-                    _new_value = float(new_value_entry)
+                    _new_value = float(val)
                     _max_value = float(storage_value_entry['maximum'])
                 if _new_value > _max_value:
                     raise TypeError('For config item {} you cannot set the new value, above {}'.format(item_name,
                                                                                                        _max_value))
+
+        config_item_type = storage_value_entry['type']
+        if config_item_type == 'string':
+            _validate_length(new_value_entry)
+
+        if config_item_type == 'integer' or config_item_type == 'float':
+            _validate_min_max(config_item_type, new_value_entry)
+
+        if config_item_type in ("list", "kvlist"):
+            if storage_value_entry['items'] not in ('object', 'enumeration'):
+                msg = "array" if config_item_type == 'list' else "KV pair"
+                try:
+                    eval_new_val = ast.literal_eval(new_value_entry)
+                except:
+                    raise TypeError("For config item {} value should be passed {} list in string format".format(
+                        item_name, msg))
+
+                if config_item_type == 'list':
+                    if len(eval_new_val) > len(set(eval_new_val)):
+                        raise ValueError("For config item {} elements are not unique".format(item_name))
+                else:
+                    if isinstance(eval_new_val, dict) and eval_new_val:
+                        nv = new_value_entry.replace("{", "")
+                        unique_list = []
+                        for pair in nv.split(','):
+                            if pair:
+                                k, v = pair.split(':')
+                                ks = k.strip()
+                                if ks not in unique_list:
+                                    unique_list.append(ks)
+                                else:
+                                    raise TypeError("For config item {} duplicate KV pair found".format(item_name))
+                            else:
+                                raise TypeError("For config item {} KV pair invalid".format(item_name))
+                if 'listSize' in storage_value_entry:
+                    list_size = int(storage_value_entry['listSize'])
+                    if list_size >= 0:
+                        if len(eval_new_val) > list_size:
+                            raise TypeError("For config item {} value {} list size limit to {}".format(
+                                item_name, msg, list_size))
+                type_mismatched_message = "For config item {} all elements should be of same {} type".format(
+                    item_name, storage_value_entry['items'])
+                type_check = str
+                if storage_value_entry['items'] == 'integer':
+                    type_check = int
+                elif storage_value_entry['items'] == 'float':
+                    type_check = float
+
+                if config_item_type == 'kvlist':
+                    if not isinstance(eval_new_val, dict):
+                        raise TypeError("For config item {} KV pair invalid".format(item_name))
+                    for k, v in eval_new_val.items():
+                        try:
+                            eval_s = v
+                            if storage_value_entry['items'] in ("integer", "float"):
+                                eval_s = ast.literal_eval(v)
+                                _validate_min_max(storage_value_entry['items'], eval_s)
+                            elif storage_value_entry['items'] == 'string':
+                                _validate_length(eval_s)
+                        except TypeError as err:
+                            raise ValueError(err)
+                        except:
+                            raise ValueError(type_mismatched_message)
+                        if not isinstance(eval_s, type_check):
+                            raise ValueError(type_mismatched_message)
+                else:
+                    for s in eval_new_val:
+                        try:
+                            eval_s = s
+                            if storage_value_entry['items'] in ("integer", "float"):
+                                eval_s = ast.literal_eval(s)
+                                _validate_min_max(storage_value_entry['items'], eval_s)
+                            elif storage_value_entry['items'] == 'string':
+                                _validate_length(eval_s)
+                        except TypeError as err:
+                            raise ValueError(err)
+                        except:
+                            raise ValueError(type_mismatched_message)
+                        if not isinstance(eval_s, type_check):
+                            raise ValueError(type_mismatched_message)
+

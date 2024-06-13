@@ -19,7 +19,6 @@
 #include <plugin_api.h>
 #include <storage_plugin.h>
 
-
 using namespace std;
 using namespace rapidjson;
 

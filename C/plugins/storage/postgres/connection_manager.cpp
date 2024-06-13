@@ -9,6 +9,8 @@
  */
 #include <connection_manager.h>
 #include <connection.h>
+#include <logger.h>
+#include <stdexcept>
 
 
 ConnectionManager *ConnectionManager::instance = 0;
@@ -58,12 +60,16 @@ void ConnectionManager::growPool(unsigned int delta)
 {
 	while (delta-- > 0)
 	{
-		Connection *conn = new Connection();
-		conn->setTrace(m_logSQL);
-		conn->setMaxReadingRows(m_maxReadingRows);
-		idleLock.lock();
-		idle.push_back(conn);
-		idleLock.unlock();
+		try {
+			Connection *conn = new Connection();
+			conn->setTrace(m_logSQL);
+			conn->setMaxReadingRows(m_maxReadingRows);
+			idleLock.lock();
+			idle.push_back(conn);
+			idleLock.unlock();
+		} catch (std::exception& e) {
+			Logger::getLogger()->error("Failed to create storage connection: %s", e.what());
+		}
 	}
 }
 

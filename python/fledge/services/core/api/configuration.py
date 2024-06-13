@@ -426,6 +426,10 @@ async def add_configuration_item(request):
         result = await storage_client.update_tbl("configuration", payload)
         response = result['response']
 
+        # update cache with new config item
+        if category_name in cf_mgr._cacheManager.cache:
+            cf_mgr._cacheManager.cache[category_name]['value'].update({new_config_item: data})
+
         # logged audit new config item for category
         audit = AuditLogger(storage_client)
         audit_details = {'category': category_name, 'item': new_config_item, 'value': config_item_dict}
@@ -690,9 +694,9 @@ def hide_password(config: dict) -> Dict:
     new_config = copy.deepcopy(config)
     try:
         for k, v in new_config.items():
-            if v['type'] == 'password':
+            if v['type'] == 'password' and len(v['value']):
                 v['value'] = "****"
     except TypeError:
-        if new_config['type'] == 'password':
+        if new_config['type'] == 'password' and len(new_config['value']):
             new_config['value'] = "****"
     return new_config

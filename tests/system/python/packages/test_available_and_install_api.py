@@ -78,6 +78,7 @@ class TestPackages:
         assert 'green' == jdoc['health']
         assert jdoc['authenticationOptional'] is True
         assert jdoc['safeMode'] is False
+        assert jdoc['alerts'] == 0
 
     def test_available_plugin_packages(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)

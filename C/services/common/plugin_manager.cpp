@@ -610,18 +610,86 @@ void PluginManager::getInstalledPlugins(const string& type,
 
 		 * Plugin filename is libdelta.so, libscale.so
 		 * Plugin name is the subdirecory name in path
+		 * Skip directory starting with '_' or 
+		 * with name 'common'
 		 */
 		while ((entry = readdir(dp)))
 		{
 			if (strcmp (entry->d_name, "..") != 0 &&
-			    strcmp (entry->d_name, ".") != 0)
+			    strcmp (entry->d_name, ".") != 0 && 
+				strcmp (entry->d_name, "common") != 0 &&
+				entry->d_name[0] != '_')
 			{
-				// Load plugin, given its name: the directory name
-				loadPlugin(entry->d_name, type);
-				// Add name to ouput list
-				plugins.push_back(entry->d_name);
+				struct stat stbuf;
+				bool is_dir(false);
+				if (stat((path + entry->d_name).c_str(), &stbuf) != 0) {
+					continue;
+				}
+				is_dir = S_ISDIR(stbuf.st_mode);
+				if (!is_dir) {
+					continue;
+				}
+
+				/* check for duplicate names to avoid
+					multiple loadPlugin calls
+				*/ 
+				bool is_duplicate = false;
+				for (const auto& loadedPlugin : plugins)
+				{
+					if (loadedPlugin == entry->d_name)
+					{
+						is_duplicate = true;
+						break;
+					}
+				}
+				if (!is_duplicate) 
+				{
+					// Load plugin, given its name: the directory name
+					loadPlugin(entry->d_name, type);
+					// Add name to ouput list
+					plugins.push_back(entry->d_name);
+				}
 			}
 		}
 		closedir(dp);
 	}
+}
+
+/**
+ * Return a list of plugins matching the criteria
+ * of plugin type and plugin flags
+ *
+ * @param type          The plugin type to match
+ * @param flags         A bitmask of flags to match
+ * @return vector<string>       A list of matching plugin names
+ */
+std::vector<string> PluginManager::getPluginsByFlags(const std::string& type, 
+									unsigned int flags) 
+{
+	// Plugins matching type and flag bits
+	std::vector<std::string> matchingPlugins;
+	
+	// Get list of installed plugins of given type
+	std::list<std::string> plugins;
+	getInstalledPlugins(type, plugins);
+	
+	/* Iterate list of installed plugins and
+		match plugin 'options' with passed 
+		plugin flags
+	*/
+	for (auto &pName: plugins) 
+	{
+		// Fetch loaded plugin handle
+		auto pluginHandle = pluginNames.find(pName);
+		unsigned int pluginOptions = 0;
+		if (pluginHandle != pluginNames.end()) {
+			pluginOptions = getInfo(pluginHandle->second)->options;
+		}
+		// Match bit fields corresponding to loaded plugins
+		if ((flags & pluginOptions) == flags) {
+			matchingPlugins.push_back(pName);
+		}
+	}
+	
+	return matchingPlugins;
 }

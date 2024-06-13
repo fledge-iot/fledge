@@ -65,10 +65,11 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(pi_web_api_two_readings);
 
-	ostringstream jsonData;
-	jsonData << "[";
+	OMFBuffer payload;
+	payload.append('[');
 
 	const OMF_ENDPOINT PI_SERVER_END_POINT = ENDPOINT_PIWEB_API;
+	bool sep = false;
 
 	// Iterate over Readings via readingSet.getAllReadings()
 	for (vector<Reading *>::const_iterator elem = readingSet.getAllReadings().begin();
@@ -76,13 +77,15 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 	     ++elem)
 	{
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, CONTAINER_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		sep = OMFData(payload, **elem, CONTAINER_ID, sep, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).hasData();
 	}
 
-	jsonData << "]";
+	payload.append(']');
 
+	const char *buf = payload.coalesce();
 	// Compare translation
-	ASSERT_EQ(jsonData.str(), pi_web_api_two_translated_readings);
+	ASSERT_STREQ(buf, pi_web_api_two_translated_readings);
+	delete[] buf;
 
 }
 

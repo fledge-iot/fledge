@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <thread>
 #include <storage_client.h>
@@ -35,6 +35,21 @@ class PerfMon {
 class PerformanceMonitor {
 	public:
 		PerformanceMonitor(const std::string& service, StorageClient *storage);
+		// Write data to storage
+		virtual void writeData(const std::string& table, const InsertValues& values)
+		{
+			// Write data via storage client
+			if (m_storage != NULL)
+			{
+				m_storage->insertTable(table, values);
+			}
+			else
+			{
+				Logger::getLogger()->error("Failed to save performace monitor data: "\
+						"storage client is null for servide '%s'",
+						m_service.c_str());
+			}
+		};
 		~PerformanceMonitor();
 					/**
 					 * Collect a performance monitor
@@ -51,6 +66,7 @@ class PerformanceMonitor {
 					};
 		void			setCollecting(bool state);
 		void			writeThread();
+		bool			isCollecting() { return m_collecting; };
 	private:
 		void			doCollection(const std::string& name, long value);
 	private:

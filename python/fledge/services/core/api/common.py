@@ -93,7 +93,11 @@ async def ping(request):
         return 'green'
 
     status_color = services_health_litmus_test()
-    safe_mode = True if server.Server.running_in_safe_mode else False
+    safe_mode = True
+    alert_count = 0
+    if not server.Server.running_in_safe_mode:
+        safe_mode = False
+        alert_count = len(server.Server._alert_manager.alerts)
     version = get_version()
     return web.json_response({'uptime': int(since_started),
                               'dataRead': data_read,
@@ -105,7 +109,8 @@ async def ping(request):
                               'ipAddresses': ip_addresses,
                               'health': status_color,
                               'safeMode': safe_mode,
-                              'version': version
+                              'version': version,
+                              'alerts': alert_count
                               })
 
 

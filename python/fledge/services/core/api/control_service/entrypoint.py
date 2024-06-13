@@ -164,23 +164,17 @@ async def _check_parameters(payload, skip_required=False):
     if constants is not None:
         if not isinstance(constants, dict):
             raise ValueError('constants should be a dictionary.')
-        if not constants and _type == EntryPointType.WRITE.name.lower():
-            raise ValueError('constants should not be empty.')
         final['constants'] = constants
-    else:
-        if _type == EntryPointType.WRITE.name.lower():
-            raise ValueError("For type write constants must have passed in payload and cannot have empty value.")
 
     variables = payload.get('variables', None)
     if variables is not None:
         if not isinstance(variables, dict):
             raise ValueError('variables should be a dictionary.')
-        if not variables and _type == EntryPointType.WRITE.name.lower():
-            raise ValueError('variables should not be empty.')
         final['variables'] = variables
-    else:
-        if _type == EntryPointType.WRITE.name.lower():
-            raise ValueError("For type write variables must have passed in payload and cannot have empty value.")
+
+    if _type == EntryPointType.WRITE.name.lower():
+        if not variables and not constants:
+            raise ValueError('For write type either variables or constants should not be empty.')
 
     allow = payload.get('allow', None)
     if allow is not None:
@@ -449,9 +443,9 @@ async def update_request(request: web.Request) -> web.Response:
         constant_dict = {key: data.get(key, ep_info["constants"][key]) for key in ep_info["constants"]}
         variables_dict = {key: data.get(key, ep_info["variables"][key]) for key in ep_info["variables"]}
         params = {**constant_dict, **variables_dict}
-        if not params:
-            raise ValueError("Nothing to update as given entrypoint do not have the parameters.")
         if ep_info['type'] == 'write':
+            if not params:
+                raise ValueError("Nothing to update as given entrypoint do not have the parameters.")
             url = "dispatch/write"
             dispatch_payload["write"] = params
         else:

@@ -144,7 +144,7 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d, '%s'",
 			name.c_str(), json.c_str(),
 			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(),
-			StringAround(json, (unsigned)doc.GetErrorOffset()));
+			StringAround(json, (unsigned)doc.GetErrorOffset()).c_str());
 		throw new ConfigMalformed();
 	}
 	
@@ -440,6 +440,114 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the value of the configuration category item list, this
+ * is a convience function used when simple lists are defined
+ * and allows for central processing of the list values
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getValueList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_type.compare("list"))
+			{
+				throw new ConfigItemNotAList();
+			}
+			Document d;
+			vector<string> list;
+			d.Parse(m_items[i]->m_value.c_str());
+			if (d.HasParseError())
+			{
+				Logger::getLogger()->error("The JSON value for a list item %s has a parse error: %s, %s",
+					name.c_str(), GetParseError_En(d.GetParseError()), m_items[i]->m_value.c_str());
+				return list;
+			}
+			if (d.IsArray())
+			{
+				for (auto& v : d.GetArray())
+				{
+					if (v.IsString())
+					{
+						list.push_back(v.GetString());
+					}
+				}
+			}
+			else
+			{
+				Logger::getLogger()->error("The value of the list item %s should be a JSON array and it is not", name.c_str());
+			}
+			return list;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the value of the configuration category item kvlist, this
+ * is a convience function used when key/value lists are defined
+ * and allows for central processing of the list values
+ *
+ * @param name	The name of the configuration item to return
+ * @return string	The configuration item name
+ * @throws exception if the item does not exist in the category
+ */
+map<string, string> ConfigCategory::getValueKVList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_type.compare("kvlist"))
+			{
+				throw new ConfigItemNotAList();
+			}
+			map<string, string> list;
+			Document d;
+			d.Parse(m_items[i]->m_value.c_str());
+			if (d.HasParseError())
+			{
+				Logger::getLogger()->error("The JSON value for a kvlist item %s has a parse error: %s, %s",
+					name.c_str(), GetParseError_En(d.GetParseError()), m_items[i]->m_value.c_str());
+				return list;
+			}
+			for (auto& v : d.GetObject())
+			{
+				string key = v.name.GetString();
+				string value = to_string(v.value);
+				list.insert(pair<string, string>(key, value));
+			}
+			return list;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Convert a RapidJSON value to a string
+ *
+ * @param v	The RapidJSON value
+ */
+std::string ConfigCategory::to_string(const rapidjson::Value& v) const
+{
+	if (v.IsString())
+	{
+		return { v.GetString(), v.GetStringLength() };
+	}
+	else
+	{
+		StringBuffer strbuf;
+		Writer<rapidjson::StringBuffer> writer(strbuf);
+		v.Accept(writer);
+		return { strbuf.GetString(), strbuf.GetLength() };
+	}
+}
+
+/**
  * Return the requested attribute of a configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -476,6 +584,14 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_deprecated;
 				case RULE_ATTR:
 					return m_items[i]->m_rule;
+				case BUCKET_PROPERTIES_ATTR:
+					return m_items[i]->m_bucketProperties;
+				case LIST_SIZE_ATTR:
+					return m_items[i]->m_listSize;
+				case ITEM_TYPE_ATTR:
+					return m_items[i]->m_listItemType;
+				case LIST_NAME_ATTR:
+				    return m_items[i]->m_listName;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -540,6 +656,18 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case RULE_ATTR:
 					m_items[i]->m_rule = value;
+					return true;
+				case BUCKET_PROPERTIES_ATTR:
+					m_items[i]->m_bucketProperties = value;
+					return true;
+				case LIST_SIZE_ATTR:
+					m_items[i]->m_listSize = value;
+					return true;
+				case ITEM_TYPE_ATTR:
+					m_items[i]->m_listItemType = value;
+					return true;
+				case LIST_NAME_ATTR:
+					m_items[i]->m_listName = value;
 					return true;
 				default:
 					return false;
@@ -878,6 +1006,44 @@ bool ConfigCategory::isDeprecated(const string& name) const
 }
 
 /**
+ * Return if the configuration item is a list item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return (m_items[i]->m_type.compare("list") == 0);
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return if the configuration item is a kvlist item
+ *
+ * @param name		The name of the item to test
+ * @return bool		True if the item is a Numeric type
+ * @throws exception	If the item was not found in the configuration category
+ */
+bool ConfigCategory::isKVList(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return (m_items[i]->m_type.compare("kvlist") == 0);
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Set the description for the configuration category
  *
  * @param description	The configuration category description
@@ -1038,6 +1204,18 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	{
 		m_itemType = CodeItem;
 	}
+	if (m_type.compare("bucket") == 0)
+	{
+		m_itemType = BucketItem;
+	}
+	if (m_type.compare("list") == 0)
+	{
+		m_itemType = ListItem;
+	}
+	if (m_type.compare("kvlist") == 0)
+	{
+		m_itemType = KVListItem;
+	}
 
 	if (item.HasMember("deprecated"))
 	{
@@ -1083,6 +1261,33 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_rule = "";
 	}
 
+	if (item.HasMember("properties"))
+	{
+		Logger::getLogger()->debug("item['properties'].IsString()=%s, item['properties'].IsObject()=%s", 
+										item["properties"].IsString()?"true":"false",
+										item["properties"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["properties"].Accept(writer);
+		m_bucketProperties = item["properties"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_bucketProperties=%s", m_bucketProperties.c_str());
+	}
+	else
+	{
+		m_bucketProperties = "";
+	}
+	
+	if (m_itemType == BucketItem && m_bucketProperties.empty())
+	{
+		throw new runtime_error("Bucket configuration item is missing the \"properties\" attribute");
+	}
+
 	if (item.HasMember("options"))
 	{
 		const Value& options = item["options"];
@@ -1095,7 +1300,45 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
-	std:string m_typeUpperCase = m_type;
+	if (item.HasMember("items"))
+	{
+		if (item["items"].IsString())
+		{
+			m_listItemType = item["items"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("Items configuration item property is not a string");
+		}
+	}
+	else if (m_itemType == ListItem || m_itemType == KVListItem)
+	{
+		throw new runtime_error("List configuration item is missing the \"items\" attribute");
+	}
+	if (item.HasMember("listSize"))
+	{
+		if (item["listSize"].IsString())
+		{
+			m_listSize = item["listSize"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("ListSize configuration item property is not a string");
+		}
+	}
+	if (item.HasMember("listName"))
+	{
+		if (item["listName"].IsString())
+		{
+			m_listName = item["listName"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("ListName configuration item property is not a string");
+		}
+	}
+
+	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
 
 	// Item "value" can be an escaped JSON string, so check m_type JSON as well
@@ -1377,6 +1620,10 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_validity = rhs.m_validity;
 	m_group = rhs.m_group;
 	m_rule = rhs.m_rule;
+	m_bucketProperties = rhs.m_bucketProperties;
+	m_listSize = rhs.m_listSize;
+	m_listItemType = rhs.m_listItemType;
+	m_listName = rhs.m_listName;
 }
 
 /**
@@ -1410,7 +1657,10 @@ ostringstream convert;
 
 	if (m_itemType == StringItem ||
 	    m_itemType == BoolItem ||
-	    m_itemType == EnumerationItem)
+	    m_itemType == EnumerationItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << "\"value\" : \"" << JSONescape(m_value) << "\", ";
 		convert << "\"default\" : \"" << JSONescape(m_default) << "\"";
@@ -1423,6 +1673,10 @@ ostringstream convert;
 	{
 		convert << "\"value\" : " << m_value << ", ";
 		convert << "\"default\" : " << m_default;
+	}
+	else
+	{
+		Logger::getLogger()->error("Unknown item type in configuration category");
 	}
 
 	if (full)
@@ -1467,6 +1721,11 @@ ostringstream convert;
 			convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 		}
 
+		if (!m_bucketProperties.empty())
+		{
+			convert << ", \"properties\" : " << m_bucketProperties;
+		}
+
 		if (!m_group.empty())
 		{
 			convert << ", \"group\" : \"" << m_group << "\"";
@@ -1475,6 +1734,19 @@ ostringstream convert;
 		if (!m_file.empty())
 		{
 			convert << ", \"file\" : \"" << m_file << "\"";
+		}
+
+		if (!m_listSize.empty())
+		{
+			convert << ", \"listSize\" : \"" << m_listSize << "\"";
+		}
+		if (!m_listItemType.empty())
+		{
+			convert << ", \"items\" : \"" << m_listItemType << "\"";
+		}
+		if (!m_listName.empty())
+		{
+			convert << ", \"listName\" : \"" << m_listName << "\"";
 		}
 	}
 	convert << " }";
@@ -1538,6 +1810,11 @@ ostringstream convert;
 		convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 	}
 
+	if (!m_bucketProperties.empty())
+	{
+		convert << ", \"properties\" : " << m_bucketProperties;
+	}
+
 	if (!m_group.empty())
 	{
 		convert << ", \"group\" : \"" << m_group << "\"";
@@ -1558,10 +1835,26 @@ ostringstream convert;
 		}
 		convert << "]";
 	}
+	if (!m_listSize.empty())
+	{
+		convert << ", \"listSize\" : \"" << m_listSize << "\"";
+	}
+	if (!m_listItemType.empty())
+	{
+		convert << ", \"items\" : \"" << m_listItemType << "\"";
+	}
+	if (!m_listName.empty())
+	{
+	    convert << ", \"listName\" : \"" << m_listName << "\"";
+	}
+
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||
-	    m_itemType == BoolItem)
+	    m_itemType == BoolItem ||
+	    m_itemType == BucketItem ||
+	    m_itemType == ListItem ||
+	    m_itemType == KVListItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}
@@ -1586,6 +1879,31 @@ ostringstream convert;
 	}
 	return convert.str();
 }
+
+/**
+ * Parse BucketItem value in JSON dict format and return the key value pairs within that
+ *
+ * @param json	JSON string representing the BucketItem value
+ * @return		Vector with pairs of found key/value string pairs in BucketItem value
+ */
+vector<pair<string,string>>* ConfigCategory::parseBucketItemValue(const string & json)
+{
+	Document document;
+	if (document.Parse(json.c_str()).HasParseError())
+	{
+		Logger::getLogger()->error("parseBucketItemValue(): The provided JSON string has a parse error: %s",
+				GetParseError_En(document.GetParseError()));
+		return NULL;
+	}
+	
+	vector<pair<string,string>> *vec = new vector<pair<string,string>>;
+	
+	for (const auto & m : document.GetObject())
+		vec->emplace_back(make_pair<string,string>(m.name.GetString(), m.value.GetString()));
+
+	return vec;
+}
+
 
 // DefaultConfigCategory constructor
 DefaultConfigCategory::DefaultConfigCategory(const string& name, const string& json) :

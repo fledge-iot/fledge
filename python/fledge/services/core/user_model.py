@@ -348,7 +348,7 @@ class User:
             age = int(category_item['value'])
             block_until = ""
             failed_attempts = 0
-            MAX_ATTEMPTS = 5
+            MAX_LOGIN_ATTEMPTS = 5
             audit_log_message = ""
             error_message = ""
 
@@ -377,14 +377,14 @@ class User:
 
             failed_attempts = found_user['failed_attempts']
             block_until = found_user['block_until']
-            #Do not block already blocked account further
+
+            # Do not block already blocked account further
             if found_user['block_until']:
-                DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
                 curr_time = datetime.now().strftime(DATE_FORMAT)
                 diff =  datetime.strptime(curr_time, DATE_FORMAT) - datetime.strptime(found_user['block_until'], DATE_FORMAT)
-
+                block_time_HHMMSS = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
                 if datetime.strptime(found_user['block_until'], DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
-                    raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(found_user['block_until'].split('.')[0]))
+                    raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(block_time))
 
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
@@ -395,55 +395,51 @@ class User:
                     audit = AuditLogger(storage_client)
                     failed_attempts += 1
 
+                    # Do not block admin user
                     if int(found_user['role_id']) == 1:
-                        if failed_attempts < MAX_ATTEMPTS - 2:
-                            await cls.update(found_user['role_id'],{'failed_attempts': failed_attempts})
-                            raise User.PasswordDoesNotMatch('Username or Password do not match')
-                        else:
-                            # Block admin user after after 3 unsuccessful attempts for 60 seconds
-                            # keep increasing block time by 60 seconds for each successive failed attempt
-                            block_until = datetime.now() + timedelta(seconds=60 * (failed_attempts - 2) )
-                            error_message = "Invalid username/password attempted multiple times. Account blocked for {} seconds.".format((60 * (failed_attempts - 2)))
-                            audit_log_message = "'{}' user blocked for {} seconds.".format(username, (60 * (failed_attempts-2)))
-                            #USRBK audit trail entry
-                            await cls.update(found_user['role_id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
-                            await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
-                                "message": audit_log_message})
-                            raise User.PasswordDoesNotMatch(error_message)
-
-                    elif failed_attempts < MAX_ATTEMPTS - 2:
-                        await cls.update(found_user['role_id'],{'failed_attempts': failed_attempts})
                         raise User.PasswordDoesNotMatch('Username or Password do not match')
 
-                    if failed_attempts == MAX_ATTEMPTS - 2:
+                    # Do not block users for first failed attempt
+                    if failed_attempts < MAX_LOGIN_ATTEMPTS - 3:
+                        await cls.update(found_user['id'],{'failed_attempts': failed_attempts})
+                        raise User.PasswordDoesNotMatch('Username or Password do not match')
+
+                    # Check for other users
+                    if failed_attempts == MAX_LOGIN_ATTEMPTS - 3: # Block for 60 seconds after 2 failed attempts 
                         block_until = datetime.now() + timedelta(seconds=60)
                         found_user['block_until'] =  block_until
                         audit_log_message = "'{}' user blocked for 60 seconds.".format(username)
                         error_message = "Invalid username/password attempted multiple times. Account blocked for 60 seconds."
 
-                    elif failed_attempts == MAX_ATTEMPTS - 1:
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS - 2: # Block for 15 minutes after 3 failed attempts 
+                        block_until = datetime.now() + timedelta(minutes=15)
+                        found_user['block_until'] =  block_until
+                        audit_log_message = "'{}' user blocked for 15 minutes.".format(username)
+                        error_message = "Invalid username/password attempted multiple times. Account blocked for 15 minutes."
+
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS - 1: # Block for 1 hour after 4 failed attempts 
                         block_until = datetime.now() + timedelta(hours=1)
                         found_user['block_until'] =  block_until
                         audit_log_message = "'{}' user blocked for 1 hour.".format(username)
                         error_message = "Invalid username/password attempted multiple times. Account blocked for 1 hour."
 
-                    elif failed_attempts == MAX_ATTEMPTS:
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS: # Block for 21 hours after 5 failed attempts 
                         block_until = datetime.now() + timedelta(hours=24)
                         found_user['block_until'] =  block_until
-                        audit_log_message = "'{}' user blocked for 24 hour.".format(username)
+                        audit_log_message = "'{}' user blocked for 24 hours.".format(username)
                         error_message = "Invalid username/password attempted multiple times. Account blocked for 24 hours."
 
-                    #USRBK audit trail entry
-                    if failed_attempts >= MAX_ATTEMPTS-2:
+                    # USRBK audit trail entry
+                    if failed_attempts >= MAX_LOGIN_ATTEMPTS - 3:
                         found_user.pop("pwd")
-                        await cls.update(found_user['role_id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
+                        await cls.update(found_user['id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
                         await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
                             "message": audit_log_message})
                         raise User.PasswordDoesNotMatch(error_message)
 
             # Clear failed_attempts on successful login
             if int(found_user['failed_attempts']) > 0:
-                await cls.update(found_user['role_id'],{'failed_attempts': 0})
+                await cls.update(found_user['id'],{'failed_attempts': 0})
 
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin
@@ -617,3 +613,4 @@ class User:
             # To avoid cyclic import
             from fledge.services.core import server
             server.Server._user_sessions = []
+

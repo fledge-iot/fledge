@@ -681,7 +681,7 @@ async def enable_user(request):
     return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
 @has_permission("admin")
-async def _unblock_user(request):
+async def unblock_user(request):
     """ unblock user
         :Example:
             curl -H "authorization: <token>" -X PUT  http://localhost:8081/fledge/admin/{user_id}/unblock
@@ -694,18 +694,8 @@ async def _unblock_user(request):
 
     try:
         from fledge.services.core import connect
-        from fledge.common.storage_client.payload_builder import PayloadBuilder
-        payload = PayloadBuilder().SELECT("id", "uname", "role_id", "block_until").WHERE(
-            ['id', '=', user_id]).payload()
         storage_client = connect.get_storage_async()
-        old_result = await storage_client.query_tbl_with_payload('users', payload)
-        if len(old_result['rows']) == 0:
-            raise User.DoesNotExist('User does not exist')
-        current_datetime = str(datetime.datetime.now())
-
-        # Clear the failed_attempts so that maximum allowed attempts can be used correctly
-        payload = PayloadBuilder().SET(block_until=current_datetime, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
-        result = await storage_client.update_tbl("users", payload)
+        await _unblock_user(user_id,storage_client)
 
         # USRUB audit trail entry
         audit = AuditLogger(storage_client)
@@ -723,6 +713,25 @@ async def _unblock_user(request):
         _logger.error(exc, "Failed to unblock user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'message': 'User with ID:<{}> has been unblocked successfully.'.format(int(user_id))})
+
+
+async def _unblock_user(user_id, storage_client):
+    """ implementation for unblock user
+    """
+
+    from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+    payload = PayloadBuilder().SELECT("id", "uname", "role_id", "block_until", "failed_attempts").WHERE(
+        ['id', '=', user_id]).payload()
+    old_result = await storage_client.query_tbl_with_payload('users', payload)
+    if len(old_result['rows']) == 0:
+        raise User.DoesNotExist('User does not exist')
+    current_datetime = str(datetime.datetime.now())
+
+    # Clear the failed_attempts so that maximum allowed attempts can be used correctly
+    payload = PayloadBuilder().SET(block_until=current_datetime, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
+    result = await storage_client.update_tbl("users", payload)
+    return result
 
 @has_permission("admin")
 async def reset(request):

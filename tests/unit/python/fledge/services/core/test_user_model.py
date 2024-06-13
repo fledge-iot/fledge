@@ -9,6 +9,7 @@ import asyncio
 from unittest.mock import MagicMock, patch
 import sys
 import pytest
+from datetime import datetime
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -103,10 +104,10 @@ class TestUserModel:
             query_tbl_patch.assert_called_once_with('users')
 
     @pytest.mark.parametrize("kwargs, payload", [
-        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
-        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1}}}'),
-        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
-        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
+        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
+        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1}}}'),
+        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
+        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
     ])
     async def test_get_filter(self, kwargs, payload):
         expected = {'rows': [], 'count': 0}
@@ -467,7 +468,7 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description","block_until","failed_attempts"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -529,7 +530,7 @@ class TestUserModel:
             return {"value": "30"}
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-01-30 12:32:08.216159'}]}
-        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -555,14 +556,14 @@ class TestUserModel:
             mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
     @pytest.mark.parametrize("user_data", [
-        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}),
-        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159'}]})
+        ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True, 'pwd_last_changed': '2018-03-30 12:32:08.216159', 'block_until': '2018-03-30 12:32:08.216159', 'failed_attempts': '0'}]}),
+        ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False, 'pwd_last_changed': '2018-03-29 05:05:08.216159', 'block_until': '2018-03-30 12:32:08.216159', 'failed_attempts': '0'}]})
     ])
     async def test_login(self, user_data):
         async def mock_get_category_item():
             return {"value": "0"}
 
-        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -601,9 +602,11 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
+        DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+        curr_time = datetime.now().strftime(DATE_FORMAT)
+        pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'pwd_last_changed': '2018-03-30 12:32:08.216159', 'block_until': curr_time, 'failed_attempts': '0' }]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
-        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.

@@ -50,7 +50,7 @@ class PerformanceMonitor {
 						m_service.c_str());
 			}
 		};
-		~PerformanceMonitor();
+		virtual ~PerformanceMonitor();
 					/**
 					 * Collect a performance monitor
 					 *

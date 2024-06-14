@@ -682,7 +682,7 @@ async def enable_user(request):
 
 @has_permission("admin")
 async def unblock_user(request):
-    """ Unblock the users got blocked due to multiple invalid log in attempts
+    """ Unblock the user got blocked due to multiple invalid log in attempts
         :Example:
             curl -H "authorization: <token>" -X PUT  http://localhost:8081/fledge/admin/{user_id}/unblock
     """

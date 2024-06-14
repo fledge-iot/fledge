@@ -382,7 +382,7 @@ class User:
             if found_user['block_until']:
                 curr_time = datetime.now().strftime(DATE_FORMAT)
                 diff =  datetime.strptime(curr_time, DATE_FORMAT) - datetime.strptime(found_user['block_until'], DATE_FORMAT)
-                block_time_HHMMSS = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
+                block_time = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
                 if datetime.strptime(found_user['block_until'], DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
                     raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(block_time))
 

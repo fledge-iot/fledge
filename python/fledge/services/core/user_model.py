@@ -26,10 +26,11 @@ __version__ = "${VERSION}"
 
 # TODO: move to common  / config
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
+HASH_PWD_ALGORITHM = 'SHA512'
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _logger = FLCoreLogger().get_logger(__name__)
 
@@ -107,7 +108,8 @@ class User:
             """
 
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password) if password else '',
+            payload = PayloadBuilder().INSERT(uname=username,
+                                              pwd=cls.hash_password(password, HASH_PWD_ALGORITHM) if password else '',
                                               access_method=access_method, role_id=role_id, real_name=real_name,
                                               description=description).payload()
             try:
@@ -188,13 +190,14 @@ class User:
             pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
-                    hashed_pwd = cls.hash_password(user_data['password'])
+                    hashed_pwd = cls.hash_password(user_data['password'], old_data["hash_algorithm"])
                     current_datetime = datetime.now()
                     old_kwargs["pwd"] = "****"
                     new_kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
-                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
+                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data,
+                                                                       old_data["hash_algorithm"])
             try:
                 payload = PayloadBuilder().SET(**new_kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
@@ -228,7 +231,7 @@ class User:
 
         @classmethod
         async def is_user_exists(cls, uid, password):
-            payload = PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', uid]).AND_WHERE(
+            payload = PayloadBuilder().SELECT("uname", "pwd", "hash_algorithm").WHERE(['id', '=', uid]).AND_WHERE(
                 ['enabled', '=', 't']).payload()
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('users', payload)
@@ -236,7 +239,7 @@ class User:
                 return None
 
             found_user = result['rows'][0]
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), found_user['hash_algorithm'])
             return uid if is_valid_pwd else None
 
         # utility
@@ -251,8 +254,8 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description").WHERE(
-                ['enabled', '=', 't'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description",
+                                        "hash_algorithm").WHERE(['enabled', '=', 't'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -338,7 +341,8 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description")\
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed",
+                                              "real_name", "description", "hash_algorithm")\
                 .WHERE(['uname', '=', username])\
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
@@ -361,7 +365,7 @@ class User:
                 raise User.PasswordExpired(found_user['id'])
 
             # validate password
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), algorithm=found_user['hash_algorithm'])
             if not is_valid_pwd:
                 # Another condition to check password is ONLY for the case:
                 # when we have requested password with hashed value and this comes only with microservice to get token
@@ -460,23 +464,25 @@ class User:
             await User.Sessions.clear()
 
         @classmethod
-        def hash_password(cls, password):
+        def hash_password(cls, password, algorithm):
             # uuid is used to generate a random number
             salt = uuid.uuid4().hex
-            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt
+            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + password.encode()).hexdigest() + ':' + salt
 
         @classmethod
-        def check_password(cls, hashed_password, user_password):
+        def check_password(cls, hashed_password, user_password, algorithm):
             password, salt = hashed_password.split(':')
-            return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
+            return password == (hashlib.sha256(salt.encode() + user_password.encode()).hexdigest() \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + user_password.encode()).hexdigest())
 
         @classmethod
-        async def _get_password_history(cls, storage_client, user_id, user_data):
+        async def _get_password_history(cls, storage_client, user_id, user_data, algorithm):
             pwd_history_list = []
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             result = await storage_client.query_tbl_with_payload("user_pwd_history", payload)
             for row in result['rows']:
-                if cls.check_password(row['pwd'], user_data['password']):
+                if cls.check_password(row['pwd'], user_data['password'], algorithm):
                     raise User.PasswordAlreadyUsed
                 pwd_history_list.append(row['pwd'])
             return pwd_history_list

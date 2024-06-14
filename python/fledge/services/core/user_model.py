@@ -346,11 +346,6 @@ class User:
             cfg_mgr = ConfigurationManager(storage_client)
             category_item = await cfg_mgr.get_category_item('password', 'expiration')
             age = int(category_item['value'])
-            block_until = ""
-            failed_attempts = 0
-            MAX_LOGIN_ATTEMPTS = 5
-            audit_log_message = ""
-            blocked_message = ""
 
             # get user info on the basis of username
             payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description", "block_until", "failed_attempts")\
@@ -381,7 +376,6 @@ class User:
             # Do not block already blocked account further
             if found_user['block_until']:
                 curr_time = datetime.now().strftime(DATE_FORMAT)
-                diff =  datetime.strptime(curr_time, DATE_FORMAT) - datetime.strptime(found_user['block_until'], DATE_FORMAT)
                 block_time = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
                 if datetime.strptime(found_user['block_until'], DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
                     raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(block_time))
@@ -392,12 +386,14 @@ class User:
                 # Another condition to check password is ONLY for the case:
                 # when we have requested password with hashed value and this comes only with microservice to get token
                 if found_user['pwd'] != str(password):
-                    audit = AuditLogger(storage_client)
-                    failed_attempts += 1
-
                     # Do not block admin user
                     if int(found_user['role_id']) == 1:
                         raise User.PasswordDoesNotMatch('Username or Password do not match')
+
+                    MAX_LOGIN_ATTEMPTS = 5
+                    failed_attempts += 1
+                    audit_log_message = ""
+                    blocked_message = ""
 
                     # Do not block users for first failed attempt
                     if failed_attempts < MAX_LOGIN_ATTEMPTS - 3:
@@ -433,6 +429,7 @@ class User:
                     if failed_attempts >= MAX_LOGIN_ATTEMPTS - 3:
                         found_user.pop("pwd")
                         await cls.update(found_user['id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
+                        audit = AuditLogger(storage_client)
                         await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
                             "message": audit_log_message})
                         raise User.PasswordDoesNotMatch(blocked_message)

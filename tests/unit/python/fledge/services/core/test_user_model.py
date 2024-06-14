@@ -497,27 +497,32 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159'}]}
-        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'pwd_last_changed': '2018-03-30 12:32:08.216159', 'block_until': '', 'failed_attempts': 0}]}
+        payload = {"return": ["pwd", "id", "role_id", "access_method", {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias": "pwd_last_changed"}, "real_name", "description", "block_until", "failed_attempts"], "where": {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
+        found_user = pwd_result['rows'][0]
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_get_category_item()
             _rv2 = await mock_coro(pwd_result)
+            _rv3 = await mock_coro(None)
         else:
             _rv1 = asyncio.ensure_future(mock_get_category_item())
             _rv2 = asyncio.ensure_future(mock_coro(pwd_result))
+            _rv3 = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=_rv1) as mock_get_cat_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
                     with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
-                        with pytest.raises(Exception) as excinfo:
-                            await User.Objects.login('user', 'blah', '0.0.0.0')
-                        assert str(excinfo.value) == 'Username or Password do not match'
-                        assert excinfo.type is User.PasswordDoesNotMatch
-                        assert issubclass(excinfo.type, Exception)
+                        with patch.object(User.Objects, 'update', return_value=_rv3) as update_patch:
+                            with pytest.raises(Exception) as excinfo:
+                                await User.Objects.login('user', 'blah', '0.0.0.0')
+                            assert str(excinfo.value) == 'Username or Password do not match'
+                            assert excinfo.type is User.PasswordDoesNotMatch
+                            assert issubclass(excinfo.type, Exception)
+                        update_patch.assert_called_once_with(found_user['id'], {"failed_attempts": found_user['failed_attempts'] + 1})
                     check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah')
                 args, kwargs = query_tbl_patch.call_args
                 assert 'users' == args[0]

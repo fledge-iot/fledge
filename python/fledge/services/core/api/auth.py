@@ -47,15 +47,11 @@ _help = """
 """
 
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
-PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
-PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
-                     'and length of minimum 6 characters.'
-
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 
 # TODO: remove me, use from roles table
@@ -405,9 +401,9 @@ async def create_user(request):
 
     if access_method != 'cert':
         if password is not None:
-            if not re.match(PASSWORD_REGEX_PATTERN, str(password)):
-                raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
-
+            error_msg = await validate_password(password)
+            if error_msg:
+                raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     if not (await is_valid_role(role_id)):
         msg = "Invalid role ID."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -582,10 +578,11 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if new_password and not re.match(PASSWORD_REGEX_PATTERN, new_password):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
+        err_msg = "New password should be in string format."
+        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
+    error_msg = await validate_password(new_password)
+    if error_msg:
+        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     if current_password == new_password:
         msg = "New password should not be the same as current password."
         raise web.HTTPBadRequest(reason=msg)
@@ -715,10 +712,12 @@ async def reset(request):
         return web.HTTPBadRequest(reason=msg)
 
     if password and not isinstance(password, str):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-    if password and not re.match(PASSWORD_REGEX_PATTERN, password):
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
+        err_msg = "New password should be in string format."
+        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
+    if password:
+        error_msg = await validate_password(password)
+        if error_msg:
+            raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})
@@ -816,3 +815,41 @@ def has_admin_permissions(request):
         if int(request.user["role_id"]) != ADMIN_ROLE_ID:
             return False
     return True
+
+async def validate_password(password) -> str:
+    from fledge.common.configuration_manager import ConfigurationManager
+    from fledge.services.core import connect
+    import string
+
+    message = ""
+    storage_client = connect.get_storage_async()
+    cfg_mgr = ConfigurationManager(storage_client)
+    category = await cfg_mgr.get_category_all_items('password')
+    policy = category['policy']['value']
+    min_chars = category['length']['value']
+    max_chars = category['length']['maximum']
+    if len(password) < int(min_chars):
+        message = "Password length is minimum of {} characters.".format(min_chars)
+    if len(password) > int(max_chars):
+        message = "Password length is maximum of {} characters.".format(max_chars)
+    if not message:
+        has_lower = any(pwd.islower() for pwd in password)
+        has_upper = any(pwd.isupper() for pwd in password)
+        has_numeric = any(pwd.isdigit() for pwd in password)
+        has_special = any(pwd in string.punctuation for pwd in password)
+        if policy == 'Mixed case Alphabetic':
+            mixed_case = has_lower and has_upper
+            if not mixed_case:
+                message = "Password must contain upper and lower case letters."
+        elif policy == 'Mixed case and numeric':
+            mixed_numeric_case = has_lower and has_upper and has_numeric
+            if not mixed_numeric_case:
+                message = "Password must contain upper, lower case, uppercase and numeric values."
+        elif policy == 'Mixed case, numeric and special characters':
+            mixed_numeric_special_case = has_lower and has_upper and has_numeric and has_special
+            if not mixed_numeric_special_case:
+                message = "Password must contain atleast one upper and lower case letter, numeric and special characters."
+        else:
+            # Any characters
+            pass
+    return message

@@ -9,6 +9,7 @@
 .. |profile| image:: images/profile.jpg
 .. |password| image:: images/password.jpg
 .. |password_rotation| image:: images/password_rotation.jpg
+.. |password_policy| image:: images/password_policy.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
 .. |update_user| image:: images/update_user.jpg
@@ -102,6 +103,14 @@ The default username is "admin" with a password of "fledge". Use these to login 
 
 The status bar now contains the name of the user that is currently logged in and a new option has appeared in the left-hand menu, *User Management*.
 
+.. note::
+   Any session that is idle for 15 minutes or longer will be disconnected. The user will ten be required to authenticate again before being able to issue any further commands via the API or user interface.
+
+Failed Login Attempts
+---------------------
+
+If a user makes an incorrect login attempt, such as entering the wrong password, that user will be blocked from logging in for a short period. If more than a certain number of consecutive login attempts fail then the user account will be blocked for 24 hours. The account may be unblocked by an administrative user before the 24 hours has elapsed.
+
 Changing Your Password
 ----------------------
 
@@ -127,6 +136,27 @@ Towards the bottom of this profile display the *change password* option appears.
 +------------+
 
 This popup can be used to change your password. On successfully changing your password you will be logged out of the user interface and will be required to log back in using this new password.
+
+Password Policy
+---------------
+
+Fledge provides different policies to control the passwords. The following options are currently available:
+
++-------------------+
+| |password_policy| |
++-------------------+
+
+- *Any characters* - there are no restrictions placed on the characters within a password.
+
+- *Mixed case Alphabetic* -  passwords must contain upper and lower case letters. The user is free to add numeric values and special characters if they wish, but there is no requirement to add these.
+
+- *Mixed case and numeric* - password must contain upper, lower case letters and numeric values.
+
+- *Mixed case, numeric and special characters* - password must contain at least one upper and lower case letter, numeric and special characters.
+
+.. note::
+
+    In addition to the above rules on password content, the minimum password length is by default 6 and can be controlled with the 'Minimum length' configuration item. The maximum password length that can be configured is 80 characters.
 
 Password Rotation Mechanism
 ---------------------------

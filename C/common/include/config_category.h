@@ -141,7 +141,8 @@ class ConfigCategory {
 					RULE_ATTR,
 					BUCKET_PROPERTIES_ATTR,
 					LIST_SIZE_ATTR,
-					ITEM_TYPE_ATTR
+					ITEM_TYPE_ATTR,
+					LIST_NAME_ATTR
 					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -192,6 +193,7 @@ class ConfigCategory {
 				std::string	m_bucketProperties;
 				std::string	m_listSize;
 				std::string	m_listItemType;
+				std::string	m_listName;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

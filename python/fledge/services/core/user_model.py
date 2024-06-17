@@ -19,7 +19,6 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core import connect
-
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -27,11 +26,12 @@ __version__ = "${VERSION}"
 
 # TODO: move to common  / config
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
-
+HASH_PWD_ALGORITHM = 'SHA512'
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _logger = FLCoreLogger().get_logger(__name__)
 
 
@@ -73,6 +73,9 @@ class User:
     class TokenExpired(Exception):
         pass
 
+    class SessionTimeout(Exception):
+        pass
+
     class Objects:
 
         @classmethod
@@ -105,7 +108,8 @@ class User:
             """
 
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password) if password else '',
+            payload = PayloadBuilder().INSERT(uname=username,
+                                              pwd=cls.hash_password(password, HASH_PWD_ALGORITHM) if password else '',
                                               access_method=access_method, role_id=role_id, real_name=real_name,
                                               description=description).payload()
             try:
@@ -186,13 +190,14 @@ class User:
             pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
-                    hashed_pwd = cls.hash_password(user_data['password'])
+                    hashed_pwd = cls.hash_password(user_data['password'], old_data["hash_algorithm"])
                     current_datetime = datetime.now()
                     old_kwargs["pwd"] = "****"
                     new_kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
-                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
+                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data,
+                                                                       old_data["hash_algorithm"])
             try:
                 payload = PayloadBuilder().SET(**new_kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
@@ -226,7 +231,7 @@ class User:
 
         @classmethod
         async def is_user_exists(cls, uid, password):
-            payload = PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', uid]).AND_WHERE(
+            payload = PayloadBuilder().SELECT("uname", "pwd", "hash_algorithm").WHERE(['id', '=', uid]).AND_WHERE(
                 ['enabled', '=', 't']).payload()
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('users', payload)
@@ -234,7 +239,7 @@ class User:
                 return None
 
             found_user = result['rows'][0]
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), found_user['hash_algorithm'])
             return uid if is_valid_pwd else None
 
         # utility
@@ -249,8 +254,8 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description").WHERE(
-                ['enabled', '=', 't'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description",
+                                        "hash_algorithm").WHERE(['enabled', '=', 't'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -307,12 +312,8 @@ class User:
 
             r = result['rows'][0]
             token_expiry = r["token_expiration"]
-
             curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-            fmt = "%Y-%m-%d %H:%M:%S.%f"
-            diff = datetime.strptime(token_expiry, fmt) - datetime.strptime(curr_time, fmt)
-
+            diff = datetime.strptime(token_expiry, DATE_FORMAT) - datetime.strptime(curr_time, DATE_FORMAT)
             if diff.seconds < 0:
                 raise User.TokenExpired("The token has expired, login again")
 
@@ -336,11 +337,12 @@ class User:
             # check password change configuration
             storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
-            category_item = await cfg_mgr.get_category_item('rest_api', 'passwordChange')
+            category_item = await cfg_mgr.get_category_item('password', 'expiration')
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description")\
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed",
+                                              "real_name", "description", "hash_algorithm")\
                 .WHERE(['uname', '=', username])\
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
@@ -363,7 +365,7 @@ class User:
                 raise User.PasswordExpired(found_user['id'])
 
             # validate password
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), algorithm=found_user['hash_algorithm'])
             if not is_valid_pwd:
                 # Another condition to check password is ONLY for the case:
                 # when we have requested password with hashed value and this comes only with microservice to get token
@@ -392,10 +394,12 @@ class User:
                     pass  # retry INSERT
                 raise ValueError(ERROR_MSG)
 
+            # Save session in memory for idle disconnection
+            current_time = datetime.now().strftime(DATE_FORMAT)
+            await User.Sessions.save(data={"uid": uid, "token": jwt_token, "last_accessed_ts": current_time})
             # TODO remove hard code role id to return is_admin info
             if int(found_user['role_id']) == 1:
                 return uid, jwt_token, True
-
             return uid, jwt_token, False
 
         @classmethod
@@ -434,7 +438,8 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of user id
+            await User.Sessions.remove(data={"uid": user_id})
             return res
 
         @classmethod
@@ -447,32 +452,37 @@ class User:
                 if not ex.error["retryable"]:
                     pass
                 raise ValueError(ERROR_MSG)
-
+            # Remove user session on basis of token
+            await User.Sessions.remove(data={"token": token})
             return res
 
         @classmethod
         async def delete_all_user_tokens(cls):
             storage_client = connect.get_storage_async()
             await storage_client.delete_from_tbl("user_logins")
+            # Clear all user sessions
+            await User.Sessions.clear()
 
         @classmethod
-        def hash_password(cls, password):
+        def hash_password(cls, password, algorithm):
             # uuid is used to generate a random number
             salt = uuid.uuid4().hex
-            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt
+            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + password.encode()).hexdigest() + ':' + salt
 
         @classmethod
-        def check_password(cls, hashed_password, user_password):
+        def check_password(cls, hashed_password, user_password, algorithm):
             password, salt = hashed_password.split(':')
-            return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
+            return password == (hashlib.sha256(salt.encode() + user_password.encode()).hexdigest() \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + user_password.encode()).hexdigest())
 
         @classmethod
-        async def _get_password_history(cls, storage_client, user_id, user_data):
+        async def _get_password_history(cls, storage_client, user_id, user_data, algorithm):
             pwd_history_list = []
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             result = await storage_client.query_tbl_with_payload("user_pwd_history", payload)
             for row in result['rows']:
-                if cls.check_password(row['pwd'], user_data['password']):
+                if cls.check_password(row['pwd'], user_data['password'], algorithm):
                     raise User.PasswordAlreadyUsed
                 pwd_history_list.append(row['pwd'])
             return pwd_history_list
@@ -501,3 +511,38 @@ class User:
             SSLVerifier.set_ca_cert(ca_cert_file)
             SSLVerifier.set_user_cert(cert)
             SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
+
+    class Sessions:
+
+        @classmethod
+        async def get(cls):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            return (server.Server._user_idle_session_timeout, server.Server._user_sessions)
+
+
+        @classmethod
+        async def save(cls, data):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            server.Server._user_sessions.append(data)
+
+        @classmethod
+        async def remove(cls, data):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            session = server.Server._user_sessions
+            if 'token' in data:
+                for s in session:
+                    if s['token'] == data['token']:
+                        server.Server._user_sessions.remove(s)
+            else:
+                for s in session:
+                    if s['uid'] == int(data['uid']):
+                        server.Server._user_sessions.remove(s)
+
+        @classmethod
+        async def clear(cls):
+            # To avoid cyclic import
+            from fledge.services.core import server
+            server.Server._user_sessions = []

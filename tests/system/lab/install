@@ -29,7 +29,7 @@ fi
 VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
 
 wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
-echo "deb http://archives.fledge-iot.org/${BUILD_VERSION}/${VERSION_CODENAME}/armv7l/ /" | sudo tee -a /etc/apt/sources.list
+echo "deb http://archives.fledge-iot.org/${BUILD_VERSION}/${VERSION_CODENAME}/$(arch)/ /" | sudo tee -a /etc/apt/sources.list
 sudo apt update
 
 time sudo -E apt install -yq fledge

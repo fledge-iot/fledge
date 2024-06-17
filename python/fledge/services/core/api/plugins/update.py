@@ -129,7 +129,7 @@ async def update_package(request: web.Request) -> web.Response:
                 if (plugin_name == p['plugin'] and not plugin_type == 'filter') or (
                         p['plugin'] in filters_used_by and plugin_type == 'filter'):
                     sch_info = await _get_sch_id_and_enabled_by_name(p['service'])
-                    if sch_info[0]['enabled'] == 't':
+                    if sch_info and sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                         if status:
                             _logger.warning("Disabling {} {} instance, as {} plugin is being updated...".format(
@@ -271,7 +271,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                 if (name == p['plugin'] and not _type == 'filter') or (
                         p['plugin'] in filters_used_by and _type == 'filter'):
                     sch_info = await _get_sch_id_and_enabled_by_name(p['service'])
-                    if sch_info[0]['enabled'] == 't':
+                    if sch_info and sch_info[0]['enabled'] == 't':
                         status, reason = await server.Server.scheduler.disable_schedule(uuid.UUID(sch_info[0]['id']))
                         if status:
                             _logger.warning("Disabling {} {} instance, as {} plugin is being updated...".format(

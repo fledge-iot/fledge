@@ -199,32 +199,17 @@ class Purge(FledgeProcess):
         self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(
             flag, last_id, result["count"], operation_type))
 
-        try:
-            if int(config['age']['value']) != 0:
-                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id,
-                                                                  flag=flag)
-                if result is not None:
-                    total_rows_removed = result['removed']
-                    unsent_rows_removed = result['unsentPurged']
-                    unsent_retained = result['unsentRetained']
-                    duration += result['duration']
-                    method = result['method']
-        except ValueError:
-            self._logger.error("purge_data - Configuration item age {} should be integer!".format(
-                config['age']['value']))
-        except StorageServerError:
-            # skip logging as its already done in details for this operation in case of error
-            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
-            pass
+        # Do the purge by rows first as it is cheaper than doing the purge by age and
+        # may result in less rows for purge by age to operate on.
         try:
             if int(config['size']['value']) != 0:
                 result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id,
                                                                   flag=flag)
                 if result is not None:
-                    total_rows_removed += result['removed']
-                    unsent_rows_removed += result['unsentPurged']
+                    total_rows_removed = result['removed']
+                    unsent_rows_removed = result['unsentPurged']
                     unsent_retained = result['unsentRetained']
-                    duration += result['duration']
+                    duration = result['duration']
                     if method is None:
                         method = result['method']
                     else:
@@ -233,6 +218,23 @@ class Purge(FledgeProcess):
         except ValueError:
             self._logger.error("purge_data - Configuration item size {} should be integer!".format(
                 config['size']['value']))
+        except StorageServerError:
+            # skip logging as its already done in details for this operation in case of error
+            # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
+            pass
+        try:
+            if int(config['age']['value']) != 0:
+                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id,
+                                                                  flag=flag)
+                if result is not None:
+                    total_rows_removed += result['removed']
+                    unsent_rows_removed += result['unsentPurged']
+                    unsent_retained = result['unsentRetained']
+                    duration += result['duration']
+                    method = result['method']
+        except ValueError:
+            self._logger.error("purge_data - Configuration item age {} should be integer!".format(
+                config['age']['value']))
         except StorageServerError:
             # skip logging as its already done in details for this operation in case of error
             # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on

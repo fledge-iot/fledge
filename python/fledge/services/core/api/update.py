@@ -126,10 +126,10 @@ async def get_updates(request: web.Request) -> web.Response:
          curl -sX GET http://localhost:8081/fledge/update |jq
     """
     update_cmd = "sudo apt update"
-    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
+    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge | grep -v \^fledge-manage"
     if utils.is_redhat_based():
         update_cmd = "sudo yum check-update"
-        upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
+        upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge | grep -v \^fledge-manage"
 
     update_process = await asyncio.create_subprocess_shell(update_cmd,
                                                            stdout=asyncio.subprocess.PIPE,

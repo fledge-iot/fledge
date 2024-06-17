@@ -25,7 +25,7 @@ static void managerBackground(void *arg)
 /**
  * Default constructor for the connection manager.
  */
-ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60)
+ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60), m_purgeBlockSize(10000)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -62,6 +62,20 @@ ConnectionManager *ConnectionManager::getInstance()
 }
 
 /**
+ * Set the purge block size in each of the connections
+ *
+ * @param purgeBlockSize	The requested purgeBlockSize
+ */
+void ConnectionManager::setPurgeBlockSize(unsigned long purgeBlockSize)
+{
+	m_purgeBlockSize = purgeBlockSize;
+	idleLock.lock();
+	for (auto& c : idle)
+		c->setPurgeBlockSize(purgeBlockSize);
+	idleLock.unlock();
+}
+
+/**
  * Grow the connection pool by the number of connections
  * specified.
  *
@@ -72,6 +86,7 @@ void ConnectionManager::growPool(unsigned int delta)
 	while (delta-- > 0)
 	{
 		Connection *conn = new Connection();
+		conn->setPurgeBlockSize(m_purgeBlockSize);
 		if (m_trace)
 			conn->setTrace(true);
 		idleLock.lock();

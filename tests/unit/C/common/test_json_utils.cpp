@@ -73,3 +73,36 @@ TEST(JsonToVectorString, JSONbad)
 
 	ASSERT_EQ(result, false);
 }
+
+TEST(JsonStringUnescape, LeadingAndTrailingDoubleQuote)
+{
+	string json = R"("value")";
+	ASSERT_EQ("value", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, UnescapedDoubleQuote)
+{
+	string json = R"({\"key\":\"value\"})";
+	ASSERT_EQ(R"({"key":"value"})", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, TwoTimesUnescapedDoubleQuote)
+{
+	string json = R"({\\"key\\":\\"value\\"})";
+	ASSERT_EQ(R"({\"key\":\"value\"})", JSONunescape(json));
+}
+TEST(JsonStringUnescape, ThreeTimesUnescapedDoubleQuote)
+{
+	string json = R"({\"key3\":\"_-_\\\"value3\\\"_-_\"})";
+	ASSERT_EQ(R"({"key3":"_-_\"value3\"_-_"})", JSONunescape(json));
+}
+TEST(JsonStringUnescape, TwoTimesQuotedValue)
+{
+	string json = R"({\"key4\":\"\\"value4\\"\"})";
+	ASSERT_EQ(R"({"key4":"\"value4\""})", JSONunescape(json));
+}
+TEST(JsonStringUnescape, DoubleQuotedValue)
+{
+	string json = R"({\"city\":\"\\\"Milan\\\"\"})";
+	ASSERT_EQ(R"({"city":"\"Milan\""})", JSONunescape(json));
+}

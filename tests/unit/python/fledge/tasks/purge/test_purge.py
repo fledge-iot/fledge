@@ -118,10 +118,8 @@ class TestPurge:
               }
 
     @pytest.mark.parametrize("conf, expected_return, expected_calls", [
-        (config["purgeAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'purge'}),
         (config["purgeAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'purge'}),
         (config["purgeSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'purge'}),
-        (config["retainAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'retainall'}),
         (config["retainAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retainall'}),
         (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retainall'}),
         (config["retainSizeAny"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retainany'})
@@ -158,13 +156,59 @@ class TestPurge:
                                       side_effect=self.store_purge) as mock_storage_purge:
                         with patch.object(audit, 'information', return_value=_rv2) as audit_info:
                             # Test the positive case when all if conditions in purge_data pass
-                            t_expected_return = await p.purge_data(conf)
                             assert expected_return == await p.purge_data(conf)
                         assert audit_info.called
                     _, kwargs = mock_storage_purge.call_args
                     assert kwargs == expected_calls
                 assert patch_storage.called
-                assert 4 == patch_storage.call_count
+                assert 2 == patch_storage.call_count
+                args, _ = patch_storage.call_args
+                assert 'streams' == args[0]
+                assert payload == json.loads(args[1])
+
+    @pytest.mark.parametrize("conf, expected_return, expected_calls", [
+        (config["purgeAgeSize"], (2, 4), [{'sent_id': 0, 'size': '20', 'flag': 'purge'},
+                                          {'sent_id': 0, 'age': '72', 'flag': 'purge'}]),
+        (config["retainAgeSize"], (2, 4), [{'sent_id': 0, 'size': '20', 'flag': 'retainall'},
+                                           {'sent_id': 0, 'age': '72', 'flag': 'retainall'}])
+    ])
+    async def test_data_with_age_and_size(self, conf, expected_return, expected_calls):
+        mock_storage_client_async = MagicMock(spec=StorageClientAsync)
+        mock_audit_logger = AuditLogger(mock_storage_client_async)
+        mock_stream_result = q_result('streams')
+        payload = {"aggregate": {"operation": "min", "column": "last_object"}}
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_stream_result
+            _rv2 = await mock_value("")
+        else:
+            _rv1 = asyncio.ensure_future(mock_stream_result)
+            _rv2 = asyncio.ensure_future(mock_value(""))
+
+        with patch.object(FledgeProcess, '__init__'):
+            with patch.object(mock_audit_logger, "__init__", return_value=None):
+                p = Purge()
+                p._logger = FLCoreLogger
+                p._logger.info = MagicMock()
+                p._logger.error = MagicMock()
+                p._logger.debug = MagicMock()
+                p._storage_async = MagicMock(spec=StorageClientAsync)
+                p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
+                audit = p._audit
+                with patch.object(p._storage_async, "query_tbl_with_payload", return_value=_rv1
+                                  ) as patch_storage:
+                    with patch.object(p._readings_storage_async, 'purge',
+                                      side_effect=self.store_purge) as mock_storage_purge:
+                        with patch.object(audit, 'information', return_value=_rv2) as audit_info:
+                            assert expected_return == await p.purge_data(conf)
+                        assert audit_info.called
+                    assert 2 == mock_storage_purge.call_count
+                    args, kwargs = mock_storage_purge.call_args_list[0]
+                    assert expected_calls[0] == kwargs
+                    args, kwargs = mock_storage_purge.call_args_list[1]
+                    assert expected_calls[1] == kwargs
+                assert patch_storage.called
+                assert 2 == patch_storage.call_count
                 args, _ = patch_storage.call_args
                 assert 'streams' == args[0]
                 assert payload == json.loads(args[1])

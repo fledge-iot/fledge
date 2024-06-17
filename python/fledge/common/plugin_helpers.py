@@ -15,7 +15,7 @@ import re
 import copy
 
 import logging
-from fledge.common import logger, iprpc
+from fledge.common import iprpc
 
 
 class HandleMap:
@@ -57,9 +57,6 @@ class PluginHandle(object):
     def __init__(self, service_name, cbinfo=(None, None)):
         # for filter plugins save the info that will be sent to the filter_ingest callback
         self.ingest_ref, self.callback = cbinfo
-
-        # give us a logger with our service name
-        self.logger = logger.setup(service_name)
 
     def config_update(self, udict):
         """ config_update - store config values in the (derived) handle """
@@ -113,8 +110,6 @@ class PluginRPCServer(iprpc.InterProcessRPC):
 
     def __init__(self, service_name):
         super().__init__()
-
-        self.logger = logger.setup(service_name)
 
     def config_update(self, config):
         # servers receive unpickled dict's with typed values

@@ -1,6 +1,5 @@
 .. Images
 .. |storage_01| image:: images/storage_01.jpg
-.. |storage_02| image:: images/storage_02.jpg
 .. |storage_03| image:: images/storage_03.jpg
 .. |sqlite_01| image:: images/sqlite_storage_configuration.jpg
 .. |purge_01| image:: images/purge_01.jpg
@@ -56,14 +55,10 @@ user interface to set the storage engine and its options.
 
   - Using the user interface to configuration the storage, select the *Configuration* item in the left hand menu bar.
 
-    +--------------+
-    | |storage_01| |
-    +--------------+
-   
-  - In the category pull down menu select *Advanced*.
+  - In the category category tree select *Advanced* and under that select *Storage*.
 
     +--------------+
-    | |storage_02| |
+    | |storage_01| |
     +--------------+
   
  - To change the storage plugin to use for both configuration and readings enter the name of the new plugin in the *Storage Plugin* entry field. If *Readings Plugin* is left empty then the storage plugin will also be used to store reading data. The default set of plugins installed with Fledge that can be used as *Storage Plugin* values are:
@@ -74,32 +69,68 @@ user interface to set the storage engine and its options.
 
   - The *Readings Plugin* may be set to any of the above and may also be set to use the SQLite In Memory plugin by entering the value *sqlitememory* into the configuration field.
 
-  - The *Database threads* field allows for the number of threads used for database housekeeping to be controlled. In normal circumstances 1 is sufficient. If performance issues are seen this can be increased however it is rarely required to be greater than 1 and can have counter productive effects on heavily loaded systems.
+  - The *Storage API threads* field allows for the number of threads used by the Storage service API for handling incoming requests to be tuned.
+
+  - The *Worker thread pool* is used for executing operations against the readings data with Fledge. The number of threads in this thread pool is controlled via this setting. Increasing the thread pool size will increase the number of operations the can be executed in parallel, however care should be exercised as increasing this will increase any contention issues within the storage layer and will become counter productive once the storage plugin is overloaded.
 
   - The *Manage Storage* option is only used when the database storage uses an external database server, such as PostgreSQL. Toggling this option on causes Fledge to start as stop the database server when Fledge is started and stopped. If it s left off then Fledge will assume the database server is running when it starts.
 
   - The *Management Port* and *Service Port* options allow fixed ports to be assigned to the storage service. These settings are for debugging purposes only and the values should be set to 0 in normal operation.
 
-Note: Additional storage engines may be installed to extend the set
-that is delivered with the standard Fledge installation. These will be
-documented in the packages that provide the storage plugin.
 
-Storage plugin configurations are not dynamic and Fledge *must* be
-restarted after changing these values. Changing the plugin used to store
-readings will *not* cause the data in the previous storage system to be
-migrated to the new storage system and this data may be lost if it has
-not been sent onward from Fledge.
+.. note::
+
+   Additional storage engines may be installed to extend the set
+   that is delivered with the standard Fledge installation. These will be
+   documented in the packages that provide the storage plugin.
+
+   Storage plugin configurations are not dynamic and Fledge *must* be
+   restarted after changing these values. Changing the plugin used to store
+   readings will *not* cause the data in the previous storage system to be
+   migrated to the new storage system and this data may be lost if it has
+   not been sent onward from Fledge.
+
+   If selecting the Postgres storage engine then PostgreSQL must be installed and running with a fledge user created in order for Fledge to start successfully.
+
 
 SQLite Plugin Configuration
 ---------------------------
 
-The SQLite plugin has a more complex set of configuration options that can be used to configure how and when it creates more database to accommodate ore distinct assets. This plugin is designed to allow greater ingest rates for readings by separating the readings for each asset into a database table for that asset. It does however result in limiting the number of distinct assets that can be handled due to the requirement to handle large number of database files.
+The SQLite storage engine has further options that may be used to
+configure its behavior. To access these configuration parameters click
+on the *sqlite* option under the *Storage* category in the configuration
+page.
 
 +-------------+
 | |sqlite_01| |
 +-------------+
 
-  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
+Many of these configuration options control the performance of SQLite and
+it is important to have some background on how readings are stored within
+SQLite. The plugin is designed to allow greater ingests rates in
+situations where multiple different assets are being ingested by a
+single instance.
+
+The storage plugin stores readings for each distinct asset in
+a table for that asset. These tables are stored within a database, however
+the SQLite database engine will lock an entire database to insert into
+any table within that database. In order to improve concurrency, multiple
+databases are used within the storage plugin. A set of parameters are
+used to define how these tables and databases are used.
+
+.. note::
+
+   SQLite has a limitation on the number of databases that can be attached
+   to a single process. Therefore we can not create an unlimited number
+   of databases and attach them.
+
+Once the tables within all the databases have been assigned to a
+particular asset, any new assets ingested will be inserted into an
+overflow tables that contains multiple assets. There is one overflow
+table per database within the process. The impact of this is that once
+the total number of distinct assets exceeds the number of tables allocated
+the gain in performance from using multiple tables in multiple databases
+start to diminish.
 
   - **Pool Size**: The number of connections to create in the database connection pool.
 
@@ -110,6 +141,8 @@ The SQLite plugin has a more complex set of configuration options that can be us
   - **Database allocation threshold**: The number of unused databases that must exist within the system. Once the number of available databases falls below this value the system will begin the process of creating extra databases.
 
   - **Database allocation size**: The number of databases to create when the above threshold is crossed. Database creation is a slow process and hence the tuning of these parameters can impact performance when an instance receives a large number of new asset names for which it has previously not allocated readings tables.
+
+  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
 
   - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
 
@@ -197,41 +230,6 @@ Next, you must create a PostgreSQL user that matches your Linux user.
 
   sudo -u postgres createuser -d $(whoami)
 
-SQLite Plugin Configuration
-===========================
-
-The SQLite storage engine has further options that may be used to
-configure its behavior. To access these configuration parameters click
-on the *sqlite* option under the *Storage* category in the configuration
-page.
-
-+--------------+
-| |storage_03| |
-+--------------+
-
-Many of these configuration options control the performance of SQLite and
-it is important to have some background on how readings are stored within
-SQLite. The storage plugin stores readings for each distinct asset in
-a table for that asset. These tables are stored within a database. In
-order to improve concurrency multiple databases are used within the
-storage plugin. A set of parameters are used to define how these tables
-and databases are used.
-
-  - **Pool Size**: The number of connections to maintain to the database server.
-
-  - **No. Readings per database**: This controls the number of different assets that will be stored in each database file within SQLite.
-
-  - **No. databases to allocate in advance**: The number of SQLite databases that will be created at startup.
-
-  - **Database allocation threshold**: The point at which new databases are created. If the number of empty databases falls below this value then an other set of databases will be created.
-
-  - **Database allocation size**: The number of database to allocate each time a new set of databases is required.
-
-The setting of these parameters also imposes an upper limit on the number
-of assets that can be stored within a Fledge instance as SQLite has a
-maximum limit of 61 databases that can be in use at any time. Therefore
-the maximum number of readings is 60 times the number of readings per
-database. One database is reserved for the configuration data.
 
 Storage Management
 ==================

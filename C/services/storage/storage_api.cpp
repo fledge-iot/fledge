@@ -27,6 +27,7 @@
 
 #include <string_utils.h>
 
+#define WORKER_THREAD_POOL	1
 // Enable worker threads for readings append and fetch
 #define WORKER_THREADS		1
 
@@ -44,11 +45,6 @@ using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
-static void workerThread(void *arg)
-{
-	StorageApi *api = (StorageApi *)arg;
-	api->worker();
-}
 /**
  * The following are a set of wrapper C functions that are registered with the HTTP Server
  * for each of the API entry points. These must be outside if a class as the library has no
@@ -126,8 +122,33 @@ void readingAppendWrapper(shared_ptr<HttpServer::Response> response,
 			  shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
-#if WORKER_THREADS
-	api->queueRequest(ReadingRequest(ReadingRequest::ReadingAppend, response, request));
+#if WORKER_THREAD_POOL
+        api->queue(StorageOperation::ReadingAppend, request, response);
+#elif WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingAppend() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingAppend(response, request);
+
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
 #else
 	api->readingAppend(response, request);
 #endif
@@ -140,8 +161,33 @@ void readingFetchWrapper(shared_ptr<HttpServer::Response> response,
 			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
-#if WORKER_THREADS
-	api->queueRequest(ReadingRequest(ReadingRequest::ReadingFetch, response, request));
+#if WORKER_THREAD_POOL
+        api->queue(StorageOperation::ReadingFetch, request, response);
+#elif WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingFetch() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingFetch(response, request);
+
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
 #else
 	api->readingFetch(response, request);
 #endif
@@ -154,8 +200,8 @@ void readingQueryWrapper(shared_ptr<HttpServer::Response> response,
 			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
-#if WORKER_THREADS
-	api->queueRequest(ReadingRequest(ReadingRequest::ReadingQuery, response, request));
+#if WORKER_THREAD_POOL
+        api->queue(StorageOperation::ReadingQuery, request, response);
 #else
 	api->readingQuery(response, request);
 #endif
@@ -168,8 +214,32 @@ void readingPurgeWrapper(shared_ptr<HttpServer::Response> response,
 			 shared_ptr<HttpServer::Request> request)
 {
 	StorageApi *api = StorageApi::getInstance();
-#if WORKER_THREADS
-	api->queueRequest(ReadingRequest(ReadingRequest::ReadingPurge, response, request));
+#if WORKER_THREAD_POOL
+        api->queue(StorageOperation::ReadingPurge, request, response);
+#elif WORKER_THREADS
+	std::atomic<int>* cnt = &(api->m_workers_count);
+	// Check rurrent number of workers and log if threshold value is hit
+	int tVal = std::atomic_load(cnt);
+	if (tVal >= MAX_WORKER_THREADS)
+	{
+		Logger::getLogger()->warn("Storage API: readingPurge() is being run by a new thread. "
+					  "Current worker threads count %d exceeds the warning limit of %d allowed threads hit.",
+					  tVal,
+					  MAX_WORKER_THREADS);
+	}
+
+	// Start a new thread
+	thread work_thread([api, cnt, response, request]
+	{
+		// Increase count
+		std::atomic_fetch_add(cnt, 1);
+
+		api->readingPurge(response, request);
+		// Decrease counter 
+		std::atomic_fetch_sub(cnt, 1);
+	});
+	// Detach the new thread
+	work_thread.detach();
 #else
 	api->readingPurge(response, request);
 #endif
@@ -326,21 +396,24 @@ void storageTableQueryWrapper(shared_ptr<HttpServer::Response> response,
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : m_thread(NULL), readingPlugin(0), streamHandler(0)
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads, const unsigned int poolSize) : m_thread(NULL), readingPlugin(0), streamHandler(0)
 {
-
 	m_port = port;
 	m_threads = threads;
 	m_server = new HttpServer();
 	m_server->config.port = port;
 	m_server->config.thread_pool_size = threads;
+	m_server->config.timeout_request = 60;
+	m_perfMonitor = NULL;
+	m_workerPoolSize = poolSize;
+	m_workers.resize(poolSize, NULL);
 	StorageApi::m_instance = this;
 }
 
 /**
  * Destructor for the storage API class. There is only ever one StorageApi class
  * in existance and it lives for the entire duration of the storage service, so this
- * is really for completerness rather than any pracitical use.
+ * is really for completeness rather than any pracitical use.
  */
 StorageApi::~StorageApi()
 {
@@ -349,9 +422,19 @@ StorageApi::~StorageApi()
 		delete m_server;
 	}
 	m_instance = NULL;
+
 	if (m_thread)
 	{
 		delete m_thread;
+	}
+	if (m_perfMonitor)
+	{
+		delete m_perfMonitor;
+	}
+	for (unsigned int i = 0; i < m_workerPoolSize; i++)
+	{
+		if (m_workers[i])
+			delete m_workers[i];
 	}
 }
 
@@ -362,7 +445,8 @@ StorageApi *StorageApi::getInstance()
 {
 	if (m_instance == NULL)
 	{
-		m_instance = new StorageApi(0, 1);
+		Logger::getLogger()->warn("Creating a default storage API instance, tuning parameters will be ignored");
+		m_instance = new StorageApi(0, 1, 5);
 	}
 	return m_instance;
 }
@@ -421,6 +505,9 @@ void StorageApi::initResources()
 
 	ManagementApi *management = ManagementApi::getInstance();
 	management->registerStats(&stats);
+
+	// Create StoragePerformanceMonitor object fr direct monitorind data saving
+	m_perfMonitor = new StoragePerformanceMonitor("Storage", this);
 }
 
 void startService()
@@ -428,19 +515,26 @@ void startService()
 	StorageApi::getInstance()->startServer();
 }
 
+
+/**
+ * Static method used to start the thread
+ */
+static void workerStart()
+{
+	StorageApi *api = StorageApi::getInstance();
+	api->worker();
+}
+
 /**
  * Start the HTTP server and any worker threads
  */
 void StorageApi::start(int threads) {
 	m_thread = new thread(startService);
-#if WORKER_THREADS
-	Logger::getLogger()->warn("Starting %d worker threads", threads);
-	m_workers = (thread **)malloc(sizeof(thread *) * (unsigned int)threads);
-	for (int i = 0; i < threads; i++)
+	m_shutdown = false;
+	for (unsigned int i = 0; i < m_workerPoolSize; i++)
 	{
-		m_workers[i] = new thread(workerThread, this);
+		m_workers[i] = new thread(workerStart);
 	}
-#endif
 }
 
 void StorageApi::startServer() {
@@ -455,6 +549,17 @@ void StorageApi::stopServer() {
  */
 void StorageApi::wait() {
 	m_thread->join();
+	m_shutdown = true;
+	m_queueCV.notify_all();
+	for (unsigned int i = 0; i < m_workerPoolSize; i++)
+	{
+		if (m_workers[i])
+		{
+			m_workers[i]->join();
+			delete m_workers[i];
+			m_workers[i] = NULL;
+		}
+	}
 }
 
 /**
@@ -485,7 +590,69 @@ void StorageApi::respond(shared_ptr<HttpServer::Response> response, const string
 	*response << "HTTP/1.1 200 OK\r\nContent-Length: " << payload.length() << "\r\n"
 		 <<  "Content-type: application/json\r\n\r\n" << payload;
 }
+/**
+ * The worker thread
+ */
+void StorageApi::worker()
+{
+	unique_lock<mutex> lck(m_queueMutex);
+	while (!m_shutdown)
+	{
+		while (!m_queue.empty())
+		{
+			StorageOperation *op = m_queue.front();
+			m_queue.pop();
+			lck.unlock();
+			switch (op->m_operation)
+			{
+			case StorageOperation::ReadingAppend:
+				readingAppend(op->m_response, op->m_request);
+				break;
+			case StorageOperation::ReadingFetch:
+				readingFetch(op->m_response, op->m_request);
+				break;
+			case StorageOperation::ReadingPurge:
+				readingPurge(op->m_response, op->m_request);
+				break;
+			case StorageOperation::ReadingQuery:
+				readingQuery(op->m_response, op->m_request);
+				break;
+			default:
+				Logger::getLogger()->error("Internal error, unknown operation %d requested of storage worker thread", op->m_operation);
+				break;
+			}
+			delete op;
+			lck.lock();
+		}
+		m_queueCV.wait(lck);
+	}
+}
 
+/**
+ * Append a request to the readings request queue
+ *
+ * If the queue is starting to get long delay the return as
+ * a primitive way to throttle incoming requests
+ *
+ * @param op	The operation to perform
+ * @param request	The HTTP request
+ * @param response	The HTTP response
+ */
+void StorageApi::queue(StorageOperation::Operations op, shared_ptr<HttpServer::Request> request, shared_ptr<HttpServer::Response> response)
+{
+	unique_lock<mutex> lck(m_queueMutex);
+	m_queue.push(new StorageOperation(op, request, response));
+	m_queueCV.notify_all();
+	unsigned int length = m_queue.size();
+	m_perfMonitor->collect("Worker Queue length", length);
+	if (length > 10)
+	{
+		lck.unlock();
+		usleep(1000 * length);
+		if (length % 10 == 0)
+			Logger::getLogger()->warn("Reading request queue now at %d", length);
+	}
+}
 
 /**
  * Construct an HTTP response with the specified return code using the payload
@@ -526,6 +693,12 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("insert rows " + tableName, rval);
+				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
+			}
 		}
 		else
 		{
@@ -603,6 +776,12 @@ string	responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("update rows " + tableName, rval);
+				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
+			}
 		}
 		else
 		{
@@ -727,6 +906,12 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("delete rows " + tableName, rval);
+				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
+			}
 		}
 		else
 		{
@@ -749,6 +934,12 @@ void StorageApi::readingAppend(shared_ptr<HttpServer::Response> response, shared
 {
 string payload;
 string  responsePayload;
+struct timeval	tStart, tEnd;
+
+	if (m_perfMonitor->isCollecting())
+	{
+		gettimeofday(&tStart, NULL);
+	}
 	
 	auto header_seq = request->header.find("SeqNum");
 	if(header_seq != request->header.end())
@@ -801,6 +992,20 @@ string  responsePayload;
 			responsePayload += to_string(rval);
 			responsePayload += " }";
 			respond(response, responsePayload);
+
+			if (m_perfMonitor->isCollecting())
+			{
+				gettimeofday(&tEnd, NULL);
+				m_perfMonitor->collect("Reading Append Rows " +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						rval);
+				m_perfMonitor->collect("Reading Append PayloadSize " +
+						(readingPlugin ? readingPlugin : plugin)->getName(),
+						payload.length());
+				struct timeval diff;
+				timersub(&tEnd, &tStart, &diff);
+				m_perfMonitor->collect("Reading Append Time (ms)", diff.tv_sec * 1000 + diff.tv_usec / 1000);
+			}
 		}
 		else
 		{
@@ -841,7 +1046,7 @@ unsigned long			   count = 0;
 		}
 		else
 		{
-			id = (unsigned)atol(search->second.c_str());
+			id = (unsigned long)atol(search->second.c_str());
 		}
 		search = query.find("count");
 		if (search == query.end())
@@ -1510,6 +1715,11 @@ string  responsePayload;
                 int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("insert rows " + tableName, rval);
+				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
+			}
 			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
                         responsePayload += to_string(rval);
@@ -1589,6 +1799,11 @@ string  responsePayload;
                 int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("update rows " + tableName, rval);
+				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
+			}
 			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
@@ -1628,6 +1843,11 @@ string  responsePayload;
                 int rval = plugin->commonDelete(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			if (m_perfMonitor->isCollecting())
+			{
+				m_perfMonitor->collect("delete rows " + tableName, rval);
+				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
+			}
 			registry.processTableDelete(tableName, payload);
                         responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
@@ -1735,57 +1955,4 @@ string  payload;
         }
 }
 
-/**
- * Queue a request to be run by a worker thread
- *
- * @param request	The request to be executed by a worker thread
- */
-void StorageApi::queueRequest(ReadingRequest request)
-{
-	unique_lock<mutex> lck(m_requestQueueMutex);
-	m_requestQueue.push(request);
-	m_workerCV.notify_one();
-}
 
-/**
- * Called by worker threads to collect and execute requests
- */
-void StorageApi::worker()
-{
-	unique_lock<mutex> lck(m_requestQueueMutex);
-	while (1)
-	{
-		try {
-			if (m_requestQueue.empty())
-			{
-				m_workerCV.wait(lck);
-			}
-			if (! m_requestQueue.empty())
-			{
-				ReadingRequest req = m_requestQueue.front();
-				m_requestQueue.pop();
-				lck.unlock();
-				switch (req.m_operation)
-				{
-					case ReadingRequest::ReadingAppend:
-						readingAppend(req.m_response, req.m_request);
-						break;
-					case ReadingRequest::ReadingFetch:
-						readingFetch(req.m_response, req.m_request);
-						break;
-					case ReadingRequest::ReadingPurge:
-						readingPurge(req.m_response, req.m_request);
-						break;
-					case ReadingRequest::ReadingQuery:
-						readingQuery(req.m_response, req.m_request);
-						break;
-				}
-				lck.lock();
-			}
-		} catch (exception& e) {
-			Logger::getLogger()->error("Storage worker thread exception: %s", e.what());
-		} catch (...) {
-			Logger::getLogger()->error("Storage worker thread exception");
-		}
-	}
-}

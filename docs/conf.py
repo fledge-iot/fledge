@@ -172,7 +172,8 @@ texinfo_documents = [
 html_context = {
     'css_files': [
         '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
+        '_static/version_menu.css',     # override options from versions menu
+    ],
      }
 
 # Pass Plugin DOCBRANCH argument in Makefile ; by default develop

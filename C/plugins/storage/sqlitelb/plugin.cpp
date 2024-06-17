@@ -49,7 +49,16 @@ const char *default_config = QUOTE({
 			"default" : "6",
 			"displayName" : "Vacuum Interval",
 			"order" : "2"
-		}
+		},
+		"purgeBlockSize" : {
+                        "description" : "The number of rows to purge in each delete statement",
+                        "type" : "integer",
+                        "default" : "10000",
+                        "displayName" : "Purge Block Size",
+                        "order" : "3",
+                        "minimum" : "1000",
+                        "maximum" : "100000"
+                }
 		});
 
 /**
@@ -90,6 +99,11 @@ int poolSize = 5;
 	if (category->itemExists("vacuumInterval"))
 	{
 		manager->setVacuumInterval(strtol(category->getValue("vacuumInterval").c_str(), NULL, 10));
+	}
+	if (category->itemExists("purgeBlockSize"))
+	{
+		unsigned long purgeBlockSize = strtoul(category->getValue("purgeBlockSize").c_str(), NULL, 10);
+		manager->setPurgeBlockSize(purgeBlockSize);
 	}
 	return manager;
 }

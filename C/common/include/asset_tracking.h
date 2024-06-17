@@ -21,6 +21,8 @@
 #include <condition_variable>
 #include <storage_client.h>
 
+#define MIN_ASSET_TRACKER_UPDATE	500 // The minimum interval for asset tracker updates
+
 /**
  * Tracking abstract base class to be passed in the process data queue
  */
@@ -268,6 +270,7 @@ public:
 	void	updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr);
 	std::set<std::string>
 		*getStorageAssetTrackingCacheData(StorageAssetTrackingTuple* tuple);
+	bool	tune(unsigned long updateInterval);
 
 private:
 	std::string
@@ -292,6 +295,7 @@ private:
 	std::string				m_fledgeName;
 	StorageClient				*m_storageClient;
 	StorageAssetCacheMap			storageAssetTrackerTuplesCache;
+	unsigned int				m_updateInterval;
 };
 
 /**

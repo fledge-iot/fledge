@@ -543,7 +543,7 @@ class TestUserModel:
                             assert excinfo.type is User.PasswordDoesNotMatch
                             assert issubclass(excinfo.type, Exception)
                         update_patch.assert_called_once_with(found_user['id'], {"failed_attempts": found_user['failed_attempts'] + 1})
-                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah')
+                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah', algorithm='SHA256')
                 args, kwargs = query_tbl_patch.call_args
                 assert 'users' == args[0]
                 p = json.loads(args[1])

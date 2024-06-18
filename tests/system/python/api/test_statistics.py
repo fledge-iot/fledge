@@ -143,9 +143,10 @@ class TestStatistics:
         stats = utils.serialize_stats_map(jdoc)
         assert 1 == stats[ASSET_NAME.upper()]
         assert 1 == stats['READINGS']
-
+        
         # Allow stats collector schedule to run i.e. by default 15s
-        time.sleep(wait_time * 2 + 1)
+        print("Waiting for 15 seconds for FOGL-8738")
+        time.sleep(wait_time * 3 + 1)
 
         # check stats history
         conn.request("GET", '/fledge/statistics/history')

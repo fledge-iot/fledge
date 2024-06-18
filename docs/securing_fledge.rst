@@ -37,7 +37,26 @@
 Securing Fledge
 *****************
 
-The default installation of a Fledge service comes with security features turned off, there are several things that can be done to add security to Fledge.  The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used. The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. Authentication can be via username and password or by means of an authentication certificate.
+The default installation of a Fledge service comes with security features turned off, whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. There are several features in Fledge that can be used to add security to Fledge.  
+
+  - The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used.
+
+  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system.
+   
+  - Authentication can be via username and password or by means of an authentication certificate.
+
+  - Fledge supports a number of different user types or roles, care should be taken to only give users access they require and in particular the administration user rights should be reserved.
+
+  - If authentication is via username and password the administrator is able to select one of a set of password policy that define restrictions as to what characters must be included in any password as well as requiring a minimum length of password.
+
+  - The system can be configured to require users to change their password regularly and a list of previous passwords is maintain ed to prevent users simply reusing old passwords.
+
+  - If a user attempts to authenticate and fails then that user will be blocked for a short time. If multiple failures occur the blocked period will be increased until ultimately the user is blocked for a 24 hour period. This is to prevent automated systems attempting to guess passwords.
+
+  - Fledge maintains full audit logs of all updates to the Fledge configuration, and other events. This allows for complete auditing of who made what changes to the Fledge configuration and when the changes were made.
+
+.. note::
+  Although all these features add security to a Fledge installation it is still recommended to run Fledge within firewalls and limit those networks that have access to the Fledge API port when using for production purposes.
 
 Enabling HTTPS Encryption
 =========================
@@ -194,7 +213,9 @@ The user management pages allows
 
 Fledge currently supports four roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users and backups.
+
+  - **Control**: a user with this role is able to configure Fledge, execute control scripts and pipelines and also view the data read by Fledge. The user can not manage other users or add new users.
 
   - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
 
@@ -202,7 +223,7 @@ Fledge currently supports four roles for users:
 
   - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
 
-Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both that menu items will be removed completely or options on certain pages will be unavailable if they are not privileged to access those features.
 
 Adding Users
 ------------

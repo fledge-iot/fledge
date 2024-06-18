@@ -47,7 +47,7 @@ _help = """
 """
 
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
@@ -714,9 +714,10 @@ async def reset(request):
     if password and not isinstance(password, str):
         err_msg = "New password should be in string format."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
-    error_msg = await validate_password(password)
-    if error_msg:
-        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
+    if password:
+        error_msg = await validate_password(password)
+        if error_msg:
+            raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})

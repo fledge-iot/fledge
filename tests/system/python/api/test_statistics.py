@@ -143,9 +143,8 @@ class TestStatistics:
         stats = utils.serialize_stats_map(jdoc)
         assert 1 == stats[ASSET_NAME.upper()]
         assert 1 == stats['READINGS']
-        
         # Allow stats collector schedule to run i.e. by default 15s
-        print("Waiting for 15 seconds for FOGL-8738")
+        print("Waiting for 16 seconds for delay caused by FOGL-8738 - north statistics update thread de-prioritised....")
         time.sleep(wait_time * 3 + 1)
 
         # check stats history

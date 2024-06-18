@@ -259,7 +259,8 @@ class TestOMFNorthService:
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
-
+        print("Waiting for 6 seconds for FOGL-8813")
+        time.sleep(6)
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
@@ -380,6 +381,7 @@ class TestOMFNorthService:
         put_url = "/fledge/category/{}".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "Admin" == resp["PIWebAPIUserId"]["value"]
+        print("Waiting for 5 seconds for FOGL-FOGL-8738")
         time.sleep(5)
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 

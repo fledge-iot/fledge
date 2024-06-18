@@ -385,7 +385,8 @@ class TestCNorthService:
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
-
+        print("Waiting for 5 seconds for FOGL-8813")
+        time.sleep(5)
         # Enabling local machine north service
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)

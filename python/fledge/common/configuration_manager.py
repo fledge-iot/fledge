@@ -740,7 +740,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 .WHERE(["key", "=", category_name]).payload()
             await self._storage.update_tbl("configuration", payload)
             cat_value = {item_name: {"value": new_value_val}}
-            self._on_fly_config_item_change(category_name, cat_value)
+            self._update_special_config_items(category_name, cat_value)
             audit = AuditLogger(self._storage)
             audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value,
                              'newValue': new_value_val}
@@ -858,7 +858,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             # read the updated value from storage
             cat_value = await self._read_category_val(category_name)
-            self._on_fly_config_item_change(category_name, cat_value)
+            self._update_special_config_items(category_name, cat_value)
             # Category config items cache updated
             for item_name, new_val in config_item_list.items():
                 if category_name in self._cacheManager.cache:
@@ -1995,9 +1995,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if not isinstance(eval_s, type_check):
                             raise ValueError(type_mismatched_message)
 
-    def _on_fly_config_item_change(self, cat_name, cat_value):
+    def _update_special_config_items(self, cat_name: str, cat_value: dict) -> None:
+        """ Update value in config items for a category which will be required without restarting fledge """
         if cat_name == 'CONFIGURATION':
             if 'cacheSize' in cat_value:
                 self._cacheManager.max_cache_size = int(cat_value['cacheSize']['value'])
-
 

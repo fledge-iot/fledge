@@ -297,13 +297,13 @@ class Server:
 
     _CONFIGURATION_DEFAULT_CONFIG = {
         'cacheSize': {
-            'description': 'To control the size of the cache in Core Configuration Manager',
+            'description': 'To control the caching size of Core Configuration Manager',
             'type': 'integer',
             'displayName': 'Size of Configuration Cache',
             'default': '30',
             'order': '1',
             'minimum': '0',
-            'maximum': '30'
+            'maximum': '1000'
         }
     }
 
@@ -625,9 +625,9 @@ class Server:
 
             config = cls._CONFIGURATION_DEFAULT_CONFIG
             category = 'CONFIGURATION'
-            description = "Core Configuration Manager"
+            description = "Configuration Manager of Core Server"
             await cls._configuration_manager.create_category(category, config, description, True,
-                                                             display_name='Configuration')
+                                                             display_name='Configuration Manager')
             config = await cls._configuration_manager.get_category_all_items(category)
             cls._configuration_manager._cacheManager.max_cache_size = int(config['cacheSize']['value'])
         except Exception as ex:

@@ -16,7 +16,7 @@ class TestConfigurationCache:
     def test_init(self):
         cached_manager = ConfigurationCache()
         assert {} == cached_manager.cache
-        assert 10 == cached_manager.max_cache_size
+        assert 30 == cached_manager.max_cache_size
         assert 0 == cached_manager.hit
         assert 0 == cached_manager.miss
 
@@ -55,6 +55,7 @@ class TestConfigurationCache:
 
     def test_remove_oldest(self):
         cached_manager = ConfigurationCache()
+        cached_manager.max_cache_size = 10
         cached_manager.update("cat1", "desc1", {'value': {}})
         cached_manager.update("cat2", "desc2", {'value': {}})
         cached_manager.update("cat3", "desc3", {'value': {}})

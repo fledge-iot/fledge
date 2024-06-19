@@ -64,16 +64,16 @@ class TestAuthOptional:
     @pytest.mark.parametrize("ret_val, exp_result", [
         ([], []),
         ([{'uname': 'admin', 'role_id': '1', 'access_method': 'any', 'id': '1', 'real_name': 'Admin',
-           'description': 'Admin user', 'enabled': 't', 'failed_attempts': 0},
+           'description': 'Admin user', 'enabled': 't', 'failed_attempts': 0, 'block_until': ''},
           {'uname': 'user', 'role_id': '2', 'access_method': 'any', 'id': '2', 'real_name': 'Non-admin',
-           'description': 'Normal user', 'enabled': 't', 'failed_attempts': 0},
+           'description': 'Normal user', 'enabled': 't', 'failed_attempts': 0, 'block_until': ''},
           {'uname': 'dviewer', 'role_id': '3', 'access_method': 'any', 'id': '3', 'real_name': 'Data-Viewer',
-           'description': 'Data user', 'enabled': 'f', 'failed_attempts': 0}
+           'description': 'Data user', 'enabled': 'f', 'failed_attempts': 0, 'block_until': ''}
           ],
          [{"userId": "1", "userName": "admin", "roleId": "1", "accessMethod": "any", "realName": "Admin",
-           "description": "Admin user", 'status': 'unblocked'},
+           "description": "Admin user"},
           {"userId": "2", "userName": "user", "roleId": "2", "accessMethod": "any", "realName": "Non-admin",
-           "description": "Normal user", 'status': 'unblocked'}])
+           "description": "Normal user"}])
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -92,11 +92,11 @@ class TestAuthOptional:
         patch_logger.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
     @pytest.mark.parametrize("request_params, exp_result, arg1, arg2", [
-        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user','failed_attempts': 0}, 1, None),
-        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0},  None, 'admin'),
-        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0}, 1, 'admin'),
-        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0}, 1, None),
-        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0}, None, 'admin'),
+        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user','failed_attempts': 0, 'block_until': ''}, 1, None),
+        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''},  None, 'admin'),
+        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, 1, 'admin'),
+        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, 1, None),
+        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, None, 'admin'),
     ])
     async def test_get_user_by_param(self, client, request_params, exp_result, arg1, arg2):
         result = {}

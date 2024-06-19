@@ -429,6 +429,12 @@ class User:
                         audit_log_message = "'{}' user blocked for 24 hours.".format(username)
                         blocked_message = "Invalid username/password attempted multiple times. Account blocked for 24 hours."
 
+                        # Raise Alert if user is blocked for 24 hours
+                        from fledge.common.alert_manager import AlertManager
+                        alert_manager = AlertManager(storage_client)
+                        param = {"key": "USRBK", "message": audit_log_message, "urgency": "high"}
+                        await alert_manager.add(param)
+
                     # USRBK audit trail entry
                     if failed_attempts >= MAX_LOGIN_ATTEMPTS - 3:
                         found_user.pop("pwd")

@@ -53,6 +53,7 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
@@ -315,7 +316,6 @@ async def get_user(request):
 
     if 'username' in request.query and request.query['username'] != '':
         user_name = request.query['username'].lower()
-
     if user_id or user_name:
         try:
             user = await User.Objects.get(user_id, user_name)
@@ -326,11 +326,14 @@ async def get_user(request):
             u["accessMethod"] = user.pop('access_method')
             u["realName"] = user.pop('real_name')
             u["description"] = user.pop('description')
-            if user.pop('failed_attempts') > 0:
-                u["status"] = "blocked"
-            else:
-                u["status"] = "unblocked"
-                    
+            block_until = user.pop('block_until')
+            if block_until:
+                curr_time = datetime.datetime.now().strftime(DATE_FORMAT)
+                block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
+                if datetime.datetime.strptime(block_until, DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
+                    u["status"] = "blocked"
+                else:
+                    u["status"] = "unblocked"
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -347,10 +350,13 @@ async def get_user(request):
                 u["accessMethod"] = row["access_method"]
                 u["realName"] = row["real_name"]
                 u["description"] = row["description"]
-                if row["failed_attempts"] > 0:
-                    u["status"] = "blocked"
-                else:
-                    u["status"] = "unblocked"
+                if row["block_until"]:
+                    curr_time = datetime.datetime.now().strftime(DATE_FORMAT)
+                    block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
+                    if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
+                        u["status"] = "blocked"
+                    else:
+                        u["status"] = "unblocked"
                 res.append(u)
         result = {'users': res}
 

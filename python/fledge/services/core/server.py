@@ -302,7 +302,7 @@ class Server:
             'displayName': 'Size of Configuration Cache',
             'default': '30',
             'order': '1',
-            'minimum': '0',
+            'minimum': '1',
             'maximum': '1000'
         }
     }

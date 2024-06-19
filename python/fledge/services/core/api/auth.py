@@ -326,6 +326,11 @@ async def get_user(request):
             u["accessMethod"] = user.pop('access_method')
             u["realName"] = user.pop('real_name')
             u["description"] = user.pop('description')
+            if user.pop('failed_attempts') > 0:
+                u["status"] = "blocked"
+            else:
+                u["status"] = "unblocked"
+                    
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -342,6 +347,10 @@ async def get_user(request):
                 u["accessMethod"] = row["access_method"]
                 u["realName"] = row["real_name"]
                 u["description"] = row["description"]
+                if row["failed_attempts"] > 0:
+                    u["status"] = "blocked"
+                else:
+                    u["status"] = "unblocked"
                 res.append(u)
         result = {'users': res}
 

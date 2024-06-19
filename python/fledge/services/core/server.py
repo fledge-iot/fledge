@@ -295,6 +295,18 @@ class Server:
         }
     }
 
+    _CONFIGURATION_DEFAULT_CONFIG = {
+        'cacheSize': {
+            'description': 'To control the size of the cache in Core Configuration Manager',
+            'type': 'integer',
+            'displayName': 'Size of Configuration Cache',
+            'default': '30',
+            'order': '1',
+            'minimum': '0',
+            'maximum': '30'
+        }
+    }
+
     _log_level = _LOGGING_DEFAULT_CONFIG['logLevel']['default']
     """ Common logging level for Core """
 
@@ -604,6 +616,24 @@ class Server:
             _logger.exception(ex)
             raise
 
+    @classmethod
+    async def configuration_tune_setup(cls):
+        """ Configuration manager category """
+        try:
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+
+            config = cls._CONFIGURATION_DEFAULT_CONFIG
+            category = 'CONFIGURATION'
+            description = "Core Configuration Manager"
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Configuration')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cls._configuration_manager._cacheManager.max_cache_size = int(config['cacheSize']['value'])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
     @staticmethod
     def _make_app(auth_required=True, auth_method='any'):
         """Creates the REST server
@@ -849,7 +879,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+                                                                                "CONFIGURATION"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -898,6 +929,9 @@ class Server:
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # Configuration Manager tune setup
+            loop.run_until_complete(cls.configuration_tune_setup())
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())

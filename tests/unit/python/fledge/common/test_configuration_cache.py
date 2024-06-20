@@ -14,7 +14,7 @@ __version__ = "${VERSION}"
 class TestConfigurationCache:
 
     @pytest.mark.parametrize("size", [
-        1, 10, 20, 1000
+        0, 1, 10, 20, 1000
     ])
     def test_init(self, size):
         cached_manager = ConfigurationCache(size)

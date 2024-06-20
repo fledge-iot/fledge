@@ -103,6 +103,28 @@ class TestServer:
         patch_create_cat.assert_called_once_with('Installation', Server._INSTALLATION_DEFAULT_CONFIG, 'Installation',
                                                  True, display_name='Installation')
 
+    async def test__setup_config_manager(self):
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        Server._configuration_manager = ConfigurationManager(storage_client_mock)
+        value = {'cacheSize': {'description': 'To control the caching size of Core Configuration Manager', 'type': 'integer',
+                       'displayName': 'Configuration Manager Cache Size', 'default': '30', 'value': '30', 'order': '1',
+                       'minimum': '1', 'maximum': '1000'}}
+
+        rv = await async_mock(value) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(async_mock(value)))
+        with patch.object(Server._configuration_manager, 'create_category',
+                          return_value=rv) as patch_create_cat:
+            with patch.object(Server._configuration_manager, 'get_category_all_items',
+                              return_value=rv) as patch_get_all_cat:
+                await Server.setup_config_manager()
+            patch_get_all_cat.assert_called_once_with('CONFIGURATION')
+        patch_create_cat.assert_called_once_with('CONFIGURATION', Server._CONFIGURATION_DEFAULT_CONFIG,
+                                                 'Core Configuration Manager', True,
+                                                 display_name='Configuration Manager')
+
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="To be implemented")
     async def test__make_app(self):

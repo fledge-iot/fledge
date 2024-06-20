@@ -45,15 +45,15 @@ RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api
 class ConfigurationCache(object):
     """Configuration Cache Manager"""
 
-    def __init__(self):
+    def __init__(self, size=30):
         """
         cache: value stored in dictionary as per category_name
-        max_cache_size: Hold the recently requested categories in the cache
+        max_cache_size: Hold the recently requested categories in the cache. Default cache size is 30
         hit: number of times an item is read from the cache
         miss: number of times an item was not found in the cache and a read of the storage layer was required
         """
         self.cache = {}
-        self.max_cache_size = 30
+        self.max_cache_size = size
         self.hit = 0
         self.miss = 0
 
@@ -1996,7 +1996,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError(type_mismatched_message)
 
     def _update_special_config_items(self, cat_name: str, cat_value: dict) -> None:
-        """ Update value in config items for a category which will be required without restarting fledge """
+        """ Update value in config items for a category which are required without restart of Fledge """
         if cat_name == 'CONFIGURATION':
             if 'cacheSize' in cat_value:
                 self._cacheManager.max_cache_size = int(cat_value['cacheSize']['value'])

@@ -99,7 +99,7 @@ class TestConfiguration:
                   },
                   {
                       'key': 'CONFIGURATION',
-                      'description': 'Configuration Manager of Core Server',
+                      'description': 'Core Configuration Manager',
                       'displayName': 'Configuration Manager',
                       'children': []
                   }

@@ -332,6 +332,7 @@ async def get_user(request):
                 block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
                 if datetime.datetime.strptime(block_until, DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
                     u["status"] = "blocked"
+                    u["block_until"] = block_time
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -353,6 +354,7 @@ async def get_user(request):
                     block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
                     if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
                         u["status"] = "blocked"
+                        u["block_until"] = block_time
                 res.append(u)
         result = {'users': res}
 

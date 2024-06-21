@@ -630,10 +630,10 @@ class Server:
                                                              display_name='Configuration Manager')
             config = await cls._configuration_manager.get_category_all_items(category)
             cache_size = int(config['cacheSize']['value'])
-            # Internal handling of cache size when with 0 and setting to default cache size of 30;
+            # Internal handling of cache size
             if cache_size == 0:
                 default_cache_size = cls._configuration_manager._cacheManager.max_cache_size
-                _logger.warn("Configuration Manager Cache Size is setting to default size of {}".format(
+                _logger.warn("Configuration Manager Cache Size is being set to the default size {}.".format(
                     default_cache_size))
                 cache_size = default_cache_size
             cls._configuration_manager._cacheManager.max_cache_size = cache_size

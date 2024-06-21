@@ -396,7 +396,7 @@ void storageTableQueryWrapper(shared_ptr<HttpServer::Response> response,
 /**
  * Construct the singleton Storage API 
  */
-StorageApi::StorageApi(const unsigned short port, const unsigned int threads, const unsigned int poolSize) : m_thread(NULL), readingPlugin(0), streamHandler(0)
+StorageApi::StorageApi(const unsigned short port, const unsigned int threads, const unsigned int poolSize) : m_thread(NULL), readingPlugin(0), streamHandler(0), m_purgeResponse(NULL), m_purgeThreadWaiting(0)
 {
 	m_port = port;
 	m_threads = threads;
@@ -1123,8 +1123,33 @@ static std::atomic<bool> already_running(false);
 
 	if (already_running)
 	{
-		string payload = "{ \"error\" : \"Previous instance of purge is still running, not starting another one.\" }";
-		respond(response, SimpleWeb::StatusCode::client_error_too_many_requests, payload);
+		// The only way we get here is if a previous purge request has timed out but
+		// the actual purge itself is still running
+		//
+		// Attempt to use this call to wait for the purge to finish and return the result
+		// as the response of this reqwst as the previous requets is unable to return a
+		// result.
+		// The secodn call may also get timed out, so we want to arrnage that only one
+		// thread waits and that this is the latest thread to make the call
+		m_purgeWait.notify_all();
+                std::unique_lock<std::mutex> lock(m_purgeMutex);
+		m_purgeResponse = NULL;
+		m_purgeThreadWaiting++;
+		m_purgeWait.wait(lock);
+		m_purgeThreadWaiting--;
+		char *resp = m_purgeResponse;
+		m_purgeResponse = NULL;
+		lock.unlock();
+		if (resp)
+		{
+			respond(response, resp);
+			free(resp);
+		}
+		else
+		{
+			string payload = "{ \"error\" : \"Previous instance of purge is still running, not starting another one.\" }";
+			respond(response, SimpleWeb::StatusCode::client_error_too_many_requests, payload);
+		}
 		return;
 	}
 	already_running.store(true);
@@ -1217,7 +1242,22 @@ static std::atomic<bool> already_running(false);
 			return;
 		}
 		respond(response, purged);
-		free(purged);
+		std::unique_lock<std::mutex> lock(m_purgeMutex);
+		if (m_purgeThreadWaiting)
+		{
+			// Another thread is waiting for the response, store the
+			// purged result for it to pick up and free
+			m_purgeResponse = purged;
+			lock.unlock();
+			m_purgeWait.notify_all();
+		}
+		else
+		{
+			// No other thread is waiting fo rthe purge result
+			// so simply free purged
+			lock.unlock();
+			free(purged);
+		}
 	}
 	/** Handle PluginNotImplementedException exception here */
 	catch (PluginNotImplementedException& ex) {

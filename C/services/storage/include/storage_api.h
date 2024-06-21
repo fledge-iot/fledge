@@ -170,6 +170,11 @@ private:
 				m_workers;
 	unsigned int		m_workerPoolSize;
 	bool			m_shutdown;
+	std::mutex		m_purgeMutex;
+	std::condition_variable m_purgeWait;
+	char			*m_purgeResponse;
+	int			m_purgeThreadWaiting;
+		
 };
 
 /**

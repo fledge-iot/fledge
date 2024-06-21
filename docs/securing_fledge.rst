@@ -49,7 +49,7 @@ The default installation of a Fledge service comes with security features turned
 
   - If authentication is via username and password the administrator is able to select one of a set of password policy that define restrictions as to what characters must be included in any password as well as requiring a minimum length of password.
 
-  - The system can be configured to require users to change their password regularly and a list of previous passwords is maintain ed to prevent users simply reusing old passwords.
+  - The system can be configured to require users to change their password regularly and a list of previous passwords is maintained to prevent users simply reusing old passwords.
 
   - If a user attempts to authenticate and fails then that user will be blocked for a short time. If multiple failures occur the blocked period will be increased until ultimately the user is blocked for a 24 hour period. This is to prevent automated systems attempting to guess passwords.
 
@@ -79,11 +79,12 @@ The *Certificate Name* is the name of the certificate that will be used for encr
 
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 
-*Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
-Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-;
-Then follow browser instruction in order to allow the connection and close the tab.
-In the Fledge GUI you should see the green icon (Fledge is running).
+.. note::
+  If using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
+  Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
+  
+  Then follow the instructions in the browser in order to allow the connection and close the tab.
+  In the Fledge GUI you should see the green icon (Fledge is running).
 
 +--------------------+
 | |connection_https| |
@@ -123,7 +124,7 @@ The default username is "admin" with a password of "fledge". Use these to login 
 The status bar now contains the name of the user that is currently logged in and a new option has appeared in the left-hand menu, *User Management*.
 
 .. note::
-   Any session that is idle for 15 minutes or longer will be disconnected. The user will ten be required to authenticate again before being able to issue any further commands via the API or user interface.
+   Any session that is idle for 15 minutes or longer will be disconnected. The user will then be required to authenticate again before being able to issue any further commands via the API or user interface.
 
 Failed Login Attempts
 ---------------------
@@ -213,7 +214,7 @@ The user management pages allows
 
 Fledge currently supports four roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users and backups.
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users, backups and support bundles.
 
   - **Control**: a user with this role is able to configure Fledge, execute control scripts and pipelines and also view the data read by Fledge. The user can not manage other users or add new users.
 

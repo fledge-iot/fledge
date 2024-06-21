@@ -329,10 +329,13 @@ async def get_user(request):
             block_until = user.pop('block_until')
             if block_until:
                 curr_time = datetime.datetime.now().strftime(DATE_FORMAT)
+
                 block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
                 if datetime.datetime.strptime(block_until, DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
                     u["status"] = "blocked"
-                    u["blockUntil"] = block_time
+                    # GET UTC Time
+                    utc_time = datetime.datetime.strptime(block_until, "%Y-%m-%d %H:%M:%S.%f").astimezone(datetime.timezone.utc)
+                    u["block_until"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -354,7 +357,9 @@ async def get_user(request):
                     block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
                     if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
                         u["status"] = "blocked"
-                        u["blockUntil"] = block_time
+                        # GET UTC Time
+                        utc_time = datetime.datetime.strptime(row["block_until"], "%Y-%m-%d %H:%M:%S.%f").astimezone(datetime.timezone.utc)
+                        u["block_until"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
                 res.append(u)
         result = {'users': res}
 

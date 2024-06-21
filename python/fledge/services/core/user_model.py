@@ -381,8 +381,24 @@ class User:
             if found_user['block_until']:
                 curr_time = datetime.now().strftime(DATE_FORMAT)
                 block_time = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
+                
                 if datetime.strptime(found_user['block_until'], DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
-                    raise User.PasswordDoesNotMatch('Account is blocked until {}'.format(block_time))
+                    diff = datetime.strptime(found_user['block_until'], DATE_FORMAT) -  datetime.strptime(curr_time, DATE_FORMAT)
+                    hours = diff.seconds // 3600
+                    hours_left = ""
+                    if hours == 1 :
+                        hours_left = "{} hour ".format(hours)
+                    elif hours > 1:
+                        hours_left = "{} hours ".format(hours)
+
+                    minutes = (diff.seconds % 3600) // 60
+                    minutes_left = " 1 minute" #Show minutes 1 or less than 1 as "1 minute" 
+                    if minutes > 1:
+                        minutes_left = " {} minutes ".format(minutes)
+
+                    blocked_message = "Account is blocked for {} {}".format(hours_left,minutes_left)
+                    raise User.PasswordDoesNotMatch(blocked_message)
+                    #raise User.PasswordDoesNotMatch('Account is blocked for {} hour {} minute'.format(hours,minutes))
 
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password), algorithm=found_user['hash_algorithm'])
@@ -432,12 +448,11 @@ class User:
                         # Raise Alert if user is blocked for 24 hours
                         from fledge.common.alert_manager import AlertManager
                         alert_manager = AlertManager(storage_client)
-                        param = {"key": "USRBK", "message": audit_log_message, "urgency": "high"}
+                        param = {"key": "USRBK", "message": audit_log_message, "urgency": 2}
                         await alert_manager.add(param)
 
                     # USRBK audit trail entry
                     if failed_attempts >= MAX_LOGIN_ATTEMPTS - 3:
-                        found_user.pop("pwd")
                         await cls.update(found_user['id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
                         audit = AuditLogger(storage_client)
                         await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,

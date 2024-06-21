@@ -335,7 +335,7 @@ async def get_user(request):
                     u["status"] = "blocked"
                     # GET UTC Time
                     utc_time = datetime.datetime.strptime(block_until, "%Y-%m-%d %H:%M:%S.%f").astimezone(datetime.timezone.utc)
-                    u["block_until"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
+                    u["blockUntil"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -359,7 +359,7 @@ async def get_user(request):
                         u["status"] = "blocked"
                         # GET UTC Time
                         utc_time = datetime.datetime.strptime(row["block_until"], "%Y-%m-%d %H:%M:%S.%f").astimezone(datetime.timezone.utc)
-                        u["block_until"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
+                        u["blockUntil"] = utc_time.strftime("%Y-%m-%d %H:%M:%S")
                 res.append(u)
         result = {'users': res}
 

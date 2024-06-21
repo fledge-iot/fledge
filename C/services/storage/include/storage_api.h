@@ -76,6 +76,7 @@ class StorageOperation {
 };
 
 class StoragePerformanceMonitor;
+class ManagementClient;
 /**
  * The Storage API class - this class is responsible for the registration of all API
  * entry points in the storage API and the dispatch of those API calls to the internals
@@ -138,6 +139,7 @@ public:
 			*getPerformanceMonitor() { return m_perfMonitor; };
 	void		worker();
 	void		queue(StorageOperation::Operations op, shared_ptr<HttpServer::Request> request, shared_ptr<HttpServer::Response> response);
+	void		setManagementClient(ManagementClient *client) { m_managementClient = client; };
 public:
 	std::atomic<int>        m_workers_count;
 
@@ -174,6 +176,7 @@ private:
 	std::condition_variable m_purgeWait;
 	char			*m_purgeResponse;
 	int			m_purgeThreadWaiting;
+	ManagementClient	*m_managementClient;
 		
 };
 

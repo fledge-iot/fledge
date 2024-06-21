@@ -314,6 +314,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
+		api->setManagementClient(client);
 		client->registerService(record);
 
 		// FOGL-7074 upgrade step

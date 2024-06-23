@@ -8,7 +8,7 @@
 import json
 import uuid
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 
 from fledge.common.audit_logger import AuditLogger
@@ -378,12 +378,12 @@ class User:
             block_until = found_user['block_until']
 
             # Do not block already blocked account further
-            if found_user['block_until']:
-                curr_time = datetime.now().strftime(DATE_FORMAT)
-                block_time = found_user['block_until'].split('.')[0] # strip time after HH:MM:SS for display
+            if block_until:
+                curr_time = datetime.now(timezone.utc).strftime(DATE_FORMAT)
+                block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
                 
-                if datetime.strptime(found_user['block_until'], DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
-                    diff = datetime.strptime(found_user['block_until'], DATE_FORMAT) -  datetime.strptime(curr_time, DATE_FORMAT)
+                if datetime.strptime(block_until, DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
+                    diff = datetime.strptime(block_until, DATE_FORMAT) -  datetime.strptime(curr_time, DATE_FORMAT)
                     hours = diff.seconds // 3600
                     hours_left = ""
                     if hours == 1 :
@@ -396,9 +396,8 @@ class User:
                     if minutes > 1:
                         minutes_left = " {} minutes ".format(minutes)
 
-                    blocked_message = "Account is blocked for {} {}".format(hours_left,minutes_left)
+                    blocked_message = "Account is blocked for {}{}".format(hours_left,minutes_left)
                     raise User.PasswordDoesNotMatch(blocked_message)
-                    #raise User.PasswordDoesNotMatch('Account is blocked for {} hour {} minute'.format(hours,minutes))
 
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password), algorithm=found_user['hash_algorithm'])
@@ -422,26 +421,22 @@ class User:
 
                     # Check for other users
                     if failed_attempts == MAX_LOGIN_ATTEMPTS - 3: # Block for 1 minute after 2 failed attempts 
-                        block_until = datetime.now() + timedelta(seconds=60)
-                        found_user['block_until'] =  block_until
+                        block_until = datetime.now(timezone.utc) + timedelta(seconds=60)
                         audit_log_message = "'{}' user blocked for 1 minute.".format(username)
                         blocked_message = "Invalid username/password attempted multiple times. Account blocked for 1 minute."
 
                     elif failed_attempts == MAX_LOGIN_ATTEMPTS - 2: # Block for 15 minutes after 3 failed attempts 
-                        block_until = datetime.now() + timedelta(minutes=15)
-                        found_user['block_until'] =  block_until
+                        block_until = datetime.now(timezone.utc) + timedelta(minutes=15)
                         audit_log_message = "'{}' user blocked for 15 minutes.".format(username)
                         blocked_message = "Invalid username/password attempted multiple times. Account blocked for 15 minutes."
 
                     elif failed_attempts == MAX_LOGIN_ATTEMPTS - 1: # Block for 1 hour after 4 failed attempts 
-                        block_until = datetime.now() + timedelta(hours=1)
-                        found_user['block_until'] =  block_until
+                        block_until = datetime.now(timezone.utc) + timedelta(hours=1)
                         audit_log_message = "'{}' user blocked for 1 hour.".format(username)
                         blocked_message = "Invalid username/password attempted multiple times. Account blocked for 1 hour."
 
                     elif failed_attempts == MAX_LOGIN_ATTEMPTS: # Block for 24 hours after 5 failed attempts 
-                        block_until = datetime.now() + timedelta(hours=24)
-                        found_user['block_until'] =  block_until
+                        block_until = datetime.now(timezone.utc) + timedelta(hours=24)
                         audit_log_message = "'{}' user blocked for 24 hours.".format(username)
                         blocked_message = "Invalid username/password attempted multiple times. Account blocked for 24 hours."
 

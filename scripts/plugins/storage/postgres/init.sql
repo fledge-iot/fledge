@@ -604,7 +604,7 @@ CREATE TABLE fledge.users (
        access_method     character varying(5) CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
        hash_algorithm    character varying(6) CHECK( hash_algorithm IN ('SHA256', 'SHA512') )  NOT NULL DEFAULT 'SHA512',
        failed_attempts   integer                     DEFAULT 0,
-       block_until       timestamp(6)                DEFAULT now(),
+       block_until       timestamp(6)                DEFAULT NULL,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES fledge.roles (id) MATCH SIMPLE

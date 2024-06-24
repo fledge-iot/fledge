@@ -1098,3 +1098,39 @@ class TestConfiguration:
             assert 1 == patch_delete_cat.call_count
             args, kwargs = patch_delete_cat.call_args
             assert category_name == args[0]
+
+    @pytest.mark.parametrize("value", [
+        "-1", "0", "1001"
+    ])
+    async def test_bad_update_configuration_cache_size(self, client, value,
+                                                   category_name='CONFIGURATION', config_item='cacheSize'):
+        async def async_mock(return_value):
+            return return_value
+
+        payload = {config_item: value}
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        storage_value_entry = {'description': 'To control the caching size of Core Configuration Manager',
+                               'type': 'integer', 'displayName': 'Configuration Manager Cache Size',
+                               'default': '30', 'order': '1', 'minimum': '1', 'maximum': '1000', 'value': '30'}
+
+        cat_items = {config_item: storage_value_entry}
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            rv = await async_mock(storage_value_entry)
+            rv2 = await async_mock(cat_items)
+        else:
+            rv = asyncio.ensure_future(async_mock(storage_value_entry))
+            rv2 = asyncio.ensure_future(async_mock(cat_items))
+
+        expected_message = "For config item cacheSize you cannot set the new value, beyond the range (1,1000)"
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(c_mgr, 'get_category_item', return_value=rv) as patch_get_cat_item:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=rv2) as patch_get_cat_items:
+                    with patch.object(_logger, 'error') as patch_logger:
+                        resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
+                        assert 400 == resp.status
+                        assert expected_message == resp.reason
+                    assert patch_logger.called
+                patch_get_cat_items.assert_called_once_with(category_name)
+            patch_get_cat_item.assert_called_once_with(category_name, config_item)
+

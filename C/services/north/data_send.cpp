@@ -433,7 +433,7 @@ bool DataSender::createStats(const std::string &key,
 	}
 	else
 	{
-		description = key + " Noth";
+		description = key + " North";
 	}
 	InsertValues values;
 	values.push_back(InsertValue("key",         key));

@@ -708,7 +708,7 @@ async def unblock_user(request):
                 await audit.information('USRUB', {'user_id': int(user_id),
                                 "message": "User with ID:<{}> has been unblocked.".format(user_id)})
         else:
-            raise KeyError("Unblock for user with ID:<{}> failed")
+            raise KeyError("Unblock operation for user with ID:<{}> failed".format(user_id))
     except (KeyError, ValueError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))

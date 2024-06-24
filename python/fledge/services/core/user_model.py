@@ -191,9 +191,6 @@ class User:
             if 'block_until' in user_data:
                 old_kwargs["block_until"] = old_data['block_until']
                 new_kwargs.update({"block_until": str(user_data['block_until'])})
-            if 'unblock_user' in user_data:
-                old_kwargs["block_until"] = old_data['block_until']
-                new_kwargs.update({"block_until": ""})
 
             storage_client = connect.get_storage_async()
             hashed_pwd = None
@@ -380,8 +377,6 @@ class User:
             # Do not block already blocked account further
             if block_until:
                 curr_time = datetime.now(timezone.utc).strftime(DATE_FORMAT)
-                block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
-                
                 if datetime.strptime(block_until, DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
                     diff = datetime.strptime(block_until, DATE_FORMAT) -  datetime.strptime(curr_time, DATE_FORMAT)
                     hours = diff.seconds // 3600

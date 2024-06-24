@@ -326,13 +326,6 @@ async def get_user(request):
             u["accessMethod"] = user.pop('access_method')
             u["realName"] = user.pop('real_name')
             u["description"] = user.pop('description')
-            block_until = user.pop('block_until')
-            if block_until:
-                curr_time = datetime.datetime.now(datetime.timezone.utc).strftime(DATE_FORMAT)
-                block_time = block_until.split('.')[0] # strip time after HH:MM:SS for display
-                if datetime.datetime.strptime(block_until, DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
-                    u["status"] = "blocked"
-                    u["blockUntil"] = block_time
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
@@ -708,12 +701,12 @@ async def unblock_user(request):
     try:
         from fledge.services.core import connect
         storage_client = connect.get_storage_async()
-        await _unblock_user(user_id,storage_client)
-
-        # USRUB audit trail entry
-        audit = AuditLogger(storage_client)
-        await audit.information('USRUB', {'user_id': int(user_id),
-                        "message": "User with ID:<{}> has been unblocked.".format(user_id)})
+        result = await _unblock_user(user_id,storage_client)
+        if result['response'] == 'updated':
+            # USRUB audit trail entry
+            audit = AuditLogger(storage_client)
+            await audit.information('USRUB', {'user_id': int(user_id),
+                            "message": "User with ID:<{}> has been unblocked.".format(user_id)})
 
     except ValueError as err:
         msg = str(err)
@@ -734,15 +727,14 @@ async def _unblock_user(user_id, storage_client):
 
     from fledge.common.storage_client.payload_builder import PayloadBuilder
 
-    payload = PayloadBuilder().SELECT("id", "uname", "role_id", "block_until", "failed_attempts").WHERE(
+    payload = PayloadBuilder().SELECT("id").WHERE(
         ['id', '=', user_id]).payload()
     old_result = await storage_client.query_tbl_with_payload('users', payload)
     if len(old_result['rows']) == 0:
         raise User.DoesNotExist('User does not exist')
-    current_datetime = str(datetime.datetime.now())
 
     # Clear the failed_attempts so that maximum allowed attempts can be used correctly
-    payload = PayloadBuilder().SET(block_until=current_datetime, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
+    payload = PayloadBuilder().SET(block_until="", failed_attempts=0).WHERE(['id', '=', user_id]).payload()
     result = await storage_client.update_tbl("users", payload)
     return result
 

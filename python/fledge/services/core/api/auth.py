@@ -53,6 +53,7 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
@@ -315,7 +316,6 @@ async def get_user(request):
 
     if 'username' in request.query and request.query['username'] != '':
         user_name = request.query['username'].lower()
-
     if user_id or user_name:
         try:
             user = await User.Objects.get(user_id, user_name)
@@ -342,6 +342,11 @@ async def get_user(request):
                 u["accessMethod"] = row["access_method"]
                 u["realName"] = row["real_name"]
                 u["description"] = row["description"]
+                if row["block_until"]:
+                    curr_time = datetime.datetime.now(datetime.timezone.utc).strftime(DATE_FORMAT)
+                    block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
+                    if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
+                        u["blockUntil"] = block_time
                 res.append(u)
         result = {'users': res}
 
@@ -680,6 +685,59 @@ async def enable_user(request):
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
+@has_permission("admin")
+async def unblock_user(request):
+    """ Unblock the user got blocked due to multiple invalid log in attempts
+        :Example:
+            curl -H "authorization: <token>" -X PUT  http://localhost:8081/fledge/admin/{user_id}/unblock
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+
+    try:
+        from fledge.services.core import connect
+        storage_client = connect.get_storage_async()
+        result = await _unblock_user(user_id,storage_client)
+        if 'response' in result:
+            if result['response'] == 'updated':
+                # USRUB audit trail entry
+                audit = AuditLogger(storage_client)
+                await audit.information('USRUB', {'user_id': int(user_id),
+                                "message": "User with ID:<{}> has been unblocked.".format(user_id)})
+        else:
+            raise KeyError("Unblock operation for user with ID:<{}> failed".format(user_id))
+    except (KeyError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        _logger.error(exc, "Failed to unblock user ID:<{}>.".format(user_id))
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'message': 'User with ID:<{}> has been unblocked successfully.'.format(int(user_id))})
+
+
+async def _unblock_user(user_id, storage_client):
+    """ implementation for unblock user
+    """
+
+    from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+    payload = PayloadBuilder().SELECT("id").WHERE(
+        ['id', '=', user_id]).payload()
+    old_result = await storage_client.query_tbl_with_payload('users', payload)
+    if len(old_result['rows']) == 0:
+        raise User.DoesNotExist('User does not exist')
+
+    # Clear the failed_attempts so that maximum allowed attempts can be used correctly
+    payload = PayloadBuilder().SET(block_until=None, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
+    result = await storage_client.update_tbl("users", payload)
+    return result
 
 @has_permission("admin")
 async def reset(request):

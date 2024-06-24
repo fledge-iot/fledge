@@ -131,18 +131,17 @@ async def get_updates(request: web.Request) -> web.Response:
         update_cmd = "sudo yum check-update"
         upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge | grep -v \^fledge-manage"
 
-    update_process = await asyncio.create_subprocess_shell(update_cmd,
-                                                           stdout=asyncio.subprocess.PIPE,
-                                                           stderr=asyncio.subprocess.PIPE)
+    update_args = update_cmd.split()
+    update_process = await asyncio.create_subprocess_exec(
+        *update_args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     _, stderr = await update_process.communicate()
     if update_process.returncode != 0:
         msg = "Could not run {} due to {}".format(update_cmd, stderr.decode('utf-8'))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
-    upgradable_pkgs_check_process = await asyncio.create_subprocess_shell(upgradable_pkgs_check_cmd,
-                                                                          stdout=asyncio.subprocess.PIPE,
-                                                                          stderr=asyncio.subprocess.PIPE)
-
+    upgrade_args = upgradable_pkgs_check_cmd.split()
+    upgradable_pkgs_check_process = await asyncio.create_subprocess_exec(
+        *upgrade_args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await upgradable_pkgs_check_process.communicate()
     if upgradable_pkgs_check_process.returncode != 0:
         _logger.info("Nothing to upgrade at the moment. {}".format(stderr.decode("utf-8")))

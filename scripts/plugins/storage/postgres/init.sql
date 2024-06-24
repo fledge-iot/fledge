@@ -603,6 +603,8 @@ CREATE TABLE fledge.users (
        pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
        access_method     character varying(5) CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
        hash_algorithm    character varying(6) CHECK( hash_algorithm IN ('SHA256', 'SHA512') )  NOT NULL DEFAULT 'SHA512',
+       failed_attempts   integer                     DEFAULT 0,
+       block_until       timestamp(6)                DEFAULT NULL,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES fledge.roles (id) MATCH SIMPLE
@@ -1037,7 +1039,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
             ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
-            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' )
+            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' ),
+            ( 'USRBK', 'User Blocked' ), ( 'USRUB', 'User Unblocked' )
             ;
 
 --

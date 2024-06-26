@@ -47,7 +47,7 @@ Release Date: 2024-06-26
        - A new security feature has been added to disconnect idle sessions after a configurable time.
        - Support for adding list names to configuration category items of type list has been added.
        - Support bundles and backups have been updated to require extra privileges to access
-       - The documentation on securing FogLAMP has been updated.
+       - The documentation on securing Fledge has been updated.
        - The documentation for the SQLite storage plugin has been improved and some duplication removed.
        - The configuration category documentation has been updated to include more explanation and examples of the use of the various list type configuration items.
        - Documentation has been added to the 'Tuning Fledge' section to describe the performance counters in the storage layer and also give some general tips on the subject of using the performance counters to tune the Fledge installation.

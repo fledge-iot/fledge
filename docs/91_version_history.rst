@@ -38,7 +38,7 @@ Release Date: 2024-06-26
        - A new tuning option has been added to the north service to control the frequency of updating the stream position when writing data to the north. More details are available in the tuning section of the documentation.
        - A new tuning option has been added to the north service that allows the number of buffers that are prefetched to be tuned.
        - A small performance enhancement has been made in the south service such that the rate of storing statistics is not dependent on the ingest rate of the service. This will improve the performance of south services with high ingest rates.
-       - A performance enhancement has been added to all SQLite storage plugins that results in higher throughput and lower latency in all cases when using SQLIte as a storage engine.
+       - A performance enhancement has been added to all SQLite storage plugins that results in higher throughput and lower latency in all cases when using SQLite as a storage engine.
        - The storage performance monitors have been updated to include the table name in the monitor name. This allows tracking of which tables are being heavily used within the system.
        - A new security option has been added to allow for a password policy to be set. This policy defines characters that must appear within a user password.
        - Password encryption has been made more secure.
@@ -46,7 +46,7 @@ Release Date: 2024-06-26
        - The system now tracks failed login attempts and can block accounts that have excessive failed attempts to login.
        - A new security feature has been added to disconnect idle sessions after a configurable time.
        - Support for adding list names to configuration category items of type list has been added.
-       - Support bundles and backups have been updated to require extra privileges to access
+       - Support bundles and backups have been updated to require extra privileges to access.
        - The documentation on securing Fledge has been updated.
        - The documentation for the SQLite storage plugin has been improved and some duplication removed.
        - The configuration category documentation has been updated to include more explanation and examples of the use of the various list type configuration items.
@@ -57,7 +57,7 @@ Release Date: 2024-06-26
 
        - A typo in the statistics description for “Readings Sent North” has been fixed.
        - An issue that may occasionally cause the storage service to fail during purge when using the default SQLite storage engine for readings data storage has been resolved.
-       - A problem with integer overflow in the sqlite storage engine has been resolved.
+       - A problem with integer overflow in the SQLite storage engine has been resolved.
        - An issue with one of the API entry points that could allow for command injection into the underlying operating system has been resolved.
 
 
@@ -89,14 +89,15 @@ Release Date: 2024-06-26
        - The build mechanism has been updated to support profiled builds.
        - fledge-north-opcua: In the hierarchy map, forward-slash-separated string tokens in the meta-data and the Asset Name are now parsed and used to construct an object hierarchy in the OPC UA Server's Address Space. Since some South plugins and filters send path information to Fledge that is split between a path Datapoint and the Asset Name, path segments found in the Asset Name will be added to the end of the path Datapoint. The plugin supports the entire path being present in the Asset Name.
        - OMF North plugin: The default naming convention of PI tags created is Asset name and Datapoint name separated by a dot (.) delimiter. It is now possible to choose any single character as the delimiter except characters that are not allowed in OMF field names.
-       - A memory leak in the scale filter plugin has been fixed.
-       - Support has been added to automatically detect new storage engines upon restart of Fledge.       
+       - Support has been added to automatically detect new storage engines upon restart of Fledge.
 
 
     - Bug Fix:
 
+       - A memory leak in the scale filter plugin has been fixed.
        - A Python compatibility issue with the fledge-south-s7-python plugin has been resolved.
        - An issue with reordering filters in a control pipeline has been resolved.
+       - An issue that could cause the failure of the service if configuring a regular expression in the fledge-filter-omfhint with an invalid regular expression has been resolved.
        - A problem that could cause the dispatcher service to fail when deleting a filter from a control pipeline has been resolved.
        - A problem that could cause the control dispatcher to become unresponsive when adding a filter to an active control pipeline has been resolved.
        - An issue that meant the notification service could not find the control dispatcher if the control dispatcher was started with a non-default name has now been resolved.
@@ -324,7 +325,7 @@ Release Date: 2023-10-17
 
        - An issue with the SQLite in-memory and the SQLiteLB storage plugins that could result in incorrect data being stored has been resolved.
        - An erroneous message was being produced when starting the system using the SQLite in-memory storage plugin. This has now been resolved.
-       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
+       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different SQLite plugin variants for configuration and readings storage.
        - An issue that could cause health metrics to not be correctly returned when using the Postgres storage engine has been resolved.
        - An issue in one of the storage plugins that caused spurious warnings to appear in the logs during a backup has been resolved.
        - A memory leak in one of the storage plugins has been fixed. This caused the storage service to consume large amounts of memory over time which could result in the operating system killing the service.

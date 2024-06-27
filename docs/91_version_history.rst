@@ -33,100 +33,74 @@ Release Date: 2024-06-26
 
     - New Features:
 
-       - A typo in the statistics description for “Readings Sent North” has been fixed.
-       - An issue with one of the API entry points that could allow for command injection into the underlying operating system has been resolved.
-       - A tuning option has been added to the north service that allows the number of buffers that are prefetched to be tuned.
-       - A performance enhancement has been added to all SQLite storage plugins that results in higher throughput and lower latency in all cases when using SQLIte as a storage engine.
-       - A small performance enhancement has been made in the south service such that the rate of storing statistics is not dependant on the ingest rate of the service. This will improve the performance of south services with high ingest rates.
+       - A new parameter has been added to the storage service to configure the number of threads that will be used to interact with the buffered reading data. This limits that impact on heavily loaded systems and also allows for the threads to be pre-created, which slightly reduces the latency.
+       - A new tuning option has been added to the core that tunes the size of the cache maintained by the configuration manager. Increasing this cache size can speed up the startup of the system when large numbers of services are used within the system.
        - A new tuning option has been added to the north service to control the frequency of updating the stream position when writing data to the north. More details are available in the tuning section of the documentation.
-       - The documentation on securing FogLAMP has been updated.
-       - A new security option has been added to allow for a password policy to be set. This policy defines characters that must appear within a user password.
-       - A new security feature has been added to disconnect idle sessions after a configurable time.
-       - Support bundles and backups have been updated to require extra privileges to access
-       - Password encryption has been made more secure.
-       - The system now tracks failed login attempts and can block accounts that have excessive failed attempts to login.
-       - Support for adding list names to configuration category items of type list has been added.
-       - Documentation has been added to the 'Tuning Fledge' section to describe the performance counters in the storage layer and also give some general tips on the subject of using the performance counters to tune the Fledge installation.
-       - 
+       - A new tuning option has been added to the north service that allows the number of buffers that are prefetched to be tuned.
+       - A small performance enhancement has been made in the south service such that the rate of storing statistics is not dependent on the ingest rate of the service. This will improve the performance of south services with high ingest rates.
+       - A performance enhancement has been added to all SQLite storage plugins that results in higher throughput and lower latency in all cases when using SQLite as a storage engine.
        - The storage performance monitors have been updated to include the table name in the monitor name. This allows tracking of which tables are being heavily used within the system.
-       - A new unable parameter has been added to the storage service to configure the number of threads that will be used to interact with the buffered reading data. This limits that impact on heavily loaded systems and also allows for the threads to be pre-created, which slightly reduces the latency.
+       - A new security option has been added to allow for a password policy to be set. This policy defines characters that must appear within a user password.
+       - Password encryption has been made more secure.
+       - Some changes have been done to the way the API handles passwords to make them more secure.
+       - The system now tracks failed login attempts and can block accounts that have excessive failed attempts to login.
+       - A new security feature has been added to disconnect idle sessions after a configurable time.
+       - Support for adding list names to configuration category items of type list has been added.
+       - Support bundles and backups have been updated to require extra privileges to access.
+       - The documentation on securing Fledge has been updated.
        - The documentation for the SQLite storage plugin has been improved and some duplication removed.
-       - The update API mechanism has been made compatible with CentOS Streams 9
+       - The configuration category documentation has been updated to include more explanation and examples of the use of the various list type configuration items.
+       - Documentation has been added to the 'Tuning Fledge' section to describe the performance counters in the storage layer and also give some general tips on the subject of using the performance counters to tune the Fledge installation.
 
 
     - Bug Fix:
 
+       - A typo in the statistics description for “Readings Sent North” has been fixed.
        - An issue that may occasionally cause the storage service to fail during purge when using the default SQLite storage engine for readings data storage has been resolved.
-       - The configuration category documentation has been updated to include more explanation and examples of the use of the various list type configuration items.
-       - A problem with integer overflow in the sqlite storage engine has been resolved.
-       - Some changes have been done to the way the API handles passwords to make them more secure.
+       - A problem with integer overflow in the SQLite storage engine has been resolved.
+       - An issue with one of the API entry points that could allow for command injection into the underlying operating system has been resolved.
 
 
 - **GUI**
 
     - New Features:
 
-       - The ability to create and manage backups has become a privileged operation. Likewise support bundles can only be created by administrators.
-       - The documentation on viewing data has been updated in line with a number of recent changes to the user interface.
-       - The user management screen now shows if a user has been blocked due to excessive failed login attempts.
-       - The north flow editor page was not showing branches in pipelines, this has now been resolved.
-       - Support has been added to the GUI for key/value lists in configuration items.
        - An option to use the flow editor interface for notifications has been added.
+       - An option has been added to the graph display to scroll to the latest readings available.
        - A facility to read a JSON configuration item from a file and insert the contents into a configuration item has been added to the user interface.
-       - An option has been added to the graph display to scroll to the latest readings available has been added.
-
+       - Support has been added to the GUI for key/value lists in configuration items.
+       - The ability to create and manage backups has become a privileged operation. Likewise support bundles can only be created by administrators.
+       - The user management screen now shows if a user has been blocked due to excessive failed login attempts.
+       - The documentation on viewing data has been updated in line with a number of recent changes to the user interface.
+       
 
     - Bug Fix:
 
-       - 
        - A missing health icon in the north service flow editor has been added.
-       - An issue when deleting a disabled notification service could resulting in an error has been resolved.
+       - An issue when deleting a disabled notification service could result in an error has been resolved.
        - An issue that could result in two identical audit logs when deleting a filter from a pipeline has been resolved.
+       - The north flow editor page was not showing branches in pipelines, this has now been resolved.
 
 
-- **Plugins**
+- **Services & Plugins**
 
     - New Features:
 
-       - OMF North plugin: The default naming convention of PI tags created is Asset name and Datapoint name separated by a dot (\.\) delimiter. It is now possible to choose any single character as the delimiter except characters that are not allowed in OMF field names.
-       - Support has been added for 16 and 32 bit signed integer values in the Siemens S7 south plugin.
-       - The type and abbreviated area definitions in the S7 plugin map has now been made case independent.
-       - The error reporting in the S7 south plugin has been improved such that errors in the map are not reported on every poll operation of the plugin. Such errors are now only reported periodically, preventing the error log from becoming overwhelmed by these errors.
-       - The reading structure configuration parameter of the Ethernet IP plugin has been updated to allow a new “Reading per Asset” option.
-       - The handling of disconnects from an EthernetIP PLC has been improved.
-       - A memory leak in the scale filter plugin has been fixed.
-       - The documentation of the enumeration filter has been updated to include an example use case and a fuller discussion of the filters uses.
-       - Support has been added to automatically detect new storage engines upon restart of Fledge.
-       - A new enumeration filter has been added that allows the mapping between numeric and string values for enumerated types in readings.
        - The build mechanism has been updated to support profiled builds.
        - fledge-north-opcua: In the hierarchy map, forward-slash-separated string tokens in the meta-data and the Asset Name are now parsed and used to construct an object hierarchy in the OPC UA Server's Address Space. Since some South plugins and filters send path information to Fledge that is split between a path Datapoint and the Asset Name, path segments found in the Asset Name will be added to the end of the path Datapoint. The plugin supports the entire path being present in the Asset Name.
-       - Supports for managing buckets via the FogLAMP Manage poll mode instances has been added.
-       - Support has been added for reading string from EthernetIP PLCs.
+       - OMF North plugin: The default naming convention of PI tags created is Asset name and Datapoint name separated by a dot (.) delimiter. It is now possible to choose any single character as the delimiter except characters that are not allowed in OMF field names.
+       - Support has been added to automatically detect new storage engines upon restart of Fledge.
 
 
     - Bug Fix:
 
+       - A memory leak in the scale filter plugin has been fixed.
+       - A Python compatibility issue with the fledge-south-s7-python plugin has been resolved.
        - An issue with reordering filters in a control pipeline has been resolved.
-       - An issue reconfiguring the EthernetIP plugin when connected to a Micro8XX PLC has been resolved,
-       - An issue with e 'Single Reading” structure option on the EthernetIP plugin has been resolved.
-       - An issue with reconfiguring the S7 south plugin that required a restart before some of the changes took affect has been resolved.
-       - An issue that could cause the failure of the service if configuring a regular expression in the OMF hint filter with an invalid regular expression has been resolved.
-       - Fixed as part of FOGL-8721. Do not include this text in the release notes.
-       - An issue that prevented the S7 south plugin from reconnecting correctly after losing connection to the PLC has been resolved.
-       - A Python compatibility issue with the Python version of the Siemens S7 plugin has been resolved.
-       - An issue when adding an EthernetIP PLC in disabled mode has been resolved. The plugin no longer attempts to connect to the PLC when it is disabled.
-       - Performance improvements have been made to the south plugin for EthernetIP PLCs.
-       - An issue that caused excessive log entries from the EthernetIP plugin during a network failure has been resolved.
-       - An issue that could cause a file descriptor leak when using the notify-north notification delivery plugin has been resolved.
-       - An issue that could cause a file descriptor leak when using the css write filter has been resolved.
+       - An issue that could cause the failure of the service if configuring a regular expression in the fledge-filter-omfhint with an invalid regular expression has been resolved.
        - A problem that could cause the dispatcher service to fail when deleting a filter from a control pipeline has been resolved.
        - A problem that could cause the control dispatcher to become unresponsive when adding a filter to an active control pipeline has been resolved.
-       - Exception handling within the spectrogram filter has been improved.
-       - An issue that could cause FogLAMP to go into a failed state when FogLAMP Manage updates it and the configuration uses a DT9837 has been resolved.
-       - When using the conditional forwarding feature the audit log entry to record the sending of the notification could sometimes be lost, this is now resolved.
        - An issue that meant the notification service could not find the control dispatcher if the control dispatcher was started with a non-default name has now been resolved.
-       - An issue that could cause some data to be lost in the CSV writer plugin has been resolved.
-       - Support has been enhanced in the conditional labelling filter for different data types.
 
 
 v2.4.0
@@ -351,7 +325,7 @@ Release Date: 2023-10-17
 
        - An issue with the SQLite in-memory and the SQLiteLB storage plugins that could result in incorrect data being stored has been resolved.
        - An erroneous message was being produced when starting the system using the SQLite in-memory storage plugin. This has now been resolved.
-       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
+       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different SQLite plugin variants for configuration and readings storage.
        - An issue that could cause health metrics to not be correctly returned when using the Postgres storage engine has been resolved.
        - An issue in one of the storage plugins that caused spurious warnings to appear in the logs during a backup has been resolved.
        - A memory leak in one of the storage plugins has been fixed. This caused the storage service to consume large amounts of memory over time which could result in the operating system killing the service.

@@ -53,9 +53,9 @@ It is important that the *poll* method does not block as this will prevent the p
   /**
    * Poll for a plugin reading
    */
-  Reading plugin_poll(PLUGIN_HANDLE *handle)
+  Reading plugin_poll(PLUGIN_HANDLE handle)
   {
-          DHT11 *dht11 = (DHT11*)handle;
+          DHT11 *dht11 = static_cast<DHT11 *>(handle);
           return dht11->takeReading();
   }
 
@@ -111,12 +111,12 @@ It is possible in a C/C++ plugin to have a plugin that returns multiple readings
   /**
    * Poll for a plugin reading
    */
-  std::vector<Reading *> *plugin_poll(PLUGIN_HANDLE *handle)
+  std::vector<Reading *> *plugin_poll(PLUGIN_HANDLE handle)
   {
-  Modbus *modbus = (Modbus *)handle;
-
           if (!handle)
                   throw runtime_error("Bad plugin handle");
+
+          Modbus *modbus = static_cast<Modbus *>(handle);
           return modbus->takeReading();
   }
 
@@ -135,12 +135,12 @@ The *plugin_register_ingest* call is used to allow the south service to pass a c
   /**
    * Register ingest callback
    */
-  void plugin_register_ingest(PLUGIN_HANDLE *handle, INGEST_CB cb, void *data)
+  void plugin_register_ingest(PLUGIN_HANDLE handle, INGEST_CB cb, void *data)
   {
-  MyPluginClass *plugin = (MyPluginClass *)handle;
-
           if (!handle)
                   throw new exception();
+
+          MyPluginClass *plugin = static_cast<MyPluginClass *>(handle);
           plugin->registerIngest(data, cb);
   }
 
@@ -182,13 +182,12 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
   /**     
    * Start the Async handling for the plugin
    */
-  void plugin_start(PLUGIN_HANDLE *handle)
+  void plugin_start(PLUGIN_HANDLE handle)
   {
-  MyPluginClass *plugin = (MyPluginClass *)handle;
-
-
           if (!handle)
                   return;
+
+          MyPluginClass *plugin = static_cast<MyPluginClass *>(handle);
           plugin->start();
   }
 

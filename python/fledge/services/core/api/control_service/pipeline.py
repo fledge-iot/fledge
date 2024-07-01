@@ -581,7 +581,7 @@ async def _check_filters(storage, cp_filters):
         if check_if:
             is_exist = True
         else:
-            _logger.warning("Filters do not exist as per the given {} payload..".format(cp_filters))
+            _logger.warning("Filters do not exist as per the given {} payload.".format(cp_filters))
     else:
         _logger.warning("No filter instances exists in the system.")
     return is_exist

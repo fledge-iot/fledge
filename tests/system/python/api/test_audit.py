@@ -18,7 +18,7 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-DEFAULT_AUDIT_COUNT = 14
+DEFAULT_AUDIT_COUNT = 16
 
 
 class TestAudit:
@@ -34,7 +34,8 @@ class TestAudit:
                               'CTSAD', 'CTSCH', 'CTSDL',
                               'CTPAD', 'CTPCH', 'CTPDL',
                               'CTEAD', 'CTECH', 'CTEDL',
-                              'BUCAD', 'BUCCH', 'BUCDL'
+                              'BUCAD', 'BUCCH', 'BUCDL',
+                              'USRBK','USRUB'
                               ]
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')
@@ -65,13 +66,13 @@ class TestAudit:
     @pytest.mark.parametrize("request_params, total_count, audit_count", [
         ('', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?limit=1', DEFAULT_AUDIT_COUNT, 1),
-        ('?skip=4', DEFAULT_AUDIT_COUNT, 10),
+        ('?skip=4', DEFAULT_AUDIT_COUNT, 12),
         ('?limit=1&skip=8', DEFAULT_AUDIT_COUNT, 1),
         ('?source=START', 1, 1),
-        ('?source=CONAD', 13, 13),
-        ('?source=CONAD&limit=1', 13, 1),
-        ('?source=CONAD&skip=1', 13, 12),
-        ('?source=CONAD&skip=6&limit=1', 13, 1),
+        ('?source=CONAD', 15, 15),
+        ('?source=CONAD&limit=1', 15, 1),
+        ('?source=CONAD&skip=1', 15, 14),
+        ('?source=CONAD&skip=6&limit=1', 15, 1),
         ('?severity=INFORMATION', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?severity=failure', 0, 0),
         ('?source=CONAD&severity=failure', 0, 0),

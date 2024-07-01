@@ -8,6 +8,7 @@ import asyncio
 from functools import wraps
 import json
 import traceback
+from datetime import datetime
 
 from aiohttp import web
 import jwt
@@ -50,6 +51,18 @@ async def optional_auth_middleware(app, handler):
 
 
 async def auth_middleware(app, handler):
+    async def _disconnect_idle_logins(user_token):
+        timeout, sessions = await User.Sessions.get()
+        fmt = "%Y-%m-%d %H:%M:%S.%f"
+        current_time = datetime.now().strftime(fmt)
+        for session in sessions:
+            if session['token'] == user_token:
+                diff = datetime.strptime(current_time, fmt) - datetime.strptime(session['last_accessed_ts'], fmt)
+                if diff.seconds > timeout:
+                    raise User.SessionTimeout("Session has timed out or been disconnected. Log in again.")
+                session['last_accessed_ts'] = current_time
+                break
+
     async def middleware(request):
         # if `rest_api` config has `authentication` set to mandatory then:
         #   request must carry auth header,
@@ -63,9 +76,8 @@ async def auth_middleware(app, handler):
             return await handler(request)
 
         # make case insensitive `Authorization` should work
-        token = None
         try:
-            token = request.headers.get('authorization')
+            token = request.headers.get('authorization', None)
         except:
             token = request.headers.get('Authorization', None)
 
@@ -73,6 +85,9 @@ async def auth_middleware(app, handler):
             try:
                 # validate the token and get user id
                 uid = await User.Objects.validate_token(token)
+                if not str(handler).startswith("<function ping"):
+                    # disconnect idle user logins
+                    await _disconnect_idle_logins(token)
                 # extend the token expiry, as token is valid
                 # and no bad token exception raised
                 await User.Objects.refresh_token_expiry(token)
@@ -84,10 +99,13 @@ async def auth_middleware(app, handler):
                 request.user_is_admin = True if int(request.user["role_id"]) == 1 else False
                 # validate request path
                 await validate_requests(request)
-            except(User.InvalidToken, User.TokenExpired) as e:
+            except User.SessionTimeout as e:
+                await User.Objects.delete_token(token)
                 raise web.HTTPUnauthorized(reason=e)
-            except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
+            except (jwt.DecodeError, jwt.ExpiredSignatureError, User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
+            except jwt.exceptions.InvalidAlgorithmError:
+                raise web.HTTPUnauthorized(reason="The token has expired, login again.")
         else:
             if str(handler).startswith("<function ping"):
                 pass
@@ -166,6 +184,7 @@ async def validate_requests(request):
            - read access operations (GET calls)
            - change profile (PUT call)
            - logout (PUT call)
+           - extension API (PUT match call)
         c) With "data-view" based user role id=4 only
            - ping (GET call)
            - browser asset read operation (GET call)
@@ -189,7 +208,8 @@ async def validate_requests(request):
             raise web.HTTPForbidden
     # Viewer user
     elif int(request.user["role_id"]) == 3 and request.method != 'GET':
-        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
+        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
+                               '/fledge/extension/bucket/match']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
     # Data Viewer user

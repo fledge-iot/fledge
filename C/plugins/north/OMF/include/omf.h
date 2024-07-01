@@ -22,7 +22,7 @@
 
 #define	OMF_HINT	"OMFHint"
 
-// The following will force the OMF version for EDs endpoints
+// The following will force the OMF version for EDS endpoints
 // Remove or comment out the line below to prevent the forcing
 // of the version
 #define EDS_OMF_VERSION	"1.0"
@@ -63,7 +63,7 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
  *
  * - typeId          = id of the type, it is incremented if the type is redefined
  * - types           = is a JSON string with datapoint names and types
- * - typesShort      = a numeric representation of the type used to quicly identify if a type has changed
+ * - typesShort      = a numeric representation of the type used to quickly identify if a type has changed
  * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..
  * - afhHash         = Asset hash based on the AF hierarchy
  * - afHierarchy     = Current position of the asset in the AF hierarchy
@@ -195,6 +195,8 @@ class OMF
 
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
+		void setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
+
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
@@ -264,7 +266,7 @@ private:
 		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints, bool legacy);
 
 		/**
-		 * Creata data for readings data content, with 'Data', for one row
+		 * Create data for readings data content, with 'Data', for one row
 		 * The new formatted data have to be added to a new JSON doc to send.
 		 * we want to avoid sending of one data row
 		 */
@@ -320,7 +322,7 @@ private:
 		// Set saved dataType
 		bool setCreatedTypes(const Reading& row, OMFHints *hints);
 
-		// Remove cached data types enttry for given asset name
+		// Remove cached data types entry for given asset name
 		void clearCreatedTypes(const std::string& keyComplete);
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
@@ -386,6 +388,7 @@ private:
 		NAMINGSCHEME_ENDPOINT m_NamingScheme;
 		std::string		      m_DefaultAFLocation;
 		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
+		std::string			  m_delimiter;
 
 		// Asset Framework Hierarchy Rules handling - Metadata MAP
 		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules
@@ -520,7 +523,7 @@ private:
  * type creation scheme implemented by the OMF plugin
  *
  * There is no good reason to retain this class any more, it is here
- * mostly to reduce the scope of the change when introducting the OMFBuffer
+ * mostly to reduce the scope of the change when introducing the OMFBuffer
  */
 class OMFData
 {

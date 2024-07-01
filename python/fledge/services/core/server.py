@@ -73,7 +73,7 @@ SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
 # TODO generate secret at build time
 SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
-SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_ALGORITHM = 'HS512'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 SERVICE_JWT_AUDIENCE = 'Fledge'
 
@@ -203,6 +203,7 @@ class Server:
     cert_file_name = ''
     """ cert file name """
 
+
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
             'description': 'Enable HTTP (disable to use HTTPS)',
@@ -265,20 +266,22 @@ class Server:
             'displayName': 'Allow Ping',
             'order': '8'
         },
-        'passwordChange': {
-            'description': 'Number of days after which passwords must be changed',
-            'type': 'integer',
-            'default': '0',
-            'displayName': 'Password Expiry Days',
-            'order': '9'
-        },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
             'displayName': 'Auth Providers',
-            'order': '10'
+            'order': '9'
         },
+        'disconnectIdleUserSession': {
+            'description': 'Disconnect idle user session after certain period of inactivity',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Idle User Session Disconnection (In Minutes)',
+            'order': '10',
+            'minimum': '1',
+            'maximum': '1440'
+        }
     }
 
     _LOGGING_DEFAULT_CONFIG = {
@@ -289,6 +292,18 @@ class Server:
             'options': ['debug', 'info', 'warning', 'error', 'critical'],
             'default': 'warning',
             'order': '1'
+        }
+    }
+
+    _CONFIGURATION_DEFAULT_CONFIG = {
+        'cacheSize': {
+            'description': 'To control the caching size of Core Configuration Manager',
+            'type': 'integer',
+            'displayName': 'Configuration Manager Cache Size',
+            'default': '30',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '1000'
         }
     }
 
@@ -330,6 +345,12 @@ class Server:
 
     _package_cache_manager = None
     """ Package Cache Manager """
+
+    _user_sessions = []
+    """ User sessions information to disconnect when idle for a certain period """
+
+    _user_idle_session_timeout = 15 * 60
+    """ User idle session timeout (in minutes) """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
@@ -483,9 +504,51 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
+            try:
+                cls._user_idle_session_timeout = int(config['disconnectIdleUserSession']['value']) * 60
+            except:
+                cls._user_idle_session_timeout = 15 * 60
         except Exception as ex:
             _logger.exception(ex)
             raise
+
+    @classmethod
+    async def password_config(cls):
+        try:
+            config = {
+                'policy': {
+                    'description': 'Password policy',
+                    'type': 'enumeration',
+                    'options': ['Any characters', 'Mixed case Alphabetic', 'Mixed case and numeric', 'Mixed case, numeric and special characters'],
+                    'default': 'Any characters',
+                    'displayName': 'Policy',
+                    'order': '1'
+                },
+                'length': {
+                    'description': 'Minimum password length',
+                    'type': 'integer',
+                    'default': '6',
+                    'displayName': 'Minimum Length',
+                    'minimum': '6',
+                    'maximum': '80',
+                    'order': '2'
+                },
+                'expiration': {
+                    'description': 'Number of days after which passwords must be changed',
+                    'type': 'integer',
+                    'default': '0',
+                    'displayName': 'Expiry (in Days)',
+                    'order': '3'
+                }
+            }
+            category = 'password'
+            await cls._configuration_manager.create_category(category, config, 'To control the password policy', True,
+                                                             display_name="Password Policy")
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
 
     @classmethod
     async def service_config(cls):
@@ -549,6 +612,31 @@ class Server:
             cls._log_level = config['logLevel']['value']
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def setup_config_manager(cls):
+        """ Configuration manager category """
+        try:
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+
+            config = cls._CONFIGURATION_DEFAULT_CONFIG
+            category = 'CONFIGURATION'
+            description = "Core Configuration Manager"
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Configuration Manager')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cache_size = int(config['cacheSize']['value'])
+            # Internal handling of cache size
+            if cache_size == 0:
+                default_cache_size = cls._configuration_manager._cacheManager.max_cache_size
+                _logger.warn("Configuration Manager Cache Size is being set to the default size {}.".format(
+                    default_cache_size))
+                cache_size = default_cache_size
+            cls._configuration_manager._cacheManager.max_cache_size = cache_size
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -798,7 +886,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+                                                                                "CONFIGURATION"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -848,6 +937,9 @@ class Server:
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
+            # Configuration Manager setup
+            loop.run_until_complete(cls.setup_config_manager())
+
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())
 
@@ -864,6 +956,7 @@ class Server:
             loop.run_until_complete(cls._start_service_monitor())
 
             loop.run_until_complete(cls.rest_api_config())
+            loop.run_until_complete(cls.password_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context

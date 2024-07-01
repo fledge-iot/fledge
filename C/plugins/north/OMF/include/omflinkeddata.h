@@ -49,6 +49,7 @@ class OMFLinkedData
 		void		buildLookup(const std::vector<Reading *>& reading);
 		void		setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
+		void		setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{
 					m_doubleFormat = doubleFormat;
@@ -72,11 +73,12 @@ class OMFLinkedData
 
 	private:
 		bool m_sendFullStructure;
+		std::string m_delimiter;
 
 		/**
 		 * The container for this asset and data point has been sent in
 		 * this session. The key is the asset followed by the datapoint name
-		 * with a '.' delimiter between. The value is the base type used, a
+		 * with a delimiter (default: '.') in between. The value is the base type used, a
 		 * container will be sent if the base type changes.
 		 */
 		std::unordered_map<std::string, LALookup>	*m_linkedAssetState;

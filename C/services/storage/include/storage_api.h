@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <server_http.hpp>
@@ -15,6 +15,7 @@
 #include <storage_stats.h>
 #include <storage_registry.h>
 #include <stream_handler.h>
+#include <perfmonitors.h>
 
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -50,7 +51,31 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define ASSET_NAME_COMPONENT	1
 #define SNAPSHOT_ID_COMPONENT	2
 
+/**
+ * Class used to queue the operations to be executed by
+ * the worker thread pool
+ */
+class StorageOperation {
+	public:
+		enum Operations	{ ReadingAppend, ReadingPurge, ReadingFetch, ReadingQuery };
+	public:
+		StorageOperation(StorageOperation::Operations operation, shared_ptr<HttpServer::Request> request,
+				shared_ptr<HttpServer::Response> response) :
+					m_operation(operation),
+					m_request(request),
+					m_response(response)
+		{
+		};
+		~StorageOperation()
+		{
+		};
+	public:
+		StorageOperation::Operations	m_operation;
+		shared_ptr<HttpServer::Request> m_request;
+		shared_ptr<HttpServer::Response> m_response;
+};
 
+class StoragePerformanceMonitor;
 /**
  * The Storage API class - this class is responsible for the registration of all API
  * entry points in the storage API and the dispatch of those API calls to the internals
@@ -59,7 +84,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 class StorageApi {
 
 public:
-	StorageApi(const unsigned short port, const unsigned  int threads);
+	StorageApi(const unsigned short port, const unsigned int threads, const unsigned int workerPoolSize);
 	~StorageApi();
         static StorageApi *getInstance();
 	void	initResources();
@@ -108,6 +133,11 @@ public:
 			}
 		};
 
+	StoragePlugin	*getStoragePlugin() { return plugin; };
+	StoragePerformanceMonitor
+			*getPerformanceMonitor() { return m_perfMonitor; };
+	void		worker();
+	void		queue(StorageOperation::Operations op, shared_ptr<HttpServer::Request> request, shared_ptr<HttpServer::Response> response);
 public:
 	std::atomic<int>        m_workers_count;
 
@@ -130,6 +160,36 @@ private:
 	void			internalError(shared_ptr<HttpServer::Response>, const exception&);
 	void			mapError(string&, PLUGIN_ERROR *);
 	StreamHandler		*streamHandler;
+	StoragePerformanceMonitor
+				*m_perfMonitor;
+	std::mutex		m_queueMutex;
+	std::condition_variable	m_queueCV;
+	std::queue<StorageOperation *>
+				m_queue;
+	std::vector<std::thread	*>
+				m_workers;
+	unsigned int		m_workerPoolSize;
+	bool			m_shutdown;
+};
+
+/**
+ * StoragePerformanceMonitor is a derived class from PerformanceMonitor
+ * It allows direct writing of monitoring data to database
+ */
+class StoragePerformanceMonitor : public PerformanceMonitor {
+	public:
+		// Constructor with StorageApi pointer passed (also calling parent PerformanceMonitor constructor)
+		StoragePerformanceMonitor(const std::string& name, StorageApi *api) :
+					PerformanceMonitor(name, NULL), m_name(name), m_instance(api) {
+		};
+		// Direct write to storage of monitor data
+		void writeData(const std::string& table, const InsertValues& values) {
+			m_instance->getStoragePlugin()->commonInsert(table,
+								values.toJSON());
+		}
+	private:
+		std::string	m_name;
+		StorageApi *m_instance;
 };
 
 #endif

@@ -906,12 +906,12 @@ ostringstream threadId;
 							startTransactionId);
 
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, startTransactionId);
+					sqlite3_bind_int64 (stmt, 1, startTransactionId);
 				}
 				else
 				{
 					// Bind first parameter with reading id
-					sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
+					sqlite3_bind_int64 (stmt, 1, readCatalogue->getIncGlobalId());
 				}
 
 				// Set parameter for user timestamp
@@ -1108,8 +1108,8 @@ int rc;
 int retrieve;
 vector<string>  asset_codes;
 string sql_cmd;
-unsigned int minGlobalId;
-unsigned int idWindow;
+unsigned long minGlobalId;
+unsigned long idWindow;
 unsigned long rowsCount;
 
 	if (m_noReadings)
@@ -2300,6 +2300,12 @@ vector<string>  assetCodes;
 		unsentPurged = deletedRows;
 	}
 
+	if (deletedRows)
+	{
+		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,ReadingsCatalogue::getInstance(),false);
+		th.detach();
+	}
+
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 
@@ -2529,9 +2535,9 @@ struct timeval startTv, endTv;
 				return 0;
 			}
 		}
-		unsigned long deletePoint = minId + 10000;
+		unsigned long deletePoint = minId + 100000;
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + 100000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2560,7 +2566,7 @@ struct timeval startTv, endTv;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			logger->debug(" %s - DELETE - query '%s' rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
+			logger->info("%s - DELETE - query '%s' rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
@@ -2588,6 +2594,12 @@ struct timeval startTv, endTv;
 	if (limit)
 	{
 		unsentRetained = numReadings - rows;
+	}
+
+	if (deletedRows)
+	{
+		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,ReadingsCatalogue::getInstance(),false);
+		th.detach();
 	}
 
 	gettimeofday(&endTv, NULL);

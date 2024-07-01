@@ -172,9 +172,10 @@ texinfo_documents = [
 html_context = {
     'css_files': [
         '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
+        '_static/version_menu.css',     # override options from versions menu
+    ],
      }
 
 # Pass Plugin DOCBRANCH argument in Makefile ; by default develop
 # NOTE: During release time we need to replace DOCBRANCH with actual released version
-subprocess.run(["make generated DOCBRANCH='2.4.0RC'"], shell=True, check=True)
+subprocess.run(["make generated DOCBRANCH='2.5.0RC'"], shell=True, check=True)

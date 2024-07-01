@@ -9,6 +9,7 @@
 import time
 import datetime
 import pytest
+from fledge.common import utils
 from fledge.common.web.ssl_wrapper import SSLVerifier
 
 __author__ = "Amarendra Kumar Sinha"
@@ -68,16 +69,21 @@ AShK4DM84LGNChzbdD6EVAl066+d9FRDuoX0KJj2/qepeevh2LC8dqG/QHcl75Ef
 
     def test_x509_values_with_valid_cert(self, user_cert):
         SSLVerifier.set_user_cert(user_cert)
+        ssl_purpose = ['Certificate purposes:', 'SSL client : Yes',
+                       'SSL client CA : No', 'SSL server : Yes', 'SSL server CA : No',
+                       'Netscape SSL server : Yes', 'Netscape SSL server CA : No',
+                       'S/MIME signing : Yes', 'S/MIME signing CA : No',
+                       'S/MIME encryption : Yes', 'S/MIME encryption CA : No',
+                       'CRL signing : Yes', 'CRL signing CA : No', 'Any Purpose : Yes',
+                       'Any Purpose CA : Yes', 'OCSP helper : Yes',
+                       'OCSP helper CA : No', 'Time Stamp signing : No',
+                       'Time Stamp signing CA : No'
+                       ]
         assert '01' == SSLVerifier.get_serial()
-        assert ['Certificate purposes:', 'SSL client : Yes',
-                'SSL client CA : No', 'SSL server : Yes', 'SSL server CA : No',
-                'Netscape SSL server : Yes', 'Netscape SSL server CA : No',
-                'S/MIME signing : Yes', 'S/MIME signing CA : No',
-                'S/MIME encryption : Yes', 'S/MIME encryption CA : No',
-                'CRL signing : Yes', 'CRL signing CA : No', 'Any Purpose : Yes',
-                'Any Purpose CA : Yes', 'OCSP helper : Yes',
-                'OCSP helper CA : No', 'Time Stamp signing : No',
-                'Time Stamp signing CA : No'] == SSLVerifier.get_purposes()
+        if utils.get_open_ssl_version(version_string=False)[0] >= 3:
+            ssl_purpose.extend(['Code signing : No', 'Code signing CA : No'])
+        assert ssl_purpose == SSLVerifier.get_purposes()
+
         assert 'C=US, CN=MY-CA' == SSLVerifier.get_issuer_common_name()
         assert {'email': 'fledge@googlegroups.com', 'commonName': 'user',
                 'organisation': 'OSIsoft', 'state': 'California',

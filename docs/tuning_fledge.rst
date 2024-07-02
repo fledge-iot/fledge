@@ -10,6 +10,7 @@
 .. |postgres_config| image:: images/postgres_config.png
 .. |sqlitememory_config| image:: images/sqlitememory_config.png
 .. |poll_type| image:: images/poll_type.png
+.. |config_cache| image:: images/config_cache.jpg
 
 ***************
 Tuning Fledge
@@ -29,6 +30,17 @@ Many factors will impact the performance of a Fledge system
 
 
 Many of these are outside of the control of Fledge itself, however it is possible to tune the way Fledge will use certain resources to achieve better performance within the constraints of a deployment environment.
+
+Configuration Manager Cache
+===========================
+
+The Fledge system has an internal configuration manager that is used to load, distribute configuration categories and to dynamically update the other components of the system. These configuration categories are stored in the Fledge storage layer, in order to prevent the need for the configuration manager to query the database for each request to read a configuration category. The size of this cache can be configured in the advanced configuration page.
+
++----------------+
+| |config_cache| |
++----------------+
+
+The cache size is expressed as a number of configuration categories to hold in the cache. Increasing this value will increase the amount of memory required for the core service, but will increase the performance, particularly when starting up with a large number of services. Increasing the cache size will also reduce the load on the storage service.
 
 South Service Advanced Configuration
 ====================================

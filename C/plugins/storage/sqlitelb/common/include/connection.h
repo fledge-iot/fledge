@@ -130,6 +130,10 @@ class Connection {
 				};
 
 	private:
+		bool		isColumnDateTimeFormat(sqlite3_stmt *pStmt, int col, const std::string& tableName,
+					const std::string& originName);
+
+	private:
 #ifndef MEMORY_READING_PLUGIN
 		SchemaManager   *m_schemaManager;
 #endif

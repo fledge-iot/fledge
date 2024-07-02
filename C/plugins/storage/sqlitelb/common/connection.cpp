@@ -270,8 +270,17 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 	return false;
 }
 
+/**
+ * Check to see if a string column is in datetime format
+ *
+ * @param pStmt		The statement we are processing
+ * @param col		The column number
+ * @param tableName	The name of the table
+ * @param originName	The name of the column in the table
+ * @return bool		True if the column contains a timestamp
+ */
 bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
-					   int i,
+					   int col,
 					   const string& tableName,
 					   const string& originName)
 {
@@ -281,7 +290,7 @@ bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
 
 	if ((originName.compare("user_ts") == 0) &&
 	    tableName.compare("readings") == 0 &&
-	    (strlen((char *) sqlite3_column_text(pStmt, i)) == 32))
+	    (strlen((char *) sqlite3_column_text(pStmt, col)) == 32))
 	{
 
 		apply_format = true;
@@ -297,16 +306,16 @@ bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
 		 * Thus we apply default FLEDGE formatting:
 		 * "%Y-%m-%d %H:%M:%f"
 		 */
-		if (sqlite3_column_database_name(pStmt, i) != NULL &&
-		    sqlite3_column_table_name(pStmt, i) != NULL &&
-		    (strcmp(sqlite3_column_origin_name(pStmt, i),
-			    sqlite3_column_name(pStmt, i)) == 0))
+		if (sqlite3_column_database_name(pStmt, col) != NULL &&
+		    sqlite3_column_table_name(pStmt, col) != NULL &&
+		    (strcmp(sqlite3_column_origin_name(pStmt, col),
+			    sqlite3_column_name(pStmt, col)) == 0))
 		{
 			const char *pzDataType;
 			int retType = sqlite3_table_column_metadata(dbHandle,
-								    sqlite3_column_database_name(pStmt, i),
-								    sqlite3_column_table_name(pStmt, i),
-								    sqlite3_column_name(pStmt, i),
+								    sqlite3_column_database_name(pStmt, col),
+								    sqlite3_column_table_name(pStmt, col),
+								    sqlite3_column_name(pStmt, col),
 								    &pzDataType,
 								    NULL, NULL, NULL, NULL);
 
@@ -314,8 +323,8 @@ bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
 			if (pzDataType != NULL &&
 			    retType == SQLITE_OK &&
 			    strcmp(pzDataType, SQLITE3_FLEDGE_DATETIME_TYPE) == 0 &&
-			    strcmp(sqlite3_column_origin_name(pStmt, i),
-				   sqlite3_column_name(pStmt, i)) == 0)
+			    strcmp(sqlite3_column_origin_name(pStmt, col),
+				   sqlite3_column_name(pStmt, col)) == 0)
 			{
 				apply_format = true;
 
@@ -329,7 +338,7 @@ bool Connection::isColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					Logger::getLogger()->error("SQLite3 failed " \
 							"to call sqlite3_table_column_metadata() " \
 							"for column '%s'",
-								   sqlite3_column_name(pStmt, i));
+								   sqlite3_column_name(pStmt, col));
 				}
 			}
 		}

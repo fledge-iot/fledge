@@ -42,7 +42,7 @@ class TestConfigurationManager:
 
     def test_supported_optional_items(self):
         expected_types = ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
-                          'readonly', 'rule', 'validity', 'listSize', 'listName']
+                          'readonly', 'rule', 'validity', 'listSize', 'listName', 'permission']
         assert len(expected_types) == len(_optional_items)
         assert sorted(expected_types) == _optional_items
 
@@ -523,7 +523,18 @@ class TestConfigurationManager:
         ({"description": "test description", "type": "enumeration", "default": "C", "options": ["A", "B"]},
          ValueError, "For test category, entry value does not exist in options list for item name test_item_name and entry_name options; got C"),
         ({"description": 1, "type": "enumeration", "default": "A", "options": ["A", "B"]},
-         TypeError, "For test category, entry value must be a string for item name test_item_name and entry name description; got <class 'int'>")
+         TypeError, "For test category, entry value must be a string for item name test_item_name and entry name description; got <class 'int'>"),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permission': ""},
+         ValueError,
+         "For test category, permission entry value must be in list for item name test_item_name; got <class 'str'>."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permission': []},
+         ValueError, "For test category, permission entry value must not be an empty for item name test_item_name."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permission': [""]},
+         ValueError,
+         "For test category, permission entry values must be in string and non-empty for item name test_item_name."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"],
+          'permission': ["editor", 2]}, ValueError,
+         "For test category, permission entry values must be in string and non-empty for item name test_item_name.")
     ])
     async def test__validate_category_val_enum_type_bad(self, config, exception_name, exception_msg):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

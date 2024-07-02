@@ -691,6 +691,26 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
          ValueError,"For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permission": ""}},
+         ValueError, "For {} category, permission entry value must be in list for item name {}; got <class 'str'>."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permission": []}},
+         ValueError, "For {} category, permission entry value must not be an empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permission": [1]}},
+         ValueError, "For {} category, permission entry values must be in string and non-empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permission": ["a", 2]}},
+         ValueError, "For {} category, permission entry values must be in string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permission": ["", "A"]}},
+         ValueError, "For {} category, permission entry values must be in string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
@@ -845,7 +865,23 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listName": 2}},
          TypeError, "For {} category, listName type must be a string for item name {}; got <class 'int'>".format(
-            CAT_NAME, ITEM_NAME))
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permission": ""}},
+         ValueError, "For {} category, permission entry value must be in list for item name {}; got <class 'str'>."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permission": []}},
+         ValueError, "For {} category, permission entry value must not be an empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permission": [""]}},
+         ValueError, "For {} category, permission entry values must be in string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permission": [2]}},
+         ValueError, "For {} category, permission entry values must be in string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -871,6 +907,8 @@ class TestConfigurationManager:
                      "default": "[\"var1\", \"var2\"]", "listSize": "2"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
                      "default": "[]", "listSize": "1"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[]", "permission": ["user", "control"]}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
                      "default": "[\"10\", \"100\", \"200\", \"300\"]", "listSize": "4"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "object",
@@ -900,7 +938,10 @@ class TestConfigurationManager:
                      "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
                                               "type": "integer", "maximum": "4", "default": "1"}}}},
         {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
-            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}}
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}},
+        {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"],
+                     "permission": ["admin"]}}
     ])
     async def test__validate_category_val_list_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

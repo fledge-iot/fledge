@@ -344,7 +344,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                            type(entry_val)))
                 # Validate list type and mandatory items
                 elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
-                    if entry_name not in ('properties', 'options') and not isinstance(entry_val, str):
+                    if entry_name not in ('properties', 'options', 'permission') and not isinstance(entry_val, str):
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
@@ -361,6 +361,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError('For {} category, listName cannot be empty for item name '
                                              '{}'.format(category_name, item_name))
                         item_val['listName'] = list_name
+                    elif "permission" in item_val:
+                        permission = item_val['permission']
+                        if not isinstance(permission, list):
+                            raise ValueError(
+                                'For {} category, permission entry value must be in list for item name {}; got {}.'
+                                ''.format(category_name, item_name, type(permission)))
+                        if not permission:
+                            raise ValueError(
+                                'For {} category, permission entry value must not be an empty for item name {}.'.format(
+                                    category_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in permission):
+                                raise ValueError('For {} category, permission entry values must be in string and '
+                                                 'non-empty for item name {}.'.format(category_name, item_name))
                     if entry_name == 'items':
                         if entry_val not in ("string", "float", "integer", "object", "enumeration"):
                             raise ValueError("For {} category, items value should either be in string, float, "

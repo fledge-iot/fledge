@@ -37,7 +37,7 @@ _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', '
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
                               'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group', 'listSize', 'listName'])
+                          'validity', 'mandatory', 'group', 'listSize', 'listName', 'permission'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -266,7 +266,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'listSize': 0, 'listName': 0}
+                                     'group': 0, 'listSize': 0, 'listName': 0, 'permission': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -301,6 +301,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         else:
                             d = {entry_name: entry_val}
                             expected_item_entries.update(d)
+                    elif entry_name == "permission":
+                        if not isinstance(entry_val, list):
+                            raise ValueError(
+                                'For {} category, {} entry value must be in list for item name {}; got {}.'
+                                ''.format(category_name, entry_name, item_name, type(entry_val)))
+                        if not entry_val:
+                            raise ValueError(
+                                'For {} category, {} entry value must not be an empty for item name '
+                                '{}.'.format(category_name, entry_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                                raise ValueError('For {} category, {} entry values must be in string and non-empty '
+                                                 'for item name {}.'.format(category_name, entry_name, item_name))
                     else:
                         if type(entry_val) is not str:
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -487,6 +500,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if entry_name in ('properties', 'options'):
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
+                elif entry_name == "permission":
+                    if not isinstance(entry_val, list):
+                        raise ValueError(
+                            'For {} category, {} entry value must be in list for item name {}; got {}.'
+                            ''.format(category_name, entry_name, item_name, type(entry_val)))
+                    if not entry_val:
+                        raise ValueError(
+                            'For {} category, {} entry value must not be an empty for item name '
+                            '{}.'.format(category_name, entry_name, item_name))
+                    else:
+                        if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                            raise ValueError('For {} category, {} entry values must be in string and non-empty '
+                                             'for item name {}.'.format(category_name, entry_name, item_name))
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -510,6 +536,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
+                    elif entry_name == "permission":
+                        if not isinstance(entry_val, list):
+                            raise ValueError(
+                                'For {} category, {} entry value must be in list for item name {}; got {}.'
+                                ''.format(category_name, entry_name, item_name, type(entry_val)))
+                        if not entry_val:
+                            raise ValueError(
+                                'For {} category, {} entry value must not be an empty for item name '
+                                '{}.'.format(category_name, entry_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                                raise ValueError('For {} category, {} entry values must be in string and non-empty '
+                                                 'for item name {}.'.format(category_name, entry_name, item_name))
                     elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'

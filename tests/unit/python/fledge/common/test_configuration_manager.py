@@ -546,12 +546,42 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
-    @pytest.mark.skip(reason="FOGL-8281")
+    #@pytest.mark.skip(reason="FOGL-8281")
     @pytest.mark.parametrize("config", [
-    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
-    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": "{}"}}),
+    ({ITEM_NAME: {"description": "test description", "type": "bucket",
+                  "default": "{'type': 'model', 'name': 'Person', 'version': '1.0', 'hardware': 'tpu'}", "properties":
+        {"constant": {"type": "model"}, "key": {
+            "name": {"description": "TFlite model name to use for inference", "type": "string", "default": "People",
+                     "order": "1", "displayName": "TFlite model name"}}, "properties": {
+            "version": {"description": "Model version as stored in bucket", "type": "string", "default": "1.2",
+                        "order": "2", "displayName": "Model version"}, "hardware": {
+                "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                "displayName": "Inference hardware"}}}}}),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket",
+                      "default": "{'type': 'model', 'name': 'Person', 'version': '1.0', 'hardware': 'tpu'}",
+                      "properties":
+                          {"constant": {"type": "model"}, "key": {
+                              "name": {"description": "TFlite model name to use for inference", "type": "string",
+                                       "default": "People",
+                                       "order": "1", "displayName": "TFlite model name"}}, "properties": {
+                              "version": {"description": "Model version as stored in bucket", "type": "string",
+                                          "default": "1.2",
+                                          "order": "2", "displayName": "Model version"}, "hardware": {
+                                  "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                                  "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                                  "displayName": "Inference hardware"}}}}}),
     ({"item": {"description": "test description", "type": "string", "default": "A"},
-      ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
+       ITEM_NAME: {"description": "test description", "type": "bucket", "default":
+           "{'type': 'model', 'name': 'People', 'version': '1.2', 'hardware': 'cpu'}", "properties":
+        {"constant": {"type": "model"}, "key": {
+            "name": {"description": "TFlite model name to use for inference", "type": "string", "default": "People",
+                     "order": "1", "displayName": "TFlite model name"}}, "properties": {
+            "version": {"description": "Model version as stored in bucket", "type": "string", "default": "1.2",
+                        "order": "2", "displayName": "Model version"}, "hardware": {
+                "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                "displayName": "Inference hardware"}}}}})
     ])
     async def test__validate_category_val_bucket_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

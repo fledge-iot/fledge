@@ -241,18 +241,6 @@ class Purge(FledgeProcess):
             pass
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        if total_rows_removed > 0:
-            """ Only write an audit log entry when rows are removed """
-            await self._audit.information('PURGE', {"start_time": start_time,
-                                                    "end_time": end_time,
-                                                    "rowsRemoved": total_rows_removed,
-                                                    "unsentRowsRemoved": unsent_rows_removed,
-                                                    "rowsRetained": unsent_retained,
-                                                    "duration": duration,
-                                                    "method": method
-                                                    })
-        else:
-            self._logger.info("No rows purged")
 
         return total_rows_removed, unsent_rows_removed
 

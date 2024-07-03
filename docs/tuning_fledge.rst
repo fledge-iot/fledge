@@ -43,7 +43,7 @@ The logging level for the Fledge core can be set in the *Logging* configuration 
 | |core_log_level| |
 +------------------+
 
-The logging level can be set to *error*, *warning*, *info* or *debug*, the default setting is *warning*. The level set defines the least severe error that will be logged, logs or higher severity that that set will also be logged. In the default setting both *error* and *warning* level logs will be sent to the syslog facility.
+The logging level can be set to *error*, *warning*, *info* or *debug*, the default setting is *warning*. The level set defines the least severe error that will be logged, logs or higher severity that set will also be logged. In the default setting both *error* and *warning* level logs will be sent to the syslog facility.
 
 The storage log level setting can be found in the *Storage* configuration category.
 
@@ -55,7 +55,9 @@ The south and north services also have log level settings for each service that 
 
 All other optional services will also have a log level setting accessible via the configuration for each service.
 
-It is recommended to only set the log level of a service to *info* or *debug* when actively tracing a problem with the configuration or operation of a service and to always run with the default, *warning*, log level in production.
+.. note::
+
+   It is recommended to only set the log level of a service to *info* or *debug* when actively tracing a problem with the configuration or operation of a service and to always run with the default, *warning*, log level in production.
 
 Configuration Manager Cache
 ===========================

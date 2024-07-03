@@ -804,26 +804,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def update_configuration_item_bulk(self, category_name, config_item_list):
+    async def update_configuration_item_bulk(self, category_name, config_item_list, request=None):
         """ Bulk update config items
 
         Args:
             category_name: category name
             config_item_list: dict containing config item values
+            request: request details to identify user info
 
         Returns:
             None
         """
-
         try:
             payload = {"updates": []}
             audit_details = {'category': category_name, 'items': {}}
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
+            """ Note: Update reject to the properties with permission property when the logged in user type is not
+             given in the list of permission. """
+            if request is not None:
+                if hasattr(request, "user_is_admin"):
+                    if not request.user_is_admin:
+                        from fledge.services.core.user_model import User
+                        roles = await User.Objects.get_roles()
+                        user_role_name = [r['name'] for r in roles if request.user['role_id'] == r['id']]
+                        if user_role_name:
+                            user_role_name = user_role_name[0]
+                        else:
+                            raise ValueError("No role found for logged in user.")
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
+                if request is not None:
+                    if hasattr(request, "user_is_admin"):
+                        if not request.user_is_admin:
+                            if 'permission' in cat_info[item_name]:
+                                if not (user_role_name in cat_info[item_name]['permission']):
+                                    raise Exception('Forbidden')
                 # Evaluate new_val as per rule if defined
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
@@ -927,7 +945,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONCH', audit_details)
 
         except Exception as ex:
-            _logger.exception(ex, 'Unable to bulk update config items')
+            if 'Forbidden' not in str(ex):
+                _logger.exception(ex, 'Unable to bulk update config items')
             raise
 
         try:
@@ -1088,7 +1107,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path=""):
+    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path="",
+                                            request=None):
         """Set the "value" entry of a given item within a given category.
 
         Keyword Arguments:
@@ -1096,6 +1116,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
         script_file_path -- Script file path for the config item whose type is script
+        request -- request details to identify user info
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -1128,6 +1149,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                      .format(category_name, item_name))
                 if storage_value_entry == new_value_entry:
                     return
+            """ Note: Update reject to the properties with permission property when the logged in user type is not
+             given in the list of permission. """
+            if request is not None:
+                if hasattr(request, "user_is_admin"):
+                    if not request.user_is_admin:
+                        from fledge.services.core.user_model import User
+                        roles = await User.Objects.get_roles()
+                        user_role_name = [r['name'] for r in roles if request.user['role_id'] == r['id']]
+                        if user_role_name:
+                            user_role_name = user_role_name[0]
+                            if 'permission' in storage_value_entry:
+                                if not (user_role_name in storage_value_entry['permission']):
+                                    raise Exception('Forbidden')
+                        else:
+                            raise ValueError("No role found for logged in user.")
 
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':
@@ -1175,10 +1211,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
-        except:
-            _logger.exception(
-                'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
-                category_name, item_name, new_value_entry)
+        except Exception as ex:
+            if 'Forbidden' not in str(ex):
+                _logger.exception(
+                    'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
+                    category_name, item_name, new_value_entry)
             raise
         try:
             await self._run_callbacks(category_name)

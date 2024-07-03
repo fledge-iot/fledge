@@ -245,23 +245,8 @@ async def set_configuration_item(request):
     """
     category_name = request.match_info.get('category_name', None)
     config_item = request.match_info.get('config_item', None)
-
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
     config_item = urllib.parse.unquote(config_item) if config_item is not None else None
-    """
-    FIXME: FOGL-6774   We should handle in better way, there may be more cases.
-                       GIVEN: config item 'authentication' And category 'rest_api'
-                       WHEN: if non-admin user is trying to update 
-                       THEN: 403 Forbidden case 
-    """
-    if hasattr(request, "user"):
-        if request.user and (category_name == 'rest_api' and config_item == 'authentication'):
-            if not request.user_is_admin:
-                msg = "Admin role permissions required to change the {} value for category {}.".format(
-                    config_item, category_name)
-                _logger.warning(msg)
-                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
-
     data = await request.json()
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     found_optional = {}
@@ -293,14 +278,20 @@ async def set_configuration_item(request):
                 if 'readonly' in storage_value_entry:
                     if storage_value_entry['readonly'] == 'true':
                         raise TypeError("Update not allowed for {} item_name as it has readonly attribute set".format(config_item))
-            await cf_mgr.set_category_item_value_entry(category_name, config_item, value)
+            request_details = request if hasattr(request, "user") else None
+            await cf_mgr.set_category_item_value_entry(category_name, config_item, value, request=request_details)
         else:
             await cf_mgr.set_optional_value_entry(category_name, config_item, list(found_optional.keys())[0], list(found_optional.values())[0])
     except ValueError as ex:
         raise web.HTTPNotFound(reason=ex) if not found_optional else web.HTTPBadRequest(reason=ex)
     except (TypeError, KeyError) as ex:
         raise web.HTTPBadRequest(reason=ex)
-
+    except Exception as ex:
+        msg = str(ex)
+        if 'Forbidden' in msg:
+            msg = "Insufficient access privileges to change the value for category."
+            _logger.warning(msg)
+            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     category_item = await cf_mgr.get_category_item(category_name, config_item)
     if category_item is None:
         raise web.HTTPNotFound(reason="No detail found for the category_name: {} and config_item: {}".format(category_name, config_item))
@@ -325,20 +316,7 @@ async def update_configuration_item_bulk(request):
         data = await request.json()
         if not data:
             return web.HTTPBadRequest(reason='Nothing to update')
-        """
-        FIXME: FOGL-6774   We should handle in better way, there may be more cases.
-                           GIVEN: config item 'authentication' And category 'rest_api'
-                           WHEN: if non-admin user is trying to update 
-                           THEN: 403 Forbidden case 
-        """
-        if hasattr(request, "user"):
-            config_items = [k for k, v in data.items() if k == 'authentication']
-            if request.user and (category_name == 'rest_api' and config_items):
-                if not request.user_is_admin:
-                    msg = "Admin role permissions required to change the authentication value for category {}.".format(
-                        category_name)
-                    _logger.warning(msg)
-                    return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+        request_details = request if hasattr(request, "user") else None
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         try:
             is_core_mgt = request.is_core_mgt
@@ -352,15 +330,21 @@ async def update_configuration_item_bulk(request):
                         if storage_value_entry['readonly'] == 'true':
                             raise TypeError(
                                 "Bulk update not allowed for {} item_name as it has readonly attribute set".format(item_name))
-        await cf_mgr.update_configuration_item_bulk(category_name, data)
+        await cf_mgr.update_configuration_item_bulk(category_name, data, request_details)
     except (NameError, KeyError) as ex:
         raise web.HTTPNotFound(reason=ex)
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to bulk update {} category.".format(category_name))
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        if 'Forbidden' in msg:
+            if 'Forbidden' in msg:
+                msg = "Insufficient access privileges to change the value for category."
+                _logger.warning(msg)
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            _logger.error(ex, "Failed to bulk update {} category.".format(category_name))
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         cat = await cf_mgr.get_category_all_items(category_name)
         try:

@@ -11,6 +11,7 @@
 .. |sqlitememory_config| image:: images/sqlitememory_config.png
 .. |poll_type| image:: images/poll_type.png
 .. |config_cache| image:: images/config_cache.jpg
+.. |core_log_level| image:: images/core_log_level.jpg
 
 ***************
 Tuning Fledge
@@ -31,10 +32,35 @@ Many factors will impact the performance of a Fledge system
 
 Many of these are outside of the control of Fledge itself, however it is possible to tune the way Fledge will use certain resources to achieve better performance within the constraints of a deployment environment.
 
+Setting Log Level
+=================
+
+Fledge writes logs via the *syslog* facility of Linux, this allows for multiple different log levels. Altering the log level will impact the performance of the system and can use significant disk space when set to *debug* or *info* levels. Each of the services within a Fledge instance may have the log level set of that service individually.
+
+The logging level for the Fledge core can be set in the *Logging* configuration category in the *Advanced* parent category that can be accessed from the *Configuration* menu item.
+
++------------------+
+| |core_log_level| |
++------------------+
+
+The logging level can be set to *error*, *warning*, *info* or *debug*, the default setting is *warning*. The level set defines the least severe error that will be logged, logs or higher severity that that set will also be logged. In the default setting both *error* and *warning* level logs will be sent to the syslog facility.
+
+The storage log level setting can be found in the *Storage* configuration category.
+
++------------------+
+| |storage_config| |
++------------------+
+
+The south and north services also have log level settings for each service that can be accessed via the *Advanced* tab within the configuration of each of the services.
+
+All other optional services will also have a log level setting accessible via the configuration for each service.
+
+It is recommended to only set the log level of a service to *info* or *debug* when actively tracing a problem with the configuration or operation of a service and to always run with the default, *warning*, log level in production.
+
 Configuration Manager Cache
 ===========================
 
-The Fledge system has an internal configuration manager that is used to load, distribute configuration categories and to dynamically update the other components of the system. These configuration categories are stored in the Fledge storage layer, in order to prevent the need for the configuration manager to query the database for each request to read a configuration category. The size of this cache can be configured in the advanced configuration page.
+The Fledge system has an internal configuration manager that is used to load, distribute configuration categories and to dynamically update the other components of the system. These configuration categories are stored in the Fledge storage layer, in order to prevent the need for the configuration manager to query the database for each request to read a configuration category. The size of this cache can be configured in the *Configuration Manager* configuration page which is located with the *Advanced* configuration parent category.
 
 +----------------+
 | |config_cache| |

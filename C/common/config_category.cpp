@@ -873,6 +873,50 @@ vector<string> ConfigCategory::getOptions(const string& name) const
 }
 
 /**
+ * Return the permissions of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return vector<string>	The configuration item permissions
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getPermissions(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_permissions;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return true if the user has permission to update the named item
+ *
+ * @param name	The name of the configuration item to return
+ * @param username	The name of the user to test
+ * @return bool	True if the named user can update the configuration item
+ * @throws exception if the item does not exist in the category
+ */
+bool ConfigCategory::hasPermission(const std::string& name, const std::string& username) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_permissions.empty())
+				return true;
+			for (auto& perm : m_items[i]->m_permissions)
+				if (username.compare(perm) == 0)
+					return true;
+			return false;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
  * Return if the configuration item is a string item
  *
  * @param name		The name of the item to test
@@ -1300,6 +1344,18 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	if (item.HasMember("permissions"))
+	{
+		const Value& permissions = item["permissions"];
+		if (permissions.IsArray())
+		{
+			for (SizeType i = 0; i < permissions.Size(); i++)
+			{
+				m_permissions.push_back(string(permissions[i].GetString()));
+			}
+		}
+	}
+
 	if (item.HasMember("items"))
 	{
 		if (item["items"].IsString())
@@ -1624,6 +1680,10 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_listSize = rhs.m_listSize;
 	m_listItemType = rhs.m_listItemType;
 	m_listName = rhs.m_listName;
+	for (auto it = rhs.m_permissions.cbegin(); it != rhs.m_permissions.cend(); it++)
+	{
+		m_permissions.push_back(*it);
+	}
 }
 
 /**
@@ -1651,6 +1711,18 @@ ostringstream convert;
 			if (i > 0)
 				convert << ",";
 			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "], ";
+	}
+
+	if (m_permissions.size() > 0)
+	{
+		convert << "\"permissions\" : [ ";
+		for (int i = 0; i < m_permissions.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_permissions[i] << "\"";
 		}
 		convert << "], ";
 	}
@@ -1832,6 +1904,17 @@ ostringstream convert;
 			if (i > 0)
 				convert << ",";
 			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "]";
+	}
+	if (m_permissions.size() > 0)
+	{
+		convert << ", \"permissions\" : [ ";
+		for (int i = 0; i < m_permissions.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_permissions[i] << "\"";
 		}
 		convert << "]";
 	}

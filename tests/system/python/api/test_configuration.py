@@ -96,6 +96,12 @@ class TestConfiguration:
                       "description": "Logging Level of Core Server",
                       "displayName": "Logging",
                       'children': []
+                  },
+                  {
+                      'key': 'CONFIGURATION',
+                      'description': 'Core Configuration Manager',
+                      'displayName': 'Configuration Manager',
+                      'children': []
                   }
               ]
           },

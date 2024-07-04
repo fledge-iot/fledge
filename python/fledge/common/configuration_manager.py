@@ -12,7 +12,6 @@ import inspect
 import ipaddress
 import datetime
 import os
-import logging
 from math import *
 import collections
 import ast
@@ -46,17 +45,15 @@ RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api
 class ConfigurationCache(object):
     """Configuration Cache Manager"""
 
-    MAX_CACHE_SIZE = 10
-
-    def __init__(self):
+    def __init__(self, size=30):
         """
         cache: value stored in dictionary as per category_name
-        max_cache_size: Hold the 10 recently requested categories in the cache
+        max_cache_size: Hold the recently requested categories in the cache. Default cache size is 30
         hit: number of times an item is read from the cache
         miss: number of times an item was not found in the cache and a read of the storage layer was required
         """
         self.cache = {}
-        self.max_cache_size = self.MAX_CACHE_SIZE
+        self.max_cache_size = size
         self.hit = 0
         self.miss = 0
 
@@ -742,6 +739,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(["key", "=", category_name]).payload()
             await self._storage.update_tbl("configuration", payload)
+            cat_value = {item_name: {"value": new_value_val}}
+            self._handle_config_items(category_name, cat_value)
             audit = AuditLogger(self._storage)
             audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value,
                              'newValue': new_value_val}
@@ -859,6 +858,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             # read the updated value from storage
             cat_value = await self._read_category_val(category_name)
+            self._handle_config_items(category_name, cat_value)
             # Category config items cache updated
             for item_name, new_val in config_item_list.items():
                 if category_name in self._cacheManager.cache:
@@ -1994,4 +1994,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError(type_mismatched_message)
                         if not isinstance(eval_s, type_check):
                             raise ValueError(type_mismatched_message)
+
+    def _handle_config_items(self, cat_name: str, cat_value: dict) -> None:
+        """ Update value in config items for a category which are required without restart of Fledge """
+        if cat_name == 'CONFIGURATION':
+            if 'cacheSize' in cat_value:
+                self._cacheManager.max_cache_size = int(cat_value['cacheSize']['value'])
 

@@ -8,7 +8,7 @@
 import json
 import uuid
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 
 from fledge.common.audit_logger import AuditLogger
@@ -26,10 +26,11 @@ __version__ = "${VERSION}"
 
 # TODO: move to common  / config
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
+HASH_PWD_ALGORITHM = 'SHA512'
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 _logger = FLCoreLogger().get_logger(__name__)
 
@@ -107,7 +108,8 @@ class User:
             """
 
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password) if password else '',
+            payload = PayloadBuilder().INSERT(uname=username,
+                                              pwd=cls.hash_password(password, HASH_PWD_ALGORITHM) if password else '',
                                               access_method=access_method, role_id=role_id, real_name=real_name,
                                               description=description).payload()
             try:
@@ -183,18 +185,26 @@ class User:
             if 'role_id' in user_data:
                 old_kwargs["role_id"] = old_data['role_id']
                 new_kwargs.update({"role_id": user_data['role_id']})
+            if 'failed_attempts' in user_data:
+                old_kwargs["failed_attempts"] = old_data['failed_attempts']
+                new_kwargs.update({"failed_attempts": user_data['failed_attempts']})
+            if 'block_until' in user_data:
+                old_kwargs["block_until"] = old_data['block_until']
+                new_kwargs.update({"block_until": str(user_data['block_until'])})
+
             storage_client = connect.get_storage_async()
             hashed_pwd = None
             pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
-                    hashed_pwd = cls.hash_password(user_data['password'])
+                    hashed_pwd = cls.hash_password(user_data['password'], old_data["hash_algorithm"])
                     current_datetime = datetime.now()
                     old_kwargs["pwd"] = "****"
                     new_kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
-                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
+                    pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data,
+                                                                       old_data["hash_algorithm"])
             try:
                 payload = PayloadBuilder().SET(**new_kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
@@ -228,7 +238,7 @@ class User:
 
         @classmethod
         async def is_user_exists(cls, uid, password):
-            payload = PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', uid]).AND_WHERE(
+            payload = PayloadBuilder().SELECT("uname", "pwd", "hash_algorithm").WHERE(['id', '=', uid]).AND_WHERE(
                 ['enabled', '=', 't']).payload()
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('users', payload)
@@ -236,7 +246,7 @@ class User:
                 return None
 
             found_user = result['rows'][0]
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), found_user['hash_algorithm'])
             return uid if is_valid_pwd else None
 
         # utility
@@ -251,8 +261,8 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description").WHERE(
-                ['enabled', '=', 't'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description",
+                                        "hash_algorithm", "block_until", "failed_attempts").WHERE(['enabled', '=', 't'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -338,7 +348,8 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description")\
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed",
+                                              "real_name", "description", "hash_algorithm", "block_until", "failed_attempts")\
                 .WHERE(['uname', '=', username])\
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
@@ -360,13 +371,87 @@ class User:
                 # user will be forced to change their password.
                 raise User.PasswordExpired(found_user['id'])
 
+            failed_attempts = found_user['failed_attempts']
+            block_until = found_user['block_until']
+
+            # Do not block already blocked account further
+            if block_until:
+                curr_time = datetime.now(timezone.utc).strftime(DATE_FORMAT)
+                if datetime.strptime(block_until, DATE_FORMAT) > datetime.strptime(curr_time, DATE_FORMAT):
+                    diff = datetime.strptime(block_until, DATE_FORMAT) -  datetime.strptime(curr_time, DATE_FORMAT)
+                    hours = diff.seconds // 3600
+                    hours_left = ""
+                    if hours == 1 :
+                        hours_left = "{} hour ".format(hours)
+                    elif hours > 1:
+                        hours_left = "{} hours ".format(hours)
+
+                    minutes = (diff.seconds % 3600) // 60
+                    minutes_left = " 1 minute" #Show minutes 1 or less than 1 as "1 minute" 
+                    if minutes > 1:
+                        minutes_left = " {} minutes ".format(minutes)
+
+                    blocked_message = "Account is blocked for {}{}".format(hours_left,minutes_left)
+                    raise User.PasswordDoesNotMatch(blocked_message)
+
             # validate password
-            is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
+            is_valid_pwd = cls.check_password(found_user['pwd'], str(password), algorithm=found_user['hash_algorithm'])
             if not is_valid_pwd:
                 # Another condition to check password is ONLY for the case:
                 # when we have requested password with hashed value and this comes only with microservice to get token
                 if found_user['pwd'] != str(password):
-                    raise User.PasswordDoesNotMatch('Username or Password do not match')
+                    # Do not block admin user
+                    if int(found_user['role_id']) == 1:
+                        raise User.PasswordDoesNotMatch('Username or Password do not match')
+
+                    MAX_LOGIN_ATTEMPTS = 5
+                    failed_attempts += 1
+                    audit_log_message = ""
+                    blocked_message = ""
+
+                    # Do not block users for first failed attempt
+                    if failed_attempts < MAX_LOGIN_ATTEMPTS - 3:
+                        await cls.update(found_user['id'],{'failed_attempts': failed_attempts})
+                        raise User.PasswordDoesNotMatch('Username or Password do not match')
+
+                    # Check for other users
+                    if failed_attempts == MAX_LOGIN_ATTEMPTS - 3: # Block for 1 minute after 2 failed attempts 
+                        block_until = datetime.now(timezone.utc) + timedelta(seconds=60)
+                        audit_log_message = "'{}' user blocked for 1 minute.".format(username)
+                        blocked_message = "Invalid username/password attempted multiple times. Account blocked for 1 minute."
+
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS - 2: # Block for 15 minutes after 3 failed attempts 
+                        block_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                        audit_log_message = "'{}' user blocked for 15 minutes.".format(username)
+                        blocked_message = "Invalid username/password attempted multiple times. Account blocked for 15 minutes."
+
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS - 1: # Block for 1 hour after 4 failed attempts 
+                        block_until = datetime.now(timezone.utc) + timedelta(hours=1)
+                        audit_log_message = "'{}' user blocked for 1 hour.".format(username)
+                        blocked_message = "Invalid username/password attempted multiple times. Account blocked for 1 hour."
+
+                    elif failed_attempts == MAX_LOGIN_ATTEMPTS: # Block for 24 hours after 5 failed attempts 
+                        block_until = datetime.now(timezone.utc) + timedelta(hours=24)
+                        audit_log_message = "'{}' user blocked for 24 hours.".format(username)
+                        blocked_message = "Invalid username/password attempted multiple times. Account blocked for 24 hours."
+
+                        # Raise Alert if user is blocked for 24 hours
+                        from fledge.common.alert_manager import AlertManager
+                        alert_manager = AlertManager(storage_client)
+                        param = {"key": "USRBK", "message": audit_log_message, "urgency": 2}
+                        await alert_manager.add(param)
+
+                    # USRBK audit trail entry
+                    if failed_attempts >= MAX_LOGIN_ATTEMPTS - 3:
+                        await cls.update(found_user['id'],{'failed_attempts': failed_attempts, 'block_until':block_until})
+                        audit = AuditLogger(storage_client)
+                        await audit.information('USRBK', {'user_id': found_user['id'], 'user_name': username, 'failed_attempts':failed_attempts,
+                            "message": audit_log_message})
+                        raise User.PasswordDoesNotMatch(blocked_message)
+
+            # Clear failed_attempts on successful login
+            if int(found_user['failed_attempts']) > 0:
+                await cls.update(found_user['id'],{'failed_attempts': 0})
 
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin
@@ -460,23 +545,25 @@ class User:
             await User.Sessions.clear()
 
         @classmethod
-        def hash_password(cls, password):
+        def hash_password(cls, password, algorithm):
             # uuid is used to generate a random number
             salt = uuid.uuid4().hex
-            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt
+            return hashlib.sha256(salt.encode() + password.encode()).hexdigest() + ':' + salt \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + password.encode()).hexdigest() + ':' + salt
 
         @classmethod
-        def check_password(cls, hashed_password, user_password):
+        def check_password(cls, hashed_password, user_password, algorithm):
             password, salt = hashed_password.split(':')
-            return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
+            return password == (hashlib.sha256(salt.encode() + user_password.encode()).hexdigest() \
+                if algorithm == "SHA256" else hashlib.sha512(salt.encode() + user_password.encode()).hexdigest())
 
         @classmethod
-        async def _get_password_history(cls, storage_client, user_id, user_data):
+        async def _get_password_history(cls, storage_client, user_id, user_data, algorithm):
             pwd_history_list = []
             payload = PayloadBuilder().WHERE(['user_id', '=', user_id]).payload()
             result = await storage_client.query_tbl_with_payload("user_pwd_history", payload)
             for row in result['rows']:
-                if cls.check_password(row['pwd'], user_data['password']):
+                if cls.check_password(row['pwd'], user_data['password'], algorithm):
                     raise User.PasswordAlreadyUsed
                 pwd_history_list.append(row['pwd'])
             return pwd_history_list
@@ -540,3 +627,4 @@ class User:
             # To avoid cyclic import
             from fledge.services.core import server
             server.Server._user_sessions = []
+

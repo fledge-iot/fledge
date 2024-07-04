@@ -380,6 +380,9 @@ CREATE TABLE fledge.users (
        enabled           boolean                NOT NULL DEFAULT 't',
        pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
        access_method     TEXT CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
+       hash_algorithm    TEXT CHECK( hash_algorithm IN ('SHA256', 'SHA512') )  NOT NULL DEFAULT 'SHA512',
+       failed_attempts   INTEGER    DEFAULT 0,
+       block_until  DATETIME DEFAULT NULL,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION
@@ -735,8 +738,8 @@ INSERT INTO fledge.roles ( name, description )
 -- Users
 DELETE FROM fledge.users;
 INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
-     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
-            ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
+     VALUES ('admin', 'Admin user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 1, 'admin user'),
+            ('user', 'Normal user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 2, 'normal user');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;
@@ -791,7 +794,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
             ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
-            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' )
+            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' ),
+            ( 'USRBK', 'User Blocked' ), ( 'USRUB', 'User Unblocked' )
             ;
 
 --

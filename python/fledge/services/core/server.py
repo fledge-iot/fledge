@@ -73,7 +73,7 @@ SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
 # TODO generate secret at build time
 SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
-SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_ALGORITHM = 'HS512'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 SERVICE_JWT_AUDIENCE = 'Fledge'
 
@@ -292,6 +292,18 @@ class Server:
             'options': ['debug', 'info', 'warning', 'error', 'critical'],
             'default': 'warning',
             'order': '1'
+        }
+    }
+
+    _CONFIGURATION_DEFAULT_CONFIG = {
+        'cacheSize': {
+            'description': 'To control the caching size of Core Configuration Manager',
+            'type': 'integer',
+            'displayName': 'Configuration Manager Cache Size',
+            'default': '30',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '1000'
         }
     }
 
@@ -604,6 +616,31 @@ class Server:
             _logger.exception(ex)
             raise
 
+    @classmethod
+    async def setup_config_manager(cls):
+        """ Configuration manager category """
+        try:
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+
+            config = cls._CONFIGURATION_DEFAULT_CONFIG
+            category = 'CONFIGURATION'
+            description = "Core Configuration Manager"
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Configuration Manager')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cache_size = int(config['cacheSize']['value'])
+            # Internal handling of cache size
+            if cache_size == 0:
+                default_cache_size = cls._configuration_manager._cacheManager.max_cache_size
+                _logger.warn("Configuration Manager Cache Size is being set to the default size {}.".format(
+                    default_cache_size))
+                cache_size = default_cache_size
+            cls._configuration_manager._cacheManager.max_cache_size = cache_size
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
     @staticmethod
     def _make_app(auth_required=True, auth_method='any'):
         """Creates the REST server
@@ -849,7 +886,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+                                                                                "CONFIGURATION"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -898,6 +936,9 @@ class Server:
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # Configuration Manager setup
+            loop.run_until_complete(cls.setup_config_manager())
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())

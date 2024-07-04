@@ -89,9 +89,8 @@ async def install_package(request: web.Request) -> web.Response:
                                                 .format(installed_package, installed_version)}))
 
     # Package not found, install package via pip
-    pip_process = await asyncio.create_subprocess_shell('python3 -m pip install ' + install_args,
-                                                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    
+    pip_process = await asyncio.create_subprocess_exec('python3', '-m', 'pip', 'install', install_args,
+                                                       stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await pip_process.communicate()
     if pip_process.returncode == 0:
         _LOGGER.info("Package: {} successfully installed.", format(input_package_name))

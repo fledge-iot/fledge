@@ -9,6 +9,7 @@ import asyncio
 from unittest.mock import MagicMock, patch
 import sys
 import pytest
+from datetime import datetime
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -103,10 +104,10 @@ class TestUserModel:
             query_tbl_patch.assert_called_once_with('users')
 
     @pytest.mark.parametrize("kwargs, payload", [
-        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
-        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1}}}'),
-        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
-        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
+        ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),
+        ({'username': None, 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1}}}'),
+        ({'username': 'aj', 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "uname", "condition": "=", "value": "aj"}}}'),
+        ({'username': 'aj', 'uid': 1}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where": {"column": "enabled", "condition": "=", "value": "t", "and": {"column": "id", "condition": "=", "value": 1, "and": {"column": "uname", "condition": "=", "value": "aj"}}}}')
     ])
     async def test_get_filter(self, kwargs, payload):
         expected = {'rows': [], 'count': 0}
@@ -475,7 +476,7 @@ class TestUserModel:
 
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS",
-                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm"],
+                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm","block_until","failed_attempts"],
                    "where": {"column": "uname", "condition": "=", "value": "admin",
                              "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -510,21 +511,24 @@ class TestUserModel:
 
         pwd_result = {'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2',
                                             'pwd_last_changed': '2018-03-30 12:32:08.216159',
-                                            'hash_algorithm': 'SHA256'}]}
+                                            'hash_algorithm': 'SHA256', 'block_until': '', 'failed_attempts': 0}]}
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias":
-                                  "pwd_last_changed"}, "real_name", "description", "hash_algorithm"],
+                                  "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"],
                    "where": {"column": "uname", "condition": "=", "value": "user",
                              "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
+        found_user = pwd_result['rows'][0]
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_get_category_item()
             _rv2 = await mock_coro(pwd_result)
+            _rv3 = await mock_coro(None)
         else:
             _rv1 = asyncio.ensure_future(mock_get_category_item())
             _rv2 = asyncio.ensure_future(mock_coro(pwd_result))
+            _rv3 = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_item", return_value=_rv1
@@ -532,13 +536,14 @@ class TestUserModel:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2
                                   ) as query_tbl_patch:
                     with patch.object(User.Objects, 'check_password', return_value=False) as check_pwd_patch:
-                        with pytest.raises(Exception) as excinfo:
-                            await User.Objects.login('user', 'blah', '0.0.0.0')
-                        assert str(excinfo.value) == 'Username or Password do not match'
-                        assert excinfo.type is User.PasswordDoesNotMatch
-                        assert issubclass(excinfo.type, Exception)
-                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah',
-                                                            algorithm='SHA256')
+                        with patch.object(User.Objects, 'update', return_value=_rv3) as update_patch:
+                            with pytest.raises(Exception) as excinfo:
+                                await User.Objects.login('user', 'blah', '0.0.0.0')
+                            assert str(excinfo.value) == 'Username or Password do not match'
+                            assert excinfo.type is User.PasswordDoesNotMatch
+                            assert issubclass(excinfo.type, Exception)
+                        update_patch.assert_called_once_with(found_user['id'], {"failed_attempts": found_user['failed_attempts'] + 1})
+                    check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'blah', algorithm='SHA256')
                 args, kwargs = query_tbl_patch.call_args
                 assert 'users' == args[0]
                 p = json.loads(args[1])
@@ -553,7 +558,7 @@ class TestUserModel:
                                             'pwd_last_changed': '2018-01-30 12:32:08.216159'}]}
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS",
-                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm"],
+                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"],
                    "where": {"column": "uname", "condition": "=", "value": "user", "and":
                        {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -584,9 +589,9 @@ class TestUserModel:
 
     @pytest.mark.parametrize("user_data", [
         ({'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1', 'is_admin': True,
-                                'pwd_last_changed': '2018-03-30 12:32:08.216159', 'hash_algorithm': 'SHA256'}]}),
+                                'pwd_last_changed': '2018-03-30 12:32:08.216159', 'hash_algorithm': 'SHA256', 'block_until': '2018-03-30 12:32:08.216159', 'failed_attempts': 0}]}),
         ({'count': 1, 'rows': [{'role_id': '2', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '2', 'is_admin': False,
-                                'pwd_last_changed': '2018-03-29 05:05:08.216159', 'hash_algorithm': 'SHA256'}]})
+                                'pwd_last_changed': '2018-03-29 05:05:08.216159', 'hash_algorithm': 'SHA256', 'block_until': '2018-03-30 12:32:08.216159', 'failed_attempts': 0}]})
     ])
     async def test_login(self, user_data):
         async def mock_get_category_item():
@@ -594,7 +599,7 @@ class TestUserModel:
 
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS",
-                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm"],
+                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"],
                    "where": {"column": "uname", "condition": "=", "value": "user", "and":
                        {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -639,13 +644,15 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
+        DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+        curr_time = datetime.now().strftime(DATE_FORMAT)
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1',
                                             'pwd_last_changed': '2018-03-30 12:32:08.216159',
-                                            'hash_algorithm': 'SHA256'}]}
+                                            'hash_algorithm': 'SHA256', 'block_until': curr_time, 'failed_attempts': 0}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS",
-                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm"], "where":
+                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where":
             {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=",
                                                                            "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)

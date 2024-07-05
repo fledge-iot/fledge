@@ -242,7 +242,7 @@ class Server:
             'default': 'optional',
             'displayName': 'Authentication',
             'order': '5',
-            'permission': ['admin']
+            'permissions': ['admin']
         },
         'authMethod': {
             'description': 'Authentication method',
@@ -282,7 +282,7 @@ class Server:
             'order': '10',
             'minimum': '1',
             'maximum': '1440',
-            'permission': ['admin']
+            'permissions': ['admin']
         }
     }
 
@@ -525,7 +525,7 @@ class Server:
                     'default': 'Any characters',
                     'displayName': 'Policy',
                     'order': '1',
-                    'permission': ['admin']
+                    'permissions': ['admin']
                 },
                 'length': {
                     'description': 'Minimum password length',
@@ -535,7 +535,7 @@ class Server:
                     'minimum': '6',
                     'maximum': '80',
                     'order': '2',
-                    'permission': ['admin']
+                    'permissions': ['admin']
                 },
                 'expiration': {
                     'description': 'Number of days after which passwords must be changed',
@@ -543,7 +543,7 @@ class Server:
                     'default': '0',
                     'displayName': 'Expiry (in Days)',
                     'order': '3',
-                    'permission': ['admin']
+                    'permissions': ['admin']
                 }
             }
             category = 'password'

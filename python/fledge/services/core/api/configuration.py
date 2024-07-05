@@ -289,7 +289,8 @@ async def set_configuration_item(request):
     except Exception as ex:
         msg = str(ex)
         if 'Forbidden' in msg:
-            msg = "Insufficient access privileges to change the value for category."
+            msg = "Insufficient access privileges to change the value for '{}' category and '{}' config item.".format(
+                category_name, config_item)
             _logger.warning(msg)
             raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     category_item = await cf_mgr.get_category_item(category_name, config_item)
@@ -339,7 +340,8 @@ async def update_configuration_item_bulk(request):
         msg = str(ex)
         if 'Forbidden' in msg:
             if 'Forbidden' in msg:
-                msg = "Insufficient access privileges to change the value for category."
+                msg = "Insufficient access privileges to change the value for given data for '{}' category.".format(
+                    category_name)
                 _logger.warning(msg)
                 raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
         else:

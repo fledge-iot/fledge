@@ -115,7 +115,7 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/user?id={}&username={}".format(3, VIEW_USERNAME), 200),
         ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
         ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/3/password", 500),
-        ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),
@@ -277,7 +277,7 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
         ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 4), 200),
         ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
-        ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 403),
@@ -437,7 +437,7 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
         ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),
         ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 500), ("PUT", "/fledge/user/3/password", 500),
-        ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),

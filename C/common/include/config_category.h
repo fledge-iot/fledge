@@ -194,8 +194,6 @@ class ConfigCategory {
 				std::string	m_listSize;
 				std::string	m_listItemType;
 				std::string	m_listName;
-				std::vector<std::string>
-						m_permission;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

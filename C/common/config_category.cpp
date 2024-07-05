@@ -1337,17 +1337,6 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			throw new runtime_error("ListName configuration item property is not a string");
 		}
 	}
-	if (item.HasMember("permission"))
-	{
-		const Value& permission = item["permission"];
-		if (permission.IsArray())
-		{
-			for (SizeType i = 0; i < permission.Size(); i++)
-			{
-				m_permission.push_back(string(permission[i].GetString()));
-			}
-		}
-	}
 
 	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
@@ -1635,10 +1624,6 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_listSize = rhs.m_listSize;
 	m_listItemType = rhs.m_listItemType;
 	m_listName = rhs.m_listName;
-	for (auto it = rhs.m_permission.cbegin(); it != rhs.m_permission.cend(); it++)
-	{
-		m_permission.push_back(*it);
-	}
 }
 
 /**
@@ -1763,17 +1748,6 @@ ostringstream convert;
 		{
 			convert << ", \"listName\" : \"" << m_listName << "\"";
 		}
-		if (m_permission.size() > 0)
-		{
-		    convert << "\"permission\" : [ ";
-		    for (int i = 0; i < m_permission.size(); i++)
-		    {
-		        if (i > 0)
-		            convert << ",";
-		        convert << "\"" << m_permission[i] << "\"";
-		    }
-		    convert << "], ";
-		}
 	}
 	convert << " }";
 
@@ -1873,17 +1847,7 @@ ostringstream convert;
 	{
 	    convert << ", \"listName\" : \"" << m_listName << "\"";
 	}
-	if (m_permission.size() > 0)
-	{
-	    convert << ", \"permission\" : [ ";
-	    for (int i = 0; i < m_permission.size(); i++)
-	    {
-	        if (i > 0)
-	            convert << ",";
-	        convert << "\"" << m_permission[i] << "\"";
-	    }
-	    convert << "]";
-	}
+
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||

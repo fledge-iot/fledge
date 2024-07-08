@@ -320,7 +320,13 @@ class TestConfiguration:
                 args, kwargs = calls[1]
                 assert category_name == args[0]
                 assert item_name == args[1]
-            patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
+            assert 1 == patch_set_entry.call_count
+            calls = patch_set_entry.call_args_list
+            args, _ = calls[0]
+            assert 3 == len(args)
+            assert category_name == args[0]
+            assert item_name == args[1]
+            assert payload['value'] == args[2]
 
     @pytest.mark.parametrize("payload, message", [
         ({"valu": '8082'}, "Missing required value for http_port"),
@@ -361,7 +367,8 @@ class TestConfiguration:
                     resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name),
                                             data=json.dumps(payload))
                     assert 404 == resp.status
-                    assert "No detail found for the category_name: {} and config_item: {}".format(category_name, item_name) == resp.reason
+                    assert "No detail found for the category_name: {} and config_item: {}".format(
+                        category_name, item_name) == resp.reason
                 assert 2 == patch_get_cat_item.call_count
                 calls = patch_get_cat_item.call_args_list
                 args, kwargs = calls[0]
@@ -370,7 +377,13 @@ class TestConfiguration:
                 args, kwargs = calls[1]
                 assert category_name == args[0]
                 assert item_name == args[1]
-            patch_set_entry.assert_called_once_with(category_name, item_name, payload['value'])
+            assert 1 == patch_set_entry.call_count
+            calls = patch_set_entry.call_args_list
+            args, _ = calls[0]
+            assert 3 == len(args)
+            assert category_name == args[0]
+            assert item_name == args[1]
+            assert payload['value'] == args[2]
 
     @pytest.mark.parametrize("payload, optional_item, message", [
         ({"value": '8082'}, "readonly", "Update not allowed for {} item_name as it has readonly attribute set")
@@ -1074,7 +1087,13 @@ class TestConfiguration:
                         json_response = json.loads(r)
                         assert result == json_response
                     patch_get_all_items.assert_called_once_with(category_name)
-                patch_update_bulk.assert_called_once_with(category_name, payload)
+                assert 1 == patch_update_bulk.call_count
+                calls = patch_update_bulk.call_args_list
+                args, _ = calls[0]
+                assert 3 == len(args)
+                assert category_name == args[0]
+                assert payload == args[1]
+                assert args[2] is not None
             assert 2 == patch_get_cat_item.call_count
 
     async def test_delete_configuration(self, client, category_name='rest_api'):

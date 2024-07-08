@@ -636,6 +636,8 @@ Properties
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
    * - properties
      - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
+   * - permissions
+     - An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user.
 
 Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
 
@@ -724,3 +726,47 @@ There is also a convenience function that can be used if you not want to define 
 
    AuditLogger::auditLog("NHAVL", "INFORMATION");
 
+Permissions
+~~~~~~~~~~~
+
+The permissions property is used to control the update of configuration items within a category. If Fledge has been configured such that it requires authentication in order to connect to the REST API, or by extension the Fledge GUI, then when a user attempts to update a category which contains an item with the permissions property set, the user role will be fetched and compared to the list of roles able to update the item. Items within the category that do not have the permissions property will not be affected.
+
+The REST API category is an example of using the permissions property to restrict the items in the category that non-admin role users can change. Below we show one of the configuration items that is restricted, the one that controls the requirement to authenticate when connecting to Fledge.
+
+.. code-block:: JSON
+
+  "authentication": {
+    "description": "API Call Authentication",
+    "type": "enumeration",
+    "options": [
+      "mandatory",
+      "optional"
+    ],
+    "default": "optional",
+    "displayName": "Authentication",
+    "order": "5",
+    "permissions": [
+      "admin"
+    ],
+    "value": "optional"
+  }
+
+The use of the permissions property with the single role of admin means that only admin users can change this setting. If we wished to allow more than admin users we can add another role. For example
+
+.. code-block:: JSON
+
+        'logLevel': {
+            'description': 'Minimum logging level reported for Core server',
+            'type': 'enumeration',
+            'displayName': 'Minimum Log Level',
+            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'default': 'warning',
+            'order': '1',
+            'permissions': ['admin', 'edit']
+        }
+
+In this case users with the role admin or edit are allowed to alter the configuration item.
+
+.. note::
+
+   User created with the role of view configuration or view data are unable to alter any configuration items regardless of the permissions properties on those items.

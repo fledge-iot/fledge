@@ -27,7 +27,7 @@ __version__ = "${VERSION}"
 
 ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin_user_token'}
 NORMAL_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'normal_user_token'}
-PASSWORD_MIN_LENGTH_ERROR_MSG = "Password length is minimum of 6 characters."
+PASSWORD_MIN_LENGTH_ERROR_MSG = "Password should have a minimum length of 6 characters."
 
 async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
@@ -530,7 +530,8 @@ class TestAuthMandatory:
         ({"current_password": "F0gl@mp", "new_password": "F0gl@mp"},
          "New password should not be the same as current password."),
         ({"current_password": "F0gl@mp", "new_password": "FL"}, PASSWORD_MIN_LENGTH_ERROR_MSG),
-        ({"current_password": "F0gl@mp", "new_password": 1}, "New password should be in string format.")
+        ({"current_password": "F0gl@mp", "new_password": 1},
+         "New password should not be provided in a non-string format.")
     ])
     async def test_update_password_with_bad_data(self, client, request_data, msg):
         uid = 2
@@ -1251,8 +1252,8 @@ class TestAuthMandatory:
                 assert "401: {}".format(expected) == actual
 
     @pytest.mark.parametrize("pwd, error_msg, policy", [
-        ("pass", "Password length is minimum of 6 characters.", "Any characters"),
-        ("passwords", "Password length is maximum of 8 characters.", "Any characters"),
+        ("pass", "Password should have a minimum length of 6 characters.", "Any characters"),
+        ("passwords", "Password should have a maximum length of 8 characters.", "Any characters"),
         ("password", "Password must contain upper and lower case letters.", "Mixed case Alphabetic"),
         ("password", "Password must contain upper, lower case, uppercase and numeric values.", "Mixed case and numeric"),
         ("password", "Password must contain atleast one upper and lower case letter, numeric and special characters.", "Mixed case, numeric and special characters"),

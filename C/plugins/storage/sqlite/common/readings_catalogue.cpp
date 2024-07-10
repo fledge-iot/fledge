@@ -2437,7 +2437,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
 
-			Logger::getLogger()->debug("purgeAllReadings:  rc %d cmd '%s'", rc ,sqlCmdTmp.c_str() );
+			Logger::getLogger()->debug("purgeAllReadings:  rc %d  errorMsg '%s'   cmd '%s'", rc , (*zErrMsg) ? (*zErrMsg) : "", sqlCmdTmp.c_str() );
 
 			if (rc != SQLITE_OK)
 			{

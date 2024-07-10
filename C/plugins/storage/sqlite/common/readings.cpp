@@ -2255,7 +2255,7 @@ vector<string>  assetCodes;
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
-			sqlite3_free(zErrMsg);
+			// sqlite3_free(zErrMsg); // already freed inside purgeAllReadings, in case of error
 			return 0;
 		}
 

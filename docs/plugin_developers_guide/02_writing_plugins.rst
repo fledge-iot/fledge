@@ -637,7 +637,7 @@ Properties
    * - properties
      - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
    * - permissions
-     - An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user.
+     - An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user. If the permissions property is included in a configuration item the array must have at least one entry.
 
 Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all others are optional.
 
@@ -755,17 +755,17 @@ The use of the permissions property with the single role of admin means that onl
 
 .. code-block:: JSON
 
-        'logLevel': {
-            'description': 'Minimum logging level reported for Core server',
-            'type': 'enumeration',
-            'displayName': 'Minimum Log Level',
-            'options': ['debug', 'info', 'warning', 'error', 'critical'],
-            'default': 'warning',
-            'order': '1',
-            'permissions': ['admin', 'edit']
+        "logLevel": {
+            "description": "Minimum logging level reported for Core server",
+            "type": "enumeration",
+            "displayName": "Minimum Log Level",
+            "options": ["debug", "info", "warning", "error", "critical"],
+            "default": "warning",
+            "order": "1",
+            "permissions": ["admin", "control"]
         }
 
-In this case users with the role admin or edit are allowed to alter the configuration item.
+In this case users with the role admin or control are allowed to alter the configuration item.
 
 .. note::
 

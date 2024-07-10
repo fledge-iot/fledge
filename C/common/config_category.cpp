@@ -895,11 +895,11 @@ vector<string> ConfigCategory::getPermissions(const string& name) const
  * Return true if the user has permission to update the named item
  *
  * @param name	The name of the configuration item to return
- * @param username	The name of the user to test
+ * @param rolename	The name of the user role to test
  * @return bool	True if the named user can update the configuration item
  * @throws exception if the item does not exist in the category
  */
-bool ConfigCategory::hasPermission(const std::string& name, const std::string& username) const
+bool ConfigCategory::hasPermission(const std::string& name, const std::string& rolename) const
 {
 	for (unsigned int i = 0; i < m_items.size(); i++)
 	{
@@ -908,7 +908,7 @@ bool ConfigCategory::hasPermission(const std::string& name, const std::string& u
 			if (m_items[i]->m_permissions.empty())
 				return true;
 			for (auto& perm : m_items[i]->m_permissions)
-				if (username.compare(perm) == 0)
+				if (rolename.compare(perm) == 0)
 					return true;
 			return false;
 		}

@@ -309,7 +309,7 @@ class Server:
         'cacheSize': {
             'description': 'To control the caching size of Core Configuration Manager',
             'type': 'integer',
-            'displayName': 'Configuration Manager Cache Size',
+            'displayName': 'Cache Size',
             'default': '30',
             'order': '1',
             'minimum': '1',

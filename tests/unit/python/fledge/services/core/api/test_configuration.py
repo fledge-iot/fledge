@@ -1130,8 +1130,8 @@ class TestConfiguration:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         storage_value_entry = {'description': 'To control the caching size of Core Configuration Manager',
-                               'type': 'integer', 'displayName': 'Configuration Manager Cache Size',
-                               'default': '30', 'order': '1', 'minimum': '1', 'maximum': '1000', 'value': '30'}
+                               'type': 'integer', 'displayName': 'Cache Size', 'default': '30', 'order': '1',
+                               'minimum': '1', 'maximum': '1000', 'value': '30'}
 
         cat_items = {config_item: storage_value_entry}
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:

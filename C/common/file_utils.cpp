@@ -32,8 +32,6 @@ static int fileDeleteCallback(const char *filePath, const struct stat *sb, int t
 /**
  * Copy a file
  * 
- * Implementation comes from https://stackoverflow.com/questions/2180079/how-can-i-copy-a-file-on-unix-using-c
- * 
  * @param to	Full path of the destination file
  * @param from	Full path of the source file
  * @return		Zero if successful

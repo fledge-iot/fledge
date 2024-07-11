@@ -2246,16 +2246,16 @@ vector<string>  assetCodes;
 
 		totTime += usecs;
 
-		if(usecs>150000)
+		if(usecs > 150000)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100 + usecs/1000));
 		}
 		}
 
 		if (rc != SQLITE_OK)
 		{
 			raiseError("purge - phase 3", zErrMsg);
-			// sqlite3_free(zErrMsg); // already freed inside purgeAllReadings, in case of error
+			sqlite3_free(zErrMsg);
 			return 0;
 		}
 
@@ -2572,6 +2572,8 @@ struct timeval startTv, endTv;
 			numReadings -= rowsAffected;
 			rowcount    -= rowsAffected;
 
+			sqlite3_free(zErrMsg);
+
 			// Release memory for 'query' var
 			delete[] query;
 			logger->debug(" Deleted :%lu: rows", rowsAffected);
@@ -2712,6 +2714,7 @@ sqlite3_stmt *stmt;
 		if (rc != SQLITE_OK)
 		{
 			raiseError("ReadingsAssetPurge", sqlite3_errmsg(dbHandle));
+			sqlite3_free(zErrMsg);
 			return 0;
 		}
 

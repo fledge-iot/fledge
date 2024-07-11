@@ -87,6 +87,19 @@ class TestUserModel:
                 assert actual == expected['rows']
             query_tbl_patch.assert_called_once_with('roles', payload)
 
+    async def test_get_role_name_by_id(self):
+        expected = {'rows': [{'name': 'user'}], 'count': 1}
+        payload = '{"return": ["name"], "where": {"column": "id", "condition": "=", "value": 2}, "limit": 1}'
+        storage_client_mock = MagicMock(StorageClientAsync)
+        _rv = await mock_coro(expected) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(mock_coro(expected))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv
+                              ) as query_tbl_patch:
+                actual = await User.Objects.get_role_name_by_id(2)
+                assert actual == expected['rows'][0]['name']
+            query_tbl_patch.assert_called_once_with('roles', payload)
+
     async def test_get_all(self):
         expected = {'rows': [], 'count': 0}
         storage_client_mock = MagicMock(StorageClientAsync)

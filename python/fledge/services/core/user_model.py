@@ -96,7 +96,12 @@ class User:
             storage_client = connect.get_storage_async()
             payload = PayloadBuilder().SELECT("name").WHERE(['id', '=', rid]).LIMIT(1).payload()
             result = await storage_client.query_tbl_with_payload('roles', payload)
-            return result['rows'][0] if result["rows"] else None
+            name = None
+            if result["rows"]:
+                rows = result['rows'][0]
+                if 'name' in rows:
+                    name = rows['name']
+            return name
 
         @classmethod
         async def create(cls, username, password, role_id, access_method='any', real_name='', description=''):

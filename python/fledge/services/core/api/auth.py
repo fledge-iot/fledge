@@ -583,7 +583,7 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        err_msg = "New password should be in string format."
+        err_msg = "New password should be a valid string."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
     error_msg = await validate_password(new_password)
     if error_msg:
@@ -887,9 +887,9 @@ async def validate_password(password) -> str:
     min_chars = category['length']['value']
     max_chars = category['length']['maximum']
     if len(password) < int(min_chars):
-        message = "Password length is minimum of {} characters.".format(min_chars)
+        message = "Password should have minimum {} characters.".format(min_chars)
     if len(password) > int(max_chars):
-        message = "Password length is maximum of {} characters.".format(max_chars)
+        message = "Password should have maximum {} characters.".format(max_chars)
     if not message:
         has_lower = any(pwd.islower() for pwd in password)
         has_upper = any(pwd.isupper() for pwd in password)

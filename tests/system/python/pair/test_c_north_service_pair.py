@@ -341,7 +341,7 @@ class TestCNorthService:
     def test_north_C_service_with_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                       remote_ip,
                                                       skip_verify_north_interface, fledge_url, wait_time, retries,
-                                                      pi_host,
+                                                      pi_host, wait_fix,
                                                       pi_admin, pi_passwd, pi_db):
         """ Test C plugin as a North service by disabling and enabling it.
             setup_local: Fixture to reset, add and configure plugins on local machine
@@ -385,14 +385,15 @@ class TestCNorthService:
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
-        print("Waiting for 5 seconds for delay caused by FOGL-8813 - tune pre-fetch buffers...")
-        time.sleep(5)
+        print(f"Waiting for {wait_fix} seconds for delay caused by FOGL-8813 - tune pre-fetch buffers...")
+        time.sleep(wait_fix)
         # Enabling local machine north service
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert True == resp['schedule']['enabled']
-
+        print(f"Waiting for {wait_fix} seconds for delay caused by FOGL-8813 - tune pre-fetch buffers...")
+        time.sleep(wait_fix)
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
         # Wait for read and sent readings to increase

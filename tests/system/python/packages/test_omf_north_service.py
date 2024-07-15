@@ -228,7 +228,7 @@ class TestOMFNorthService:
                            south_asset_name)
 
     def test_omf_service_with_enable_disable(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                             skip_verify_north_interface,
+                                             skip_verify_north_interface, wait_fix,
                                              fledge_url, wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd,
                                              pi_db):
         """ Test OMF as a North service by enabling and disabling it.
@@ -259,8 +259,8 @@ class TestOMFNorthService:
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
-        print("Waiting for 6 seconds for delay caused by FOGL-8813 - tune pre-fetch buffers...")
-        time.sleep(6)
+        print(f"Waiting for {wait_fix} seconds for delay caused by FOGL-8813 - tune pre-fetch buffers...")
+        time.sleep(wait_fix)
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
@@ -333,7 +333,7 @@ class TestOMFNorthService:
                            south_asset_name)
 
     def test_omf_service_with_reconfig(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                       skip_verify_north_interface, fledge_url,
+                                       skip_verify_north_interface, fledge_url, wait_fix,
                                        wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service by reconfiguring it.
             reset_fledge: Fixture to reset fledge
@@ -381,8 +381,8 @@ class TestOMFNorthService:
         put_url = "/fledge/category/{}".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "Admin" == resp["PIWebAPIUserId"]["value"]
-        print("Waiting for 5 seconds for delay caused by FOGL-8738 - north statistics update thread de-prioritised....")
-        time.sleep(5)
+        print(f"Waiting for {wait_fix} seconds for delay caused by FOGL-8738 - north statistics update thread de-prioritised....")
+        time.sleep(wait_fix)
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase

@@ -12,6 +12,8 @@
 
 #include "connection.h"
 #include <thread>
+#include <queue>
+#include <condition_variable>
 
 #define	OVERFLOW_TABLE_ID	0	// Table ID to use for the overflow table
 
@@ -80,6 +82,30 @@ class TableReference {
 		int		m_dbId;
 		int		m_tableId;
 		time_t		m_issued;
+};
+
+/**
+ * Operations that are executed by the background thread to maintian the readings catalogue
+ */
+typedef enum {
+	InsertNewAsset,		// Allcoate a table to an asset
+	UpdateAssetCode	// Used when reusing a table with a differetn asset
+} UpdateOperation;
+
+/**
+ * The background command on the reading catalogue
+ */
+class BackGroundCommand {
+	public:
+		BackGroundCommand(UpdateOperation operation, int dbId, int tableId, const std::string& asset);
+		BackGroundCommand(UpdateOperation operation, int dbId, const std::string& asset);
+		std::string	getSQL();
+		std::string	getAsset() { return m_asset; };
+	private:
+		UpdateOperation	m_operation;
+		std::string	m_asset;
+		int		m_dbId;
+		int		m_tableId;
 };
 
 /**
@@ -186,6 +212,7 @@ public:
 	int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 	bool	      createReadingsOverflowTable(sqlite3 *dbHandle, int dbId);
 	int	      getMaxAttached() { return m_attachLimit; };
+	void	      processBackgroundQueue(Connection *con);
 
 
 private:
@@ -226,8 +253,8 @@ private:
 	long          calculateGlobalId (sqlite3 *dbHandle);
 	std::string   generateDbFilePath(int dbId);
 
-	void		  raiseError(const char *operation, const char *reason,...);
-	int			  SQLStep(sqlite3_stmt *statement);
+	void	      raiseError(const char *operation, const char *reason,...);
+	int	      SQLStep(sqlite3_stmt *statement);
 	bool          enableWAL(std::string &dbPathReadings);
 
 	bool          configurationRetrieve(sqlite3 *dbHandle);
@@ -247,6 +274,18 @@ private:
 
 	int           calcMaxReadingUsed();
 	void          dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd);
+	void	      queueBackgroundOperation(UpdateOperation operation, int dbId, int tableId, const std::string& asset)
+		      {
+			      std::unique_lock<std::mutex> lck(m_bgMutex);
+			      m_backgroundQueue.emplace(BackGroundCommand(operation, dbId, tableId, asset));
+			      m_bgCV.notify_all();
+		      }
+	void	      queueBackgroundOperation(UpdateOperation operation, int dbId, const std::string& asset)
+		      {
+			      std::unique_lock<std::mutex> lck(m_bgMutex);
+			      m_backgroundQueue.emplace(BackGroundCommand(operation, dbId, asset));
+			      m_bgCV.notify_all();
+		      }
 
 
 	int           m_dbIdCurrent;            // Current database in use
@@ -273,6 +312,12 @@ private:
 	int	       m_maxOverflowUsed;
 	int	       m_compounds; 	// Max number of compound statements
 	std::mutex     m_emptyReadingTableMutex;
+	std::queue<BackGroundCommand>
+		       m_backgroundQueue;
+	std::mutex     m_bgMutex;
+	std::condition_variable
+		       m_bgCV;
+
 public:
 	TransactionBoundary				m_tx;
 

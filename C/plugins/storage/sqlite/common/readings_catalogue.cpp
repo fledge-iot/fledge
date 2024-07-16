@@ -719,7 +719,10 @@ char	*zErrMsg = NULL;
 	// See if the overflow table exists and if not create it
 	// This is a workaround as the schema update mechanism can't cope
 	// with multiple readings tables
-	createReadingsOverflowTable(dbHandle, id);
+	if (!createReadingsOverflowTable(dbHandle, id))
+	{
+		Logger::getLogger()->error("Failed to create overflow table when attaching database id %d", id);
+	}
 
 	return result;
 }
@@ -1591,8 +1594,8 @@ bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
  * Creates a new database
  *
  * @param dbHandle     Database connection to use for the operations
- * @param newDbId      If of the created database to create
- * @param startId      Starting id for the creation of the reading tables
+ * @param newDbId      Id of the new database to create
+ * @param startId      Starting id for the creation of the reading tables within that database
  * @param attachAllDb  Type of attache operation to apply on the newly created database
  * @return             True of success, false on any error
  *
@@ -1618,11 +1621,13 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	connAllocated = false;
 	result = true;
 
+	Logger::getLogger()->warn("Creating new database: %d, table %d", newDbId, startId);
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	// Are there enough descriptors available to create another database
 	if (!manager->allowMoreDatabases())
 	{
+		Logger::getLogger()->warn("Unable to create bnew database: %d, table %d, no more allowed", newDbId, startId);
 		return false;
 	}
 
@@ -1662,8 +1667,13 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 
 	if (attachAllDb == NEW_DB_ATTACH_ALL)
 	{
+		// Although we want to attach to all connections wait until the
+		// tables have been created. For now just attach to this connection.
+		// This ensures no other connections start usign the tables we create
+		// in the new database until after we have finished the creation process
+		// as this coudl result in a deadlock
 		Logger::getLogger()->debug("createNewDB - attach all the databases");
-		result = manager->attachNewDb(dbPathReadings, dbAlias);
+		result = attachDb(dbHandle, dbPathReadings, dbAlias, newDbId);
 
 	} else  if (attachAllDb == NEW_DB_ATTACH_REQUEST)
 	{
@@ -1710,9 +1720,20 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	}
 
 	// Create the overflow table in the new database if it was not previosuly created
-	createReadingsOverflowTable(dbHandle, newDbId);
+	if (!createReadingsOverflowTable(dbHandle, newDbId))
+	{
+		Logger::getLogger()->error("Failed to create overflow table when creating database id %d", newDbId);
+	}
 
-	if (attachAllDb == NEW_DB_DETACH)
+	if (attachAllDb == NEW_DB_ATTACH_ALL)
+	{
+		// Attach to all the connections now the tables have been created
+		Logger::getLogger()->debug("createNewDB - attach all the databases");
+		detachDb(dbHandle, dbAlias);
+		result = manager->attachNewDb(dbPathReadings, dbAlias);
+
+	}
+	else if (attachAllDb == NEW_DB_DETACH)
 	{
 		Logger::getLogger()->debug("createNewDB - deattach");
 		detachDb(dbHandle, dbAlias);
@@ -1722,6 +1743,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	{
 		manager->release(connection);
 	}
+	Logger::getLogger()->warn("Completed creation of new database: %d, table %d", newDbId, startId);
 
 	return (result);
 }
@@ -1842,12 +1864,20 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
        	dbReadingsName.append("_overflow");
 
 	string sqlCmd = "select count(*) from " + dbName + "." + dbReadingsName + ";";
-	char *errMsg;
+	char *errMsg = NULL;
 	int rc = SQLExec(dbHandle, sqlCmd.c_str(), &errMsg);
 	if (rc == SQLITE_OK)
 	{
-		logger->debug("Overflow table %s already exists, not attempting creation", dbReadingsName.c_str());
+		logger->warn("Overflow table %s already exists, not attempting creation", dbReadingsName.c_str());
 		return true;
+	}
+	else if (rc == SQLITE_BUSY)
+	{
+		logger->warn("Unable to detect overflow table %s as database is busy", dbReadingsName.c_str());
+	}
+	else
+	{
+		logger->warn("Checking for overflow table %s gives %s", dbReadingsName.c_str(), errMsg ? errMsg : "no error");
 	}
 
 	string createReadings = R"(
@@ -1875,7 +1905,8 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 	rc = SQLExec(dbHandle, createReadings.c_str());
 	if (rc != SQLITE_OK)
 	{
-		raiseError("creating overflow table", sqlite3_errmsg(dbHandle));
+		string msg = "creating overflow table " + dbName + "." + dbReadingsName;
+		raiseError(msg.c_str(), sqlite3_errmsg(dbHandle));
 		return false;
 	}
 
@@ -2150,6 +2181,8 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				// Allocate the table in the reading catalogue
 				if (emptyAsset.empty())
 				{
+					queueBackgroundOperation(InsertNewAsset, ref.dbId, ref.tableId, asset_code);
+#if 0
 					sql_cmd =
 						"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 						+ to_string(ref.tableId) + ","
@@ -2157,23 +2190,29 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						+ "\"" + asset_code + "\")";
 					
 						Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset '%s' db Id %d readings Id %d ", asset_code, ref.dbId, ref.tableId);
+#endif
 
 				}
 				else
 				{
+					queueBackgroundOperation(UpdateAssetCode, ref.dbId, ref.tableId, asset_code);
+#if 0
 					sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
 									" WHERE db_id = " + to_string(ref.dbId) + " AND table_id = " + to_string(ref.tableId) + ";";
 
 					Logger::getLogger()->debug("getReadingReference - Use empty table %readings_%d_%d: ",ref.dbId,ref.tableId);
+#endif
 				}
 				
 				{
+#if 0
 					rc = SQLExec(dbHandle, sql_cmd.c_str());
 					if (rc != SQLITE_OK)
 					{
 						msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
 						raiseError("asset_reading_catalogue update", msg.c_str());
 					}
+#endif
 
 					if (emptyAsset.empty())
 					{
@@ -2189,6 +2228,8 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				Logger::getLogger()->info("Assign asset %s to the overflow table", asset_code);
 				auto newMapValue = make_pair(asset_code, TableReference(m_nextOverflow, 0));
 				m_AssetReadingCatalogue.insert(newMapValue);
+				queueBackgroundOperation(InsertNewAsset, m_nextOverflow, asset_code);
+#if 0
 				sql_cmd =
 					"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ( 0,"
 					+ to_string(m_nextOverflow) + ","
@@ -2199,6 +2240,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 					msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
 					raiseError("asset_reading_catalogue update", msg.c_str());
 				}
+#endif
 				ref.tableId = 0;
 				ref.dbId = m_nextOverflow;
 				if (m_nextOverflow > m_maxOverflowUsed)
@@ -2443,7 +2485,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			if (rc != SQLITE_OK)
 			{
-				sqlite3_free(zErrMsg);
+				sqlite3_free(*zErrMsg);
 				break;
 			}
 			if  (rowsAffected != nullptr) {
@@ -2885,6 +2927,38 @@ int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 }
 
 /**
+ * Process the background queue of reading catalogue updates
+ */
+void ReadingsCatalogue::processBackgroundQueue(Connection *con)
+{
+	sqlite3 *dbHandle = con->getDbHandle();
+	unique_lock<mutex> lck(m_bgMutex);
+	if (m_backgroundQueue.empty())
+	{
+		m_bgCV.wait_for(lck, chrono::seconds(10));
+		if (m_backgroundQueue.empty())
+		{
+			return;
+		}
+	}
+	BackGroundCommand& cmd = m_backgroundQueue.front();
+	lck.unlock();
+	string sql = cmd.getSQL();
+	int rc = SQLExec(dbHandle, sql.c_str());
+	if (rc != SQLITE_OK)
+	{
+		string msg = string(sqlite3_errmsg(dbHandle)) + " asset " + cmd.getAsset() + " " + sql;
+		raiseError("asset_reading_catalogue update", msg.c_str());
+	}
+	else
+	{
+		lck.lock();
+		m_backgroundQueue.pop();
+		lck.unlock();
+	}
+}
+
+/**
  * Remove committed TRANSACTION for the given thread
  *
  * @param    tid	The thread id
@@ -2972,4 +3046,55 @@ unsigned long TransactionBoundary::GetMinReadingId()
 #endif
 
 	return id;
+}
+
+/**
+ * Constructor for the background command used to update the on disk version of the
+ * reading catalogue.
+ *
+ * @param operation	The operation to synchronise
+ * @param dbId		The ID of the database the table resides in
+ * @param tableId	The ID of the table we are updating
+ * @param asset		The asset we are storign in the table
+ */
+BackGroundCommand::BackGroundCommand(UpdateOperation operation, int dbId, int tableId, const string& asset)
+	: m_operation(operation), m_dbId(dbId), m_tableId(tableId), m_asset(asset)
+{
+}
+
+/**
+ * Constructor for the background command used to update the on disk version of the
+ * reading catalogue. This form is used when workign with the overflow table in the 
+ * database.
+ *
+ * @param operation	The operation to synchronise
+ * @param dbId		The ID of the database the table resides in
+ * @param asset		The asset we are storign in the table
+ */
+BackGroundCommand::BackGroundCommand(UpdateOperation operation, int dbId, const string& asset)
+	: m_operation(operation), m_dbId(dbId), m_tableId(0), m_asset(asset)
+{
+}
+
+/**
+ * Return the SQL to execute for the given command
+ *
+ * @return string	The SQL statement to execute
+ */
+string BackGroundCommand::getSQL()
+{
+	switch (m_operation)
+	{
+		case InsertNewAsset:
+			return string("INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
+						+ to_string(m_tableId) + ","
+						+ to_string(m_dbId) + ","
+						+ "\"" + m_asset + "\")");
+			break;
+		case UpdateAssetCode:
+			return string("UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(m_asset) + "'" +
+									" WHERE db_id = " + to_string(m_dbId) + " AND table_id = " + to_string(m_tableId) + ";");
+			break;
+	}
+	return string();
 }

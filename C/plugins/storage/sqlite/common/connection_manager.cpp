@@ -494,19 +494,20 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 void ConnectionManager::background()
 {
 	time_t nextVacuum = time(0) + m_vacuumInterval;
+	ReadingsCatalogue *catalogue = ReadingsCatalogue::getInstance();
 
+	Connection *con = allocate();
 	while (!m_shutdown)
 	{
-		sleep(15);
+		catalogue->processBackgroundQueue(con);
 		time_t tim = time(0);
 		if (m_vacuumInterval && tim > nextVacuum)
 		{
-			Connection *con = allocate();
 			con->vacuum();
-			release(con);
 			nextVacuum = time(0) + m_vacuumInterval;
 		}
 	}
+	release(con);
 }
 
 /**

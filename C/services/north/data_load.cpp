@@ -105,18 +105,12 @@ void DataLoad::restart()
  */
 bool DataLoad::setDataSource(const string& source)
 {
-	if (source.compare("statistics") == 0) {
+	if (source.compare("statistics") == 0)
 		m_dataSource = SourceStatistics;
-		m_lastFetched = 0;	// Reset on source change
-	}
-	else if (source.compare("readings") == 0) {
+	else if (source.compare("readings") == 0)
 		m_dataSource = SourceReadings;
-		m_lastFetched = 0;	// Reset on source change
-	}
-	else if (source.compare("audit") == 0) {
+	else if (source.compare("audit") == 0)
 		m_dataSource = SourceAudit;
-		m_lastFetched = 0;	// Reset on source change
-	}
 	else
 	{
 		Logger::getLogger()->error("Unsupported source '%s' for north service '%s'",
@@ -652,6 +646,7 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 		if (config.itemExists("source"))
 		{
 			setDataSource(config.getValue("source"));
+			m_lastFetched = 0; // Reset last fetch counter on source change
 		}
 		string newPipeline = "";
 		if (config.itemExists("filter"))

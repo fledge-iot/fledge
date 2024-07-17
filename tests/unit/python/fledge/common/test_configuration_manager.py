@@ -546,7 +546,6 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
-    #@pytest.mark.skip(reason="FOGL-8281")
     @pytest.mark.parametrize("config", [
     ({ITEM_NAME: {"description": "test description", "type": "bucket",
                   "default": "{'type': 'model', 'name': 'Person', 'version': '1.0', 'hardware': 'tpu'}", "properties":
@@ -581,7 +580,10 @@ class TestConfigurationManager:
                         "order": "2", "displayName": "Model version"}, "hardware": {
                 "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
                 "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
-                "displayName": "Inference hardware"}}}}})
+                "displayName": "Inference hardware"}}}}}),
+    ({ITEM_NAME: {"description": "Model Test", "type": "bucket", "properties":
+        {"key": {"name": {"description": "TFlite model name to use for inference", "type": "string", "default":
+            "People"}}}, "default": "A", "permissions": ["control"]}})
     ])
     async def test__validate_category_val_bucket_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -610,7 +612,20 @@ class TestConfigurationManager:
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": {}, "properties": {"key": "v"}}},
          TypeError, "For {} category, entry value must be a string for item name {} and entry name default; "
-                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME))
+                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": ""}},
+         ValueError, "For {} category, permissions entry value must be a list of string for item name {}; "
+                     "got <class 'str'>.".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": [""]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": [2]}},
+         ValueError,"For {} category, permissions entry values must be a string and non-empty for item name {}."
+                    "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A",
+                      "permissions": ["user", 5]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_bucket_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

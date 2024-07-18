@@ -645,8 +645,11 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 		ConfigCategory config("tmp", newConfig);
 		if (config.itemExists("source"))
 		{
+			// If datasource has changed reset last fetch counter
+			uint16_t prev_dataSource = m_dataSource;
 			setDataSource(config.getValue("source"));
-			m_lastFetched = 0; // Reset last fetch counter on source change
+			if (prev_dataSource != m_dataSource)
+				m_lastFetched = 0;
 		}
 		string newPipeline = "";
 		if (config.itemExists("filter"))

@@ -338,6 +338,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              ''.format(category_name, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
+                    elif "permissions" in item_val:
+                        permissions = item_val['permissions']
+                        if not isinstance(permissions, list):
+                            raise ValueError(
+                                'For {} category, permissions entry value must be a list of string for item name {}; '
+                                'got {}.'.format(category_name, item_name, type(permissions)))
+                        if not permissions:
+                            raise ValueError(
+                                'For {} category, permissions entry value must not be empty for item name {}.'.format(
+                                    category_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in permissions):
+                                raise ValueError('For {} category, permissions entry values must be a string and '
+                                                 'non-empty for item name {}.'.format(category_name, item_name))
+                        item_val['permissions'] = permissions
                     else:
                         if type(entry_val) is not str:
                             raise TypeError('For {} category, entry value must be a string for item name {} and '

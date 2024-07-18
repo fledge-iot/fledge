@@ -299,7 +299,7 @@ class Server:
             'description': 'Minimum logging level reported for Core server',
             'type': 'enumeration',
             'displayName': 'Minimum Log Level',
-            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'options': ['debug', 'info', 'warning', 'error'],
             'default': 'warning',
             'order': '1'
         }

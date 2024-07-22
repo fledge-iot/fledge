@@ -210,14 +210,16 @@ class Server:
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Enable HTTP',
-            'order': '1'
+            'order': '1',
+            'permissions': ['admin']
         },
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081',
             'displayName': 'HTTP Port',
-            'order': '2'
+            'order': '2',
+            'permissions': ['admin']
         },
         'httpsPort': {
             'description': 'Port to accept HTTPS connections on',
@@ -225,7 +227,8 @@ class Server:
             'default': '1995',
             'displayName': 'HTTPS Port',
             'order': '3',
-            'validity': 'enableHttp=="false"'
+            'validity': 'enableHttp=="false"',
+            'permissions': ['admin']
         },
         'certificateName': {
             'description': 'Certificate file name',
@@ -233,7 +236,8 @@ class Server:
             'default': 'fledge',
             'displayName': 'Certificate Name',
             'order': '4',
-            'validity': 'enableHttp=="false"'
+            'validity': 'enableHttp=="false"',
+            'permissions': ['admin']
         },
         'authentication': {
             'description': 'API Call Authentication',
@@ -241,7 +245,8 @@ class Server:
             'options': ['mandatory', 'optional'],
             'default': 'optional',
             'displayName': 'Authentication',
-            'order': '5'
+            'order': '5',
+            'permissions': ['admin']
         },
         'authMethod': {
             'description': 'Authentication method',
@@ -249,14 +254,16 @@ class Server:
             'options': ["any", "password", "certificate"],
             'default': 'any',
             'displayName': 'Authentication method',
-            'order': '6'
+            'order': '6',
+            'permissions': ['admin']
         },
         'authCertificateName': {
             'description': 'Auth Certificate name',
             'type': 'string',
             'default': 'ca',
             'displayName': 'Auth Certificate',
-            'order': '7'
+            'order': '7',
+            'permissions': ['admin']
         },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
@@ -264,14 +271,16 @@ class Server:
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Allow Ping',
-            'order': '8'
+            'order': '8',
+            'permissions': ['admin']
         },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
             'displayName': 'Auth Providers',
-            'order': '9'
+            'order': '9',
+            'permissions': ['admin']
         },
         'disconnectIdleUserSession': {
             'description': 'Disconnect idle user session after certain period of inactivity',
@@ -280,7 +289,8 @@ class Server:
             'displayName': 'Idle User Session Disconnection (In Minutes)',
             'order': '10',
             'minimum': '1',
-            'maximum': '1440'
+            'maximum': '1440',
+            'permissions': ['admin']
         }
     }
 
@@ -289,9 +299,21 @@ class Server:
             'description': 'Minimum logging level reported for Core server',
             'type': 'enumeration',
             'displayName': 'Minimum Log Level',
-            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'options': ['debug', 'info', 'warning', 'error'],
             'default': 'warning',
             'order': '1'
+        }
+    }
+
+    _CONFIGURATION_DEFAULT_CONFIG = {
+        'cacheSize': {
+            'description': 'To control the caching size of Core Configuration Manager',
+            'type': 'integer',
+            'displayName': 'Cache Size',
+            'default': '30',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '1000'
         }
     }
 
@@ -510,7 +532,8 @@ class Server:
                     'options': ['Any characters', 'Mixed case Alphabetic', 'Mixed case and numeric', 'Mixed case, numeric and special characters'],
                     'default': 'Any characters',
                     'displayName': 'Policy',
-                    'order': '1'
+                    'order': '1',
+                    'permissions': ['admin']
                 },
                 'length': {
                     'description': 'Minimum password length',
@@ -519,14 +542,16 @@ class Server:
                     'displayName': 'Minimum Length',
                     'minimum': '6',
                     'maximum': '80',
-                    'order': '2'
+                    'order': '2',
+                    'permissions': ['admin']
                 },
                 'expiration': {
                     'description': 'Number of days after which passwords must be changed',
                     'type': 'integer',
                     'default': '0',
                     'displayName': 'Expiry (in Days)',
-                    'order': '3'
+                    'order': '3',
+                    'permissions': ['admin']
                 }
             }
             category = 'password'
@@ -600,6 +625,31 @@ class Server:
             cls._log_level = config['logLevel']['value']
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def setup_config_manager(cls):
+        """ Configuration manager category """
+        try:
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+
+            config = cls._CONFIGURATION_DEFAULT_CONFIG
+            category = 'CONFIGURATION'
+            description = "Core Configuration Manager"
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Configuration Manager')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cache_size = int(config['cacheSize']['value'])
+            # Internal handling of cache size
+            if cache_size == 0:
+                default_cache_size = cls._configuration_manager._cacheManager.max_cache_size
+                _logger.warn("Configuration Manager Cache Size is being set to the default size {}.".format(
+                    default_cache_size))
+                cache_size = default_cache_size
+            cls._configuration_manager._cacheManager.max_cache_size = cache_size
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -849,7 +899,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+                                                                                "CONFIGURATION"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -898,6 +949,9 @@ class Server:
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # Configuration Manager setup
+            loop.run_until_complete(cls.setup_config_manager())
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())

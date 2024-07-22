@@ -2246,9 +2246,9 @@ vector<string>  assetCodes;
 
 		totTime += usecs;
 
-		if(usecs>150000)
+		if(usecs > 150000)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100 + usecs/1000));
 		}
 		}
 
@@ -2298,6 +2298,12 @@ vector<string>  assetCodes;
 	if (sent == 0)	// Special case when not north process is used
 	{
 		unsentPurged = deletedRows;
+	}
+
+	if (deletedRows)
+	{
+		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,ReadingsCatalogue::getInstance(),false);
+		th.detach();
 	}
 
 	gettimeofday(&endTv, NULL);
@@ -2529,9 +2535,9 @@ struct timeval startTv, endTv;
 				return 0;
 			}
 		}
-		unsigned long deletePoint = minId + 10000;
+		unsigned long deletePoint = minId + 100000;
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + 100000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2560,11 +2566,13 @@ struct timeval startTv, endTv;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			logger->debug(" %s - DELETE - query '%s' rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
+			logger->info("%s - DELETE - query '%s' rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
 			rowcount    -= rowsAffected;
+
+			sqlite3_free(zErrMsg);
 
 			// Release memory for 'query' var
 			delete[] query;
@@ -2588,6 +2596,12 @@ struct timeval startTv, endTv;
 	if (limit)
 	{
 		unsentRetained = numReadings - rows;
+	}
+
+	if (deletedRows)
+	{
+		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,ReadingsCatalogue::getInstance(),false);
+		th.detach();
 	}
 
 	gettimeofday(&endTv, NULL);
@@ -2700,6 +2714,7 @@ sqlite3_stmt *stmt;
 		if (rc != SQLITE_OK)
 		{
 			raiseError("ReadingsAssetPurge", sqlite3_errmsg(dbHandle));
+			sqlite3_free(zErrMsg);
 			return 0;
 		}
 

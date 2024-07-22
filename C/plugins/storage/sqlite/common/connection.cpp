@@ -3037,9 +3037,9 @@ char	tmpbuf[512];
 	va_start(ap, reason);
 	vsnprintf(tmpbuf, sizeof(tmpbuf), reason, ap);
 	va_end(ap);
-	Logger::getLogger()->error("%s storage plugin raising error: %s",
+	Logger::getLogger()->error("%s storage plugin raising error: %s: %s",
 				   PLUGIN_LOG_NAME,
-				   tmpbuf);
+				   operation, tmpbuf);
 	manager->setError(operation, tmpbuf, false);
 }
 

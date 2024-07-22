@@ -34,7 +34,8 @@ class TestAudit:
                               'CTSAD', 'CTSCH', 'CTSDL',
                               'CTPAD', 'CTPCH', 'CTPDL',
                               'CTEAD', 'CTECH', 'CTEDL',
-                              'BUCAD', 'BUCCH', 'BUCDL'
+                              'BUCAD', 'BUCCH', 'BUCDL',
+                              'USRBK','USRUB'
                               ]
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')
@@ -68,10 +69,10 @@ class TestAudit:
         ('?skip=4', DEFAULT_AUDIT_COUNT, 12),
         ('?limit=1&skip=8', DEFAULT_AUDIT_COUNT, 1),
         ('?source=START', 1, 1),
-        ('?source=CONAD', 14, 14),
-        ('?source=CONAD&limit=1', 14, 1),
-        ('?source=CONAD&skip=1', 14, 13),
-        ('?source=CONAD&skip=6&limit=1', 14, 1),
+        ('?source=CONAD', 15, 15),
+        ('?source=CONAD&limit=1', 15, 1),
+        ('?source=CONAD&skip=1', 15, 14),
+        ('?source=CONAD&skip=6&limit=1', 15, 1),
         ('?severity=INFORMATION', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?severity=failure', 0, 0),
         ('?source=CONAD&severity=failure', 0, 0),

@@ -104,7 +104,7 @@ The default username is "admin" with a password of "fledge". Use these to login 
 The status bar now contains the name of the user that is currently logged in and a new option has appeared in the left-hand menu, *User Management*.
 
 .. note::
-   Any session that is idle for 15 minutes or longer will be disconnected. The user will ten be required to authenticate again before being able to issue any further commands via the API or user interface.
+   Any session that is idle for 15 minutes or longer will be disconnected. The user will then be required to authenticate again before being able to issue any further commands via the API or user interface.
 
 Failed Login Attempts
 ---------------------

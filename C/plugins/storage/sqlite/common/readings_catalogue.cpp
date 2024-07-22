@@ -2959,6 +2959,18 @@ void ReadingsCatalogue::processBackgroundQueue(Connection *con)
 }
 
 /**
+ * Check the consistency of the databases. Currently we only check to
+ * make sure each database has an overflow table and create it if not
+ */
+void ReadingsCatalogue::checkConsistency(Connection *connection)
+{
+	sqlite3 *dbHandle = connection->getDbHandle();
+	for (int id = 0; id < m_dbIdLast; id++)
+	{
+		createReadingsOverflowTable(dbHandle, id);
+	}
+}
+/**
  * Remove committed TRANSACTION for the given thread
  *
  * @param    tid	The thread id

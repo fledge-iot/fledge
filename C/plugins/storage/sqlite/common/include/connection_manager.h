@@ -47,6 +47,7 @@ class ConnectionManager {
 						m_vacuumInterval = 60 * 60 * hours;
 					  };
 		bool			  allowMoreDatabases();
+		void			  checkConsistency();
 
 	protected:
 		ConnectionManager();

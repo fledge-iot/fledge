@@ -546,3 +546,13 @@ void ConnectionManager::noConnectionsDiagnostic()
 	inUseLock.unlock();
 #endif
 }
+
+/**
+ * Check the consistency of the storage
+ */
+void ConnectionManager::checkConsistency()
+{
+	Connection *con = allocate();
+	ReadingsCatalogue::getInstance()->checkConsistency(con);
+	release(con);
+}

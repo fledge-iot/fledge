@@ -213,6 +213,7 @@ public:
 	bool	      createReadingsOverflowTable(sqlite3 *dbHandle, int dbId);
 	int	      getMaxAttached() { return m_attachLimit; };
 	void	      processBackgroundQueue(Connection *con);
+	void	      checkConsistency(Connection *con);
 
 
 private:

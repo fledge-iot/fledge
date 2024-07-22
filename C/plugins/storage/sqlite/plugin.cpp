@@ -138,6 +138,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	}
 	manager->growPool(storageConfig.poolSize);
 
+	manager->checkConsistency();
 
 	if (category->itemExists("nReadingsPerDb"))
 	{

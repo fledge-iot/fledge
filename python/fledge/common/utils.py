@@ -148,3 +148,35 @@ def make_async(fn):
 
     return wrapper
 
+
+def dict_difference(dict1, dict2):
+    """ Compare two dictionaries and return their difference """
+    diff = {}
+
+    # Check keys in dict1 not in dict2
+    for key in dict1:
+        if key not in dict2:
+            diff[key] = dict1[key]
+        else:
+            # Recursively compare nested dictionaries
+            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                nested_diff = dict_difference(dict1[key], dict2[key])
+                if nested_diff:
+                    diff[key] = nested_diff
+            elif dict1[key] != dict2[key]:
+                diff[key] = dict1[key]
+
+    # Check keys in dict2 not in dict1
+    for key in dict2:
+        if key not in dict1:
+            diff[key] = dict2[key]
+        else:
+            # Recursively compare nested dictionaries
+            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                nested_diff = dict_difference(dict1[key], dict2[key])
+                if nested_diff:
+                    diff[key] = nested_diff
+            elif dict1[key] != dict2[key]:
+                diff[key] = dict2[key]
+    return diff
+

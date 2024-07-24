@@ -17,6 +17,7 @@ import collections
 import ast
 
 import aiohttp.web_request
+from fledge.common import utils as common_utils
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -1421,7 +1422,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description,
                                                     display_name)
-                        diff = set(category_val_prepared) - set(category_val_storage)
+                        diff = common_utils.dict_difference(category_val_prepared, category_val_storage)
                         if diff:
                             audit = AuditLogger(self._storage)
                             audit_details = {

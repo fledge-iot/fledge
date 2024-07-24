@@ -284,6 +284,7 @@ async def logout(request):
     return web.json_response({"logout": True})
 
 
+@has_permission("admin")
 async def get_roles(request):
     """ get roles
 

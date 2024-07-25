@@ -716,6 +716,7 @@ char	*zErrMsg = NULL;
 		result = false;
 	}
 
+#if 0
 	// See if the overflow table exists and if not create it
 	// This is a workaround as the schema update mechanism can't cope
 	// with multiple readings tables
@@ -723,6 +724,7 @@ char	*zErrMsg = NULL;
 	{
 		Logger::getLogger()->error("Failed to create overflow table when attaching database id %d", id);
 	}
+#endif
 
 	return result;
 }
@@ -1865,6 +1867,7 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 
 	string sqlCmd = "select count(*) from " + dbName + "." + dbReadingsName + ";";
 	char *errMsg = NULL;
+#if 0
 	int rc = SQLExec(dbHandle, sqlCmd.c_str(), &errMsg);
 	if (rc == SQLITE_OK)
 	{
@@ -1879,6 +1882,9 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 	{
 		logger->warn("Checking for overflow table %s gives %s", dbReadingsName.c_str(), errMsg ? errMsg : "no error");
 	}
+#else
+	int rc;
+#endif
 
 	string createReadings = R"(
 		CREATE TABLE IF NOT EXISTS )" + dbName + "." + dbReadingsName + R"( (

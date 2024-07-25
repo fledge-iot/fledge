@@ -17,3 +17,5 @@ pyjq==2.5.1;python_version>="3.8"
 
 # Fledge discovery
 zeroconf==0.27.0
+
+setuptools==70.3.0;python_version>="3.8"

@@ -174,6 +174,7 @@ void DataLoad::triggerRead(unsigned int blockSize)
 void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
+	bool update_streamId = false;
 	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
@@ -211,6 +212,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
+			update_streamId = false;
 			m_lastFetched = readings->getLastId();
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
 							readings->getCount(), m_lastFetched);
@@ -233,6 +235,11 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (!m_shutdown)
 		{
+			if (!update_streamId) {
+				// Update 'last_object_id' in 'streams' table when no readings to send
+				flushLastSentId();
+				update_streamId = true;
+			}
 			// TODO improve this
 			this_thread::sleep_for(chrono::milliseconds(waitPeriod));
 			waitPeriod *= 2;
@@ -444,7 +451,7 @@ InsertValues streamValues;
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
 		Logger::getLogger()->error("Failed to insert a row into the streams table");
-        }
+    }
 	else
 	{
 		// Select the row just created, having description='process name'

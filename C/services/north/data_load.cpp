@@ -41,6 +41,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_nextStreamUpdate = 1;
 	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
+	m_streamSent = getLastSentId();
 	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
@@ -228,6 +229,11 @@ void DataLoad::readBlock(unsigned int blockSize)
 		{
 			// Delete the empty readings set
 			delete readings;
+			if (!update_streamId) {
+				update_streamId = true;
+				// Update 'last_object_id' in 'streams' table when no readings to send
+				flushLastSentId();
+			}
 		}
 		else
 		{
@@ -235,11 +241,6 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (!m_shutdown)
 		{
-			if (!update_streamId) {
-				// Update 'last_object_id' in 'streams' table when no readings to send
-				flushLastSentId();
-				update_streamId = true;
-			}
 			// TODO improve this
 			this_thread::sleep_for(chrono::milliseconds(waitPeriod));
 			waitPeriod *= 2;

@@ -29,6 +29,7 @@
 #include <sys/time.h>
 
 #include "json_utils.h"
+#include "string_utils.h"
 
 #include <iostream>
 #include <chrono>
@@ -1683,7 +1684,11 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append(asset_code);
+			std::string escaped_asset(asset_code);
+			std::string target ="'";
+			std::string replacement ="''";
+			replicate(escaped_asset, target, replacement);
+			sql.append(escaped_asset);
 			sql.append("', '");
 
 			// Handles - reading

@@ -175,7 +175,7 @@ void DataLoad::triggerRead(unsigned int blockSize)
 void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
-	bool update_streamId = false;
+	int n_update_streamId = 0;
 	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
@@ -213,7 +213,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
-			update_streamId = false;
+			n_update_streamId = 0;
 			m_lastFetched = readings->getLastId();
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
 							readings->getCount(), m_lastFetched);
@@ -229,9 +229,11 @@ void DataLoad::readBlock(unsigned int blockSize)
 		{
 			// Delete the empty readings set
 			delete readings;
-			if (!update_streamId) {
-				update_streamId = true;
+			n_update_streamId++;
+			if (n_update_streamId > 5) {
 				// Update 'last_object_id' in 'streams' table when no readings to send
+				n_update_streamId = 0;
+				m_streamSent = getLastFetched();
 				flushLastSentId();
 			}
 		}

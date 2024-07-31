@@ -176,6 +176,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
 	int n_update_streamId = 0;
+	int max_wait_count = 5;	// Maximum wait counter to update streams table
 	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
@@ -230,7 +231,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 			// Delete the empty readings set
 			delete readings;
 			n_update_streamId++;
-			if (n_update_streamId > 5) {
+			if (n_update_streamId > max_wait_count) {
 				// Update 'last_object_id' in 'streams' table when no readings to send
 				n_update_streamId = 0;
 				m_streamSent = getLastFetched();

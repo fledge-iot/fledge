@@ -576,6 +576,16 @@ async def update_password(request):
         msg = "User ID should be in integer."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    # Restrictions
+    if int(request.user["id"]) != int(user_id):
+        # Super Admin default user
+        if int(user_id) == 1:
+            raise web.HTTPUnauthorized(reason="Insufficient privileges to update the password for the given user.")
+        else:
+            if int(request.user["role_id"]) != ADMIN_ROLE_ID:
+                raise web.HTTPUnauthorized(
+                    reason="Insufficient privileges to update the password for the given user.")
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')

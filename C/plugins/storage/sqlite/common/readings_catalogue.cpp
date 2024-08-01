@@ -1623,13 +1623,13 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	connAllocated = false;
 	result = true;
 
-	Logger::getLogger()->warn("Creating new database: %d, table %d", newDbId, startId);
+	Logger::getLogger()->info("Creating new database: %d, table %d", newDbId, startId);
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	// Are there enough descriptors available to create another database
 	if (!manager->allowMoreDatabases())
 	{
-		Logger::getLogger()->warn("Unable to create bnew database: %d, table %d, no more allowed", newDbId, startId);
+		Logger::getLogger()->warn("Unable to create new database: %d, table %d, no more  databases are allowed", newDbId, startId);
 		return false;
 	}
 
@@ -1745,7 +1745,7 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	{
 		manager->release(connection);
 	}
-	Logger::getLogger()->warn("Completed creation of new database: %d, table %d", newDbId, startId);
+	Logger::getLogger()->info("Completed creation of new database: %d, table %d", newDbId, startId);
 
 	return (result);
 }
@@ -1867,24 +1867,7 @@ bool  ReadingsCatalogue::createReadingsOverflowTable(sqlite3 *dbHandle, int dbId
 
 	string sqlCmd = "select count(*) from " + dbName + "." + dbReadingsName + ";";
 	char *errMsg = NULL;
-#if 0
-	int rc = SQLExec(dbHandle, sqlCmd.c_str(), &errMsg);
-	if (rc == SQLITE_OK)
-	{
-		logger->warn("Overflow table %s already exists, not attempting creation", dbReadingsName.c_str());
-		return true;
-	}
-	else if (rc == SQLITE_BUSY)
-	{
-		logger->warn("Unable to detect overflow table %s as database is busy", dbReadingsName.c_str());
-	}
-	else
-	{
-		logger->warn("Checking for overflow table %s gives %s", dbReadingsName.c_str(), errMsg ? errMsg : "no error");
-	}
-#else
 	int rc;
-#endif
 
 	string createReadings = R"(
 		CREATE TABLE IF NOT EXISTS )" + dbName + "." + dbReadingsName + R"( (

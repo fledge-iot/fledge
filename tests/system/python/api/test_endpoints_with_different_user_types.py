@@ -415,7 +415,8 @@ class TestAPIEndpointsWithControlUserType:
     def test_login(self, fledge_url, wait_time):
         time.sleep(wait_time * 2)
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("POST", "/fledge/login", json.dumps({"username": CONTROL_USERNAME, "password": CONTROL_PWD}))
+        conn.request("POST", "/fledge/login", json.dumps({"username": CONTROL_USERNAME,
+                                                          "password": CONTROL_PWD}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -436,7 +437,7 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 200),
         ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
         ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 500), ("PUT", "/fledge/user/3/password", 500),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/5/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),

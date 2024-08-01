@@ -950,8 +950,6 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 		preallocateReadingsTables(0);   // on the last database
 
 		evaluateGlobalId();
-		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,this,true);
-		th.detach();
 	}
 	catch (exception& e)
 	{
@@ -2470,11 +2468,11 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
 
-			Logger::getLogger()->debug("purgeAllReadings:  rc %d cmd '%s'", rc ,sqlCmdTmp.c_str() );
+			Logger::getLogger()->debug("purgeAllReadings:  rc:%d, errorMsg:'%s', cmd:'%s'", rc , (*zErrMsg) ? (*zErrMsg) : "", sqlCmdTmp.c_str() );
 
 			if (rc != SQLITE_OK)
 			{
-				sqlite3_free(*zErrMsg);
+				// sqlite3_free(*zErrMsg); // needed by calling method
 				break;
 			}
 			if  (rowsAffected != nullptr) {
@@ -2485,8 +2483,6 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 		}
 	}
 
-	std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,this,false);
-	th.detach();
 	return(rc);
 
 }

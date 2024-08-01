@@ -12,11 +12,12 @@ import inspect
 import ipaddress
 import datetime
 import os
-import logging
 from math import *
 import collections
 import ast
 
+import aiohttp.web_request
+from fledge.common import utils as common_utils
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -38,7 +39,7 @@ _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', '
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL', 'bucket',
                               'list', 'kvlist'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory', 'group', 'listSize', 'listName'])
+                          'validity', 'mandatory', 'group', 'listSize', 'listName', 'permissions'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -46,17 +47,15 @@ RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api
 class ConfigurationCache(object):
     """Configuration Cache Manager"""
 
-    MAX_CACHE_SIZE = 10
-
-    def __init__(self):
+    def __init__(self, size=30):
         """
         cache: value stored in dictionary as per category_name
-        max_cache_size: Hold the 10 recently requested categories in the cache
+        max_cache_size: Hold the recently requested categories in the cache. Default cache size is 30
         hit: number of times an item is read from the cache
         miss: number of times an item was not found in the cache and a read of the storage layer was required
         """
         self.cache = {}
-        self.max_cache_size = self.MAX_CACHE_SIZE
+        self.max_cache_size = size
         self.hit = 0
         self.miss = 0
 
@@ -269,7 +268,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
                                      'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
-                                     'group': 0, 'listSize': 0, 'listName': 0}
+                                     'group': 0, 'listSize': 0, 'listName': 0, 'permissions': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -304,6 +303,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         else:
                             d = {entry_name: entry_val}
                             expected_item_entries.update(d)
+                    elif entry_name == "permissions":
+                        if not isinstance(entry_val, list):
+                            raise ValueError(
+                                'For {} category, {} entry value must be a list of string for item name {}; got {}.'
+                                ''.format(category_name, entry_name, item_name, type(entry_val)))
+                        if not entry_val:
+                            raise ValueError(
+                                'For {} category, {} entry value must not be empty for item name '
+                                '{}.'.format(category_name, entry_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                                raise ValueError('For {} category, {} entry values must be a string and non-empty '
+                                                 'for item name {}.'.format(category_name, entry_name, item_name))
                     else:
                         if type(entry_val) is not str:
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -327,6 +339,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                              ''.format(category_name, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
+                    elif "permissions" in item_val:
+                        permissions = item_val['permissions']
+                        if not isinstance(permissions, list):
+                            raise ValueError(
+                                'For {} category, permissions entry value must be a list of string for item name {}; '
+                                'got {}.'.format(category_name, item_name, type(permissions)))
+                        if not permissions:
+                            raise ValueError(
+                                'For {} category, permissions entry value must not be empty for item name {}.'.format(
+                                    category_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in permissions):
+                                raise ValueError('For {} category, permissions entry values must be a string and '
+                                                 'non-empty for item name {}.'.format(category_name, item_name))
+                        item_val['permissions'] = permissions
                     else:
                         if type(entry_val) is not str:
                             raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -334,7 +361,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                            type(entry_val)))
                 # Validate list type and mandatory items
                 elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
-                    if entry_name not in ('properties', 'options') and not isinstance(entry_val, str):
+                    if entry_name not in ('properties', 'options', 'permissions') and not isinstance(entry_val, str):
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
@@ -351,6 +378,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError('For {} category, listName cannot be empty for item name '
                                              '{}'.format(category_name, item_name))
                         item_val['listName'] = list_name
+                    elif "permissions" in item_val:
+                        permissions = item_val['permissions']
+                        if not isinstance(permissions, list):
+                            raise ValueError(
+                                'For {} category, permissions entry value must be a list of string for item name {}; '
+                                'got {}.'.format(category_name, item_name, type(permissions)))
+                        if not permissions:
+                            raise ValueError(
+                                'For {} category, permissions entry value must not be empty for item name {}.'.format(
+                                    category_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in permissions):
+                                raise ValueError('For {} category, permissions entry values must be a string and '
+                                                 'non-empty for item name {}.'.format(category_name, item_name))
                     if entry_name == 'items':
                         if entry_val not in ("string", "float", "integer", "object", "enumeration"):
                             raise ValueError("For {} category, items value should either be in string, float, "
@@ -490,6 +531,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if entry_name in ('properties', 'options'):
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
+                elif entry_name == "permissions":
+                    if not isinstance(entry_val, list):
+                        raise ValueError(
+                            'For {} category, {} entry value must be a list of string for item name {}; got {}.'
+                            ''.format(category_name, entry_name, item_name, type(entry_val)))
+                    if not entry_val:
+                        raise ValueError(
+                            'For {} category, {} entry value must not be empty for item name '
+                            '{}.'.format(category_name, entry_name, item_name))
+                    else:
+                        if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                            raise ValueError('For {} category, {} entry values must be a string and non-empty '
+                                             'for item name {}.'.format(category_name, entry_name, item_name))
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -513,6 +567,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             self._validate_type_value('float', entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
+                    elif entry_name == "permissions":
+                        if not isinstance(entry_val, list):
+                            raise ValueError(
+                                'For {} category, {} entry value must be a list of string for item name {}; got {}.'
+                                ''.format(category_name, entry_name, item_name, type(entry_val)))
+                        if not entry_val:
+                            raise ValueError(
+                                'For {} category, {} entry value must not be empty for item name '
+                                '{}.'.format(category_name, entry_name, item_name))
+                        else:
+                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+                                raise ValueError('For {} category, {} entry values must be a string and non-empty '
+                                                 'for item name {}.'.format(category_name, entry_name, item_name))
                     elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
@@ -742,6 +809,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                 .WHERE(["key", "=", category_name]).payload()
             await self._storage.update_tbl("configuration", payload)
+            cat_value = {item_name: {"value": new_value_val}}
+            self._handle_config_items(category_name, cat_value)
             audit = AuditLogger(self._storage)
             audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value,
                              'newValue': new_value_val}
@@ -752,26 +821,30 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-    async def update_configuration_item_bulk(self, category_name, config_item_list):
+    async def update_configuration_item_bulk(self, category_name, config_item_list, request=None):
         """ Bulk update config items
 
         Args:
             category_name: category name
             config_item_list: dict containing config item values
+            request: request details to identify user info
 
         Returns:
             None
         """
-
         try:
             payload = {"updates": []}
             audit_details = {'category': category_name, 'items': {}}
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
+            """ Note: Update reject to the properties with permissions property when the logged in user type is not
+             given in the list of permissions. """
+            user_role_name = await self._check_updates_by_role(request)
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
+                self._check_permissions(request, cat_info[item_name], user_role_name)
                 # Evaluate new_val as per rule if defined
                 if 'rule' in cat_info[item_name]:
                     rule = cat_info[item_name]['rule'].replace("value", new_val)
@@ -859,6 +932,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             # read the updated value from storage
             cat_value = await self._read_category_val(category_name)
+            self._handle_config_items(category_name, cat_value)
             # Category config items cache updated
             for item_name, new_val in config_item_list.items():
                 if category_name in self._cacheManager.cache:
@@ -874,7 +948,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONCH', audit_details)
 
         except Exception as ex:
-            _logger.exception(ex, 'Unable to bulk update config items')
+            if 'Forbidden' not in str(ex):
+                _logger.exception(ex, 'Unable to bulk update config items')
             raise
 
         try:
@@ -1035,7 +1110,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 item_name)
             raise
 
-    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path=""):
+    async def set_category_item_value_entry(self, category_name, item_name, new_value_entry, script_file_path="",
+                                            request=None):
         """Set the "value" entry of a given item within a given category.
 
         Keyword Arguments:
@@ -1043,6 +1119,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         item_name -- name of item within the category whose "value" entry needs to be changed (required)
         new_value_entry -- new value entry to replace old value entry
         script_file_path -- Script file path for the config item whose type is script
+        request -- request details to identify user info
 
         Side Effects:
         An update to storage will not be issued if a new_value_entry is the same as the new_value_entry from storage.
@@ -1075,7 +1152,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                      .format(category_name, item_name))
                 if storage_value_entry == new_value_entry:
                     return
-
+            """ Note: Update reject to the properties with permissions property when the logged in user type is not
+             given in the list of permissions. """
+            user_role_name = await self._check_updates_by_role(request)
+            if user_role_name:
+                self._check_permissions(request, storage_value_entry, user_role_name)
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':
                 if new_value_entry == '':
@@ -1122,10 +1203,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
-        except:
-            _logger.exception(
-                'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
-                category_name, item_name, new_value_entry)
+        except Exception as ex:
+            if 'Forbidden' not in str(ex):
+                _logger.exception(
+                    'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
+                    category_name, item_name, new_value_entry)
             raise
         try:
             await self._run_callbacks(category_name)
@@ -1340,7 +1422,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description,
                                                     display_name)
-                        diff = set(category_val_prepared) - set(category_val_storage)
+                        diff = common_utils.dict_difference(category_val_prepared, category_val_storage)
                         if diff:
                             audit = AuditLogger(self._storage)
                             audit_details = {
@@ -1994,4 +2076,33 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError(type_mismatched_message)
                         if not isinstance(eval_s, type_check):
                             raise ValueError(type_mismatched_message)
+
+    def _handle_config_items(self, cat_name: str, cat_value: dict) -> None:
+        """ Update value in config items for a category which are required without restart of Fledge """
+        if cat_name == 'CONFIGURATION':
+            if 'cacheSize' in cat_value:
+                self._cacheManager.max_cache_size = int(cat_value['cacheSize']['value'])
+
+    async def _check_updates_by_role(self, request: aiohttp.web_request.Request) -> str:
+        async def get_role_name():
+            from fledge.services.core.user_model import User
+            name = await User.Objects.get_role_name_by_id(request.user['role_id'])
+            if name is None:
+                raise ValueError("Requesting user's role is not matched with any existing roles.")
+            return name
+
+        role_name = ""
+        if request is not None:
+            if hasattr(request, "user_is_admin"):
+                if not request.user_is_admin:
+                    role_name = await get_role_name()
+        return role_name
+
+    def _check_permissions(self, request: aiohttp.web_request.Request, cat_info: str, role_name: str) -> None:
+        if request is not None:
+            if hasattr(request, "user_is_admin"):
+                if not request.user_is_admin:
+                    if 'permissions' in cat_info:
+                        if not (role_name in cat_info['permissions']):
+                            raise Exception('Forbidden')
 

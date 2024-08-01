@@ -104,6 +104,8 @@ async def auth_middleware(app, handler):
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError, User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
+            except jwt.exceptions.InvalidAlgorithmError:
+                raise web.HTTPUnauthorized(reason="The token has expired, login again.")
         else:
             if str(handler).startswith("<function ping"):
                 pass
@@ -198,6 +200,10 @@ async def validate_requests(request):
            - All CRUD's privileges for control pipelines
     """
     user_id = request.user['id']
+    # Only URL's which are specific meant for Admin user
+    if not request.user_is_admin and request.method == 'GET':
+        if str(request.rel_url) == '/fledge/user':
+            raise web.HTTPForbidden
     # Normal/Editor user
     if int(request.user["role_id"]) == 2 and request.method != 'GET':
         # Special case: Allowed control entrypoint update request and handling of rejection in its handler
@@ -214,7 +220,7 @@ async def validate_requests(request):
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':
             supported_endpoints = ['/fledge/asset', '/fledge/ping', '/fledge/statistics',
-                                   '/fledge/user?id={}'.format(user_id), '/fledge/user/role']
+                                   '/fledge/user?', '/fledge/user/role']
             if not (str(request.rel_url).startswith(tuple(supported_endpoints)
                                                     ) or str(request.rel_url).endswith('/fledge/service')):
                 raise web.HTTPForbidden
@@ -224,3 +230,4 @@ async def validate_requests(request):
                 raise web.HTTPForbidden
         else:
             raise web.HTTPForbidden
+

@@ -361,7 +361,7 @@ void DataSender::flushStatistics()
 		int rv = m_loader->getStorage()->updateTable("statistics", statsUpdates);
 
 		// Check for errors
-		if (rv != statsData.size())
+		if (rv < 1)
 		{
 			if (++m_statsUpdateFails > STATS_UPDATE_FAIL_THRESHOLD)
 			{
@@ -433,7 +433,7 @@ bool DataSender::createStats(const std::string &key,
 	}
 	else
 	{
-		description = key + " Noth";
+		description = key + " North";
 	}
 	InsertValues values;
 	values.push_back(InsertValue("key",         key));

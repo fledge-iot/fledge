@@ -13,10 +13,13 @@ __version__ = "${VERSION}"
 @pytest.allure.story("common", "configuration_manager", "configuration_cache")
 class TestConfigurationCache:
 
-    def test_init(self):
-        cached_manager = ConfigurationCache()
+    @pytest.mark.parametrize("size", [
+        0, 1, 10, 20, 1000
+    ])
+    def test_init(self, size):
+        cached_manager = ConfigurationCache(size)
         assert {} == cached_manager.cache
-        assert 10 == cached_manager.max_cache_size
+        assert size == cached_manager.max_cache_size
         assert 0 == cached_manager.hit
         assert 0 == cached_manager.miss
 
@@ -53,8 +56,32 @@ class TestConfigurationCache:
         assert cat_val == cached_manager.cache[cat_name]['value']
         assert cat_display_name == cached_manager.cache[cat_name]['displayName']
 
+    @pytest.mark.parametrize("size, cat_names, cat_miss", [
+        (1, ['cat10'], ['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6', 'cat7', 'cat8', 'cat9']),
+        (2, ['cat9', 'cat10'], ['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6', 'cat7', 'cat8']),
+        (10, ['cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6', 'cat7', 'cat8', 'cat9', 'cat10'], [])
+    ])
+    def test_update_with_cache_size(self, size, cat_names, cat_miss):
+        cached_manager = ConfigurationCache(size)
+        cached_manager.update("cat1", "desc1", {'value': {}})
+        cached_manager.update("cat2", "desc2", {'value': {}})
+        cached_manager.update("cat3", "desc3", {'value': {}})
+        cached_manager.update("cat4", "desc4", {'value': {}})
+        cached_manager.update("cat5", "desc5", {'value': {}})
+        cached_manager.update("cat6", "desc6", {'value': {}})
+        cached_manager.update("cat7", "desc7", {'value': {}})
+        cached_manager.update("cat8", "desc8", {'value': {}})
+        cached_manager.update("cat9", "desc9", {'value': {}})
+        cached_manager.update("cat10", "desc10", {'value': {}})
+        assert size == cached_manager.size
+        keys = list(cached_manager.cache.keys())
+        assert cat_names == keys
+        if set(cat_miss) & set(cat_names):
+            assert False, "Category should not exist in cache manager"
+
     def test_remove_oldest(self):
         cached_manager = ConfigurationCache()
+        cached_manager.max_cache_size = 10
         cached_manager.update("cat1", "desc1", {'value': {}})
         cached_manager.update("cat2", "desc2", {'value': {}})
         cached_manager.update("cat3", "desc3", {'value': {}})

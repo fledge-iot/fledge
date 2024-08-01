@@ -31,10 +31,8 @@ async def get_disk_usage(given_dir):
        Helper function that calculates used, available, usage(in %) for a given directory in file system.
        Returns a tuple of used(in KB's integer), available(in KB's integer), usage(in %)
     """
-    disk_check_process = await asyncio.create_subprocess_shell('df -k ' + given_dir,
-                                                               stdout=asyncio.subprocess.PIPE,
-                                                               stderr=asyncio.subprocess.PIPE)
-
+    disk_check_process = await asyncio.create_subprocess_exec(
+        'df', '-k', given_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await disk_check_process.communicate()
     if disk_check_process.returncode != 0:
         stderr = stderr.decode("utf-8")

@@ -215,6 +215,9 @@ ReadingSet::append(vector<Reading *>& readings)
 
 /**
 * Deep copy a set of readings to this reading set.
+*
+* @param src	The reading set to copy
+* @return bool	True if the reading set was copied
 */
 bool
 ReadingSet::copy(const ReadingSet& src)
@@ -226,14 +229,15 @@ ReadingSet::copy(const ReadingSet& src)
 		// Iterate over all the readings in ReadingSet
 		for (auto const &reading : src.getAllReadings())
 		{
-			std::string assetName = reading->getAssetName();
-			std::vector<Datapoint *> dataPoints;
+			string assetName = reading->getAssetName();
+			string ts = reading->getAssetDateUserTime();
+			vector<Datapoint *> dataPoints;
 			try
 			{
 				// Iterate over all the datapoints associated with one reading
 				for (auto const &dp : reading->getReadingData())
 				{
-					std::string dataPointName  = dp->getName();
+					string dataPointName  = dp->getName();
 					DatapointValue dv = dp->getData();
 					dataPoints.emplace_back(new Datapoint(dataPointName, dv));
 					
@@ -263,7 +267,7 @@ ReadingSet::copy(const ReadingSet& src)
 				throw;
 			}
 			
-			Reading *in = new Reading(assetName, dataPoints);
+			Reading *in = new Reading(assetName, dataPoints, ts);
 			readings.emplace_back(in);
 	   }
    }

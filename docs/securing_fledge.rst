@@ -160,7 +160,7 @@ This popup can be used to change your password. On successfully changing your pa
 Password Policy
 ---------------
 
-Fledge provides different policies to control the passwords. The following options are currently available:
+Fledge provides different policies to control the managed users password. The following options are currently available:
 
 +-------------------+
 | |password_policy| |

@@ -13,8 +13,10 @@ from datetime import datetime
 from aiohttp import web
 import jwt
 
-from fledge.services.core.user_model import User
 from fledge.common.logger import FLCoreLogger
+from fledge.services.core import firewall
+from fledge.services.core.user_model import User
+
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -46,6 +48,7 @@ async def optional_auth_middleware(app, handler):
         _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = True
         request.user = None
+        check_firewall_ip(request)
         return await handler(request)
     return middleware
 
@@ -68,10 +71,9 @@ async def auth_middleware(app, handler):
         #   request must carry auth header,
         #   actual value will be checked too and if bad then 401: unauthorized will be returned
         _logger.debug("Received %s request for %s", request.method, request.path)
-
         request.is_auth_optional = False
         request.user = None
-
+        check_firewall_ip(request)
         if request.method == 'OPTIONS':
             return await handler(request)
 
@@ -230,4 +232,19 @@ async def validate_requests(request):
                 raise web.HTTPForbidden
         else:
             raise web.HTTPForbidden
+
+
+def check_firewall_ip(req: web.Request) -> None:
+    source_ip_address = req.transport.get_extra_info('peername')[0]
+    if source_ip_address not in ['localhost', '127.0.0.1']:
+        firewall_ip_addresses = firewall.Firewall.IPList.get()
+        if 'allowList' in firewall_ip_addresses:
+            allowed = firewall_ip_addresses['allowList']
+            if allowed:
+                if source_ip_address not in allowed:
+                    raise web.HTTPForbidden
+            else:
+                if 'denyList' in firewall_ip_addresses:
+                    if source_ip_address in firewall_ip_addresses['denyList']:
+                        raise web.HTTPForbidden
 

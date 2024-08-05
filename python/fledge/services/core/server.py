@@ -50,6 +50,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 from fledge.services.core.api.control_service import acl_management as acl_management
+from fledge.services.core import firewall
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
@@ -362,6 +363,9 @@ class Server:
     _user_idle_session_timeout = 15 * 60
     """ User idle session timeout (in minutes) """
 
+    _firewall_ip_addresses = {}
+    """ IP addresses for firewall check """
+
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
             'description': 'Maximum updates per day',
@@ -557,6 +561,21 @@ class Server:
             category = 'password'
             await cls._configuration_manager.create_category(category, config, 'To control the password policy', True,
                                                              display_name="Password Policy")
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+
+    @classmethod
+    async def firewall_config(cls):
+        try:
+            obj = firewall.Firewall()
+            category = obj.cat_name
+            await cls._configuration_manager.create_category(category, obj.config, obj.description, True,
+                                                             display_name=obj.display_name)
+            config = await cls._configuration_manager.get_category_all_items(category)
+            firewall.Firewall.IPList.save(data=config)
             await cls._configuration_manager.create_child_category("rest_api", [category])
         except Exception as ex:
             _logger.exception(ex)
@@ -968,8 +987,11 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
+            # REST API
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
+            loop.run_until_complete(cls.firewall_config())
+
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context

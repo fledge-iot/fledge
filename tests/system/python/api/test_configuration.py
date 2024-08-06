@@ -128,6 +128,14 @@ class TestConfiguration:
                                      "children": [
 
                                      ]
+                                 },
+                                 {
+                                     "key": "firewall",
+                                     "description": "Allow and Denied list of IP addresses for Firewall",
+                                     "displayName": "Firewall",
+                                     "children": [
+
+                                     ]
                                  }
                              ]
                          },

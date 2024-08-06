@@ -386,6 +386,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 			m_pipeline->execute();
 			// Pass readingSet to filter chain
 			firstElement->ingest(readings);
+			m_pipeline->completeBranch();	// Main branch has completed
 			m_pipeline->awaitCompletion();
 			return;
 		}
@@ -634,7 +635,6 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);
 	load->m_fetchCV.notify_all();
-	load->m_pipeline->completeBranch();
 }
 
 /**

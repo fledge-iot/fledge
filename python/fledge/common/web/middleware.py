@@ -235,6 +235,11 @@ async def validate_requests(request):
 
 
 def check_firewall(req: web.Request) -> None:
+    # FIXME: Need to check on other environments like AWS, docker; May be ideal with socket
+    # import socket
+    # hostname = socket.gethostname()
+    # IPAddr = socket.gethostbyname(hostname)
+
     source_ip_address = req.transport.get_extra_info('peername')[0]
     if source_ip_address not in ['localhost', '127.0.0.1']:
         firewall_ip_addresses = Firewall.IPAddresses.get()

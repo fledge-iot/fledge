@@ -362,9 +362,6 @@ class Server:
     _user_idle_session_timeout = 15 * 60
     """ User idle session timeout (in minutes) """
 
-    _firewall_ip_addresses = {}
-    """ IP addresses for firewall check """
-
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
             'description': 'Maximum updates per day',

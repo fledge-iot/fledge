@@ -18,6 +18,7 @@
 .. |reset_password| image:: images/reset_password.jpg
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
+.. |firewall| image:: images/firewall.jpg
 
 
 .. Links
@@ -89,6 +90,25 @@ After enabling HTTPS and selecting save you must restart Fledge in order for the
 +--------------------+
 | |connection_https| |
 +--------------------+
+
+Allow & Block Lists
+===================
+
+Fledge supports a pair of optional lists of IP addresses that can be set to allow or deny access to the Fledge API. These lists can be accessed via the *Configuration* menu option in the user interface in the *General*, *Admin API*, *Firewall* configuration category.
+
++------------+
+| |firewall| |
++------------+
+
+Clicking on the arrow icon beside each list will expand the list and show the current contents of the list.
+
+Click on the *Add new item* link to create a new entry in the list.
+
+To remove an entry from the list click on the *x* icon to the right of the list item.
+
+If the allow list is non-empty, then any access, including ping, to the Fledge API port will be checked to see if the source IP address of the request matches an entry in the allow list. If the address of the requester is not in this allow list then the API will not send any response to the caller andthe connection will be closed. The only address that is exempt from this checking is the localhost via the loopback interface, 127.0.0.1. This is required for local management of the Fledge instance and must always be accessible.
+
+If the blocked list is non-empty then any access, including ping, to the API will check the source address of the caller to see if it is included in the block list. If it is then the connection will be closed without sending any response to the caller. Again the address 127.0.0.1 is immune from this test.
 
 Requiring User Login
 ====================

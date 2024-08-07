@@ -131,7 +131,7 @@ class TestConfiguration:
                                  },
                                  {
                                      "key": "firewall",
-                                     "description": "Allow and Denied list of IP addresses for Firewall",
+                                     "description": "Monitor and Control HTTP Network Traffic",
                                      "displayName": "Firewall",
                                      "children": [
 

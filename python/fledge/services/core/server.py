@@ -50,7 +50,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 from fledge.services.core.api.control_service import acl_management as acl_management
-from fledge.services.core import firewall
+from fledge.services.core.firewall import Firewall
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
@@ -203,7 +203,6 @@ class Server:
 
     cert_file_name = ''
     """ cert file name """
-
 
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
@@ -566,21 +565,19 @@ class Server:
             _logger.exception(ex)
             raise
 
-
     @classmethod
     async def firewall_config(cls):
         try:
-            obj = firewall.Firewall()
-            category = obj.cat_name
-            await cls._configuration_manager.create_category(category, obj.config, obj.description, True,
-                                                             display_name=obj.display_name)
+            _firewall = Firewall()
+            category = _firewall.category
+            await cls._configuration_manager.create_category(category, _firewall.config, _firewall.description, True,
+                                                             display_name=_firewall.display_name)
             config = await cls._configuration_manager.get_category_all_items(category)
-            firewall.Firewall.IPList.save(data=config)
+            Firewall.IPAddresses.save(data=config)
             await cls._configuration_manager.create_child_category("rest_api", [category])
         except Exception as ex:
             _logger.exception(ex)
             raise
-
 
     @classmethod
     async def service_config(cls):

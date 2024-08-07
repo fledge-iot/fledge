@@ -2083,8 +2083,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if 'cacheSize' in cat_value:
                 self._cacheManager.max_cache_size = int(cat_value['cacheSize']['value'])
         elif cat_name == 'firewall':
-            from fledge.services.core import firewall
-            firewall.Firewall.IPList.save(data=cat_value)
+            from fledge.services.core.firewall import Firewall
+            Firewall.IPAddresses.save(data=cat_value)
 
     async def _check_updates_by_role(self, request: aiohttp.web_request.Request) -> str:
         async def get_role_name():

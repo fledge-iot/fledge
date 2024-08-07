@@ -14,7 +14,7 @@ from aiohttp import web
 import jwt
 
 from fledge.common.logger import FLCoreLogger
-from fledge.services.core import firewall
+from fledge.services.core.firewall import Firewall
 from fledge.services.core.user_model import User
 
 
@@ -48,7 +48,7 @@ async def optional_auth_middleware(app, handler):
         _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = True
         request.user = None
-        check_firewall_ip(request)
+        check_firewall(request)
         return await handler(request)
     return middleware
 
@@ -73,7 +73,7 @@ async def auth_middleware(app, handler):
         _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = False
         request.user = None
-        check_firewall_ip(request)
+        check_firewall(request)
         if request.method == 'OPTIONS':
             return await handler(request)
 
@@ -234,17 +234,17 @@ async def validate_requests(request):
             raise web.HTTPForbidden
 
 
-def check_firewall_ip(req: web.Request) -> None:
+def check_firewall(req: web.Request) -> None:
     source_ip_address = req.transport.get_extra_info('peername')[0]
     if source_ip_address not in ['localhost', '127.0.0.1']:
-        firewall_ip_addresses = firewall.Firewall.IPList.get()
-        if 'allowList' in firewall_ip_addresses:
-            allowed = firewall_ip_addresses['allowList']
+        firewall_ip_addresses = Firewall.IPAddresses.get()
+        if 'allowedIP' in firewall_ip_addresses:
+            allowed = firewall_ip_addresses['allowedIP']
             if allowed:
                 if source_ip_address not in allowed:
                     raise web.HTTPForbidden
             else:
-                if 'denyList' in firewall_ip_addresses:
-                    if source_ip_address in firewall_ip_addresses['denyList']:
+                if 'deniedIP' in firewall_ip_addresses:
+                    if source_ip_address in firewall_ip_addresses['deniedIP']:
                         raise web.HTTPForbidden
 

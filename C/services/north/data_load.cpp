@@ -118,6 +118,8 @@ bool DataLoad::setDataSource(const string& source)
 				source.c_str(), m_name.c_str());
 		return false;
 	}
+	m_lastFetched = getLastSentId();
+	m_streamSent = getLastSentId();
 	return true;
 }
 
@@ -335,7 +337,6 @@ unsigned long DataLoad::getLastSentId()
 
 	// SELECT * FROM fledge.streams WHERE id = x
 	Query qLastId(wStreamId);
-
 	ResultSet* lastObjectId = m_storage->queryTable("streams", qLastId);
 
 	if (lastObjectId != NULL && lastObjectId->rowCount())
@@ -346,10 +347,21 @@ unsigned long DataLoad::getLastSentId()
 		ResultSet::Row* row = *it;
 		if (row)
 		{
+			ResultSet::ColumnValue* theVal = nullptr;
+			unsigned long rval = 0;
 			// Get column value
-			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
-			// Set found id
-			unsigned long rval = (unsigned long)theVal->getInteger();
+			if (m_dataSource == SourceReadings)
+			{
+				theVal = row->getColumn("last_object");
+				rval = (unsigned long)theVal->getInteger();
+			}
+			else
+			{
+				theVal = row->getColumn("audit_stats_last_object");
+				const rapidjson::Value * json = theVal->getJSON();
+				(m_dataSource == SourceStatistics) ? (rval = json->GetObject()["Stats"].GetInt64()) : (rval = json->GetObject()["Audit"].GetInt64());
+
+			}
 			delete lastObjectId;
 			return rval;
 		}
@@ -448,9 +460,15 @@ int DataLoad::createNewStream()
 {
 int streamId = 0;
 InsertValues streamValues;
-
 	streamValues.push_back(InsertValue("description",    m_name));
-	streamValues.push_back(InsertValue("last_object",    0));
+	if (m_dataSource == SourceReadings)
+	{
+		streamValues.push_back(InsertValue("last_object",    0));
+	}
+	else
+	{
+		streamValues.push_back(InsertValue("audit_stats_last_object", "{\\\"Stats\\\":0,\\\"Audit\\\":0}" ));
+	}
 
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
@@ -508,7 +526,29 @@ void DataLoad::flushLastSentId()
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
 
-	lastId.push_back(InsertValue("last_object", (long)m_streamSent));
+	if (m_dataSource == SourceReadings)
+	{
+		lastId.push_back(InsertValue("last_object", (long)m_streamSent));
+	}
+	else
+	{
+		const rapidjson::Value * json = getAuditStatsValue();
+		std::string audit_stats_last_object = "{}";
+		if (json == nullptr)
+		{
+			audit_stats_last_object = "{\\\"Stats\\\":0,\\\"Audit\\\":0}";
+		}
+		else if (m_dataSource == SourceStatistics)
+		{
+			audit_stats_last_object = "{\\\"Stats\\\":" + to_string(m_streamSent) +",\\\"Audit\\\":" + to_string(json->GetObject()["Audit"].GetInt64()) +"}";
+		}
+		else
+		{
+			audit_stats_last_object = "{\\\"Stats\\\":" + to_string(json->GetObject()["Stats"].GetInt64()) +",\\\"Audit\\\":" + to_string(m_streamSent) +"}";
+		}
+		lastId.push_back(InsertValue("audit_stats_last_object", audit_stats_last_object));
+	}
+
 	m_storage->updateTable("streams", lastId, where);
 }
 
@@ -717,4 +757,40 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 			m_pipeline->configChange(category, newConfig);
 		}
 	}
+}
+
+/**
+ * Get the Audit Stats value to be used to fetch last reading sent with this current data source
+ */
+
+const rapidjson::Value * DataLoad::getAuditStatsValue()
+{
+
+	const Condition conditionId(Equals);
+	string streamId = to_string(m_streamId);
+	Where* wStreamId = new Where("id",
+				     conditionId,
+				     streamId);
+
+	// SELECT * FROM fledge.streams WHERE id = x
+	Query qLastId(wStreamId);
+
+	ResultSet* lastObjectId = m_storage->queryTable("streams", qLastId);
+
+	if (lastObjectId != NULL && lastObjectId->rowCount())
+	{
+		// Get the first row only
+		ResultSet::RowIterator it = lastObjectId->firstRow();
+		// Access the element
+		ResultSet::Row* row = *it;
+		if (row)
+		{
+			ResultSet::ColumnValue* theVal = row->getColumn("audit_stats_last_object");
+			delete lastObjectId;
+			return theVal->getJSON();
+		}
+	}
+	// Free result set
+	delete lastObjectId;
+	return nullptr;
 }

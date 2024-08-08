@@ -128,6 +128,14 @@ class TestConfiguration:
                                      "children": [
 
                                      ]
+                                 },
+                                 {
+                                     "key": "firewall",
+                                     "description": "Monitor and Control HTTP Network Traffic",
+                                     "displayName": "Firewall",
+                                     "children": [
+
+                                     ]
                                  }
                              ]
                          },

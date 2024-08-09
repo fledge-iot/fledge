@@ -750,6 +750,7 @@ void Ingest::processQueue()
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
+					m_filterPipeline->completeBranch();	// Main branch has completed
 					m_filterPipeline->awaitCompletion();
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
@@ -1060,7 +1061,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	
 	readingSet->clear();
 	delete readingSet;
-	ingest->m_filterPipeline->completeBranch();
 }
 
 /**

@@ -265,5 +265,6 @@ void PipelineBranch::handler()
 		m_queue.pop();
 		lck.unlock();
 		m_branch[0]->ingest(readings);
+		m_pipeline->completeBranch();
 	}
 }

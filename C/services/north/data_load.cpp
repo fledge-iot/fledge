@@ -129,9 +129,12 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
-		       						// the prefetch limit already queued
+		while (m_shutdown == false && m_queue.size() < m_prefetchLimit)
+		{
+			// Read another block if we have less than 
+			// the prefetch limit already queued
 			readBlock(block);
+		}
 	}
 }
 

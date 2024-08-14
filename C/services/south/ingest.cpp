@@ -13,6 +13,7 @@
 #include <thread>
 #include <logger.h>
 #include <set>
+#include <ingest_rate.h>
 
 using namespace std;
 
@@ -164,6 +165,9 @@ void Ingest::updateStats()
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
 		m_statsCv.wait_for(lck, std::chrono::seconds(FLUSH_STATS_INTERVAL));
 
+	if (m_ingestRate)
+		m_ingestRate->periodic();
+
 	if (statsPendingEntries.empty())
 	{
 		return;
@@ -310,6 +314,8 @@ Ingest::Ingest(StorageClient& storage,
 
 	m_deprecatedAgeOut = 0;
 	m_deprecatedAgeOutStorage = 0;
+
+	m_ingestRate = new IngestRate(mgmtClient);
 }
 
 /**
@@ -392,6 +398,8 @@ Ingest::~Ingest()
 
 	if (m_deprecated)
 		delete m_deprecated;
+	if (m_ingestRate)
+		delete m_ingestRate;
 }
 
 /**
@@ -423,6 +431,9 @@ void Ingest::ingest(const Reading& reading)
 {
 vector<Reading *> *fullQueue = 0;
 
+	if (m_ingestRate)
+		m_ingestRate->ingest(1);
+
 	{
 		lock_guard<mutex> guard(m_qMutex);
 		m_queue->emplace_back(new Reading(reading));
@@ -452,6 +463,9 @@ void Ingest::ingest(const vector<Reading *> *vec)
 vector<Reading *> *fullQueue = 0;
 size_t qSize;
 unsigned int nFullQueues = 0;
+
+	if (m_ingestRate)
+		m_ingestRate->ingest(vec->size());
 
 	{
 		lock_guard<mutex> guard(m_qMutex);

@@ -40,7 +40,7 @@ static void statsThread(DataSender *sender)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false), m_perfMonitor(NULL),
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false), m_perfMonitor(NULL), m_sending(false),
 	m_repeatedFailure(0)
 {
 	m_statsUpdateFails = 0;
@@ -105,7 +105,7 @@ void DataSender::sendThread()
 			return;
 		}
 		bool removeReadings = false;
-		if (readings->getCount() > 0)
+		if (m_shutdown == false && readings->getCount() > 0)
 		{
 			unsigned long lastSent = send(readings);
 			if (lastSent)
@@ -118,7 +118,9 @@ void DataSender::sendThread()
 				// Set readings removal
 				removeReadings = vec->size() == 0;
 			}
-		} else {
+		}
+		else if (m_shutdown == false) 
+		{
 			// All readings filtered out
 			Logger::getLogger()->debug("All readings filtered out");
 
@@ -130,6 +132,10 @@ void DataSender::sendThread()
 
 			// Set readings removal
 			removeReadings = true;
+		}
+		else
+		{
+			readings = NULL;
 		}
 
 		// Remove readings object if needed

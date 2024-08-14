@@ -35,7 +35,7 @@ To enable or disable a data source, click on its name in the North Services scre
 Failure to Send Data
 ####################
 
-If Fledge is unable to send data to another system via a north service it will write a log message to the error log and also raise an alarm. These alarms are shown in the status bar of the Fledge user interface.
+If Fledge is unable to send data to another system via a north service it will write a log message to the error log and also raise an alert. These alerts are shown in the status bar of the Fledge user interface.
 
 +----------------+
 | |NorthFailure| |

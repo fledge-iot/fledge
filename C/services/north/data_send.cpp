@@ -306,7 +306,7 @@ void DataSender::flushStatistics()
 	m_statsCv.wait_for(flush, std::chrono::seconds(FLUSH_STATS_INTERVAL));
 	flush.unlock();
 
-	std::map<std::string, int> statsData;
+	std::map<std::string, unsigned int> statsData;
 
 	// Acquire m_statsMtx lock for m_statsMtx
 	unique_lock<mutex> lck(m_statsMtx);
@@ -329,7 +329,7 @@ void DataSender::flushStatistics()
 	const Condition conditionStat(Equals);
 
 	// Send statistics to storage service
-	map<string, int>::iterator it;
+	map<string, unsigned int>::iterator it;
 	for (it = statsData.begin(); it != statsData.end(); it++)
 	{
 		// Prepare "WHERE key = name
@@ -400,7 +400,7 @@ void DataSender::flushStatistics()
  * @return		True for created data, False for no operation or error
  */
 bool DataSender::createStats(const std::string &key,
-		int value)
+		unsigned int value)
 {
 	if (!m_loader->getStorage())
 	{
@@ -438,7 +438,7 @@ bool DataSender::createStats(const std::string &key,
 	InsertValues values;
 	values.push_back(InsertValue("key",         key));
 	values.push_back(InsertValue("description", description));
-	values.push_back(InsertValue("value",       value));
+	values.push_back(InsertValue("value",       (long)value));
 	string table = "statistics";
 
 	if (m_loader->getStorage()->insertTable(table, values) != 1)

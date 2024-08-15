@@ -248,10 +248,16 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			{
 				(*it)->setNext(*(it + 1));
 				// Set next filter pointer as OUTPUT_HANDLE
-				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
-						filterReadingSetFn(passToOnwardFilter)))
-				{
-					errMsg += (*it)->getName() + "'";
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
+							filterReadingSetFn(passToOnwardFilter)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
 					initErrors = true;
 					break;
 				}
@@ -259,10 +265,16 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			else
 			{
 				// Set the Ingest class pointer as OUTPUT_HANDLE
-				if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
-						 filterReadingSetFn(useFilteredData)))
-				{
-					errMsg += (*it)->getName() + "'";
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
+							 filterReadingSetFn(useFilteredData)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
 					initErrors = true;
 					break;
 				}
@@ -278,7 +290,7 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	if (initErrors)
 	{
 		// Failure
-		Logger::getLogger()->fatal("%s error: %s", __FUNCTION__, errMsg.c_str());
+		Logger::getLogger()->fatal("Failed to create pipeline,  %s", errMsg.c_str());
 		return false;
 	}
 

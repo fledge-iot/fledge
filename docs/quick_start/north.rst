@@ -22,13 +22,13 @@ To add a data destination, click on “Create North Instance+” in the upper ri
 2. The second screen allows you to configure the plugin and the data assets it will send.  See the section below for specifics of configuring a PI, EDS, OCS or ADH destination.
    .. note::
 
-      An option exists to run a service rather than a task in the north. If run as a service there is no schedule and data is sent a soon as it is available. It is recommended, if you have no connection restrictions, to run the north as a service rather than a task as this will give the best performance.
+      An option exists to run a service rather than a task in the north. If run as a service there is no schedule and data is sent as soon as it is available. It is recommended, if you have no connection restrictions, to run the north as a service rather than a task as this will give the best performance.
 
 3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data sending or to await enabling in the future.
 
 .. note::
 
-   Fledge support multiple plugins to send to different north destinations, multiple north tasks and/or services may be created to send data simultaneously to multiple destinations.
+   Fledge supports multiple plugins to send to different north destinations. Multiple north tasks and/or services may be created to send data simultaneously to multiple destinations.
 
 Configuring Data Destinations
 #############################
@@ -60,7 +60,7 @@ Once the failure is cleared, the alert will be removed from the status bar.
 Using the OMF plugin
 ####################
 
-AVEVA PI (formally OSISoft PI) data historians are one of the most common destinations for Fledge data.  Fledge supports the full range of AVEVA historians; the PI System, Edge Data Store (EDS), OSISoft Cloud Services (OCS) and AVEVA Data Hub (ADH). To send data to a PI server you may use either the older PI Connector Relay or the newer PI Web API OMF endpoint. It is recommended that new users use the PI Web API OMF endpoint rather then the Connector Relay which is no longer supported by AVEVA.
+AVEVA PI (formerly OSISoft PI) data historians are one of the most common destinations for Fledge data.  Fledge supports the full range of AVEVA historians: the PI System, Edge Data Store (EDS), OSIsoft Cloud Services (OCS) and AVEVA Data Hub (ADH). To send data to a PI Server you may use either the older PI Connector Relay or the newer PI Web API OMF endpoint. It is recommended that new users use the PI Web API OMF endpoint rather than the Connector Relay which is no longer supported by AVEVA.
 
 .. note::
 

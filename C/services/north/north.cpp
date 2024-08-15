@@ -1333,7 +1333,7 @@ void NorthService::alertFailures()
 /**
  * Clear the failure alert for sending data
  *
- * We clear the alert from the status bar an write a message to the system
+ * We clear the alert from the status bar and write a message to the system
  * log
  */
 void NorthService::clearFailures()

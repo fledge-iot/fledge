@@ -311,13 +311,19 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters, in reverse order
-	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+
+	// Shutdown filters - do this down the pipeline to allow
+	// filters to pass data on to the next ask they shutdown
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		PipelineElement *element = *it;
 		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 		element->shutdown(m_serviceHandler, configHandler);
-
+	}
+	// Delete filters, in reverse order
+	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+	{
+		PipelineElement *element = *it;
 		// Free filter
 		delete element;
 	}

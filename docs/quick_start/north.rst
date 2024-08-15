@@ -1,6 +1,7 @@
 .. Images
 .. |north_services| image:: ../images/north_services.JPG
 .. |pi_plugin_config| image:: ../images/pi_plugin_config.JPG
+.. |NorthFailure| image:: ../images/NorthFailure.jpg
 
 Sending Data to Other Systems
 =============================
@@ -30,6 +31,17 @@ Enabling and Disabling Data Destinations
 ########################################
 
 To enable or disable a data source, click on its name in the North Services screen. Under the list of data source parameters, there is a check box to enable or disable the service.  If you make any changes, click on the “save” button in the bottom panel near the check box to save the new configuration.
+
+Failure to Send Data
+####################
+
+If Fledge is unable to send data to another system via a north service it will write a log message to the error log and also raise an alert. These alerts are shown in the status bar of the Fledge user interface.
+
++----------------+
+| |NorthFailure| |
++----------------+
+
+The failure could be an incorrect configuration within Fledge for the particular north plugin or it may be caused by the upstream system being unavailable or there being no network route to the upstream system.
 
 Using the OMF plugin
 ####################

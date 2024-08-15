@@ -313,9 +313,9 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 {
 
 	// Shutdown filters - do this down the pipeline, starting
-	// from the first filter in the pipeline This allows a filter
-	// to asynchnrously send data in the shutdown call to the
-	// next element in the pipeline sine that next element has
+	// from the first filter in the pipeline. This allows a filter
+	// to asynchronously send data in the shutdown call to the
+	// next element in the pipeline since that next element has
 	// not yet been asked to shutdown.
 	//
 	// This is not behaviour that is encouraged or designed, but a

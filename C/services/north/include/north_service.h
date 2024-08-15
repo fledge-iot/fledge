@@ -54,6 +54,8 @@ class NorthService : public ServiceAuthHandler {
 		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination);
 		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination, const std::string& arg);
 		void				setDryRun() { m_dryRun = true; };
+		void				alertFailures();
+		void				clearFailures();
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();

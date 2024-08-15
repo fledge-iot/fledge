@@ -119,6 +119,7 @@ class ManagementClient {
 		AssetTrackingTable	*getDeprecatedAssetTrackingTuples();
 		std::string		getAlertByKey(const std::string& key);
 		bool			raiseAlert(const std::string& key, const std::string& message, const std::string& urgency="normal");
+		bool			clearAlert(const std::string& key);
 
 	private:
 		std::ostringstream 			m_urlbase;

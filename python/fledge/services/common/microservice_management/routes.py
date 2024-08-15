@@ -76,6 +76,7 @@ def setup(app, obj, is_core=False):
         # alerts
         app.router.add_route('GET', '/fledge/alert/{key}', obj.get_alert)
         app.router.add_route('POST', '/fledge/alert', obj.add_alert)
+        app.router.add_route('DELETE', '/fledge/alert', obj.delete_alert)
 
         # Proxy API setup for a microservice
         proxy.setup(app)

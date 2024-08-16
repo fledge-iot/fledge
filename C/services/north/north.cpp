@@ -1319,6 +1319,8 @@ string NorthService::controlSource()
 
 /**
  * Raise an alert that we are having issues sending data
+ *
+ * We also write a warning to the system log to aid with debugging
  */
 void NorthService::alertFailures()
 {
@@ -1331,9 +1333,12 @@ void NorthService::alertFailures()
 /**
  * Clear the failure alert for sending data
  *
- * Currently we hae no way to clear the actual alert, so we simply log the fact
+ * We clear the alert from the status bar and write a message to the system
+ * log
  */
 void NorthService::clearFailures()
 {
-	logger->warn("The sending of data has resumed");
+	string key = "North " + m_name;
+	m_mgtClient->clearAlert(key);
+	logger->info("The sending of data has resumed");
 }

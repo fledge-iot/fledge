@@ -19,10 +19,11 @@ include_directories(../../../../../../C/common/include)
 
 file(GLOB test_sources "../../../../../../C/plugins/storage/common/sql_buffer.cpp")
 set(common_sources "../../../../../../C/common/string_utils.cpp")
+set(logger_sources "../../../../../../C/common/logger.cpp")
 
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${test_sources} ${common_sources} tests.cpp)
+add_executable(RunTests ${test_sources} ${common_sources} ${logger_sources} tests.cpp)
 
 #setting BOOST_COMPONENTS to use pthread library only
 set(BOOST_COMPONENTS thread)

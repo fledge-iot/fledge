@@ -16,15 +16,16 @@ The North Services screen displays the status of all data sending processes in t
 Adding Data Destinations
 ########################
 
-To add a data destination, click on “Create North Instance+” in the upper right of the North Services screen.  Fledge will display a series of 3 screens to add the data destination:
+To add a data destination, click on “Create North Instance+” in the upper right of the North Services screen. Fledge will display a series of 3 screens to add the data destination:
 
-1. The first screen will ask you to select the plugin for the data destination from the list of installed plugins.  If you do not see the plugin you need, refer to the Installing Fledge section of this manual.  In addition, this screen allows you to specify a display name for the data destination. In addition, you can specify how frequently data will be forwarded to the destination in days, hours, minutes and seconds.  Enter the number of days in the interval in the left box and the number of hours, minutes and seconds in format HH:MM:SS in the right box.
-2. The second screen allows you to configure the plugin and the data assets it will send.  See the section below for specifics of configuring a PI, EDS, OCS or ADH destination.
+1. The first screen will ask you to select the plugin for the data destination from the list of installed plugins. If you do not see the plugin you need, refer to the Installing Fledge section of this manual. In addition, this screen allows you to specify a display name for the data destination. In addition, you can specify how frequently data will be forwarded to the destination in days, hours, minutes and seconds. Enter the number of days in the interval in the left box and the number of hours, minutes and seconds in format HH:MM:SS in the right box.
+2. The second screen allows you to configure the plugin and the data assets it will send. See the section below for specifics of configuring a PI, EDS, OCS or ADH destination.
+
    .. note::
 
       An option exists to run a service rather than a task in the north. If run as a service there is no schedule and data is sent as soon as it is available. It is recommended, if you have no connection restrictions, to run the north as a service rather than a task as this will give the best performance.
 
-3. The final screen loads the plugin.  You can specify whether it will be enabled immediately for data sending or to await enabling in the future.
+3. The final screen loads the plugin. You can specify whether it will be enabled immediately for data sending or to await enabling in the future.
 
 .. note::
 

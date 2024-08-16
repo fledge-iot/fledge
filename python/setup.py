@@ -6,7 +6,7 @@ setup(
     version='2.5.0',
     description='Fledge, the open source platform for the Internet of Things',
     url='https://github.com/fledge-iot/fledge',
-    author='Dianomic Systems Inc.',
+    author='OSIsoft, LLC; Dianomic Systems Inc.',
     author_email='info@dianomic.com',
     license='Apache 2.0',
     # TODO: list of excludes (tests)

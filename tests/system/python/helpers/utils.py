@@ -4,6 +4,8 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+from datetime import datetime
+
 import http.client
 import json
 
@@ -65,3 +67,26 @@ def delete_request(fledge_url, delete_url):
     assert 200 == res.status, "ERROR! GET {} request failed".format(delete_url)
     r = json.loads(res.read().decode())
     return r
+
+
+def check_datetime_format(datetime_str, format_str=None):
+    """
+    Check if the given datetime string matches the specified format.
+
+    Parameters:
+    - datetime_str: The datetime string to check.
+    - format_str: The format string that the datetime string should match.
+
+    Returns:
+    - True if the string matches the format, False otherwise.
+    """
+    try:
+        # Attempt to parse the datetime string with the specified format
+        if format_str is None:
+            format_str = "%Y-%m-%d %H:%M:%S.%f"
+        datetime.strptime(datetime_str, format_str)
+        return True
+    except ValueError:
+        # Parsing failed; the string does not match the format
+        return False
+

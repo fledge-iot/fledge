@@ -99,8 +99,8 @@ class TestStatistics:
             statistics = jdoc['statistics'][0]
             if i <= retries and Counter(STATS_HISTORY_KEYS) != Counter(statistics.keys()): continue
             assert Counter(STATS_HISTORY_KEYS) == Counter(statistics.keys())
-            is_matching = utils.check_datetime_format(statistics['history_ts'])
-            assert is_matching == True, "History Timestamp format mismatched."
+            assert utils.validate_date_format(statistics['history_ts']) is True, "History Timestamp format mismatched."
+
             del statistics['history_ts']
             assert Counter([0, 0, 0, 0, 0, 0]) == Counter(statistics.values())
             break
@@ -124,8 +124,8 @@ class TestStatistics:
         assert 1 == len(jdoc['statistics'])
         assert Counter(keys) == Counter(jdoc['statistics'][0].keys())
         if keys:
-            is_matching = utils.check_datetime_format(jdoc['statistics'][0]['history_ts'])
-            assert is_matching == True, "History Timestamp format mismatched."
+            assert utils.validate_date_format(jdoc['statistics'][0]['history_ts']) is True, \
+                "History Timestamp format mismatched."
 
     def test_statistics_history_with_service_enabled(self, start_south_coap, fledge_url, wait_time):
         # Allow CoAP listener to start
@@ -177,8 +177,7 @@ class TestStatistics:
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
         for stat in jdoc['statistics']:
-            is_matching = utils.check_datetime_format(stat['history_ts'])
-            assert is_matching == True, "History Timestamp format mismatched."
+            assert utils.validate_date_format(stat['history_ts']) is True, "History Timestamp format mismatched."
 
         read = [r['READINGS'] for r in jdoc['statistics']]
         assert 1 in read

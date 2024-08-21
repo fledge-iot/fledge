@@ -13,8 +13,7 @@ import http.client
 import time
 import json
 import pytest
-from datetime import datetime
-
+import utils
 
 __author__ = "Ashish Jabble, Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -26,15 +25,6 @@ SENSOR = 'loudness'
 SENSOR_VALUES = [1, 2, 3, 4, 5, 6]
 SOUTH_PLUGIN_NAME = 'dummyplugin'
 SERVICE_NAME = 'TestBrowserAPI'
-
-
-def validate_date_format(dt_txt, fmt):
-    try:
-        datetime.strptime(dt_txt, fmt)
-    except ValueError:
-        return False
-    else:
-         return True
 
 
 class TestBrowserAssets:
@@ -278,7 +268,8 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i] == jdoc[i]['min']
             assert SENSOR_VALUES[i] == jdoc[i]['average']
             assert SENSOR_VALUES[i] == jdoc[i]['max']
-            assert validate_date_format(jdoc[i]['timestamp'], '%Y-%m-%d %H:%M:%S'), "timestamp format do not match"
+            assert utils.validate_date_format(jdoc[i]['timestamp'], '%Y-%m-%d %H:%M:%S') is True, \
+                "Timestamp format mismatched."
 
     def test_get_asset_series_query_group_min(self, fledge_url, wait_time):
         """Test that browsing an asset's data point time series with minutes grouping
@@ -295,13 +286,15 @@ class TestBrowserAssets:
         assert (sum(SENSOR_VALUES[0:2]) / len(SENSOR_VALUES[0:2])) == jdoc[0]['average']
         assert min(SENSOR_VALUES[0:2]) == jdoc[0]['min']
         assert max(SENSOR_VALUES[0:2]) == jdoc[0]['max']
-        assert validate_date_format(jdoc[0]['timestamp'], '%Y-%m-%d %H:%M'), "timestamp format do not match"
+        assert utils.validate_date_format(jdoc[0]['timestamp'], '%Y-%m-%d %H:%M') is True, \
+            "Timestamp format mismatched."
 
         for i in range(1, len(jdoc) - 1):
             assert SENSOR_VALUES[i + 1] == jdoc[i]['min']
             assert SENSOR_VALUES[i + 1] == jdoc[i]['average']
             assert SENSOR_VALUES[i + 1] == jdoc[i]['max']
-            assert validate_date_format(jdoc[i + 1]['timestamp'], '%Y-%m-%d %H:%M'), "timestamp format do not match"
+            assert utils.validate_date_format(jdoc[i + 1]['timestamp'], '%Y-%m-%d %H:%M') is True, \
+                "Timestamp format mismatched."
 
     def test_get_asset_series_query_group_hrs(self, fledge_url, wait_time):
         """Test that browsing an asset's data point time series with hour grouping
@@ -318,13 +311,14 @@ class TestBrowserAssets:
         assert (sum(SENSOR_VALUES[0:4]) / len(SENSOR_VALUES[0:4])) == jdoc[0]['average']
         assert min(SENSOR_VALUES[0:4]) == jdoc[0]['min']
         assert max(SENSOR_VALUES[0:4]) == jdoc[0]['max']
-        assert validate_date_format(jdoc[0]['timestamp'], '%Y-%m-%d %H'), "timestamp format do not match"
+        assert utils.validate_date_format(jdoc[0]['timestamp'], '%Y-%m-%d %H') is True, "Timestamp format mismatched."
 
         for i in range(4, 6):
             assert SENSOR_VALUES[i] == jdoc[i - 3]['min']
             assert SENSOR_VALUES[i] == jdoc[i - 3]['average']
             assert SENSOR_VALUES[i] == jdoc[i - 3]['max']
-            assert validate_date_format(jdoc[i - 3]['timestamp'], '%Y-%m-%d %H'), "timestamp format do not match"
+            assert utils.validate_date_format(jdoc[i - 3]['timestamp'], '%Y-%m-%d %H') is True, \
+                "Timestamp format mismatched."
 
     def test_get_asset_sensor_readings_invalid_group(self, fledge_url):
         """Test that browsing an asset's data point time series with invalid grouping

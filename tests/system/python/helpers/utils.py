@@ -69,24 +69,22 @@ def delete_request(fledge_url, delete_url):
     return r
 
 
-def check_datetime_format(datetime_str, format_str=None):
+def validate_date_format(datetime_str, format_str=None):
     """
-    Check if the given datetime string matches the specified format.
+    Check if the given datetime string matches the specified format
 
     Parameters:
     - datetime_str: The datetime string to check.
-    - format_str: The format string that the datetime string should match.
+    - format_str: The format string that the datetime string should match. By default, format '%Y-%m-%d %H:%M:%S.%f'
 
     Returns:
     - True if the string matches the format, False otherwise.
     """
     try:
-        # Attempt to parse the datetime string with the specified format
         if format_str is None:
             format_str = "%Y-%m-%d %H:%M:%S.%f"
         datetime.strptime(datetime_str, format_str)
         return True
     except ValueError:
-        # Parsing failed; the string does not match the format
         return False
 

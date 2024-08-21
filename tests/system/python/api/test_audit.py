@@ -97,9 +97,7 @@ class TestAudit:
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
         if len(elems):
-            is_matching = utils.check_datetime_format(elems[0]['timestamp'])
-            assert is_matching == True, "Timestamp format mismatched."
-
+            assert utils.validate_date_format(elems[0]['timestamp']) is True, "Timestamp format mismatched."
 
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 1),
@@ -118,8 +116,7 @@ class TestAudit:
         assert payload['source'] == jdoc['source']
         assert payload['severity'] == jdoc['severity']
         assert payload['details'] == jdoc['details']
-        is_matching = utils.check_datetime_format(jdoc['timestamp'])
-        assert is_matching == True, "Timestamp format mismatched."
+        assert utils.validate_date_format(jdoc['timestamp']) is True, "Timestamp format mismatched."
 
         # Verify new audit log entries
         conn.request("GET", '/fledge/audit')

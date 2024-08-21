@@ -25,6 +25,37 @@ SENSOR = 'loudness'
 SENSOR_VALUES = [1, 2, 3, 4, 5, 6]
 SOUTH_PLUGIN_NAME = 'dummyplugin'
 SERVICE_NAME = 'TestBrowserAPI'
+DT_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+
+
+def verify_utc_timestamp_with_different_timezones(timestamp_str):
+
+    def _convert_utc_to_other_timezone(tz, hours, minutes):
+        from datetime import datetime, timedelta
+        import pytz
+
+        # Parse the timestamp string into a naive datetime object
+        utc_dt = datetime.strptime(timestamp_str, DT_FORMAT)
+        # Add timezone info to the naive datetime object
+        utc_dt = pytz.utc.localize(utc_dt)
+        # Convert UTC to tz
+        converted_dt = utc_dt.astimezone(pytz.timezone(tz))
+        # Define the expected offset
+        expected_offset = timedelta(hours=hours, minutes=minutes)
+        # Calculate the difference between the two offsets
+        actual_offset = converted_dt.utcoffset() - utc_dt.utcoffset()
+        assert actual_offset == expected_offset, "Expected offset {}, but got {}".format(
+            expected_offset, actual_offset)
+
+    assert utils.validate_date_format(timestamp_str) is True, "Timestamp format mismatched."
+
+    _convert_utc_to_other_timezone("Asia/Kolkata", 5, 30)
+    _convert_utc_to_other_timezone("America/Los_Angeles", -7, 0)
+    _convert_utc_to_other_timezone("America/New_York", -4, 0)
+    _convert_utc_to_other_timezone("Europe/London", 1, 0)
+    _convert_utc_to_other_timezone("Europe/Rome", 2, 0)
+    _convert_utc_to_other_timezone("Etc/UTC", 0, 0)
+    # TODO: Add more mappings if required
 
 
 class TestBrowserAssets:
@@ -85,6 +116,7 @@ class TestBrowserAssets:
         i = 0
         for val in SENSOR_VALUES:
             assert {SENSOR: val} == jdoc[i]['reading']
+            verify_utc_timestamp_with_different_timezones(jdoc[i]['timestamp'])
             i += 1
 
     @pytest.mark.parametrize(("query", "expected_count", "expected_values"), [
@@ -93,7 +125,8 @@ class TestBrowserAssets:
         ('?seconds=59', 2, SENSOR_VALUES[0:2]),
         ('?minutes=15', 4, SENSOR_VALUES[0:4]),
         ('?hours=4', 5, SENSOR_VALUES[0:5]),
-        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]), # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]),
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])
@@ -109,6 +142,7 @@ class TestBrowserAssets:
         i = 0
         for item in expected_values:
             assert {SENSOR: item} == jdoc[i]['reading']
+            verify_utc_timestamp_with_different_timezones(jdoc[i]['timestamp'])
             i += 1
 
     @pytest.mark.parametrize("request_params, response_code, response_message", [
@@ -144,6 +178,7 @@ class TestBrowserAssets:
         i = 0
         for val in SENSOR_VALUES:
             assert val == jdoc[i][SENSOR]
+            verify_utc_timestamp_with_different_timezones(jdoc[i]['timestamp'])
             i += 1
 
     @pytest.mark.parametrize(("query", "expected_count", "expected_values"), [
@@ -152,7 +187,8 @@ class TestBrowserAssets:
         ('?seconds=59', 2, SENSOR_VALUES[0:2]),
         ('?minutes=15', 4, SENSOR_VALUES[0:4]),
         ('?hours=4', 5, SENSOR_VALUES[0:5]),
-        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]), # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]),
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])
@@ -168,6 +204,7 @@ class TestBrowserAssets:
         i = 0
         for item in expected_values:
             assert item == jdoc[i][SENSOR]
+            verify_utc_timestamp_with_different_timezones(jdoc[i]['timestamp'])
             i += 1
 
     def test_get_asset_summary(self, fledge_url):
@@ -186,7 +223,7 @@ class TestBrowserAssets:
         assert min(SENSOR_VALUES) == summary['min']
 
     def test_get_asset_readings_summary_invalid_sensor(self, fledge_url):
-        """Test that browsing a non existing asset's data point summary gives blank min, max and average values"""
+        """Test that browsing a non-existing asset's data point summary gives blank min, max and average values"""
         conn = http.client.HTTPConnection(fledge_url)
         invalid_sensor = "invalid"
         conn.request("GET", '/fledge/asset/{}/{}/summary'.format(ASSET_NAME, invalid_sensor))
@@ -233,7 +270,8 @@ class TestBrowserAssets:
         ('?seconds=59', 2, SENSOR_VALUES[0:2]),
         ('?minutes=15', 4, SENSOR_VALUES[0:4]),
         ('?hours=4', 5, SENSOR_VALUES[0:5]),
-        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]), # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        # Verify that if a combination of hrs, min, sec is used, shortest period will apply
+        ('?hours=20&minutes=20&seconds=59&limit=20', 2, SENSOR_VALUES[0:2]),
         ('?limit=&hours=&minutes=&seconds=', 6, SENSOR_VALUES)
         # In case of empty params, all values are returned
     ])

@@ -109,6 +109,9 @@ class TestAlerts:
         assert 'urgency' in alert_jdoc
         assert 'Normal' == alert_jdoc['urgency']
         assert 'timestamp' in alert_jdoc
+        import utils
+        is_matching = utils.check_datetime_format(alert_jdoc['timestamp'])
+        assert is_matching == True, "Timestamp format mismatched."
 
     def test_delete_alert_by_key(self, fledge_url):
         payload = {"key": "Sine", "message": "The service has restarted 4 times", "urgency": "critical"}

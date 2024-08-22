@@ -212,7 +212,7 @@ async def get_backup_download(request):
         _logger.error(ex, "Failed to download Backup file for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.FileResponse(path=gz_path)
+        return web.FileResponse(path=gz_path, headers={'Content-Type': 'application/gzip'})
 
 
 @has_permission("admin")

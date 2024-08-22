@@ -338,8 +338,11 @@ async def upload_backup(request: web.Request) -> web.Response:
             # TODO: FOGL-5876 ts as per post param if given in payload
             # insert backup record entry in db
             full_file_name_path = "{}/{}".format(backup_path, backup_file_name)
+            # Get the current UTC date and format as 'YYYY-MM-DD HH:MM:SS'
+            from datetime import datetime
+            now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             payload = payload_builder.PayloadBuilder().INSERT(
-                file_name=full_file_name_path, ts="now()", type=1, status=2, exit_code=0).payload()
+                file_name=full_file_name_path, ts=now_utc, type=1, status=2, exit_code=0).payload()
             # audit trail entry
             storage = connect.get_storage_async()
             await storage.insert_into_tbl("backups", payload)

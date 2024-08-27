@@ -185,8 +185,8 @@ async def get_north_schedules(request):
         msg = str(e)
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except NotReadyError:
-        # This case will occur only if the client has sent the request and fledge server is not fully operational.
-        msg = "Failed to fetch north schedules information due to fledge server being down. Please try again later."
+        # This case will occur if request is made while Fledge is not fully operational and/or being started.
+        msg = "Failed to fetch schedules information. Fledge is not fully operational and/or being started. Try again!"
         _logger.warning(msg)
         return web.HTTPServiceUnavailable(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:

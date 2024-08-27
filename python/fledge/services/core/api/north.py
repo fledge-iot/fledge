@@ -15,6 +15,7 @@ from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
 from fledge.services.core.scheduler.entities import Task
+from fledge.services.core.scheduler.exceptions import NotReadyError
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry.exceptions import DoesNotExist
 
@@ -183,6 +184,11 @@ async def get_north_schedules(request):
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats
         msg = str(e)
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NotReadyError:
+        # This case will occur only if the client has sent the request and fledge server is not fully operational.
+        msg = "Failed to fetch north schedules information due to fledge server being down. Please try again later."
+        _logger.warning(msg)
+        return web.HTTPServiceUnavailable(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get the north schedules.")

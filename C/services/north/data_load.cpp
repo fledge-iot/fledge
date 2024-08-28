@@ -131,9 +131,12 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
-		       						// the prefetch limit already queued
+		while (m_shutdown == false && m_queue.size() < m_prefetchLimit)
+		{
+			// Read another block if we have less than 
+			// the prefetch limit already queued
 			readBlock(block);
+		}
 	}
 }
 
@@ -416,7 +419,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 ReadingSet *DataLoad::fetchReadings(bool wait)
 {
 	unique_lock<mutex> lck(m_qMutex);
-	while (m_queue.empty())
+	while (m_shutdown == false && m_queue.empty())
 	{
 		if (m_perfMonitor && m_perfMonitor->isCollecting())
 		{
@@ -432,9 +435,13 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 			return NULL;
 		}
 	}
-	ReadingSet *rval = m_queue.front();
-	m_queue.pop_front();
-	if (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 5 already queued
+	ReadingSet *rval = NULL;
+	if (!m_queue.empty())
+	{
+		rval = m_queue.front();
+		m_queue.pop_front();
+	}
+	if (m_queue.size() < m_prefetchLimit && m_shutdown == false)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}

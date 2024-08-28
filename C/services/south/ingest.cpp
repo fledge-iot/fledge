@@ -1056,6 +1056,15 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	lock_guard<mutex> guard(ingest->m_useDataMutex);
 	
 	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
+	if (!ingest->m_data)
+	{
+		// If we are called during shutdown there will be no m_data in place
+		// and we create a new one to handle this special case. In this case
+		// the m_data will not be explicitly deleted. However as we are shutting
+		// down this will note cause a problem as all memory is recovered at process
+		// exit time.
+		ingest->m_data = new vector<Reading *>;
+	}
 	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	
 	readingSet->clear();

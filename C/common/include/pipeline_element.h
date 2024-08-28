@@ -49,8 +49,8 @@ class PipelineElement {
 					{
 					       	((PipelineElement *)handle)->ingest(readings);
 					};
-		virtual bool		setupConfiguration(ManagementClient *mgtClient,
-						std::vector<std::string>& children)
+		virtual bool		setupConfiguration(ManagementClient * /* mgtClient */,
+						std::vector<std::string>& /* children */)
 					{
 						return false;
 					};
@@ -66,7 +66,7 @@ class PipelineElement {
 		virtual bool		setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories) = 0;
 		virtual bool		init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output) = 0;
 		virtual void		shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler) = 0;
-		virtual void		reconfigure(const std::string& newConfig)
+		virtual void		reconfigure(const std::string& /* newConfig */)
 					{
 					};
 		virtual std::string	getName() = 0;

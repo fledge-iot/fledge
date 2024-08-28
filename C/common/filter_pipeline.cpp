@@ -248,10 +248,16 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			{
 				(*it)->setNext(*(it + 1));
 				// Set next filter pointer as OUTPUT_HANDLE
-				if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
-						filterReadingSetFn(passToOnwardFilter)))
-				{
-					errMsg += (*it)->getName() + "'";
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
+							filterReadingSetFn(passToOnwardFilter)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
 					initErrors = true;
 					break;
 				}
@@ -259,10 +265,16 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			else
 			{
 				// Set the Ingest class pointer as OUTPUT_HANDLE
-				if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
-						 filterReadingSetFn(useFilteredData)))
-				{
-					errMsg += (*it)->getName() + "'";
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
+							 filterReadingSetFn(useFilteredData)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
 					initErrors = true;
 					break;
 				}
@@ -278,7 +290,7 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	if (initErrors)
 	{
 		// Failure
-		Logger::getLogger()->fatal("%s error: %s", __FUNCTION__, errMsg.c_str());
+		Logger::getLogger()->fatal("Failed to create pipeline,  %s", errMsg.c_str());
 		return false;
 	}
 
@@ -299,13 +311,27 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters, in reverse order
-	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+
+	// Shutdown filters - do this down the pipeline, starting
+	// from the first filter in the pipeline. This allows a filter
+	// to asynchronously send data in the shutdown call to the
+	// next element in the pipeline since that next element has
+	// not yet been asked to shutdown.
+	//
+	// This is not behaviour that is encouraged or designed, but a
+	// small number of Python filters have implemented sending data
+	// during shutdown, hence the need to ensure that data has
+	// somewhere to go.
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		PipelineElement *element = *it;
 		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 		element->shutdown(m_serviceHandler, configHandler);
-
+	}
+	// Delete filters, in reverse order
+	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+	{
+		PipelineElement *element = *it;
 		// Free filter
 		delete element;
 	}

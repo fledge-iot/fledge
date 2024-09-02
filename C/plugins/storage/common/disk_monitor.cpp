@@ -15,7 +15,7 @@
 using namespace std;
 
 /**
- * Construt a disk space monitor class
+ * Construct a disk space monitor class
  *
  * It monitors the free space on two path, since the storage service may use
  * different locations for reading and configuration storage. If they are both
@@ -23,11 +23,15 @@ using namespace std;
  *
  * If the free space falls below 5% a fatal error is written to the error log
  * If it falls below 10% a warning is written advising that disk space should be released
- * It attempts to predict when storage will bebeome exhausted. If it is less then 14 days
+ * It attempts to predict when storage will become exhausted. If it is less then 14 days
  * it will report this to the error log once a day.
  * If it is less than 72 hours it will report this once per hour.
  *
  * All reporting is to the system log
+ *
+ * NB In an ideal world we would make the thresholds and reporting interval configurable,
+ * however we are running within the limited environment of a storage plugin and do not
+ * have access to the manaagement client or configuration subsystem.
  */
 DiskSpaceMonitor::DiskSpaceMonitor(const string& path1, const string& path2) :
 	m_dbPath1(path1), m_dbPath2(path2), m_started(false), m_sameDevice(false), m_lastCheck(0),
@@ -49,12 +53,12 @@ void DiskSpaceMonitor::periodic(int interval)
 	{
 		if (statfs(m_dbPath1.c_str(), &stf1) != 0)
 		{
-			m_logger->error("Can;t stafs %s", m_dbPath1.c_str());
+			m_logger->error("Can't stafs %s", m_dbPath1.c_str());
 			return;
 		}
 		if (statfs(m_dbPath2.c_str(), &stf2) != 0)
 		{
-			m_logger->error("Can;t stafs %s", m_dbPath2.c_str());
+			m_logger->error("Can't stafs %s", m_dbPath2.c_str());
 			return;
 		}
 		if (memcmp(&stf1.f_fsid, &stf2.f_fsid, sizeof(fsid_t)) == 0)	// Same filesystem
@@ -67,7 +71,7 @@ void DiskSpaceMonitor::periodic(int interval)
 
 	if (m_lastCheck < CHECK_THRESHOLD)
 	{
-		// Do not check too frerquenctly
+		// Do not check too frerquently
 		return;
 	}
 	m_lastCheck = 0;

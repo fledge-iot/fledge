@@ -12,6 +12,7 @@ import json
 import time
 from collections import Counter
 import pytest
+import utils
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -95,6 +96,8 @@ class TestAudit:
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
+        if len(elems):
+            assert utils.validate_date_format(elems[0]['timestamp']) is True, "Timestamp format mismatched."
 
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 1),
@@ -113,6 +116,7 @@ class TestAudit:
         assert payload['source'] == jdoc['source']
         assert payload['severity'] == jdoc['severity']
         assert payload['details'] == jdoc['details']
+        assert utils.validate_date_format(jdoc['timestamp']) is True, "Timestamp format mismatched."
 
         # Verify new audit log entries
         conn.request("GET", '/fledge/audit')

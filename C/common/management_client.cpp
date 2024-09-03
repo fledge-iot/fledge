@@ -2136,3 +2136,30 @@ bool ManagementClient::raiseAlert(const std::string& key, const std::string& mes
 	}
 }
 
+/**
+ * Clear an alert
+ *
+ * @param    key        Alert key
+ * @return   whether operation was successful
+ */
+bool ManagementClient::clearAlert(const std::string& key)
+{
+	try
+	{
+		std::string url = "/fledge/alert/" + urlEncode(key);
+		auto res = this->getHttpClient()->request("DELETE", url.c_str());
+		std::string statusCode = res->status_code;
+		if (statusCode.compare("200 OK"))
+		{
+			m_logger->error("Clear alert failed %s.", statusCode.c_str());
+			return false;
+		}
+
+		return true;
+	}
+	catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Clear alert failed %s.", e.what());
+		return false;
+	}
+}
+

@@ -1028,6 +1028,21 @@ class TestFilters:
         a, b = filters._delete_keys_from_dict(in_dict_del, lst_keys, deleted_values={}, parent=None)
         assert out_dict_del, deleted_values == (a, b)
 
+    @pytest.mark.parametrize("list1, list2, diff", [
+        (['Rename'], ['Exp #1', 'Rename'], ['Exp #1']),
+        (['Meta_1'], ['Meta_1'], []),
+        (['Meta_1', 'Exp#1'], ['Meta_1'], []),
+        (['Exp'], ['Exp #1', 'Rename'], ['Exp #1', 'Rename']),
+        (['Exp', 'Exp #1', 'Rename'], ['Exp #1', 'Rename'], []),
+        ([['Rename #1'], 'Scale', 'Meta Data'], ['Asset'], ['Asset']),
+        ([['RE2'], 'RE3', 'PY35'], [['RE2', 'RE3'], 'PY35'], []),
+        ([['Py 35', 'Py#1 35'], 'Py35'], [['Py25', 'Py']], ['Py25', 'Py']),
+        ([['Rms #1'], 'Scale', 'Meta Data'], [['Scale'], 'Meta Data'], [])
+    ])
+    async def test__diff(self, list1, list2, diff):
+        assert diff == filters._diff(list1, list2)
+
+
     async def test_delete_child_filters(self, mocker):
         # GIVEN
         user_name_mock = 'random1'

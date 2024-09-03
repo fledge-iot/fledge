@@ -311,13 +311,27 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters, in reverse order
-	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+
+	// Shutdown filters - do this down the pipeline, starting
+	// from the first filter in the pipeline. This allows a filter
+	// to asynchronously send data in the shutdown call to the
+	// next element in the pipeline since that next element has
+	// not yet been asked to shutdown.
+	//
+	// This is not behaviour that is encouraged or designed, but a
+	// small number of Python filters have implemented sending data
+	// during shutdown, hence the need to ensure that data has
+	// somewhere to go.
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
 		PipelineElement *element = *it;
 		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 		element->shutdown(m_serviceHandler, configHandler);
-
+	}
+	// Delete filters, in reverse order
+	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
+	{
+		PipelineElement *element = *it;
 		// Free filter
 		delete element;
 	}

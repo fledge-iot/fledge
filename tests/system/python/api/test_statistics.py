@@ -99,6 +99,8 @@ class TestStatistics:
             statistics = jdoc['statistics'][0]
             if i <= retries and Counter(STATS_HISTORY_KEYS) != Counter(statistics.keys()): continue
             assert Counter(STATS_HISTORY_KEYS) == Counter(statistics.keys())
+            assert utils.validate_date_format(statistics['history_ts']) is True, "History Timestamp format mismatched."
+
             del statistics['history_ts']
             assert Counter([0, 0, 0, 0, 0, 0]) == Counter(statistics.values())
             break
@@ -121,6 +123,9 @@ class TestStatistics:
         assert 15 == jdoc['interval']
         assert 1 == len(jdoc['statistics'])
         assert Counter(keys) == Counter(jdoc['statistics'][0].keys())
+        if keys:
+            assert utils.validate_date_format(jdoc['statistics'][0]['history_ts']) is True, \
+                "History Timestamp format mismatched."
 
     def test_statistics_history_with_service_enabled(self, start_south_coap, fledge_url, wait_time):
         # Allow CoAP listener to start
@@ -160,7 +165,6 @@ class TestStatistics:
         read = [r['READINGS'] for r in stats_history]
         assert 1 in read
         assert 1 == read.count(1)
-        # print(stats_history)
         asset_stats_history = [a for a in stats_history if ASSET_NAME.upper() in a.keys()]
         assert any(ash[ASSET_NAME.upper()] == 1 for ash in asset_stats_history), "Failed to find statistics history " \
                                                                                  "record for " + ASSET_NAME.upper()
@@ -172,6 +176,9 @@ class TestStatistics:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
+        for stat in jdoc['statistics']:
+            assert utils.validate_date_format(stat['history_ts']) is True, "History Timestamp format mismatched."
+
         read = [r['READINGS'] for r in jdoc['statistics']]
         assert 1 in read
         assert 1 == read.count(1)

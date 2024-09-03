@@ -8,7 +8,7 @@ import json
 import copy
 import aiohttp
 from aiohttp import web
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 
 from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT
@@ -502,8 +502,22 @@ async def _delete_configuration_category(storage: StorageClientAsync, key: str) 
     config_mgr._cacheManager.remove(key)
 
 
-def _diff(lst1: List[str], lst2: List[str]) -> List[str]:
-    return [v for v in lst2 if v not in lst1]
+def _diff(list1: Union[List, str], list2: Union[List, str]) -> List:
+    """ Compute the difference between two lists and also handling of nested lists """
+
+    def flatten(lst: Union[List, str]) -> List:
+        """ Flatten a nested list into a single list """
+        flat_list = []
+        for item in lst:
+            if isinstance(item, list):
+                flat_list.extend(flatten(item))
+            else:
+                flat_list.append(item)
+        return flat_list
+
+    # Compute the difference: items in list2 but not in list1
+    diff = [item for item in flatten(list2) if item not in flatten(list1)]
+    return diff
 
 
 def _delete_keys_from_dict(dict_del: Dict, lst_keys: List[str], deleted_values: Dict = {}, parent: str = None) \

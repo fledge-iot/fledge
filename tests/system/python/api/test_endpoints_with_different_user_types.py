@@ -433,7 +433,7 @@ class TestAPIEndpointsWithControlUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=5", 200),
+        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=5", 200),
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 200),
         ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
         ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),

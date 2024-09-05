@@ -63,7 +63,7 @@ void DiskSpaceMonitor::periodic(int interval)
 		{
 			if (m_reported == 0)
 			{
-				m_logger->error("Can't stafs %s, %s. Disk space monitoring is disabled",
+				m_logger->error("Can't statfs %s, %s. Disk space monitoring is disabled",
 						m_dbPath1.c_str(), strerror(errno));
 				m_reported++;
 			}
@@ -77,7 +77,7 @@ void DiskSpaceMonitor::periodic(int interval)
 		{
 			if (m_reported == 0)
 			{
-				m_logger->error("Can't stafs %s, %s. Disk space monitoring is disabled",
+				m_logger->error("Can't statfs %s, %s. Disk space monitoring is disabled",
 						m_dbPath2.c_str(), strerror(errno));
 				m_reported++;
 			}

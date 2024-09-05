@@ -13,8 +13,10 @@ from datetime import datetime
 from aiohttp import web
 import jwt
 
-from fledge.services.core.user_model import User
 from fledge.common.logger import FLCoreLogger
+from fledge.services.core.firewall import Firewall
+from fledge.services.core.user_model import User
+
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -46,6 +48,7 @@ async def optional_auth_middleware(app, handler):
         _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = True
         request.user = None
+        check_firewall(request)
         return await handler(request)
     return middleware
 
@@ -68,10 +71,9 @@ async def auth_middleware(app, handler):
         #   request must carry auth header,
         #   actual value will be checked too and if bad then 401: unauthorized will be returned
         _logger.debug("Received %s request for %s", request.method, request.path)
-
         request.is_auth_optional = False
         request.user = None
-
+        check_firewall(request)
         if request.method == 'OPTIONS':
             return await handler(request)
 
@@ -202,7 +204,8 @@ async def validate_requests(request):
     user_id = request.user['id']
     # Only URL's which are specific meant for Admin user
     if not request.user_is_admin and request.method == 'GET':
-        if str(request.rel_url) == '/fledge/user':
+        # Special case: Allowed GET user for Control user
+        if int(request.user["role_id"]) != 5 and str(request.rel_url) == '/fledge/user':
             raise web.HTTPForbidden
     # Normal/Editor user
     if int(request.user["role_id"]) == 2 and request.method != 'GET':
@@ -230,4 +233,24 @@ async def validate_requests(request):
                 raise web.HTTPForbidden
         else:
             raise web.HTTPForbidden
+
+
+def check_firewall(req: web.Request) -> None:
+    # FIXME: Need to check on other environments like AWS, docker; May be ideal with socket
+    # import socket
+    # hostname = socket.gethostname()
+    # IPAddr = socket.gethostbyname(hostname)
+
+    source_ip_address = req.transport.get_extra_info('peername')[0]
+    if source_ip_address not in ['localhost', '127.0.0.1']:
+        firewall_ip_addresses = Firewall.IPAddresses.get()
+        if 'allowedIP' in firewall_ip_addresses:
+            allowed = firewall_ip_addresses['allowedIP']
+            if allowed:
+                if source_ip_address not in allowed:
+                    raise web.HTTPForbidden
+            else:
+                if 'deniedIP' in firewall_ip_addresses:
+                    if source_ip_address in firewall_ip_addresses['deniedIP']:
+                        raise web.HTTPForbidden
 

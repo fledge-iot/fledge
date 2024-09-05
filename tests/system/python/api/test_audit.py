@@ -12,13 +12,14 @@ import json
 import time
 from collections import Counter
 import pytest
+import utils
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-DEFAULT_AUDIT_COUNT = 16
+DEFAULT_AUDIT_COUNT = 17
 
 
 class TestAudit:
@@ -66,13 +67,13 @@ class TestAudit:
     @pytest.mark.parametrize("request_params, total_count, audit_count", [
         ('', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?limit=1', DEFAULT_AUDIT_COUNT, 1),
-        ('?skip=4', DEFAULT_AUDIT_COUNT, 12),
+        ('?skip=4', DEFAULT_AUDIT_COUNT, 13),
         ('?limit=1&skip=8', DEFAULT_AUDIT_COUNT, 1),
         ('?source=START', 1, 1),
-        ('?source=CONAD', 15, 15),
-        ('?source=CONAD&limit=1', 15, 1),
-        ('?source=CONAD&skip=1', 15, 14),
-        ('?source=CONAD&skip=6&limit=1', 15, 1),
+        ('?source=CONAD', 16, 16),
+        ('?source=CONAD&limit=1', 16, 1),
+        ('?source=CONAD&skip=1', 16, 15),
+        ('?source=CONAD&skip=6&limit=1', 16, 1),
         ('?severity=INFORMATION', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?severity=failure', 0, 0),
         ('?source=CONAD&severity=failure', 0, 0),
@@ -95,6 +96,8 @@ class TestAudit:
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
+        if len(elems):
+            assert utils.validate_date_format(elems[0]['timestamp']) is True, "Timestamp format mismatched."
 
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 1),
@@ -113,6 +116,7 @@ class TestAudit:
         assert payload['source'] == jdoc['source']
         assert payload['severity'] == jdoc['severity']
         assert payload['details'] == jdoc['details']
+        assert utils.validate_date_format(jdoc['timestamp']) is True, "Timestamp format mismatched."
 
         # Verify new audit log entries
         conn.request("GET", '/fledge/audit')

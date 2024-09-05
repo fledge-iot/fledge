@@ -50,6 +50,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 from fledge.services.core.api.control_service import acl_management as acl_management
+from fledge.services.core.firewall import Firewall
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
@@ -202,7 +203,6 @@ class Server:
 
     cert_file_name = ''
     """ cert file name """
-
 
     _REST_API_DEFAULT_CONFIG = {
         'enableHttp': {
@@ -562,6 +562,19 @@ class Server:
             _logger.exception(ex)
             raise
 
+    @classmethod
+    async def firewall_config(cls):
+        try:
+            _firewall = Firewall()
+            category = _firewall.category
+            await cls._configuration_manager.create_category(category, _firewall.config, _firewall.description, True,
+                                                             display_name=_firewall.display_name)
+            config = await cls._configuration_manager.get_category_all_items(category)
+            Firewall.IPAddresses.save(data=config)
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
 
     @classmethod
     async def service_config(cls):
@@ -968,8 +981,11 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
+            # REST API
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
+            loop.run_until_complete(cls.firewall_config())
+
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context
@@ -2115,6 +2131,21 @@ class Server:
         except Exception as ex:
             msg = str(ex)
             _logger.error(ex, "Failed to get an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response({"alert": alert})
+
+    @classmethod
+    async def delete_alert(cls, request):
+        name = request.match_info.get('key', None)
+        try:
+            alert = await cls._alert_manager.delete(name)
+        except KeyError as err:
+            msg = str(err.args[0])
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to delete an alert.")
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
         else:
             return web.json_response({"alert": alert})

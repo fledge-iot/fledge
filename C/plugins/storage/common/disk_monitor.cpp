@@ -35,7 +35,7 @@ using namespace std;
  */
 DiskSpaceMonitor::DiskSpaceMonitor(const string& path1, const string& path2) :
 	m_dbPath1(path1), m_dbPath2(path2), m_started(false), m_sameDevice(false), m_lastCheck(0),
-	m_lastPerc1(0.0), m_lastPerc2(0.0), m_lastPrediction1(0.0), m_lastPrediction2(0.0)
+	m_lastPerc1(0.0), m_lastPerc2(0.0), m_lastPrediction1(0.0), m_lastPrediction2(0.0), m_reported(0)
 {
 	m_logger = Logger::getLogger();
 }
@@ -51,14 +51,40 @@ void DiskSpaceMonitor::periodic(int interval)
 
 	if (!m_started)
 	{
+		// We have not yet started to monitor the disk usage.
+		// Do the initial statfs calls to see if the configuration
+		// and readings are on the same filesystem. If they are we 
+		// only monitor one of them
+		//
+		// If the statfs fails log it and do not start monitoring. The
+		// rate at which logs are created is limited to prevent flooding
+		// the error log.
 		if (statfs(m_dbPath1.c_str(), &stf1) != 0)
 		{
-			m_logger->error("Can't stafs %s", m_dbPath1.c_str());
+			if (m_reported == 0)
+			{
+				m_logger->error("Can't statfs %s, %s. Disk space monitoring is disabled",
+						m_dbPath1.c_str(), strerror(errno));
+				m_reported++;
+			}
+			else if (++m_reported > FAILED_DISK_MONITOR_REPORT_INTERVAL)
+			{
+				m_reported = 0;
+			}
 			return;
 		}
 		if (statfs(m_dbPath2.c_str(), &stf2) != 0)
 		{
-			m_logger->error("Can't stafs %s", m_dbPath2.c_str());
+			if (m_reported == 0)
+			{
+				m_logger->error("Can't statfs %s, %s. Disk space monitoring is disabled",
+						m_dbPath2.c_str(), strerror(errno));
+				m_reported++;
+			}
+			else if (++m_reported > FAILED_DISK_MONITOR_REPORT_INTERVAL)
+			{
+				m_reported = 0;
+			}
 			return;
 		}
 		if (memcmp(&stf1.f_fsid, &stf2.f_fsid, sizeof(fsid_t)) == 0)	// Same filesystem

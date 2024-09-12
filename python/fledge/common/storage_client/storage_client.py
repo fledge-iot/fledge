@@ -22,6 +22,7 @@ from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.utils import Utils
+import urllib.parse
 
 _LOGGER = logger.setup(__name__)
 
@@ -581,7 +582,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if flag:
             put_url += "&flags={}".format(flag.lower())
         if asset is not None:
-            put_url = '/storage/reading/purge?asset={}'.format(asset)
+            put_url = '/storage/reading/purge?asset={}'.format(urllib.parse.quote(asset))
 
         url = 'http://' + self._base_url + put_url
         async with aiohttp.ClientSession() as session:

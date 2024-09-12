@@ -42,6 +42,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
 	m_streamSent = getLastSentId();
+	migrateStats();
 	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
@@ -350,21 +351,24 @@ unsigned long DataLoad::getLastSentId()
 		ResultSet::Row* row = *it;
 		if (row)
 		{
+			// Get column value
 			ResultSet::ColumnValue* theVal = nullptr;
 			unsigned long rval = 0;
-			// Get column value
-			if (m_dataSource == SourceReadings)
+			theVal = row->getColumn("last_objects");
+			const rapidjson::Value * json = theVal->getJSON();
+			switch(m_dataSource)
 			{
-				theVal = row->getColumn("last_object");
-				rval = (unsigned long)theVal->getInteger();
+				case SourceReadings:
+					rval = json->GetObject()["Readings"].GetInt64();
+					break;
+				case SourceStatistics:
+					rval = json->GetObject()["Stats"].GetInt64();
+					break;
+				case SourceAudit:
+					rval = json->GetObject()["Audit"].GetInt64();
+					break;
 			}
-			else
-			{
-				theVal = row->getColumn("audit_stats_last_object");
-				const rapidjson::Value * json = theVal->getJSON();
-				(m_dataSource == SourceStatistics) ? (rval = json->GetObject()["Stats"].GetInt64()) : (rval = json->GetObject()["Audit"].GetInt64());
 
-			}
 			delete lastObjectId;
 			return rval;
 		}
@@ -469,19 +473,12 @@ int DataLoad::createNewStream()
 int streamId = 0;
 InsertValues streamValues;
 	streamValues.push_back(InsertValue("description",    m_name));
-	if (m_dataSource == SourceReadings)
-	{
-		streamValues.push_back(InsertValue("last_object",    0));
-	}
-	else
-	{
-		streamValues.push_back(InsertValue("audit_stats_last_object", "{\\\"Stats\\\":0,\\\"Audit\\\":0}" ));
-	}
+	streamValues.push_back(InsertValue("last_objects", "{\\\"Readings\\\":0,\\\"Stats\\\":0,\\\"Audit\\\":0}" ));
 
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
 		Logger::getLogger()->error("Failed to insert a row into the streams table");
-    }
+	}
 	else
 	{
 		// Select the row just created, having description='process name'
@@ -533,31 +530,107 @@ void DataLoad::flushLastSentId()
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
-
-	if (m_dataSource == SourceReadings)
+	
+	std::string last_objects = "{}";
+	last_objects = "{\\\"Readings\\\":0,\\\"Stats\\\":0,\\\"Audit\\\":0}";
+	unsigned long readingsSentCount = 0;
+	unsigned long statsSentCount = 0;
+	unsigned long auditSentCount= 0;
+	std::tie(readingsSentCount,statsSentCount,auditSentCount) = getLastObjects();
+	
+	switch(m_dataSource)
 	{
-		lastId.push_back(InsertValue("last_object", (long)m_streamSent));
+		case SourceReadings:
+			last_objects = "{\\\"Readings\\\":" + to_string(m_streamSent) + ",\\\"Stats\\\":" + to_string(statsSentCount) + ",\\\"Audit\\\":" + to_string(auditSentCount) + "}";
+			break;
+		case SourceStatistics:
+			last_objects = "{\\\"Readings\\\":" + to_string(readingsSentCount) + ",\\\"Stats\\\":" + to_string(m_streamSent) + ",\\\"Audit\\\":" + to_string(auditSentCount) + "}";
+			break;
+		case SourceAudit:
+			last_objects = "{\\\"Readings\\\":" + to_string(readingsSentCount) + ",\\\"Stats\\\":" + to_string(statsSentCount) + ",\\\"Audit\\\":" + to_string(m_streamSent) + "}";
+			break;
 	}
-	else
-	{
-		const rapidjson::Value * json = getAuditStatsValue();
-		std::string audit_stats_last_object = "{}";
-		if (json == nullptr)
-		{
-			audit_stats_last_object = "{\\\"Stats\\\":0,\\\"Audit\\\":0}";
-		}
-		else if (m_dataSource == SourceStatistics)
-		{
-			audit_stats_last_object = "{\\\"Stats\\\":" + to_string(m_streamSent) +",\\\"Audit\\\":" + to_string(json->GetObject()["Audit"].GetInt64()) +"}";
-		}
-		else
-		{
-			audit_stats_last_object = "{\\\"Stats\\\":" + to_string(json->GetObject()["Stats"].GetInt64()) +",\\\"Audit\\\":" + to_string(m_streamSent) +"}";
-		}
-		lastId.push_back(InsertValue("audit_stats_last_object", audit_stats_last_object));
-	}
-
+	lastId.push_back(InsertValue("last_objects", last_objects));
 	m_storage->updateTable("streams", lastId, where);
+
+}
+
+/**
+ * Migrate data of last_object field of streams table to new field last_objects
+ */
+void DataLoad::migrateStats()
+{
+	// Get last_object field to check if migration of data is required to new field
+	const Condition conditionId(Equals);
+	string streamId = to_string(m_streamId);
+	Where* wStreamId = new Where("id",
+				     conditionId,
+				     streamId);
+
+	// SELECT * FROM foglamp.streams WHERE id = x
+	Query qLastId(wStreamId);
+
+	ResultSet* lastObjectId = m_storage->queryTable("streams", qLastId);
+	
+	long lastSent = 0;
+	if (lastObjectId != NULL && lastObjectId->rowCount())
+	{
+		// Get the first row only
+		ResultSet::RowIterator it = lastObjectId->firstRow();
+		// Access the element
+		ResultSet::Row* row = *it;
+		if (row)
+		{
+			// Get column value
+			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
+			// Set found id
+			lastSent = (long)theVal->getInteger();
+		}
+	}
+	// Free result set
+	delete lastObjectId;
+
+	if (lastSent < 0) // Already migrated 
+		return;
+	
+	// Not already migrated, migrate It.
+
+	const Condition condition(Equals);
+	Where where("id", condition, to_string(m_streamId));
+	InsertValues lastId;
+
+	std::string last_objects = "{}";
+	last_objects = "{\\\"Readings\\\":0,\\\"Stats\\\":0,\\\"Audit\\\":0}";
+	unsigned long readingsSentCount = 0;
+	unsigned long statsSentCount = 0;
+	unsigned long auditSentCount= 0;
+	
+	std::tie(readingsSentCount,statsSentCount,auditSentCount) = getLastObjects();
+	
+	switch(m_dataSource)
+	{
+		case SourceReadings:
+			last_objects = "{\\\"Readings\\\":" + to_string(lastSent) + ",\\\"Stats\\\":0,\\\"Audit\\\":0}";
+			break;
+		case SourceStatistics:
+			last_objects = "{\\\"Readings\\\":0,\\\"Stats\\\":" + to_string(lastSent) + ",\\\"Audit\\\":0}";
+			break;
+		case SourceAudit:
+			last_objects = "{\\\"Readings\\\":0,\\\"Stats\\\":0,\\\"Audit\\\":" + to_string(lastSent) + "}";
+			break;
+	}
+
+	lastId.push_back(InsertValue("last_objects", last_objects));
+	m_storage->updateTable("streams", lastId, where);
+
+	// Update last_object field to mark that migration is done
+	lastSent = -1;
+	const Condition resetCondition(Equals);
+	Where resetClause("id", resetCondition, to_string(m_streamId));
+	InsertValues resetlastObject;
+
+	resetlastObject.push_back(InsertValue("last_object", (long)lastSent));
+	m_storage->updateTable("streams", resetlastObject, resetClause);
 }
 
 
@@ -767,12 +840,13 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 }
 
 /**
- * Get the Audit Stats value to be used to fetch last reading sent with this current data source
+ * Get the a tuple for the last objects sent
  */
 
-const rapidjson::Value * DataLoad::getAuditStatsValue()
+std::tuple<unsigned long,unsigned long,unsigned long> DataLoad::getLastObjects()
 {
 
+	std::tuple<unsigned long,unsigned long,unsigned long> t;	
 	const Condition conditionId(Equals);
 	string streamId = to_string(m_streamId);
 	Where* wStreamId = new Where("id",
@@ -792,12 +866,14 @@ const rapidjson::Value * DataLoad::getAuditStatsValue()
 		ResultSet::Row* row = *it;
 		if (row)
 		{
-			ResultSet::ColumnValue* theVal = row->getColumn("audit_stats_last_object");
+			ResultSet::ColumnValue* theVal = row->getColumn("last_objects");
+			const rapidjson::Value * json = theVal->getJSON();
+			t = std::make_tuple(json->GetObject()["Readings"].GetInt64(),json->GetObject()["Stats"].GetInt64(),json->GetObject()["Audit"].GetInt64());
 			delete lastObjectId;
-			return theVal->getJSON();
+			return t;
 		}
 	}
 	// Free result set
 	delete lastObjectId;
-	return nullptr;
+	return std::make_tuple(0,0,0);
 }

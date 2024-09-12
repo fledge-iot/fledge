@@ -221,7 +221,7 @@ CREATE TABLE fledge.streams (
     active_window            JSON                        NOT NULL DEFAULT '{}',             -- The window of operations
     active                   boolean                     NOT NULL DEFAULT 't',              -- When false, all data to this stream stop and are inactive
     last_object              bigint                      NOT NULL DEFAULT 0,                -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-    audit_stats_last_object  JSON                        NOT NULL DEFAULT '{"Audit":0,"Stats":0}', -- The ID of the last object streamed (Audit or Stats, depending on the object_stream)
+    last_objects             JSON                        NOT NULL DEFAULT '{"Readings":0,"Stats":0,"Audit":0}', -- The ID of the last object streamed (Readings,Stats or Audit , depending on the object_stream)
     ts                       DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))); -- Creation or last update
 
 

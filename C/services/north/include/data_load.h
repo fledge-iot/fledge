@@ -11,6 +11,7 @@
 #include <filter_pipeline.h>
 #include <service_handler.h>
 #include <perfmonitors.h>
+#include <tuple>
 
 #define DEFAULT_BLOCK_SIZE 100
 
@@ -70,7 +71,8 @@ class DataLoad : public ServiceHandler {
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
 		bool			loadFilters(const std::string& category);
-		const rapidjson::Value *getAuditStatsValue();
+		std::tuple<unsigned long,unsigned long,unsigned long> getLastObjects();
+		void 			migrateStats();
 
 	private:
 		const std::string&	m_name;

@@ -432,7 +432,7 @@ CREATE TABLE fledge.streams (
        active_window             jsonb                       NOT NULL DEFAULT '{}'::jsonb,                                         -- The window of operations
        active                    boolean                     NOT NULL DEFAULT true,                                                -- When false, all data to this stream stop and are inactive
        last_object               bigint                      NOT NULL DEFAULT 0,                                                   -- The ID of the last object streamed (asset or reading, depending on the object_stream)
-       audit_stats_last_object   jsonb                       NOT NULL DEFAULT '{"Audit":0,"Stats":0}'::jsonb,                      -- The ID of the last object streamed (Audit or Stats, depending on the object_stream)
+       last_objects              jsonb                       NOT NULL DEFAULT '{"Readings":0,"Stats":0,"Audit":0}'::jsonb,         -- The ID of the last object streamed (Readings,Stats or Audit , depending on the object_stream)
        ts                        timestamp(6) with time zone NOT NULL DEFAULT now(),                                               -- Creation or last update
        CONSTRAINT strerams_pkey  PRIMARY KEY (id));
 

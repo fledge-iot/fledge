@@ -1135,12 +1135,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         """
         try:
             storage_value_entry = None
+            """ Note: Update reject to the properties with permissions property when the logged in user type is not
+                                     given in the list of permissions. """
+            user_role_name = await self._check_updates_by_role(request)
             if category_name in self._cacheManager:
                 if item_name not in self._cacheManager.cache[category_name]['value']:
                     raise ValueError("No detail found for the category_name: {} and item_name: {}"
                                      .format(category_name, item_name))
                 storage_value_entry = self._cacheManager.cache[category_name]['value'][item_name]
-
+                if user_role_name:
+                    self._check_permissions(request, storage_value_entry, user_role_name)
                 if storage_value_entry['value'] == new_value_entry:
                     return
             else:
@@ -1150,13 +1154,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if storage_value_entry is None:
                     raise ValueError("No detail found for the category_name: {} and item_name: {}"
                                      .format(category_name, item_name))
+                if user_role_name:
+                    self._check_permissions(request, storage_value_entry, user_role_name)
                 if storage_value_entry == new_value_entry:
                     return
-            """ Note: Update reject to the properties with permissions property when the logged in user type is not
-             given in the list of permissions. """
-            user_role_name = await self._check_updates_by_role(request)
-            if user_role_name:
-                self._check_permissions(request, storage_value_entry, user_role_name)
             # Special case for enumeration field type handling
             if storage_value_entry['type'] == 'enumeration':
                 if new_value_entry == '':

@@ -1316,3 +1316,29 @@ string NorthService::controlSource()
 
 	return source;
 }
+
+/**
+ * Raise an alert that we are having issues sending data
+ *
+ * We also write a warning to the system log to aid with debugging
+ */
+void NorthService::alertFailures()
+{
+	string key = "North " + m_name;
+	string message = "Repeated failures to send data via the " + m_name + " north service ";
+	m_mgtClient->raiseAlert(key, message, "normal");
+	logger->warn("Repeated failures to send data to destination");
+}
+
+/**
+ * Clear the failure alert for sending data
+ *
+ * We clear the alert from the status bar and write a message to the system
+ * log
+ */
+void NorthService::clearFailures()
+{
+	string key = "North " + m_name;
+	m_mgtClient->clearAlert(key);
+	logger->info("The sending of data has resumed");
+}

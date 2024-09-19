@@ -493,7 +493,7 @@ void replicate(std::string& StringToManage,
 std::string	escape(const std::string& str)
 {
 	size_t pos = 0;
-	if (str.find("\"", pos) != std::string::npos && str.find("\\", pos) != std::string::npos && str.find("/", pos) != std::string::npos)
+	if (str.find("\"", pos) == std::string::npos && str.find("\\", pos) == std::string::npos && str.find("/", pos) == std::string::npos)
 		return str; //return if none of the following character exists '"' , "\" , "/"
 
 	std::string rval;
@@ -502,7 +502,7 @@ std::string	escape(const std::string& str)
 	{
 		if (str[i] == '\\')
 		{
-			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/'))
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/' || str[i-1] == '\\'))
 			{
 				rval += '\\';
 			}

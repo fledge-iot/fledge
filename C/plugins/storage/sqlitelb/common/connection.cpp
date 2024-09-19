@@ -1854,7 +1854,7 @@ vector<string>  asset_codes;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
 					sql.append(")");

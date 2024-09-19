@@ -1329,7 +1329,7 @@ SQLBuffer	sql;
 						value.Accept(writer);
 
 						std::string buffer_escaped = "\"";
-						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
+						buffer_escaped.append(escape_double_quotes(escape(buffer.GetString())));
 						buffer_escaped.append( "\"");
 
 						sql.append('\'');

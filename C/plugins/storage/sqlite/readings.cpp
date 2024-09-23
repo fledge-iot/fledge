@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <readings_catalogue.h>
+#include <dbcb.h>
 
 // 1 enable performance tracking
 #define INSTRUMENT	0

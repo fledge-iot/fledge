@@ -21,6 +21,7 @@
 #include <logger.h>
 #include <stdexcept>
 #include <string_utils.h>
+#include <boost/algorithm/string/replace.hpp>
 
 
 using namespace std;
@@ -1414,6 +1415,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["value"].IsObject())
 		{
+			boost::replace_all(m_value, "\\n", "");
 			Document check;
 			check.Parse(m_value.c_str());
 			if (check.HasParseError())
@@ -1522,6 +1524,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["default"].IsObject())
 		{
+			boost::replace_all(m_default, "\\n", "");
 			Document check;
 			check.Parse(m_default.c_str());
 			if (check.HasParseError())

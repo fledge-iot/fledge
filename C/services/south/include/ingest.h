@@ -103,6 +103,7 @@ public:
 			{
 				m_performance = mon;
 			};
+	void		configureRateMonitor(long interval, long factor);
 
 private:
 	void				signalStatsUpdate() {

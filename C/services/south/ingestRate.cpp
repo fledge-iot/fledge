@@ -18,15 +18,10 @@ using namespace std;
  *
  * @param mgmtClient	The management Client interface
  */
-IngestRate::IngestRate(ManagementClient *mgmtClient) : m_mgmtClient(mgmtClient), m_currentInterval(0),
-							m_currentMinute(0), m_fullMinute(false),
-							m_have15(false), m_have5(false)
+IngestRate::IngestRate(ManagementClient *mgmtClient, const std::string& service) : m_mgmtClient(mgmtClient), m_service(service),
+	m_currentInterval(0), m_thisInterval(0), m_mean(0), m_dsq(0), m_count(0), m_factor(3), m_alerted(false), m_primed(false)
 {
 	m_numIntervals = 60 / FLUSH_STATS_INTERVAL;
-	for (int i = 0; i < m_numIntervals; i++)
-		m_perInterval[i] = 0;
-	for (int i = 0; i < 15; i++)
-		m_perMinute[i] = 0;
 }
 
 /**
@@ -37,14 +32,55 @@ IngestRate::~IngestRate()
 }
 
 /**
+ * Update the configuration of the ingets rate mechanism
+ *
+ * @param interval	Number of minutes to average over
+ * @param factor	Number of standard deviations to tolarate
+ */
+void IngestRate::updateConfig(int interval, int factor)
+{
+	bool restart = false;
+	if (interval * 60 != m_numIntervals * FLUSH_STATS_INTERVAL)
+	{
+		m_numIntervals = (interval * 60) / FLUSH_STATS_INTERVAL;
+		restart = true;
+	}
+	if (m_factor != factor)
+	{
+		m_factor = factor;
+	}
+	if (restart)
+	{
+		relearn();
+	}
+}
+
+/**
+ * The configuration has changed so we need to reset our state
+ * and go back into the mode of determining what a good mean and
+ * standard deviation is for the select interval.
+ */
+void IngestRate::relearn()
+{
+	lock_guard<mutex> guard(m_mutex);
+	m_count = 0;
+	m_thisInterval = 0;
+	m_currentInterval = 0;
+	m_dsq = 0;
+	m_mean = 0;
+}
+
+/**
  * Called each time we ingest any readings.
  *
  * @param numberReadings	The number of readings ingested
  */
 void IngestRate::ingest(unsigned int numberReadings)
 {
+	if (m_numIntervals == 0)
+		return;
 	lock_guard<mutex> guard(m_mutex);
-	m_perInterval[m_currentInterval] += numberReadings;
+	m_thisInterval += numberReadings;
 }
 
 /**
@@ -52,12 +88,9 @@ void IngestRate::ingest(unsigned int numberReadings)
  */
 void IngestRate::periodic()
 {
+	if (m_numIntervals == 0)
+		return;
 	updateCounters();
-	if (m_have15)
-	{
-		Logger::getLogger()->warn("Ingest rates: %.3f, %03f, %.3f",
-				m_last15Minutes, m_last5Minutes, m_lastMinute);
-	}
 }
 
 /**
@@ -67,53 +100,48 @@ void IngestRate::updateCounters()
 {
 	lock_guard<mutex> guard(m_mutex);
 	m_currentInterval++;
-	if (m_fullMinute || m_currentInterval == m_numIntervals)
+	if (m_currentInterval == m_numIntervals)
 	{
-		m_fullMinute = true;
-		// A minutes worth of data in m_perInterval
-		unsigned long tot = 0;
-		for (int i = 0; i < m_numIntervals; i++)
+		if (m_count > IGRSAMPLES)
 		{
-			tot += m_perInterval[i];
-		}
-		m_lastMinute = tot / 60.0;
-		if (m_currentInterval == m_numIntervals)
-		{
-			m_currentInterval = 0;
-			// We have completed a minute
-			m_perMinute[m_currentMinute] = tot;
-			m_currentMinute++;
-			if (m_currentMinute >= 15)
+			Logger::getLogger()->debug("Ingest rate checking for service %s is enabled", m_service.c_str());
+			double sigma = sqrt(m_dsq / m_count);
+			if (m_thisInterval < (m_mean - (m_factor * sigma))  || m_thisInterval > (m_mean + (m_factor * sigma)))
 			{
-				m_currentMinute = 0;
-				m_have15 = true;
-			}
-			if (m_currentMinute >= 5)
-			{
-				m_have5 = true;
-			}
-			if (m_have5)
-			{
-				int i = m_currentMinute  - 1;
-				tot = 0;
-				for (int j = 0; j < 5; j++)
+				if (m_primed)
 				{
-					if (i < 0)
-						i += 15;
-					tot += m_perMinute[i];
+					// Outlier detected
+					string key = "SouthIngestRate" + m_service;
+					string message = "Ingest rate of the south service " +
+					       m_service + " falls outside of normal boundaries";
+					m_mgmtClient->raiseAlert(key, message);
+					Logger::getLogger()->warn("%s, rate is %ld with average rate of %f", message, m_thisInterval, m_mean);
+					m_alerted = true;
 				}
-				m_last5Minutes = tot / (5 * 60);
-			}
-			if (m_have15)
-			{
-				tot = 0;
-				for (int i = 0; i < 15; i++)
+				else
 				{
-					tot += m_perMinute[i];
+					// We have had one outlier, prime the alert on the second consequtive outlier
+					m_primed = true;
 				}
-				m_last15Minutes = tot / (15 * 60);
+			}
+			else if (m_alerted)
+			{
+				string key = "SouthIngestRate" + m_service;
+				m_mgmtClient->clearAlert(key);
+				m_primed = false;
+			}
+			else
+			{
+				m_primed = false;
 			}
 		}
+		m_count++;
+		double meanDiff = (m_thisInterval - m_mean) / m_count;
+		double newMean = m_mean + meanDiff;
+		double dsqInc = (m_thisInterval - newMean) * (m_thisInterval - m_mean);
+		m_dsq += dsqInc;
+		m_mean = newMean;
+		m_thisInterval = 0;
+		m_currentInterval = 0;
 	}
-	m_perInterval[m_currentInterval] = 0;
 }

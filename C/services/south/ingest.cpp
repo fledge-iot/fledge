@@ -315,7 +315,7 @@ Ingest::Ingest(StorageClient& storage,
 	m_deprecatedAgeOut = 0;
 	m_deprecatedAgeOutStorage = 0;
 
-	m_ingestRate = new IngestRate(mgmtClient);
+	m_ingestRate = new IngestRate(mgmtClient, serviceName);
 }
 
 /**
@@ -1095,6 +1095,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	Logger::getLogger()->debug("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	string advanced = m_serviceName + "Advanced";
 	if (category == m_serviceName) 
 	{
 		/**
@@ -1148,10 +1149,23 @@ void Ingest::configChange(const string& category, const string& newConfig)
 		lock_guard<mutex> guard(m_pipelineMutex);
 		m_running = true;
 	}
+	else if (category == advanced) 
+	{
+		ConfigCategory config("tmp", newConfig);
+		string s = config.getValue("rateMonitoringInterval");
+		long interval = strtol(s.c_str(), NULL, 10);
+		s = config.getValue("rateSigmaFactor");
+		long factor = strtol(s.c_str(), NULL, 10);
+		m_ingestRate->updateConfig(interval, factor);
+
+		// TODO If the rate has changed we need to restart the monitoring for
+		// now we trigger this if the category changes
+		m_ingestRate->relearn();
+	}
 	else
 	{
 		/*
-		 * The category is for one fo the filters. We simply call the Filter Pipeline
+		 * The category is for one of the filters. We simply call the Filter Pipeline
 		 * instance and get it to deal with sending the configuration to the right filter.
 		 * This is done holding the pipeline mutex to prevent the pipeline being changed
 		 * during this call and also to hold the ingest thread from running the filters
@@ -1167,7 +1181,7 @@ void Ingest::configChange(const string& category, const string& newConfig)
 }
 
 /**
- * Return the numebr fo queued readings in the south service
+ * Return the number fo queued readings in the south service
  */
 size_t Ingest::queueLength()
 {
@@ -1516,4 +1530,16 @@ void Ingest::flowControl()
 			       	? "failed to drain in sufficient time" : "has drained");
 		m_performance->collect("flow controlled", total);
 	}
+}
+
+/**
+ * Configure the ingest rate class with the collection interval and
+ * the sigma factor allowed before reporting
+ *
+ * @param interval	Number of minutes to average ingest stats over
+ * @param factor	Number of standard deviations to allow before reporting
+ */
+void Ingest::configureRateMonitor(long interval, long factor)
+{
+	m_ingestRate->updateConfig(interval, factor);
 }

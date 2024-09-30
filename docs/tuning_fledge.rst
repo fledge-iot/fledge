@@ -1,5 +1,6 @@
 .. Images
 .. |south_advanced| image:: images/south_advanced.jpg
+.. |south_alert| image:: images/south_alert.jpg
 .. |stats_options| image:: images/stats_options.jpg
 .. |north_advanced| image:: images/north_advanced.jpg
 .. |service_monitor| image:: images/service_monitor.jpg
@@ -129,6 +130,10 @@ The south services within Fledge each have a set of advanced configuration optio
 
   - *Performance Counters* - This option allows for the collection of performance counters that can be used to help tune the south service.
 
+  - *Monitoring Period* - This defines a period in minutes over which the service collects ingest counts to determine the flow rate of the service. This is averaged over a number of samples to build the average rate and standard deviation from that rate in order to detect anomalous changes in the rate. The user is warned when the rate does not appear consistent with the learnt average and standard deviation. Setting this value to 0 will disable the ingest rate monitoring.
+
+  - *Monitoring Sensitivity* -  This defines the sensitivity of the rate monitoring reports. It is expressed as a factor and is used to determine how many standard deviations from the mean ingest rate is considered as an anomalous ingest rate. The high this number the less sensitive the monitoring process is.
+
 Performance Counters
 --------------------
 
@@ -182,6 +187,28 @@ When collection is enabled the following counters will be collected for the sout
       - A count of the readings that have been removed after too many attempts to save them in the storage layer.
       - This should normally be zero or close to zero. Any significant values here are a pointer to a critical error with either the south plugin data that is being created or the operation of the storage layer.
 
+Ingest Rate Monitoring
+----------------------
+
+The ingest rate monitoring in the south service is designed to warn the user when the observed ingest rate of the service falls outside of the expected range observed previously for the service. The mechanism does not rely an option the user provides defining an expected rate, but rather uses observed data to determine an expected range of rates that can be considered normal. The user has options to configure the period over which the rate is observed for reporting purposes and also the sensitivity of the monitoring. This has the advantage over simply defining an upper and lower acceptable ingest rate that it does not need to be adjusted each time the poll rate is adjusted and it can be used with asynchronous data sources where the rate may be unknown, provided those sources are relatively consistent with the rate they supply data.
+
+The monitoring period may be adjusted to suit the consistency of the incoming data rate and tune the frequency with which reports are made. A report can be made at most once per every two monitoring periods,  therefore setting a long monitoring period will reduce the responsive of the alerts to failures. However too short a monitoring period, with rates that fluctuate can result in false positives because the average rate over the given period in not stable even to provide consistent results.
+
+In cases where the data rate is so inconsistent that the monitoring is giving too many false alerts it may be disabled by setting a monitoring period of 0.
+
+The algorithm uses the well known outlier detection mechanism which states that the distribution of data usually falls within a bell curve, with the likelihood of data being higher closer to the average of the data set. It uses standard deviation and mean calculation to determine this and the sensitivity setting defines the number of standard deviation plus or minus of the computed mean that are considered to be good ingest rates.
+
+The monitoring process will collect a number of samples, to create an initial mean and standard deviation before it will start to actively monitor the flow rate. Should the collection rate configuration of the service be altered, the algorithm will discard the learnt mean and standard deviation and restart the collection of the initial sample. The initial sample size is set to be 10 monitoring periods.
+
+Once the monitoring algorithm has completed the initial sample collection and switched to active monitoring, it will continue to refine the current mean value and standard deviation. This allows the monitoring to adjust to small, natural variations in collection rates over time.
+
+When two consecutive  monitoring periods are detected that sent either more than or fewer than the number of readings defined by the current mean, standard deviation and sensitivity factory an alert will be displayed in the Fledge status bar and a warning will be written to the error log. 
+
++---------------+
+| |south_alert| |
++---------------+
+
+The algorithm requires two consecutive out of range ingest rates to prevent the alert trigger for an isolated peak or trough in data collection caused by a one off action occurring on the host platform, or within Fledge. If in a subsequent monitoring period the flow rate returns to acceptable limits, the alert in the status bar will be cleared.
 
 Fixed Time Polling
 ------------------

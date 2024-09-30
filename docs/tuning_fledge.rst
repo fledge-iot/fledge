@@ -210,6 +210,10 @@ When two consecutive  monitoring periods are detected that sent either more than
 
 The algorithm requires two consecutive out of range ingest rates to prevent the alert trigger for an isolated peak or trough in data collection caused by a one off action occurring on the host platform, or within Fledge. If in a subsequent monitoring period the flow rate returns to acceptable limits, the alert in the status bar will be cleared.
 
+.. note::
+
+   This ingest rate monitoring is designed to be applicable is as many situations as possible. There are however some cases in which this monitoring will create false reports of issues. This may be able to be reduced or eliminated by using the tuning options, but this may not be true in all cases. In particular an asynchronous south plugin that reports data at unpredictable time intervals will most likely not be suitable for this type of monitoring and the monitoring should be disabled by setting a 0 monitoring interval.
+
 Fixed Time Polling
 ------------------
 

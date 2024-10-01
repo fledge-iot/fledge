@@ -342,3 +342,16 @@ TEST(DefaultCategoryTestQuoted, toJSONQuotedSpecial)
 	// Only "default" value in the output
 	ASSERT_EQ(0, confCategory.toJSON().compare(default_json_quotedSpecial));
 }
+
+// Default config category with \n in default JSON
+string jsonLF = R"({"plugin": {"description": "Sinusoid Poll Plugin which implements sine wave with data points", "type": "string", "default": "sinusoid", "readonly": "true"}, "assetName": {"description": "Name of Asset", "type": "string", "default": "sinusoid", "displayName": "Asset name", "mandatory": "true"}, "writemap": {"description": "Map of tags", "displayName": "Tags to write", "type": "JSON", "default": "{\n  \"tags\": [\n    {\n      \"name\": \"PLCTAG\",\n      \"type\": \"UINT32\",\n      \"program\": \"\"\n    }\n  ]\n}"}})";
+string jsonClear = R"({  "tags": [    {      "name": "PLCTAG",      "type": "UINT32",      "program": ""    }  ]})";
+
+TEST(DefaultCategoryTestLF, toJSONWithoutLF)
+{
+	DefaultConfigCategory confCategory("testLF", jsonLF);
+	confCategory.setDescription("Test description");
+
+	// Only "default" value in the output
+	ASSERT_EQ(0, confCategory.getDefault("writemap").compare(jsonClear));
+}

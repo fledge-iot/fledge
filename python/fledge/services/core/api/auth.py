@@ -319,6 +319,11 @@ async def get_user(request):
         user_name = request.query['username'].lower()
     if user_id or user_name:
         try:
+            if not request.is_auth_optional:
+                if int(request.user["role_id"]) not in [1, 5]:
+                    if ((user_id is not None and int(request.user["id"]) != user_id)
+                            or (user_name is not None and request.user["uname"] != user_name)):
+                        raise web.HTTPForbidden
             user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')

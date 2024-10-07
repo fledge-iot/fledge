@@ -12,6 +12,9 @@
 #include <logger.h>
 
 #define CHECK_THRESHOLD		300	// check every 5 minutes
+
+#define FAILED_DISK_MONITOR_REPORT_INTERVAL	600 // Interval between loggign failure to stat the filesystem (10 minutes)
+
 /**
  * A class to monitor the free disk space used to store
  * the various storage databases
@@ -31,5 +34,6 @@ class DiskSpaceMonitor {
 		double		m_lastPerc2;
 		double		m_lastPrediction1;
 		double		m_lastPrediction2;
+		int		m_reported;
 };
 #endif

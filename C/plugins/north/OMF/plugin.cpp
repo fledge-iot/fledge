@@ -169,6 +169,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "10",
 			"displayName": "Data Stream Name Delimiter"
 		},
+		"OMFDataActionCode": {
+			"description": "OMF Action Code to use when POSTing OMF Data messages",
+			"type": "enumeration",
+			"options":["update", "create"],
+			"default": "update",
+			"order": "11",
+			"displayName": "Action Code for Data Messages"
+		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",

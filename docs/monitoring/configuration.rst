@@ -83,124 +83,124 @@ A simple north pipeline that can send a change log to an external application us
 Audit Log Data
 --------------
 
-Other changes, such as running a service, shutting down a service, executing a purge operation, etc. The complete list of audit log codes are
+Other changes, such as running a service, shutting down a service, executing a purge operation, etc. The complete list of audit log codes are;
 
-+=====+==============================+
-|Code | Meaning                      |
-+=====+==============================+
-|PURGE|Data Purging Process          |
-+-----+------------------------------+
-|LOGGN|Logging Process               |
-+-----+------------------------------+
-|STRMN|Streaming Process             |
-+-----+------------------------------+
-|SYPRG|System Purge                  |
-+-----+------------------------------+
-|START|System Startup                |
-+-----+------------------------------+
-|FSTOP|System Shutdown               |
-+-----+------------------------------+
-|CONCH|Configuration Change          |
-+-----+------------------------------+
-|CONAD|Configuration Addition        |
-+-----+------------------------------+
-|SCHCH|Schedule Change               |
-+-----+------------------------------+
-|SCHAD|Schedule Addition             |
-+-----+------------------------------+
-|SRVRG|Service Registered            |
-+-----+------------------------------+
-|SRVUN|Service Unregistered          |
-+-----+------------------------------+
-|SRVFL|Service Fail                  |
-+-----+------------------------------+
-|SRVRS|Service Restart               |
-+-----+------------------------------+
-|NHCOM|North Process Complete        |
-+-----+------------------------------+
-|NHDWN|North Destination Unavailable | 
-+-----+------------------------------+
-|NHAVL|North Destination Available   |
-+-----+------------------------------+
-|UPEXC|Update Complete               |
-+-----+------------------------------+
-|BKEXC|Backup Complete               |
-+-----+------------------------------+
-|NTFDL|Notification Deleted          |
-+-----+------------------------------+
-|NTFAD|Notification Added            |
-+-----+------------------------------+
-|NTFSN|Notification Sent             |
-+-----+------------------------------+
-|NTFCL|Notification Cleared          |
-+-----+------------------------------+
-|NTFST|Notification Server Startup   |
-+-----+------------------------------+
-|NTFSD|Notification Server Shutdown  |
-+-----+------------------------------+
-|PKGIN|Package installation          |
-+-----+------------------------------+
-|PKGUP|Package updated               |
-+-----+------------------------------+
-|PKGRM|Package purged                |
-+-----+------------------------------+
-|DSPST|Dispatcher Startup            |
-+-----+------------------------------+
-|DSPSD|Dispatcher Shutdown           |
-+-----+------------------------------+
-|ESSRT|External Service Startup      |
-+-----+------------------------------+
-|ESSTP|External Service Shutdown     |
-+-----+------------------------------+
-|ASTDP|Asset deprecated              |
-+-----+------------------------------+
-|ASTUN|Asset un-deprecated           |
-+-----+------------------------------+
-|PIPIN|Pip installation              |
-+-----+------------------------------+
-|AUMRK|Audit Log Marker              |
-+-----+------------------------------+
-|USRAD|User Added                    |
-+-----+------------------------------+
-|USRDL|User Deleted                  |
-+-----+------------------------------+
-|USRCH|User Changed                  |
-+-----+------------------------------+
-|USRRS|User Restored                 |
-+-----+------------------------------+
-|ACLAD|ACL Added                     |
-+-----+------------------------------+
-|ACLCH|ACL Changed                   |
-+-----+------------------------------+
-|ACLDL|ACL Deleted                   |
-+-----+------------------------------+
-|CTSAD|Control Script Added          |
-+-----+------------------------------+
-|CTSCH|Control Script Changed        |
-+-----+------------------------------+
-|CTSDL|Control Script Deleted        |
-+-----+------------------------------+
-|CTPAD|Control Pipeline Added        |
-+-----+------------------------------+
-|CTPCH|Control Pipeline Changed      |
-+-----+------------------------------+
-|CTPDL|Control Pipeline Deleted      |
-+-----+------------------------------+
-|CTEAD|Control Entrypoint Added      |
-+-----+------------------------------+
-|CTECH|Control Entrypoint Changed    |
-+-----+------------------------------+
-|CTEDL|Control Entrypoint Deleted    |
-+-----+------------------------------+
-|BUCAD|Bucket Added                  |
-+-----+------------------------------+
-|BUCCH|Bucket Changed                |
-+-----+------------------------------+
-|BUCDL|Bucket Deleted                |
-+-----+------------------------------+
-|USRBK|User Blocked                  |
-+-----+------------------------------+
-|USRUB|User Unblocked                |
-+-----+------------------------------+
++------+------------------------------+
+| Code | Meaning                      |
++======+==============================+
+| PURGE|Data Purging Process          |
++------+------------------------------+
+| LOGGN|Logging Process               |
++------+------------------------------+
+| STRMN|Streaming Process             |
++------+------------------------------+
+| SYPRG|System Purge                  |
++------+------------------------------+
+| START|System Startup                |
++------+------------------------------+
+| FSTOP|System Shutdown               |
++------+------------------------------+
+| CONCH|Configuration Change          |
++------+------------------------------+
+| CONAD|Configuration Addition        |
++------+------------------------------+
+| SCHCH|Schedule Change               |
++------+------------------------------+
+| SCHAD|Schedule Addition             |
++------+------------------------------+
+| SRVRG|Service Registered            |
++------+------------------------------+
+| SRVUN|Service Unregistered          |
++------+------------------------------+
+| SRVFL|Service Fail                  |
++------+------------------------------+
+| SRVRS|Service Restart               |
++------+------------------------------+
+| NHCOM|North Process Complete        |
++------+------------------------------+
+| NHDWN|North Destination Unavailable | 
++------+------------------------------+
+| NHAVL|North Destination Available   |
++------+------------------------------+
+| UPEXC|Update Complete               |
++------+------------------------------+
+| BKEXC|Backup Complete               |
++------+------------------------------+
+| NTFDL|Notification Deleted          |
++------+------------------------------+
+| NTFAD|Notification Added            |
++------+------------------------------+
+| NTFSN|Notification Sent             |
++------+------------------------------+
+| NTFCL|Notification Cleared          |
++------+------------------------------+
+| NTFST|Notification Server Startup   |
++------+------------------------------+
+| NTFSD|Notification Server Shutdown  |
++------+------------------------------+
+| PKGIN|Package installation          |
++------+------------------------------+
+| PKGUP|Package updated               |
++------+------------------------------+
+| PKGRM|Package purged                |
++------+------------------------------+
+| DSPST|Dispatcher Startup            |
++------+------------------------------+
+| DSPSD|Dispatcher Shutdown           |
++------+------------------------------+
+| ESSRT|External Service Startup      |
++------+------------------------------+
+| ESSTP|External Service Shutdown     |
++------+------------------------------+
+| ASTDP|Asset deprecated              |
++------+------------------------------+
+| ASTUN|Asset un-deprecated           |
++------+------------------------------+
+| PIPIN|Pip installation              |
++------+------------------------------+
+| AUMRK|Audit Log Marker              |
++------+------------------------------+
+| USRAD|User Added                    |
++------+------------------------------+
+| USRDL|User Deleted                  |
++------+------------------------------+
+| USRCH|User Changed                  |
++------+------------------------------+
+| USRRS|User Restored                 |
++------+------------------------------+
+| ACLAD|ACL Added                     |
++------+------------------------------+
+| ACLCH|ACL Changed                   |
++------+------------------------------+
+| ACLDL|ACL Deleted                   |
++------+------------------------------+
+| CTSAD|Control Script Added          |
++------+------------------------------+
+| CTSCH|Control Script Changed        |
++------+------------------------------+
+| CTSDL|Control Script Deleted        |
++------+------------------------------+
+| CTPAD|Control Pipeline Added        |
++------+------------------------------+
+| CTPCH|Control Pipeline Changed      |
++------+------------------------------+
+| CTPDL|Control Pipeline Deleted      |
++------+------------------------------+
+| CTEAD|Control Entrypoint Added      |
++------+------------------------------+
+| CTECH|Control Entrypoint Changed    |
++------+------------------------------+
+| CTEDL|Control Entrypoint Deleted    |
++------+------------------------------+
+| BUCAD|Bucket Added                  |
++------+------------------------------+
+| BUCCH|Bucket Changed                |
++------+------------------------------+
+| BUCDL|Bucket Deleted                |
++------+------------------------------+
+| USRBK|User Blocked                  |
++------+------------------------------+
+| USRUB|User Unblocked                |
++------+------------------------------+
 
 As can be seen from the table above there is more than just configuration change that can be monitored by looking at the audit logs of Fledge.

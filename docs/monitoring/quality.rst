@@ -28,12 +28,19 @@ No Data Read
    There has been a period of time during which no data has been ingested from a service or sensor when the service is running.
 
 Detecting Failure Modes
-#######################
+~~~~~~~~~~~~~~~~~~~~~~~
 
-Detecting the lack of data in Fledge is relatively simple using the watchdog notification rule plugin. This will alert the user when there is no data for a specified period. 
+Out of Range Data
+#################
+
+Detecting out of range data is also done very simply using the threshold notification rule or the out of bound rule. The difference between the two plugins is that the out of bound rule allows an upper and lower limit to be set, ensuring the value is within the bounds defined. Whereas the threshold rule detects a threshold being crossed from either direction and only allows one threshold to be set.
+
+No Data Read
+############
+
+Detecting the lack of data in Fledge is relatively simple using the watchdog notification rule plugin which is especially designed for this purpose. This will alert the user when there is no data for a specified period. 
 
 +-------------------+
 | |MonitorWatchDog| |
 +-------------------+
 
-Detecting out of range data is also done very simply using the threshold notification rule or the out of bound rule.

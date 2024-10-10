@@ -22,7 +22,7 @@ Whenever a configuration category is changed within Fledge an entry is written t
                }
    }
 
-Since audit data can be used in the same way as an reading data within Fledge, this allows changes of configuration to be monitored and acted upon in the same way as any data that is changed within Fledge.
+Since audit data can be used in the same way as a reading data within Fledge, this allows changes of configuration to be monitored and acted upon in the same way as any data that is changed within Fledge.
 
 Using Notifications
 -------------------
@@ -33,13 +33,13 @@ As an example, let's assume we want to be informed if the configuration of one o
 | |CONCH_available| |
 +-------------------+
 
-We then define the medium we want to use to deliver our notification, for ease of configuration we will use the Slack delivery plugin to do this.
+We then define the medium we want to use to deliver our notification. For ease of configuration we will use the Slack delivery plugin to do this.
 
 +---------------+
 | |CONCH_slack| |
 +---------------+
 
-Each time any user modifies a configuration item a slack message will be sent to alert that the configuration has been altered.
+Each time any user modifies a configuration item a Slack message will be sent to alert that the configuration has been altered.
 
 +-----------------+
 | |CONCH_message| |
@@ -50,7 +50,7 @@ This is a very simple message that only gives the information that a change has 
 Sending To External Systems
 --------------------------
 
-Audit log data can also be sent to the north in the same way that reading data can. This can be used to send data to third party systems to maintain an change log of internal Fledge changes in other systems. In order to send audit log data to the north e merely setup a new north service or task and when we configure the north plugin we select the data source as *audit* rather than readings or statistics.
+Audit log data can also be sent to the north in the same way that reading data can. This can be used to send data to third party systems to maintain a change log of internal Fledge changes in other systems. In order to send audit log data to the north we merely setup a new north service or task. When we configure the north plugin we select the data source as *audit* rather than readings or statistics.
 
 +---------------+
 | |north_audit| |
@@ -60,7 +60,7 @@ Audit log data can also be sent to the north in the same way that reading data c
 
    Currently not all north destinations support the selection of audit data, however a growing number are now being extended to support audit data
 
-Filters can then be used to filter out particular audit records, the asset filter is a good example of one that can be used. Since the audit code becomes the asset code when sent to a north destination, filtering out just the audit code of CONCH can easily be done with an asset filter configuration of
+Filters can then be used to filter out particular audit records. The asset filter is a good example of one that can be used. Since the audit code becomes the asset code when sent to a north destination, filtering out just the audit code of CONCH can easily be done with an asset filter configuration of
 
 .. code-block:: JSON
 
@@ -74,7 +74,7 @@ Filters can then be used to filter out particular audit records, the asset filte
        "defaultAction" : "exclude"
    }
 
-A simple north pipeline that can send a change log to an external application using HTTP would look as follow
+A simple north pipeline that can send a change log to an external application using HTTP would look as follows:
 
 +--------------------+
 | |north_change_log| |
@@ -83,7 +83,7 @@ A simple north pipeline that can send a change log to an external application us
 Audit Log Data
 --------------
 
-Other changes, such as running a service, shutting down a service, executing a purge operation, etc. The complete list of audit log codes are;
+Other changes, such as running a service, shutting down a service, executing a purge operation, etc. also cause audit log entries to be made. The complete list of audit log codes are;
 
 +------+------------------------------+
 | Code | Meaning                      |

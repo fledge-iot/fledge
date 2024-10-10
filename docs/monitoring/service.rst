@@ -21,8 +21,10 @@ The audit codes that relate to service state changes are:
 | SRVRS|Service Restart               |
 +------+------------------------------+
 
-Notifications can be created using data availability to the match notification rule plugins to match the audit code.
+Notifications can be created using the data availability plugin or the match notification rule plugins to match the audit code.
 
 +----------------+
 | |MonitorMatch| |
 +----------------+
+
+This then allows for the notification mechanism to report the change of state of the various services via the notification delivery channels.

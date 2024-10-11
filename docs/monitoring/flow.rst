@@ -65,4 +65,4 @@ In the above example it is shown monitoring the BUFFERED statistic. This is the 
 
 .. note::
 
-   This is very similar to the automated monitoring in each south service. Because it is unaware of configured changes to the collection rate it has the disadvantage that it is unable to distinguish from a configured change to a change the occurs because of some failure of equipment or of Fledge.
+   This is very similar to the automated monitoring in each south service. Because it is unaware of configured changes to the collection rate it has the disadvantage that it is unable to distinguish from a configured change to a change that occurs because of some failure of equipment or of Fledge.

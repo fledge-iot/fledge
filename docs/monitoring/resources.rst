@@ -28,7 +28,7 @@ There are some other things that are also monitored that of not of particular in
 Example
 -------
 
-In this example we will assume we want to use the notification service to monitor the percentage of space remaining on a particular disk within the Fledge machine. We use the systeminfo plugin to get the data we want. In this case we will look at the disk device sda1. Using the defaults of the plugin this will create an asset called *system/diskUsage_dev/sda1* with a datapoint called *Use_prcntg*.
+In this example we will assume we want to use the notification service to monitor the percentage of space remaining on a particular disk within the Fledge machine. We use the systeminfo plugin to get the data we want. In this case we will look at the disk device sda1. Using the defaults of the plugin will create an asset called *system/diskUsage_dev/sda1* with a datapoint called *Use_prcntg*.
 
 .. note::
 

@@ -11,6 +11,7 @@
 #include <logger.h>
 #include <asset_tracking.h>
 #include <config_category.h>
+#include "string_utils.h"
 
 using namespace std;
 
@@ -228,6 +229,7 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 
 	}
 	
+	asset = escape(asset);
 	AssetTrackingTuple tuple(m_service, plugin, asset, event);
 	addAssetTrackingTuple(tuple);
 }

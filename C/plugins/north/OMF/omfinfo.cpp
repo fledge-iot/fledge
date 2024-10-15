@@ -264,6 +264,9 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		}
 	}
 
+	// Set the Action Code for OMF Data posts: update or create
+	m_dataActionCode = config->itemExists("OMFDataActionCode") ? config->getValue("OMFDataActionCode") : "update";
+
 	{
 		// NamingScheme handling
 		if(NamingScheme.compare("Concise") == 0)
@@ -389,6 +392,7 @@ void OMFInformation::start(const string& storedData)
 		if (httpCode >= 200 && httpCode < 400)
 		{
 			SetOMFVersion();
+			CheckDataActionCode();
 			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
 				m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
 			m_connected = true;
@@ -514,6 +518,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 
 		m_omf->setSendFullStructure(m_sendFullStructure);
 		m_omf->setDelimiter(m_delimiter);
+		m_omf->setDataActionCode(m_dataActionCode);
 
 		// Set PIServerEndpoint configuration
 		m_omf->setNamingScheme(m_NamingScheme);
@@ -995,6 +1000,22 @@ void OMFInformation::SetOMFVersion()
 }
 
 /**
+ * Check the Action code for OMF Data messages.
+ * This method changes the Action code only if 'update' is specified for an OMF version too old to support it.
+ */
+void OMFInformation::CheckDataActionCode()
+{
+	if (!m_omfversion.empty())
+	{
+		if ((m_omfversion.compare("1.2") != 0) && (m_dataActionCode.compare("update") == 0))
+		{
+			Logger::getLogger()->warn("OMF Version %s does not support Data Action Code %s; setting to 'create'", m_omfversion.c_str(), m_dataActionCode.c_str());
+			m_dataActionCode = "create";
+		}
+	}
+}
+
+/**
  * Calls the OCS API to retrieve the authentication token
  * 
  * @return   token      Authorization token
@@ -1400,6 +1421,7 @@ bool OMFInformation::IsPIWebAPIConnected()
 			{
 				m_connected = true;
 				SetOMFVersion();
+				CheckDataActionCode();
 				if (lastConnected == false)
 				{
 					Logger::getLogger()->warn("%s reconnected to %s OMF Version: %s",

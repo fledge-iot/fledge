@@ -28,10 +28,30 @@ using namespace std;
 using namespace rapidjson;
 
 /**
- * Constructor
+ * Constructors
  */
-OMFError::OMFError(const string& json) : m_messageCount(0)
+OMFError::OMFError() : m_messageCount(0), m_hasErrors(false)
 {
+}
+
+OMFError::OMFError(const string& json)
+{
+	setFromHttpResponse(json);
+}
+
+/**
+ * Destructor for the error class
+ */
+OMFError::~OMFError()
+{
+}
+
+void OMFError::setFromHttpResponse(const string& json)
+{
+	m_messages.clear();
+	m_messageCount = 0;
+	m_hasErrors = false;
+
 	char *p  = (char *)json.c_str();
 
 	FILE *fp = fopen("/tmp/error", "a");
@@ -55,6 +75,15 @@ OMFError::OMFError(const string& json) : m_messageCount(0)
 		for (Value::ConstValueIterator a = messages.Begin(); a != messages.End(); a++)
 		{
 			const Value& msg = *a;
+			int httpCode = 200;
+			if (msg.HasMember("Status") && msg["Status"].IsObject())
+			{
+				const Value& status = msg["Status"];
+				if (status.HasMember("Code") && status["Code"].IsInt())
+				{
+					httpCode = status["Code"].GetInt();
+				}
+			}
 			if (msg.HasMember("Events") && msg["Events"].IsArray())
 			{
 				const Value& events = msg["Events"];
@@ -81,17 +110,10 @@ OMFError::OMFError(const string& json) : m_messageCount(0)
 					}
 
 				}
-				m_messages.push_back(Message(severity, message, reason));
+				m_messages.push_back(Message(severity, message, reason, httpCode));
 			}
 		}
 	}
-}
-
-/**
- * Destructor for the error class
- */
-OMFError::~OMFError()
-{
 }
 
 /**
@@ -100,6 +122,27 @@ OMFError::~OMFError()
 unsigned int OMFError::messageCount()
 {
 	return m_messageCount;
+}
+
+/**
+ * Return the most severe HTTP Code from all messages.
+ * PI Web API HTTP Codes are usually the same within one HTTP response.
+ * 
+ * @return HTTP Code
+ */
+int OMFError::getHttpCode()
+{
+	int httpCode = 200;
+
+	for (Message &msg : m_messages)
+	{
+		if (msg.getHttpCode() > httpCode)
+		{
+			httpCode = msg.getHttpCode();
+		}
+	}
+
+	return httpCode;
 }
 
 /**

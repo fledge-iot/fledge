@@ -36,18 +36,13 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
-
-async def get_plugin(request):
-    """ GET lists of rule plugins and delivery plugins
-
-    :Example:
-        curl -X GET http://localhost:8081/fledge/notification/plugin
-    """
+async def get_plugin_data():
+""" Fetch all rule and delivery plugins from notification service
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason="No Notification service available.")
+        raise ValueError("No Notification service available.")
 
     try:
         url = 'http://{}:{}/notification/rules'.format(_address, _port)
@@ -58,10 +53,24 @@ async def get_plugin(request):
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get notification plugin list.")
+        raise ValueError(msg)
+    else:
+        return {'rules': rule_plugins, 'delivery': delivery_plugins}
+
+async def get_plugin(request):
+    """ GET lists of rule plugins and delivery plugins
+
+    :Example:
+        curl -X GET http://localhost:8081/fledge/notification/plugin
+    """
+    try:
+        list_plugins = await get_plugin_data()
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to get notification plugin list.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
-
+        return web.json_response(list_plugins)
 
 async def get_type(request):
     """ GET the list of available notification types
@@ -229,14 +238,13 @@ async def post_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            url = '{}/plugin'.format(request.url)
             try:
-                # When authentication is mandatory we need to pass token in request header
-                auth_token = request.token
-            except AttributeError:
-                auth_token = None
+                list_plugins = await get_plugin_data()
+            except Exception as ex:
+                msg = str(ex)
+                _logger.error(ex, "Failed to get notification plugin list.")
+                raise ValueError(msg)
 
-            list_plugins = json.loads(await _hit_get_url(url, auth_token))
             r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
             c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
             if len(r) == 0 or len(c) == 0: raise KeyError

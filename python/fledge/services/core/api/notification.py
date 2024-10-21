@@ -56,7 +56,19 @@ async def get_plugin_data():
         _logger.error(ex, "Failed to get notification plugin list.")
         raise ValueError(msg)
     else:
-        return {'rules': rule_plugins, 'delivery': delivery_plugins}
+        resp = {}
+        if rule_plugins is not None:
+            if 'rules' not in rule_plugins:
+                resp['rules'] = rule_plugins
+            else:
+                resp['rules'] = rule_plugins['rules']
+
+        if delivery_plugins is not None:
+            if 'delivery' not in delivery_plugins:
+                resp['delivery'] = delivery_plugins
+            else:
+                resp['delivery'] = delivery_plugins['delivery']
+        return resp
 
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
@@ -240,14 +252,14 @@ async def post_notification(request):
         try:
             # Get default config for rule and channel plugins
             try:
-                list_plugins = await get_plugin_data()
+                list_plugins_r = await get_plugin_data()
             except Exception as ex:
                 msg = str(ex)
                 _logger.error(ex, "Failed to get notification plugin list.")
                 raise ValueError(msg)
 
-            r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
-            c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
+            r = list(filter(lambda rules: rules['name'] == rule, list_plugins_r['rules']))
+            c = list(filter(lambda channels: channels['name'] == channel, list_plugins_r['delivery']))
             if len(r) == 0 or len(c) == 0: raise KeyError
             rule_plugin_config = r[0]['config']
             delivery_plugin_config = c[0]['config']

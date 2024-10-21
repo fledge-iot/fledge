@@ -37,7 +37,8 @@ _logger = FLCoreLogger().get_logger(__name__)
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
 async def get_plugin_data():
-""" Fetch all rule and delivery plugins from notification service
+    """ Fetch all rule and delivery plugins from notification service
+    """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._port

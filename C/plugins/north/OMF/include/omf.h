@@ -18,9 +18,12 @@
 #include <zlib.h>
 #include <rapidjson/document.h>
 #include <omfbuffer.h>
+#include <omferror.h>
 #include <linkedlookup.h>
 
 #define	OMF_HINT	"OMFHint"
+
+#define MESSAGE_NO_CONNECTION				"Failed to send data: Operation canceled"
 
 // The following will force the OMF version for EDS endpoints
 // Remove or comment out the line below to prevent the forcing
@@ -57,6 +60,7 @@ using namespace std;
 using namespace rapidjson;
 
 std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
+std::string DataPointNamesAsString(const Reading& reading);
 
 /**
  * Per asset dataTypes - This class is used in a std::map where assetName is a key
@@ -214,6 +218,12 @@ class OMF
 		// Check DataTypeError
 		bool isDataTypeError(const char* message);
 
+		// Check if plugin configuration is working and PI is stable
+		bool isPIstable() { return m_PIstable; };
+
+		// Check if plugin is connected to PI
+		bool isPIconnected() { return m_connected; };
+
 		// Map object types found in input data
 		void setMapObjectTypes(const std::vector<Reading *>& data,
 					std::map<std::string, Reading*>& dataSuperSet);
@@ -305,6 +315,10 @@ private:
 		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
 		string errorMessageHandler(const string &msg);
+
+		void handleRESTException(const std::exception &e, const char *mainMessage);
+
+		std::string getExceptionMessage(const std::exception &e, OMFError *error);
 
 		// Extract assetName from error message
 		std::string getAssetNameFromError(const char* message);
@@ -515,6 +529,17 @@ private:
 		 * Have base types been sent to the PI Server
 		 */
 		bool			m_baseTypesSent;
+
+		/**
+		 * If true, plugin configuration is correct and the PI Server shows no errors
+		 * If false, no Readings can be processed until PI is corrected and/or the configuration is updated.
+		 */
+		bool			m_PIstable;
+
+		/**
+		 * If true, plugin is connected to the PI Server
+		 */
+		bool			m_connected;
 };
 
 /**

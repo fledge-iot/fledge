@@ -48,7 +48,7 @@ Each time any user modifies a configuration item a Slack message will be sent to
 This is a very simple message that only gives the information that a change has been made, however more sophisticated delivery mechanisms can be used that will detail the actual change.
 
 Sending To External Systems
---------------------------
+---------------------------
 
 Audit log data can also be sent to the north in the same way that reading data can. This can be used to send data to third party systems to maintain a change log of internal Fledge changes in other systems. In order to send audit log data to the north we merely setup a new north service or task. When we configure the north plugin we select the data source as *audit* rather than readings or statistics.
 

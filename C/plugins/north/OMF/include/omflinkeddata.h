@@ -15,6 +15,7 @@
 #include <OMFHint.h>
 #include <omfbuffer.h>
 #include <linkedlookup.h>
+#include <omferror.h>
 
 /**
  * The OMFLinkedData class.
@@ -48,7 +49,7 @@ class OMFLinkedData
 				OMFHints *hints = NULL);
 		void		buildLookup(const std::vector<Reading *>& reading);
 		void		setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
-		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
+		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header, OMFError& error, bool *isConnected);
 		void		setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{

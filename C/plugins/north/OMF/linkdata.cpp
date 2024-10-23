@@ -13,6 +13,7 @@
 #include <string>
 #include <cstring>
 #include <omf.h>
+#include <piwebapi.h>
 #include <OMFHint.h>
 #include <logger.h>
 #include "string_utils.h"
@@ -36,37 +37,13 @@
 using namespace std;
 
 /**
- * Create a comma-separated string of all Datapoint names in a Reading
- *
- * @param reading	Reading
- * @return			Datapoint names in the Reading
- */
-static std::string DataPointNamesAsString(const Reading& reading)
-{
-	std::string dataPointNames;
-
-	for (Datapoint *datapoint : reading.getReadingData())
-	{
-		dataPointNames.append(datapoint->getName());
-		dataPointNames.append(",");
-	}
-
-	if (dataPointNames.size() > 0)
-	{
-		dataPointNames.resize(dataPointNames.size() - 1);	// remove trailing comma
-	}
-
-	return dataPointNames;
-}
-
-/**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
  * @param payload	    The buffer into which to populate the payload
+ * @param delim		    Add a delimiter before outputting anything
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
- * @param delim		    Add a delimiter before outputting anything
  *
  */
 bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
@@ -490,9 +467,14 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 /**
  * Flush the container definitions that have been built up
  *
- * @return 	true if the containers were successfully flushed
+ * @param sender	HTTP client
+ * @param path		REST server URL
+ * @param header	REST call headers
+ * @param error		OMFError object with parsed PI Web API HTTP response
+ * @param isConnected Set to false if REST call shows loss of connection to PI
+ * @return			true if the containers were successfully flushed
  */
-bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header)
+bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header, OMFError& error, bool *isConnected)
 {
 	if (m_containers.empty())
 		return true;		// Nothing to flush
@@ -520,7 +502,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
-		OMFError error(sender.getHTTPResponse());
+		error.setFromHttpResponse(sender.getHTTPResponse());
 		if (error.hasErrors())
 		{
 			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
@@ -536,32 +518,25 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	}
 	catch (const Conflict& e)
 	{
-		OMFError error(sender.getHTTPResponse());
-		// The following is possibly too verbose
-		if (error.hasErrors())
-		{
-			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				string severity = error.getEventSeverity(i);
-				if (severity.compare("Error") == 0)
-				{
-					Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-				}
-			}
-		}
-
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		error.Log("The OMF endpoint reported a Conflict when sending containers");
 		return error.hasErrors();
 	}
 	catch (const std::exception& e)
 	{
-
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		PIWebAPI piwebapi;
+		std::string errorMessage = piwebapi.errorMessageHandler(e.what());
 		Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
-									e.what(),
+									errorMessage.c_str(),
 									sender.getHostPort().c_str(),
 									path.c_str());
+
+		if (0 == strncmp(e.what(), MESSAGE_NO_CONNECTION, strlen(MESSAGE_NO_CONNECTION)))
+		{
+			*isConnected = false;
+		}
+
 		return false;
 	}
 	return true;

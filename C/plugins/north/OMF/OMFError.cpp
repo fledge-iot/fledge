@@ -196,3 +196,32 @@ string rval;
 	return rval;
 }
 
+/**
+ * Log all available messages
+ *
+ * @param mainMessage   Top-level message to use when reporting an error
+ * @return              True if OMFError object holds at least one error
+ */
+bool OMFError::Log(const std::string &mainMessage)
+{
+	if (hasErrors())
+	{
+		Logger::getLogger()->warn("HTTP %d: %s: %d messages",
+								  getHttpCode(),
+								  mainMessage.c_str(),
+								  messageCount());
+
+		for (unsigned int i = 0; i < messageCount(); i++)
+		{
+			Message &msg = m_messages[i];
+			Logger::getLogger()->warn("Message %d HTTP %d: %s, %s, %s",
+									  i,
+									  msg.getHttpCode(),
+									  msg.getSeverity().c_str(),
+									  msg.getMessage().c_str(),
+									  msg.getReason().c_str());
+		}
+	}
+
+	return hasErrors();
+}

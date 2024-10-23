@@ -34,6 +34,7 @@ class OMFError {
 		 * The error report contains at least one error level event
 		 */
 		bool		hasErrors() { return m_hasErrors; };
+		bool		Log(const std::string &mainMessage);
 	private:
 		unsigned int		m_messageCount;
 		class Message {

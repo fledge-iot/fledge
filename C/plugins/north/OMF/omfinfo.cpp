@@ -440,6 +440,12 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		m_sender = NULL;
 	}
 
+	// Exit immediately if the plugin is not stable due to PI Server errors
+	if (m_omf && !m_omf->isPIstable())
+	{
+		return 0;
+	}
+
 	if (!m_sender)
 	{
 		/**
@@ -550,6 +556,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	}
 	// Send the readings data to the PI Server
 	uint32_t ret = m_omf->sendToServer(readings, m_compression);
+	m_connected = m_omf->isPIconnected();
 
 	// Detect typeId change in OMF class
 	if (m_omf->getTypeId() != m_typeId)

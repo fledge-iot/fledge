@@ -70,6 +70,7 @@ class DataLoad : public ServiceHandler {
 		ReadingSet		*fetchAudit(unsigned int blockSize);
 		void			bufferReadings(ReadingSet *readings);
 		bool			loadFilters(const std::string& category);
+		std::string		getStatsColumnName();
 
 	private:
 		const std::string&	m_name;

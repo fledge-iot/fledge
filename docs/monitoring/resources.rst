@@ -1,4 +1,4 @@
-.. |MonitorDiskUsge| image:: ../images/MonitorDiskUsge.jpg
+.. |MonitorDiskUsage| image:: ../images/MonitorDiskUsage.jpg
 
 Resources
 =========
@@ -36,9 +36,9 @@ In this example we will assume we want to use the notification service to monito
 
 Since we are looking for a numeric value to go above a certain value, say 85%, we can simply use the threshold notification rule to detect the disk usage going above this value and deliver a notification using any of the Fledge notification delivery mechanisms.
 
-+====================+
++--------------------+
 | |MonitorDiskUsage| |
-+====================+
++--------------------+
 
 Database Disk Usage
 ===================

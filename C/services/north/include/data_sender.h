@@ -33,6 +33,7 @@ class DataSender {
 		void			setPerfMonitor(PerformanceMonitor *perfMonitor) { m_perfMonitor = perfMonitor; };
 		bool			isRunning() { return !m_shutdown; };
 		void			flushStatistics();
+		bool			isDryRun();
 	private:
 		void			updateStatistics(uint32_t increment);
 		bool 			createStats(const std::string &key, unsigned int value);

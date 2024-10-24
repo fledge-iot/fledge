@@ -581,7 +581,8 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if flag:
             put_url += "&flags={}".format(flag.lower())
         if asset is not None:
-            put_url = '/storage/reading/purge?asset={}'.format(asset)
+            import urllib.parse
+            put_url = '/storage/reading/purge?asset={}'.format(urllib.parse.quote(asset))
 
         url = 'http://' + self._base_url + put_url
         async with aiohttp.ClientSession() as session:

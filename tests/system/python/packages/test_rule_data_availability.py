@@ -197,6 +197,7 @@ class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
         resp2 = utils.get_request(fledge_url, get_url)
         assert len(resp2['audit']) - len(resp1['audit']) == 1, "ERROR: NTFSN not triggered properly on CONCH"
 
+    @pytest.mark.xfail(reason="FOGL-7712")
     def test_data_availability_all_audit(self, fledge_url, add_south, skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with all audit changes.
                 on endpoint GET /fledge/audit

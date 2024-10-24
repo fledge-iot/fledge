@@ -87,6 +87,19 @@ class TestUserModel:
                 assert actual == expected['rows']
             query_tbl_patch.assert_called_once_with('roles', payload)
 
+    async def test_get_role_name_by_id(self):
+        expected = {'rows': [{'name': 'user'}], 'count': 1}
+        payload = '{"return": ["name"], "where": {"column": "id", "condition": "=", "value": 2}, "limit": 1}'
+        storage_client_mock = MagicMock(StorageClientAsync)
+        _rv = await mock_coro(expected) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(mock_coro(expected))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv
+                              ) as query_tbl_patch:
+                actual = await User.Objects.get_role_name_by_id(2)
+                assert actual == expected['rows'][0]['name']
+            query_tbl_patch.assert_called_once_with('roles', payload)
+
     async def test_get_all(self):
         expected = {'rows': [], 'count': 0}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -644,17 +657,16 @@ class TestUserModel:
         async def mock_get_category_item():
             return {"value": "0"}
 
-        DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
-        curr_time = datetime.now().strftime(DATE_FORMAT)
         pwd_result = {'count': 1, 'rows': [{'role_id': '1', 'pwd': '3759bf3302f5481e8c9cc9472c6088ac', 'id': '1',
                                             'pwd_last_changed': '2018-03-30 12:32:08.216159',
-                                            'hash_algorithm': 'SHA256', 'block_until': curr_time, 'failed_attempts': 0}]}
+                                            'hash_algorithm': 'SHA256', 'block_until': '', 'failed_attempts': 0}]}
         expected = {'message': 'Something went wrong', 'retryable': False, 'entryPoint': 'delete'}
         payload = {"return": ["pwd", "id", "role_id", "access_method",
                               {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS",
-                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until", "failed_attempts"], "where":
-            {"column": "uname", "condition": "=", "value": "user", "and": {"column": "enabled", "condition": "=",
-                                                                           "value": "t"}}}
+                               "alias": "pwd_last_changed"}, "real_name", "description", "hash_algorithm",
+                              "block_until", "failed_attempts"],
+                   "where": {"column": "uname", "condition": "=", "value": "user",
+                             "and": {"column": "enabled", "condition": "=", "value": "t"}}}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -673,8 +685,9 @@ class TestUserModel:
                     with patch.object(User.Objects, 'check_password', return_value=True) as check_pwd_patch:
                         with patch.object(storage_client_mock, 'insert_into_tbl',
                                           side_effect=StorageServerError(code=400, reason="blah", error=expected)):
-                            with pytest.raises(ValueError) as excinfo:
+                            with pytest.raises(Exception) as excinfo:
                                 await User.Objects.login('user', 'fledge', '0.0.0.0')
+                            assert excinfo.type is ValueError
                             assert str(excinfo.value) == expected['message']
                     check_pwd_patch.assert_called_once_with('3759bf3302f5481e8c9cc9472c6088ac', 'fledge',
                                                             algorithm='SHA256')

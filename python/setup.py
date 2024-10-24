@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='Fledge',
-    python_requires='~=3.5',
-    version='0.1',
-    description='Fledge',
-    url='http://github.com/fledge/Fledge',
-    author='OSIsoft, LLC',
+    python_requires='>=3.6.9',
+    version='2.6.0',
+    description='Fledge, the open source platform for the Internet of Things',
+    url='https://github.com/fledge-iot/fledge',
+    author='OSIsoft, LLC; Dianomic Systems Inc.',
     author_email='info@dianomic.com',
     license='Apache 2.0',
     # TODO: list of excludes (tests)

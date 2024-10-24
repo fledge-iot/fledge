@@ -109,9 +109,9 @@ class TestServer:
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(storage_client_mock)
-        value = {'cacheSize': {'description': 'To control the caching size of Core Configuration Manager', 'type': 'integer',
-                       'displayName': 'Configuration Manager Cache Size', 'default': '30', 'value': '30', 'order': '1',
-                       'minimum': '1', 'maximum': '1000'}}
+        value = {'cacheSize': {'description': 'To control the caching size of Core Configuration Manager',
+                               'type': 'integer', 'displayName': 'Cache Size', 'default': '30', 'value': '30',
+                               'order': '1', 'minimum': '1', 'maximum': '1000'}}
 
         rv = await async_mock(value) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
             asyncio.ensure_future(async_mock(value)))

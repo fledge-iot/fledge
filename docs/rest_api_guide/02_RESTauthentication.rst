@@ -408,11 +408,12 @@ Delete User
 
 ``DELETE /fledge/admin/user/{userID}/delete`` - delete a user
 
+
+The delete user call can only be made by users with administrator privileges. If a user that is currently logged in is removed then that user will be forcibly logged out of the system.
+
 .. note::
 
-    - It is not possible to remove the user that is currently logged in to the system.
-    - Only Admin can delete the user.
-    - Super Admin cannot be deleted.
+   The user with the user name admin can not be removed from the system.
 
 **Example**
 

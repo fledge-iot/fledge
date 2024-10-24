@@ -44,14 +44,26 @@ async def get_all(request: web.Request) -> web.Response:
     monitors = await storage.query_tbl("monitors")
     counters = monitors["rows"]
     monitor = {}
-    response = {}
     for c in counters:
         val = {"average": c["average"], "maximum": c["maximum"], "minimum": c["minimum"], "samples": c["samples"],
                "timestamp": c["ts"], "service": c["service"]}
         monitor.setdefault(c['monitor'], []).append(val)
     monitors = [{'monitor': k, 'values': v} for k, v in monitor.items()]
-    response["monitors"] = monitors
-    return web.json_response(response)
+    # Group by service name
+    grouped_data = {}
+    for entry in monitors:
+        monitor_name = entry['monitor']
+        values = entry['values']
+        for value in values:
+            service = value.pop('service', None)
+            if service:
+                if service not in grouped_data:
+                    grouped_data[service] = {}
+                if monitor_name not in grouped_data[service]:
+                    grouped_data[service][monitor_name] = []
+                # Group by monitor
+                grouped_data[service][monitor_name].append(value)
+    return web.json_response({"monitors": grouped_data})
 
 
 async def get_by_service_name(request: web.Request) -> web.Response:

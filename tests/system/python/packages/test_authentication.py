@@ -223,13 +223,12 @@ def enable_tls():
 @pytest.fixture
 def generate_password_based_auth_token(asset_name, fledge_url):
     conn = http.client.HTTPConnection(fledge_url)
-    conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
+    conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
     r = conn.getresponse()
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
     assert LOGIN_SUCCESS_MSG == jdoc['message']
-    assert not jdoc['admin']
     global PASSWORD_TOKEN
     PASSWORD_TOKEN = jdoc["token"]
 

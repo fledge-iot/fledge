@@ -231,6 +231,7 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "BucketServer", "type": "bucketstorage", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Pipeline-Ingest", "type": "pipeline", "enabled": true}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
@@ -326,13 +327,12 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher', 'bucketstorage']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher and bucketstorage '
-                                            'types are supported.')
-        if plugin is None and service_type == 'south':
-            raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
-        if plugin is None and service_type == 'north':
-            raise web.HTTPBadRequest(reason='Missing plugin property for type north in payload.')
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher',
+                                'bucketstorage', 'pipeline']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher, bucketstorage '
+                                            'and pipeline types are supported.')
+        if plugin is None and service_type in ('south', 'north'):
+            raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
         if plugin and utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
 
@@ -401,6 +401,9 @@ async def add_service(request):
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'bucket_storage_c'
             script = '["services/bucket_storage_c"]'
+        elif service_type == 'pipeline':
+            process_name = 'pipeline_c'
+            script = '["services/pipeline_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 

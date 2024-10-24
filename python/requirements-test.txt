@@ -5,6 +5,7 @@ pytest-asyncio==0.10.0
 pytest-mock==1.10.3
 pytest-cov==2.9.0
 pytest-aiohttp==0.3.0
+pytz==2024.1
 
 # Common - REST interface
 requests==2.20.0
@@ -15,3 +16,7 @@ pyserial==3.4
 # keep this in sync with requirement.txt, as otherwise pytest-aiohttp always pulls the latest
 aiohttp==3.8.1
 yarl==1.7.2
+
+# specific version for setuptools as per pytest version
+setuptools==70.3.0;python_version>="3.8"
+

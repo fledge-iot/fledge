@@ -73,7 +73,7 @@ FilterPlugin::~FilterPlugin()
  * Call the loaded plugin "plugin_init" method
  *
  * @param config	The filter configuration
- * @param outHandle	The ouutput_handled passed with
+ * @param outHandle	The output_handled passed with
  *			filtered data to OUTPUT_STREAM function
  * @param outputFunc	The output_stream function pointer
  * 			the filter uses to pass data out

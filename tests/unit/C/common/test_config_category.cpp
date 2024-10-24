@@ -730,3 +730,17 @@ TEST(CategoryTest, kvlistObjectItem)
 	ASSERT_EQ(0, v["a"].compare("{\"one\":\"first\"}"));
 	ASSERT_EQ(0, v["b"].compare("{\"two\":\"second\"}"));
 }
+
+// Config category with \n in both default and value
+string categoryJsonLF = R"({"plugin": {"description": "Sinusoid Poll Plugin which implements sine wave with data points", "type": "string", "default": "sinusoid", "readonly": "true"}, "assetName": {"description": "Name of Asset", "type": "string", "default": "sinusoid", "displayName": "Asset name", "mandatory": "true"}, "writemap": {"description": "Map of tags", "displayName": "Tags to write", "type": "JSON", "default": "{\n\"tags\": [\n{\n\"name\": \"PLCTAG\",\n\"type\": \"UINT32\",\n\"program\": \"\"\n}]\n\n}", "value" : "{\n\"tags\": [\n{\n\"name\": \"PLCTAG\",\n\"type\": \"UINT32\",\n\"program\": \"\"\n, \"asset\": \"Asset\",\n\"datapoint\": \"Datapoint\"\n}\n]\n}"}})";
+string defaultJsonClear = R"({"tags": [{"name": "PLCTAG","type": "UINT32","program": ""}]})";
+string valueJsonClear = R"({"tags": [{"name": "PLCTAG","type": "UINT32","program": "", "asset": "Asset","datapoint": "Datapoint"}]})";
+
+TEST(CategoryTestLF, toJSONWithoutLF)
+{
+	DefaultConfigCategory confCategory("testLF", categoryJsonLF);
+	confCategory.setDescription("Test description");
+
+	ASSERT_EQ(0, confCategory.getDefault("writemap").compare(defaultJsonClear));
+	ASSERT_EQ(0, confCategory.getValue("writemap").compare(valueJsonClear));
+}

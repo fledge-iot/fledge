@@ -14,6 +14,11 @@
 // Failure counter before re-recreating statics rows
 #define STATS_UPDATE_FAIL_THRESHOLD 3
 
+// BAckoff sending when we see repeated failures
+#define FAILURE_BACKOFF_THRESHOLD	10	// Number of consequetive failures to trigger backoff
+#define MIN_SEND_BACKOFF		50	// Min backoff in milliseconds
+#define MAX_SEND_BACKOFF		500	// Max backoff in milliseconds
+
 class DataLoad;
 class NorthService;
 
@@ -30,7 +35,7 @@ class DataSender {
 		void			flushStatistics();
 	private:
 		void			updateStatistics(uint32_t increment);
-		bool 			createStats(const std::string &key, int value);
+		bool 			createStats(const std::string &key, unsigned int value);
 		unsigned long		send(ReadingSet *readings);
 		void			blockPause();
 		void			releasePause();
@@ -52,11 +57,13 @@ class DataSender {
 		// Statistics save map
 		std::condition_variable m_statsCv;
 		std::mutex		m_statsMtx;
-		std::map<std::string, int>
+		std::map<std::string, unsigned int>
 					m_statsPendingEntries;
 		int			m_statsUpdateFails;
 		// confirmed stats table entries
 		std::unordered_set<std::string>
 					m_statsDbEntriesCache;
+		unsigned int		m_repeatedFailure;
+		unsigned int		m_sendBackoffTime;
 };
 #endif

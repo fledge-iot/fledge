@@ -1003,7 +1003,7 @@ void SendingProcess::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 					READINGSET *readings)
 {
 	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	PipelineElement *next = (PipelineElement *)outHandle;
 	// Pass readings to next filter
 	next->ingest(readings);
 }

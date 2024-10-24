@@ -42,7 +42,7 @@ class TestConfigurationManager:
 
     def test_supported_optional_items(self):
         expected_types = ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
-                          'readonly', 'rule', 'validity', 'listSize', 'listName']
+                          'readonly', 'rule', 'validity', 'listSize', 'listName', 'permissions']
         assert len(expected_types) == len(_optional_items)
         assert sorted(expected_types) == _optional_items
 
@@ -523,7 +523,18 @@ class TestConfigurationManager:
         ({"description": "test description", "type": "enumeration", "default": "C", "options": ["A", "B"]},
          ValueError, "For test category, entry value does not exist in options list for item name test_item_name and entry_name options; got C"),
         ({"description": 1, "type": "enumeration", "default": "A", "options": ["A", "B"]},
-         TypeError, "For test category, entry value must be a string for item name test_item_name and entry name description; got <class 'int'>")
+         TypeError, "For test category, entry value must be a string for item name test_item_name and entry name description; got <class 'int'>"),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permissions': ""},
+         ValueError, "For test category, permissions entry value must be a list of string for item name test_item_name;"
+                     " got <class 'str'>."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permissions': []},
+         ValueError, "For test category, permissions entry value must not be empty for item name test_item_name."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"], 'permissions': [""]},
+         ValueError,
+         "For test category, permissions entry values must be a string and non-empty for item name test_item_name."),
+        ({"description": "Test", "type": "enumeration", "default": "A", "options": ["A", "B"],
+          'permissions': ["editor", 2]}, ValueError,
+         "For test category, permissions entry values must be a string and non-empty for item name test_item_name.")
     ])
     async def test__validate_category_val_enum_type_bad(self, config, exception_name, exception_msg):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -535,12 +546,44 @@ class TestConfigurationManager:
         assert excinfo.type is exception_name
         assert exception_msg == str(excinfo.value)
 
-    @pytest.mark.skip(reason="FOGL-8281")
     @pytest.mark.parametrize("config", [
-    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
-    ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": "{}"}}),
+    ({ITEM_NAME: {"description": "test description", "type": "bucket",
+                  "default": "{'type': 'model', 'name': 'Person', 'version': '1.0', 'hardware': 'tpu'}", "properties":
+        {"constant": {"type": "model"}, "key": {
+            "name": {"description": "TFlite model name to use for inference", "type": "string", "default": "People",
+                     "order": "1", "displayName": "TFlite model name"}}, "properties": {
+            "version": {"description": "Model version as stored in bucket", "type": "string", "default": "1.2",
+                        "order": "2", "displayName": "Model version"}, "hardware": {
+                "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                "displayName": "Inference hardware"}}}}}),
+        ({ITEM_NAME: {"description": "test description", "type": "bucket",
+                      "default": "{'type': 'model', 'name': 'Person', 'version': '1.0', 'hardware': 'tpu'}",
+                      "properties":
+                          {"constant": {"type": "model"}, "key": {
+                              "name": {"description": "TFlite model name to use for inference", "type": "string",
+                                       "default": "People",
+                                       "order": "1", "displayName": "TFlite model name"}}, "properties": {
+                              "version": {"description": "Model version as stored in bucket", "type": "string",
+                                          "default": "1.2",
+                                          "order": "2", "displayName": "Model version"}, "hardware": {
+                                  "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                                  "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                                  "displayName": "Inference hardware"}}}}}),
     ({"item": {"description": "test description", "type": "string", "default": "A"},
-      ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}),
+       ITEM_NAME: {"description": "test description", "type": "bucket", "default":
+           "{'type': 'model', 'name': 'People', 'version': '1.2', 'hardware': 'cpu'}", "properties":
+        {"constant": {"type": "model"}, "key": {
+            "name": {"description": "TFlite model name to use for inference", "type": "string", "default": "People",
+                     "order": "1", "displayName": "TFlite model name"}}, "properties": {
+            "version": {"description": "Model version as stored in bucket", "type": "string", "default": "1.2",
+                        "order": "2", "displayName": "Model version"}, "hardware": {
+                "description": "Inference hardware (\'tpu\' may be chosen only if available and configured properly)",
+                "type": "enumeration", "default": "cpu", "options": ["cpu", "tpu"], "order": "3",
+                "displayName": "Inference hardware"}}}}}),
+    ({ITEM_NAME: {"description": "Model Test", "type": "bucket", "properties":
+        {"key": {"name": {"description": "TFlite model name to use for inference", "type": "string", "default":
+            "People"}}}, "default": "A", "permissions": ["control"]}})
     ])
     async def test__validate_category_val_bucket_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -569,7 +612,20 @@ class TestConfigurationManager:
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": {}, "properties": {"key": "v"}}},
          TypeError, "For {} category, entry value must be a string for item name {} and entry name default; "
-                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME))
+                    "got <class 'dict'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": ""}},
+         ValueError, "For {} category, permissions entry value must be a list of string for item name {}; "
+                     "got <class 'str'>.".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": [""]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A", "permissions": [2]}},
+         ValueError,"For {} category, permissions entry values must be a string and non-empty for item name {}."
+                    "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "bucket", "properties": {}, "default": "A",
+                      "permissions": ["user", 5]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME))
     ])
     async def test__validate_category_val_bucket_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -680,6 +736,26 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
          ValueError,"For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": ""}},
+         ValueError, "For {} category, permissions entry value must be a list of string for item name {}; "
+                     "got <class 'str'>.".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": []}},
+         ValueError, "For {} category, permissions entry value must not be empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": [1]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": ["a", 2]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": ["", "A"]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
          "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
@@ -834,7 +910,23 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listName": 2}},
          TypeError, "For {} category, listName type must be a string for item name {}; got <class 'int'>".format(
-            CAT_NAME, ITEM_NAME))
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permissions": ""}},
+         ValueError, "For {} category, permissions entry value must be a list of string for item name {}; "
+                     "got <class 'str'>.".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permissions": []}},
+         ValueError, "For {} category, permissions entry value must not be empty for item name {}.".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permissions": [""]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist",
+                      "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permissions": [2]}},
+         ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
+                     "".format(CAT_NAME, ITEM_NAME)),
     ])
     async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -860,6 +952,8 @@ class TestConfigurationManager:
                      "default": "[\"var1\", \"var2\"]", "listSize": "2"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
                      "default": "[]", "listSize": "1"}},
+        {"include": {"description": "A list of variables to include", "type": "list", "items": "string",
+                     "default": "[]", "permissions": ["user", "control"]}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "integer",
                      "default": "[\"10\", \"100\", \"200\", \"300\"]", "listSize": "4"}},
         {"include": {"description": "A list of variables to include", "type": "list", "items": "object",
@@ -889,7 +983,10 @@ class TestConfigurationManager:
                      "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
                                               "type": "integer", "maximum": "4", "default": "1"}}}},
         {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
-            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}}
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"]}},
+        {"include": {"description": "A list of expressions and values ", "type": "kvlist", "default":
+            "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"],
+                     "permissions": ["admin"]}}
     ])
     async def test__validate_category_val_list_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3626,17 +3723,20 @@ class TestConfigurationManager:
 
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(cat_info)
+            rv1 = await async_mock(cat_info)
+            rv2 = await async_mock("")
         else:
-            _rv = asyncio.ensure_future(async_mock(cat_info))
+            rv1 = asyncio.ensure_future(async_mock(cat_info))
+            rv2 = asyncio.ensure_future(async_mock(""))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
-            with patch.object(_logger, 'exception') as patch_log_exc:
-                with pytest.raises(Exception) as exc_info:
-                    await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
-                assert exc_type == exc_info.type
-                assert exc_msg == str(exc_info.value)
-            assert 1 == patch_log_exc.call_count
+        with patch.object(c_mgr, 'get_category_all_items', return_value=rv1) as patch_get_all_items:
+            with patch.object(c_mgr, '_check_updates_by_role', return_value=rv2):
+                with patch.object(_logger, 'exception') as patch_log_exc:
+                    with pytest.raises(Exception) as exc_info:
+                        await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                    assert exc_type == exc_info.type
+                    assert exc_msg == str(exc_info.value)
+                assert 1 == patch_log_exc.call_count
         patch_get_all_items.assert_called_once_with(category_name)
 
     async def test_update_configuration_item_bulk(self, category_name='rest_api'):

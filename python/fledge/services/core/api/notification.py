@@ -186,16 +186,14 @@ async def post_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
         retrigger_time = data.get('retrigger_time', None)
-
         try:
-            if retrigger_time:
-                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
-                    pass
-                else:
+            if retrigger_time is not None:
+                if not (isinstance(retrigger_time, str) and float(retrigger_time) >= 0 and isinstance(
+                        float(retrigger_time), (int, float))):
                     raise ValueError
         except ValueError:
-            raise ValueError('Invalid retrigger_time property in payload.')
-
+            raise ValueError('retrigger_time value should be a number 0 or above. '
+                             'Ensure this value is quoted as string e.g. "2.5".')
         if name is None or name.strip() == "":
             raise ValueError('Missing name property in payload.')
         if description is None:
@@ -278,11 +276,9 @@ async def post_notification(request):
             "notification_type": notification_type,
             "enable": is_enabled,
         }
-        if retrigger_time:
+        if retrigger_time is not None:
             notification_config["retrigger_time"] = retrigger_time
-
         await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
-
         audit = AuditLogger(storage)
         await audit.information('NTFAD', {"name": name})
     except ValueError as ex:
@@ -336,16 +332,14 @@ async def put_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
         retrigger_time = data.get('retrigger_time', None)
-
         try:
-            if retrigger_time:
-                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
-                    pass
-                else:
+            if retrigger_time is not None:
+                if not (isinstance(retrigger_time, str) and float(retrigger_time) >= 0 and isinstance(
+                        float(retrigger_time), (int, float))):
                     raise ValueError
         except ValueError:
-            raise ValueError('Invalid retrigger_time property in payload.')
-
+            raise ValueError('retrigger_time value should be a number 0 or above. '
+                             'Ensure this value is quoted as string e.g. "2.5".')
         if utils.check_reserved(notif) is False:
             raise ValueError('Invalid notification instance name.')
         if rule is not None and utils.check_reserved(rule) is False:
@@ -436,7 +430,7 @@ async def put_notification(request):
             notification_config.update({"notification_type": notification_type})
         if enabled is not None:
             notification_config.update({"enable": is_enabled})
-        if retrigger_time:
+        if retrigger_time is not None:
             notification_config["retrigger_time"] = retrigger_time
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
     except ValueError as e:

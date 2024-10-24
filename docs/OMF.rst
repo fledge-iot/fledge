@@ -151,6 +151,20 @@ The *Basic* tab contains the most commonly modified items
   - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
     The default delimiter is a dot (".").
 
+  - **Action Code for Data Messages**: Defines the action code in the HTTP header when sending OMF Data messages.
+
+    All OMF messages must have an *action* code in the HTTP header which defines how the server should process the OMF message.
+    For Data messages, the default action code is *update* which means that the server should update the data value if there is already a value at the passed timestamp.
+    If there is no value at the passed timestamp, the data value is inserted into the server's data archive.
+    If the passed data value is newer than the server's snapshot, the new value is processed by the server's compression algorithm.
+    The action code of *update* is the default and should generally be left unchanged.
+
+    The one exception is if the PI Buffer Subsystem is used to buffer data sent to the PI Data Archive.
+    Because of an issue with the PI Buffer Subsystem, OMF data sent with an action code of *update* is converted to the PI Data Archive's internal *replace* storage code.
+    The *replace* storage code causes the PI Data Archive's compression algorithm to be bypassed.
+    When using the PI Buffer Subsystem, set the action code to *create* which will allow new data to be compressed normally.
+    One disadvantage of the *create* action code is that multiple values with the same timestamp will all be stored. 
+
 Asset Framework
 ~~~~~~~~~~~~~~~
 

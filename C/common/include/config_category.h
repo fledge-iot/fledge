@@ -126,6 +126,8 @@ class ConfigCategory {
 		void				checkDefaultValuesOnly() const;
 		std::string 			itemToJSON(const std::string& itemName) const;
 		std::string			to_string(const rapidjson::Value& v) const;
+		std::vector<std::string>	getPermissions(const std::string& name) const;
+		bool				hasPermission(const std::string& name, const std::string& username) const;
 		enum ItemAttribute {
 					ORDER_ATTR,
 					READONLY_ATTR,
@@ -194,6 +196,8 @@ class ConfigCategory {
 				std::string	m_listSize;
 				std::string	m_listItemType;
 				std::string	m_listName;
+				std::vector<std::string>
+						m_permissions;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

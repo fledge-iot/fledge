@@ -10,7 +10,7 @@ using namespace rapidjson;
 
 int main() {
     // 1. Parse a JSON string into DOM.
-    const char* json = "{\"project\":\"rapidjson\",\"stars\":10}";
+    const char* json = "{\"project\":\"rapidjson\",\"stars\":10, \"test\" : \"null\"}";
     Document d;
     d.Parse(json);
 
@@ -25,5 +25,14 @@ int main() {
 
     // Output {"project":"rapidjson","stars":11}
     std::cout << buffer.GetString() << std::endl;
+
+    if (d["test"].IsNull())
+    {
+	    std::cout << "Quotes have been stripped" << std::endl;
+    }
+    else if (d["test"].IsString())
+    {
+	    std::cout << "Quotes have not been stripped " << d["test"].GetString() << std::endl;
+    }
     return 0;
 }

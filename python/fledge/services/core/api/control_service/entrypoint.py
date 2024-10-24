@@ -407,7 +407,7 @@ async def update(request: web.Request) -> web.Response:
 
 
 async def update_request(request: web.Request) -> web.Response:
-    """API control entry  points can be called with PUT operation to URL form
+    """API control entrypoints can be called with PUT operation to URL form
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/request/SetLatheSpeed -d '{"distance": "13"}'
     """
@@ -424,15 +424,17 @@ async def update_request(request: web.Request) -> web.Response:
         ep_info = await _get_entrypoint(name)
         username = "Anonymous"
         if request.user is not None:
-            # Admin and Control role users can always call entrypoints.
-            # For others, it must be matched from the list of allowed users
+            """ Admin and Control role users can always execute entrypoint.
+                With anonymous - Editor role can execute entrypoint.
+                When anonymous set to False, then
+                a) Editor role, it must be matched from the list of allowed users.
+                b) Other roles like viewer and dataviewer, endpoint is restricted.
+            """
             if request.user["role_id"] not in (1, 5):
-                allowed_user = [r for r in ep_info['allow']]
-                # TODO: FOGL-8037 - If allowed user list is empty then should we allow to proceed with update request?
-                # How about viewer and data viewer role access to this route?
-                # as of now simply reject with Forbidden 403
-                if request.user["uname"] not in allowed_user:
-                    raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
+                if ep_info and not ep_info['anonymous']:
+                    allowed_user = [r for r in ep_info['allow']]
+                    if request.user["uname"] not in allowed_user:
+                        raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
             username = request.user["uname"]
 
         data = await request.json()

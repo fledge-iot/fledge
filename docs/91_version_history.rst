@@ -33,107 +33,73 @@ Release Date: 2024-10-24
 
     - New Features:
 
-       - A new section relating to all aspects of monitoring within Fledge has been added to the documentation
-       - Monitoring of the available space on the disk that holds the SQLite buffer for readings ingested by Fledge has been added. Entries will be written to the error log to predict the expiration of the disk space and also logs when the spaces left available falls below 10% and 5%.
-       - Failures to send data north via the north service raises an alert, this is now cleared if the flow of data north later resumes.
+       - Monitoring of the available space on the disk that holds the SQLite buffer for readings ingested by Fledge has been added. Entries will be written to the error log to predict the expiration of the disk space and also logs when the spaces left available fall below 10% and 5%.
+       - Failures to send data north via the north service raise an alert, this is now cleared if the flow of data north later resumes.
        - An issue that could cause high CPU utilisation when a north service was unable to send data to the upstream system has been resolved. The user is also made more aware of failed attempts to send data upstream using the alerting feature. An alert will be created and shown in the GUI status bar.
-       - The tuning documentation has been updated to discuss the use of the configuration cache size tuning parameter and to add a discussion on tuning the log level for the various services.
-       - It is now possible to create allow and block lists for IP addresses that are allowed access or explicitly denied access, to the API port of the instance.
-       - The configuration items within configuration category now have the ability to limit the user roles that are allowed to update the configuration item.
+       - It is now possible to create allow and block lists for IP addresses that are allowed access or explicitly denied access to the API port of the instance.
+       - The configuration items within the configuration category now have the ability to limit the user roles that are allowed to update the configuration item.
        - Configuration items can now be given a permission property that can be used to control which user roles have access to the configuration item.
        - Performance monitors have been improved.
-
+       - A new section relating to all aspects of monitoring within Fledge has been added to the documentation
+       - The tuning documentation has been updated to discuss the use of the configuration cache size tuning parameter and to add a discussion on tuning the log level for the various services.
 
     - Bug Fix:
 
-       - The documentation for deleting users via the REST API has been corrected.
        - An issue that caused incorrect payloads to be sent north when choosing the audit log as the data source has been resolved.
-       - An issue that incorrectly prevented some authorised users executing a control end point has been resolved.
+       - An issue that incorrectly prevented some authorised users from executing a control endpoint has been resolved.
        - An issue with backup and restore when using Postgres as the storage engine to store the configuration data has been resolved.
        - The manual purge, in the developer features of the user interface, was not working for assets containing ' #',  ‘+' or '&’ characters in asset name.
-       - An issue with north services that have been misconfigured bot cleanly shutting down has been resolved.
+       - An issue with north services that have been misconfigured not cleanly shutting down has been resolved.
        - An issue that could cause a backup file to not download has been resolved.
        - An issue that could allow an unauthorised user to change the password of another user has been resolved.
-       - After restart of Fledge, the Sent count in the Fledge GUI dashboard would increase by few readings after every restart of Fledge even if no south plugins were running. This has been fixed. This was an error in the increment of the counter; there were never any additional readings sent.
+       - After restart of Fledge, the sent count in the Fledge GUI dashboard would increase by few readings after every restart of Fledge, even if no south plugins were running. This has been fixed. This was an error in the increment of the counter; there were never any additional readings sent.
        - An issue with an incorrect audit entry being created when adding new properties to a configuration item has been resolved.
        - A security issue that could allow one user to see the profile of another has been resolved.
        - Users now need to have administration permissions to see the user names and roles of other users.
        - The handling of errors during pipeline creation has been enhanced to give better reporting of filter plugin exceptions.
        - The notification service has been updated to allow sub-second retriever times for notifications to be specified.
+       - The documentation for deleting users via the REST API has been corrected.
 
 
 - **GUI**
 
     - New Features:
 
-       - The GUI rendering of lists in the configuration options has been improved.
-       - The ordering of the tabs in configuration user interface is no longer alphabetical, but controlled by the configuration category itself.
+       - The rendering of lists in the configuration options has been improved.
+       - The ordering of the tabs in the configuration user interface is no longer alphabetical but controlled by the configuration category itself.
        - The user interface now hides configuration options the user does not have permission to change.
-       - The rendering of the developer menu has been bough into line with other sub-menu rendering.
+       - The rendering of the developer menu has been brought into line with other sub-menu rendering.
 
 
     - Bug Fix:
 
-       - An issue that causes the sidebar to fail to open when connecting to a FogLAMP User Interface from FogLAMP Manage has been resolved.
        - An issue with the user interface incorrectly displaying a timestamp has been resolved.
        - An issue with list type configuration items occasionally not rendering correctly for filters has been resolved.
-       - An issue with the GUI not correctly checking the length of some items entered into configuration items has been resolved.
+       - An issue related to improper length validation for certain entries in the configuration items has been resolved.
        - An issue with forcible session disconnection sometimes failing has been resolved.
-       - The performance of the GUI related to management of services and plugins has been improved.
-       - An issue that prevent export of persisted data in developer mode has been resolved.
+       - The performance related to management of services and plugins has been improved.
+       - An issue that prevents export of persisted data in developer mode has been resolved.
        - An issue that prevented deletion of persisted data for plugins in developer mode has been resolved.
-       - An issue with the CSV writer filter has been resolved.
+       - An issue with the plugin filter that involved underscores in the name has been resolved.
 
 
 - **Plugins**
 
     - New Features:
 
-       - OMF North: The _action_ code in the HTTP header is normally set to _update_ for OMF Data messages. This causes old values to be updated if the timestamps match, and new data to be properly compressed by the PI Data Archive. If the AVEVA PI Buffer Subsystem is configured, however, the _update_ action code is converted to an internal PI storage mode that causes new data to bypass compression which can result in unnecessarily storing too many data values. To work around this issue, the OMF North plugin now allows you to change the OMF Data action code to _create_. This should only be done when the AVEVA PI Buffer Subsystem is configured. 
-       - The SKF Observer south plugin has been updated to correctly ingest multi-channel trends into separately named assets.
-       - A new filter has been added that allows data anomalies to be superimposed on data in a pipeline. This is used to test downstream anomaly detection and is not intended for production use.
-       - The asset filter has been enhanced to allow regulator expressions to be used in the asset name to match when applying the filter.
-       - The MQTT scripted north plugin has been enhanced to support macros in the topic to which data is sent. These macros allow the name of the asset and/or the values of any of the datapoints within a reading to be substituted into the topic string.
-       - The Observer south plugin now creates asset names by using the sub-machine names, if defined in Observer. This is required if the machine name and measurement point pairs are not unique in order to disambiguate the naming of the assets within the readings.
-       - A new, global asset name prefix can now be defined for the Observer south plugin.
-       - An enhancement to the FFT2 filter has been made that allows for periodic calculation of the FFT.
-       - The error reporting for failed authentication and incorrectly configured connections within the FogLAMP Observer south plugin has been improved to reduce the number of duplicate errors written to the system log.
-       - The documentation for the normalisation filter, that is used to interpolate date to defined time intervals, has been updated.
-       - The delta filter has been enhanced to give greater control over the action when one or more datapoint in an asset is detected as changing.
-       - The SigmaCleanse filter has been enhanced to allow an option that outliers be labeled rather than removed. The default behaviour still removes the outliers from the pipeline.
-       - Support for the Micro8xx PLC has been improved in the EthernetIP south plugin.
-       - The logging in the MQTT Scripted south plugin has been improved and the frequency with which MQTT broker failure is reported has been reduced to prevent flooding the error log with messages.
-       - The Regex filter has been enhanced to allow the matched strings to be reused in the substituted strings. It also now has an option to control the scope of the regular expression matching.
-       - A new single asset model filter has been added that creates a semantic model based on data from one or more sources into a single asset structure.
-       - The Siemens S7 south plugin documentation has been updated to include a note regarding the use of optimized block access.
-       - The documentation of the EthernetIP plugin has been updated to include the currently supported types that can be read from the PLC.
-       - A new filter, the Bounds Status filter, has been added that checks for data being within certain limits and adds meta data to the reading to indicate the status.
-       - A new north plugin and corresponding hint filter have been created to send data into the AVEVA eDNA historian.
-       - The fog lamp-south-south-rest plugin has been updated to support numeric timestamps. A numeric timestamp is taken as the number of seconds since the Linux epoch, 1st January 1970.
-       - fledge-south-s2opcua: Support for the OPC UA Data Change Filter has been added. This filter type is defined in the [OPC UA Specification, Part 4, Section 7.22.2|https://reference.opcfoundation.org/Core/Part4/v105/docs/7.22.2]. The Data Change Filter allows OPC UA clients (such as this plugin) to request that the OPC UA server send data value updates only if the server's data values have changed significantly. With careful tuning, you can reduce the data traffic from OPC UA server to client without significant loss of fidelity. This plugin has been upgraded to use Systerel’s [S2OPC Toolkit Version 1.5.0|https://gitlab.com/systerel/S2OPC/-/releases/S2OPC_Toolkit_1.5.0].
-       - The Operation Notification plugin now support data substitution as with the other control related notification delivery plugins.
-
+       - fledge-filter-asset now supports to allow regulator expressions to be used in the asset name to match when applying the filter.
+       - fledge-filter-delta has been enhanced to give greater control over the action when one or more datapoints in an asset are detected as changing.
+       - fledge-notify-operation now supports data substitution as with the other control-related notification delivery plugins.
+       - fledge-north-OMF *action* code in the HTTP header is normally set to *update* for OMF Data messages. This causes old values to be updated if the timestamps match and new data to be properly compressed by the PI Data Archive. If the AVEVA PI Buffer Subsystem is configured, however, the *update* action code is converted to an internal PI storage mode that causes new data to bypass compression, which can result in unnecessarily storing too many data values. To work around this issue, the OMF North plugin now allows you to change the OMF Data action code to *create*. This should only be done when the AVEVA PI Buffer Subsystem is configured.
+       - fledge-south-s2opcua now supports for the OPC UA Data Change Filter has been added. This filter type is defined in the `OPC UA Specification, Part 4, Section 7.22.2 <https://reference.opcfoundation.org/Core/Part4/v105/docs/7.22.2>`_. The Data Change Filter allows OPC UA clients (such as this plugin) to request that the OPC UA server send data value updates only if the server's data values have changed significantly. With careful tuning, you can reduce the data traffic from OPC UA server to the client without significant loss of fidelity. This plugin has been upgraded to use Systerel's `S2OPC Toolkit Version 1.5.0 <https://gitlab.com/systerel/S2OPC/-/releases/S2OPC_Toolkit_1.5.0>`_.
 
     - Bug Fix:
 
-       - The MQTT North Scripted plugin has been updated such that if the topic string can not be substituted fully the data will not be sent.
-       - The support for different datatypes in the Sparkplug B south plugin has been improved.
-       - The error reporting and recovery in the Observer south plugin has been improved to give more detailed information regarding failures and to better tailor error recovery to cause of the error.
-       - The random walk south plugin has been improved to give a more random result.
-       - I problem with the dynamic reconfiguration of the EthernetIP south plugin when changing between reading per tag and reading per asset modes has been resolved.
-       - An issue with changing the IP address of the Observer service in the Observer south plugin not being dynamically actioned has been resolved.
-       - Improvements have been made to the filtering features of the Observer south plugin.
-       - An issue with the DT9837A south plugin that could cause buffer overrun and stop the data ingesting has been resolved.
-       - An issue with the way the MQTT Scripted north plugin handled failure of the MQTT broker has been resolved. The plugin is now more resilient to broker failure and able to recover correctly when the broker is available again.
-       - The EthernetIP south plugin documentation has been updated to stress the requirement that the type in the data map matches the type used in the PLC code.
-       - The EthernetIP plugin now allows the action to be taken if an error is encountered reading data from the PLC to be configured.
-       - (not for the release notes) The fledge-south-s2opcua documentation file had broken references to subsections 'OPC UA Subscriptions' and 'Subscriptions'. They have been fixed.
-       - An issue with the EthernetIP plugin not correctly recognising network disconnections has been resolved.
-       - Support has been added to the EthernetIP plugin for readings PLC tags that contain an array of boolean values.
-       - fledge-south-s2opcua: the plugin would sometimes fail to connect to an OPC UA server with a large number of available endpoints on a distant or noisy network. This has been fixed.
-       - The north notification plugin used to implement conditional forwarding of data via north tasks has been updated to support complex pipelines with branches and parallel processing.
        - An issue that could cause a crash during purge operations has been resolved.
-       - An issue with the MODBUS-C plugin that could cause it to fail if the IP address of the MODBUS device was changed incorrectly and then changed back to the correct address has been resolved.
+       - fledge-south-modbusc plugin that could cause it to fail if the IP address of the MODBUS device was changed incorrectly and then changed back to the correct address has been resolved.
+       - fledge-south-mqtt-sparkplug now supports for different datatypes in the Sparkplug B south plugin has been improved.
+       - fledge-south-randomwalk has been improved to give a more random result.
+       - fledge-south-s2opcua would sometimes fail to connect to an OPC UA server with a large number of available endpoints on a distant or noisy network. This has been fixed.
 
 
 v2.5.0

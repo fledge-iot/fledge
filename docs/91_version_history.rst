@@ -40,7 +40,7 @@ Release Date: 2024-10-24
        - The configuration items within the configuration category now have the ability to limit the user roles that are allowed to update the configuration item.
        - Configuration items can now be given a permission property that can be used to control which user roles have access to the configuration item.
        - Performance monitors have been improved.
-       - A new section relating to all aspects of monitoring within Fledge has been added to the documentation
+       - A new section relating to all aspects of monitoring within Fledge has been added to the documentation.
        - The tuning documentation has been updated to discuss the use of the configuration cache size tuning parameter and to add a discussion on tuning the log level for the various services.
 
     - Bug Fix:
@@ -80,24 +80,25 @@ Release Date: 2024-10-24
        - The performance related to management of services and plugins has been improved.
        - An issue that prevents export of persisted data in developer mode has been resolved.
        - An issue that prevented deletion of persisted data for plugins in developer mode has been resolved.
-       - An issue with the plugin filter that involved underscores in the name has been resolved.
+       - An issue with the filter plugin that involved underscores in the name has been resolved.
 
 
 - **Plugins**
 
     - New Features:
 
-       - fledge-filter-asset now supports to allow regulator expressions to be used in the asset name to match when applying the filter.
-       - fledge-filter-delta has been enhanced to give greater control over the action when one or more datapoints in an asset are detected as changing.
+       - fledge-filter-asset now supports to allow regular expressions to be used in the asset name to match when applying the filter.
+       - fledge-filter-delta has been enhanced to give greater control over the action when one or more datapoints in an asset reading are detected as changing.
        - fledge-notify-operation now supports data substitution as with the other control-related notification delivery plugins.
-       - fledge-north-OMF *action* code in the HTTP header is normally set to *update* for OMF Data messages. This causes old values to be updated if the timestamps match and new data to be properly compressed by the PI Data Archive. If the AVEVA PI Buffer Subsystem is configured, however, the *update* action code is converted to an internal PI storage mode that causes new data to bypass compression, which can result in unnecessarily storing too many data values. To work around this issue, the OMF North plugin now allows you to change the OMF Data action code to *create*. This should only be done when the AVEVA PI Buffer Subsystem is configured.
+       - fledge-north-OMF *action* code in the HTTP header is normally set to *update* for OMF Data messages. This causes old values to be updated if the timestamps match and new data to be properly compressed by the PI Data Archive.
+         If the AVEVA PI Buffer Subsystem is configured, however, the *update* action code is converted to an internal PI storage mode that causes new data to bypass compression, which can result in unnecessarily storing too many data values. To workaround this issue, the OMF North plugin now allows you to change the OMF Data action code to *create*. This should only be done when the AVEVA PI Buffer Subsystem is configured.
        - fledge-south-s2opcua now supports for the OPC UA Data Change Filter has been added. This filter type is defined in the `OPC UA Specification, Part 4, Section 7.22.2 <https://reference.opcfoundation.org/Core/Part4/v105/docs/7.22.2>`_. The Data Change Filter allows OPC UA clients (such as this plugin) to request that the OPC UA server send data value updates only if the server's data values have changed significantly. With careful tuning, you can reduce the data traffic from OPC UA server to the client without significant loss of fidelity. This plugin has been upgraded to use Systerel's `S2OPC Toolkit Version 1.5.0 <https://gitlab.com/systerel/S2OPC/-/releases/S2OPC_Toolkit_1.5.0>`_.
 
     - Bug Fix:
 
        - An issue that could cause a crash during purge operations has been resolved.
        - fledge-south-modbusc plugin that could cause it to fail if the IP address of the MODBUS device was changed incorrectly and then changed back to the correct address has been resolved.
-       - fledge-south-mqtt-sparkplug now supports for different datatypes in the Sparkplug B south plugin has been improved.
+       - fledge-south-mqtt-sparkplug now supports various data types, including string, integer, float and boolean.
        - fledge-south-randomwalk has been improved to give a more random result.
        - fledge-south-s2opcua would sometimes fail to connect to an OPC UA server with a large number of available endpoints on a distant or noisy network. This has been fixed.
 

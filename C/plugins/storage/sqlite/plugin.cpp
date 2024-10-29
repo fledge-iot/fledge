@@ -97,6 +97,14 @@ const char *default_config = QUOTE({
 			"default" : "6",
 			"displayName" : "Vacuum Interval",
 			"order" : "7"
+		},
+		"deployment" : {
+			"description" : "The type of Fledge deployment",
+			"type" : "enumeration",
+			"options" : [ "Small", "Normal", "High Bandwidth" ],
+			"default" : "Normal",
+			"displayName" : "Deployment",
+			"order" : "8"
 		}
 
 });
@@ -129,6 +137,8 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 	ConnectionManager *manager = ConnectionManager::getInstance();
+
+	manager->setConfiguration(category);
 
 	STORAGE_CONFIGURATION storageConfig;
 

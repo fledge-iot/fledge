@@ -2146,7 +2146,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			return 0;
 		}
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + min(100000UL, rows);
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 

@@ -212,7 +212,7 @@ The algorithm requires two consecutive out of range ingest rates to prevent the 
 
 .. note::
 
-   This ingest rate monitoring is designed to be applicable is as many situations as possible. There are however some cases in which this monitoring will create false reports of issues. This may be able to be reduced or eliminated by using the tuning options, but this may not be true in all cases. In particular an asynchronous south plugin that reports data at unpredictable time intervals will most likely not be suitable for this type of monitoring and the monitoring should be disabled by setting a 0 monitoring interval.
+   This ingest rate monitoring is designed to be applicable in as many situations as possible. There are however some cases in which this monitoring will create false reports of issues. This may be able to be reduced or eliminated by using the tuning options, but this may not be true in all cases. In particular an asynchronous south plugin that reports data at unpredictable time intervals will most likely not be suitable for this type of monitoring and the monitoring should be disabled by setting a value of 0 for the monitoring interval.
 
 Fixed Time Polling
 ------------------

@@ -1181,7 +1181,7 @@ void Ingest::configChange(const string& category, const string& newConfig)
 }
 
 /**
- * Return the number fo queued readings in the south service
+ * Return the number of queued readings in the south service
  */
 size_t Ingest::queueLength()
 {

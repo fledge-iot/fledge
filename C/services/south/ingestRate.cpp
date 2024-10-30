@@ -32,7 +32,7 @@ IngestRate::~IngestRate()
 }
 
 /**
- * Update the configuration of the ingets rate mechanism
+ * Update the configuration of the ingest rate mechanism
  *
  * @param interval	Number of minutes to average over
  * @param factor	Number of standard deviations to tolarate

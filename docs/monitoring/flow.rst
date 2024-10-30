@@ -1,7 +1,7 @@
-.. |MonitorNorthRate| image:: ../imagesMonitorNorthRate.jpg
-.. |MonitorZendesk| image:: ../imagesMonitorZendesk.jpg
+.. |MonitorNorthRate| image:: ../images/MonitorNorthRate.jpg
+.. |MonitorZendesk| image:: ../images/MonitorZendesk.jpg
 .. |MonitorTrigger| image:: ../images/MonitorTrigger.jpg
-.. |MonitorBuffered| image:: ../images/MonitorBuffered.jpg
+.. |MonitoredBuffered| image:: ../images/MonitoredBuffered.jpg
 
 Pipeline Data Flow
 ==================

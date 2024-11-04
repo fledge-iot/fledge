@@ -40,6 +40,23 @@ def verify_utc_timestamp_with_different_timezones(timestamp_str):
         utc_dt = pytz.utc.localize(utc_dt)
         # Convert UTC to tz
         converted_dt = utc_dt.astimezone(pytz.timezone(tz))
+        # Check if the converted datetime is in DST
+        if converted_dt.dst():
+            print(converted_dt, "is in DST for", tz)
+        else:
+            print(converted_dt, "is not in DST for", tz)
+            if tz == "America/Los_Angeles":
+                hours = -8  # No DST (UTC-8)
+                minutes = 0
+            elif tz == "America/New_York":
+                hours = -5  # No DST (UTC-5)
+                minutes = 0
+            elif tz == "Europe/London":
+                hours = 0  # No DST (UTC+0)
+                minutes = 0
+            elif tz == "Europe/Rome":
+                hours = 1  # No DST (UTC+1)
+                minutes = 0
         # Define the expected offset
         expected_offset = timedelta(hours=hours, minutes=minutes)
         # Calculate the difference between the two offsets
@@ -50,11 +67,12 @@ def verify_utc_timestamp_with_different_timezones(timestamp_str):
     assert utils.validate_date_format(timestamp_str) is True, "Timestamp format mismatched."
 
     _convert_utc_to_other_timezone("Asia/Kolkata", 5, 30)
-    _convert_utc_to_other_timezone("America/Los_Angeles", -7, 0)
-    _convert_utc_to_other_timezone("America/New_York", -4, 0)
-    _convert_utc_to_other_timezone("Europe/London", 1, 0)
-    _convert_utc_to_other_timezone("Europe/Rome", 2, 0)
+    _convert_utc_to_other_timezone("America/Los_Angeles", -7, 0)  # Adjust for DST if needed
+    _convert_utc_to_other_timezone("America/New_York", -4, 0)     # Adjust for DST if needed
+    _convert_utc_to_other_timezone("Europe/London", 1, 0)   # Adjust for DST if needed
+    _convert_utc_to_other_timezone("Europe/Rome", 2, 0)     # Adjust for DST if needed
     _convert_utc_to_other_timezone("Etc/UTC", 0, 0)
+
     # TODO: Add more mappings if required
 
 

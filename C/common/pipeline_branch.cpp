@@ -184,7 +184,8 @@ void PipelineBranch::ingest(READINGSET *readingSet)
 	}
 	else
 	{
-		Logger::getLogger()->warn("Pipeline branch has no downstream element");
+		// Pipeline branch has no downstream element, write direct to storage
+		(*(OUTPUT_STREAM)m_useData)(m_ingest, readingSet);
 	}
 }
 

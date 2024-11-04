@@ -75,6 +75,7 @@ class Reading {
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 		// Return Reading asset time - user_ts time
 		const std::string getAssetDateUserTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
+		std::string			substitute(const std::string& str);
 
 	protected:
 		Reading() {};
@@ -90,6 +91,29 @@ class Reading {
 		std::vector<Datapoint *>	m_values;
 		// Supported date time formats for 'm_timestamp'
 		static std::vector<std::string>	m_dateTypes;
+	private:
+		// Internal class used for macro substitution
+		class Macro {
+			public:
+				Macro(const std::string& dpname, std::string::size_type s,
+						const std::string& defValue) :
+					start(s), name(dpname), def(defValue)
+
+				{
+				};
+				Macro(const std::string& dpname, std::string::size_type s) :
+					start(s), name(dpname)
+
+				{
+				};
+				// Start of variable to substitute
+				std::string::size_type		start;
+				// Name of variable to substitute
+				std::string			name;
+				// Default value to substitute
+				std::string			def;
+		};
+		void		collectMacroInfo(const std::string& str, std::vector<Macro>& macros);
 };
 #endif
 

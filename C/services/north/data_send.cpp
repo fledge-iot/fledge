@@ -90,6 +90,9 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	if(isDryRun())
+		return;
+
 	ReadingSet *readings = nullptr;
 
 	while (!m_shutdown)
@@ -501,4 +504,14 @@ bool DataSender::createStats(const std::string &key,
 	}
 
 	return false;
+}
+
+/**
+ * Check status of dryrun flag
+ *
+ * @return True dryrun flag is true
+ */
+bool DataSender::isDryRun()
+{
+	return m_service->getDryRun();
 }

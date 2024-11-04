@@ -771,7 +771,9 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 								sql.append("\"");
 								sql.append(" AT TIME ZONE '");
 								sql.append((*itr)["timezone"].GetString());
-								sql.append("' ");
+								sql.append("' AS \"");
+								sql.append((*itr)["column"].GetString());
+								sql.append("\"");
 							}
 							else
 							{

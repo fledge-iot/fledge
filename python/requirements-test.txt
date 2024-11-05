@@ -14,8 +14,15 @@ requests==2.20.0
 pyserial==3.4
 
 # keep this in sync with requirement.txt, as otherwise pytest-aiohttp always pulls the latest
-aiohttp==3.8.1
-yarl==1.7.2
+aiohttp==3.8.1;python_version<"3.8"
+aiohttp==3.9.4;python_version>="3.8"
+
+#cchardet ??
+
+yarl==1.7.2;python_version<"3.8"
+yarl==1.9.4;python_version>="3.8"
+#yarl=1.8.1
+
 
 # specific version for setuptools as per pytest version
 setuptools==70.3.0;python_version>="3.8"

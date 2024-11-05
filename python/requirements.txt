@@ -1,18 +1,23 @@
 # Common - REST interface
-aiohttp==3.8.1
+aiohttp==3.8.1;python_version<"3.8"
+aiohttp==3.9.4;python_version>="3.8"
+
 aiohttp_cors==0.7.0
+
+
 cchardet==2.1.4;python_version<"3.9"
 cchardet==2.1.7;python_version>="3.9"
-yarl==1.7.2
+#cchardet=2.2.0a2
+yarl==1.7.2;python_version<"3.8"
+yarl==1.9.4;python_version>="3.8"
+#yarl=1.8.1
+
 pyjwt==2.4.0
 
 # only required for Public Proxy multipart payload
 requests-toolbelt==1.0.0
 
-# Transformation of data, Apply JqFilter
-# Install pyjq based on python version
-pyjq==2.3.1;python_version<"3.8"
-pyjq==2.5.1;python_version>="3.8"
+
 
 # Fledge discovery
 zeroconf==0.27.0

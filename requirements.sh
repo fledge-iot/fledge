@@ -222,7 +222,7 @@ if [[ $YUM_PLATFORM = true ]]; then
 		# To avoid to stop the execution for any internal error of scl_source
 		set +e
 		source scl_source enable rh-python36
-		python3 -m pip install --upgrade pip
+		python3 -m pip install --upgrade pip --break-system-packages
 		python3 -m pip install numpy
 		set -e
 	fi
@@ -251,7 +251,7 @@ elif apt --version 2>/dev/null; then
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip python3-numpy
-	python3 -m pip install --upgrade pip
+	python3 -m pip install --upgrade pip --break-system-packages
 
 	sqlite3_build_prepare
 	make

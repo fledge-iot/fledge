@@ -161,9 +161,9 @@ The plugin should store the callback function pointer and the data associated wi
   }
 
   /**
-   * Called when a data is available to send to the south service
+   * Called when a data is available to send in the south service
    *
-   * @param points        The points in the reading we must create
+   * @param reading        The reading we have ingested into the plugin
    */
   void MyPluginClass::ingest(Reading& reading)
   {
@@ -171,6 +171,52 @@ The plugin should store the callback function pointer and the data associated wi
           (*m_ingest)(m_data, reading);
   }
 
+In version 2.0.0 onward of the south plugin interface, the callback method has been updated to pass multiple readings.
+
+The *plugin_register_ingest* call in versions 2.0.0 and later of the interface would be rewritten as follow
+
+.. code-block:: C
+
+  /**
+   * Register ingest callback
+   */
+  void plugin_register_ingest(PLUGIN_HANDLE *handle, INGEST_CB2 cb, void *data)
+  {
+  MyPluginClass *plugin = (MyPluginClass *)handle;
+
+          if (!handle)
+                  throw new exception();
+          plugin->registerIngest(data, cb);
+  }
+
+The plugin should store the callback function pointer and the data associated with the callback such that it can use that information to pass a reading to the south service in the same way as before. The following code snippets show how a plugin class might store the callback and data and then use it to send readings into Fledge at a later stage.
+
+.. code-block:: C
+
+  /**
+   * Record the ingest callback function and data in member variables
+   *
+   * @param data  The Ingest function data
+   * @param cb    The callback function to call
+   */
+  void MyPluginClass::registerIngest(void *data, INGEST_CB2 cb)
+  {
+          m_ingest = cb;
+          m_data = data;
+  }
+
+  /**
+   * Called when a data is available to send in the south service
+   *
+   * @param readings        A vector of readings to be processed
+   */
+  void MyPluginClass::ingest(std::vector<Reading *>& readings)
+  {
+
+          (*m_ingest)(m_data, readings);
+  }
+
+The ownership of the readings in the vector is transferred to the south plugin by the call to the ingest callback and should not be deleted by the south plugin.
 
 Plugin Start
 ~~~~~~~~~~~~

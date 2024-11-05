@@ -766,4 +766,8 @@ class TestReadingsStorageAsyncClient:
         response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 
+        kwargs = dict(asset="sin #1")
+        response = await rsc.purge(**kwargs)
+        assert 1 == response["called"]
+
         await fake_storage_srvr.stop()

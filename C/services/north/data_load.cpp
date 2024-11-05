@@ -129,9 +129,12 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
-		       						// the prefetch limit already queued
+		while (m_shutdown == false && m_queue.size() < m_prefetchLimit)
+		{
+			// Read another block if we have less than 
+			// the prefetch limit already queued
 			readBlock(block);
+		}
 	}
 }
 
@@ -264,7 +267,7 @@ ReadingSet *DataLoad::fetchStatistics(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -298,7 +301,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -386,6 +389,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 			m_pipeline->execute();
 			// Pass readingSet to filter chain
 			firstElement->ingest(readings);
+			m_pipeline->completeBranch();	// Main branch has completed
 			m_pipeline->awaitCompletion();
 			return;
 		}
@@ -414,7 +418,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 ReadingSet *DataLoad::fetchReadings(bool wait)
 {
 	unique_lock<mutex> lck(m_qMutex);
-	while (m_queue.empty())
+	while (m_shutdown == false && m_queue.empty())
 	{
 		if (m_perfMonitor && m_perfMonitor->isCollecting())
 		{
@@ -430,9 +434,13 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 			return NULL;
 		}
 	}
-	ReadingSet *rval = m_queue.front();
-	m_queue.pop_front();
-	if (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 5 already queued
+	ReadingSet *rval = NULL;
+	if (!m_queue.empty())
+	{
+		rval = m_queue.front();
+		m_queue.pop_front();
+	}
+	if (m_queue.size() < m_prefetchLimit && m_shutdown == false)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}
@@ -634,7 +642,6 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);
 	load->m_fetchCV.notify_all();
-	load->m_pipeline->completeBranch();
 }
 
 /**

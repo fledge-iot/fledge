@@ -184,7 +184,8 @@ void PipelineBranch::ingest(READINGSET *readingSet)
 	}
 	else
 	{
-		Logger::getLogger()->warn("Pipeline branch has no downstream element");
+		// Pipeline branch has no downstream element, write direct to storage
+		(*(OUTPUT_STREAM)m_useData)(m_ingest, readingSet);
 	}
 }
 
@@ -265,5 +266,6 @@ void PipelineBranch::handler()
 		m_queue.pop();
 		lck.unlock();
 		m_branch[0]->ingest(readings);
+		m_pipeline->completeBranch();
 	}
 }

@@ -50,6 +50,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 from fledge.services.core.api.control_service import acl_management as acl_management
+from fledge.services.core.firewall import Firewall
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
@@ -73,7 +74,7 @@ SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
 # TODO generate secret at build time
 SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
-SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_ALGORITHM = 'HS512'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 SERVICE_JWT_AUDIENCE = 'Fledge'
 
@@ -209,14 +210,16 @@ class Server:
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Enable HTTP',
-            'order': '1'
+            'order': '1',
+            'permissions': ['admin']
         },
         'httpPort': {
             'description': 'Port to accept HTTP connections on',
             'type': 'integer',
             'default': '8081',
             'displayName': 'HTTP Port',
-            'order': '2'
+            'order': '2',
+            'permissions': ['admin']
         },
         'httpsPort': {
             'description': 'Port to accept HTTPS connections on',
@@ -224,7 +227,8 @@ class Server:
             'default': '1995',
             'displayName': 'HTTPS Port',
             'order': '3',
-            'validity': 'enableHttp=="false"'
+            'validity': 'enableHttp=="false"',
+            'permissions': ['admin']
         },
         'certificateName': {
             'description': 'Certificate file name',
@@ -232,7 +236,8 @@ class Server:
             'default': 'fledge',
             'displayName': 'Certificate Name',
             'order': '4',
-            'validity': 'enableHttp=="false"'
+            'validity': 'enableHttp=="false"',
+            'permissions': ['admin']
         },
         'authentication': {
             'description': 'API Call Authentication',
@@ -240,7 +245,8 @@ class Server:
             'options': ['mandatory', 'optional'],
             'default': 'optional',
             'displayName': 'Authentication',
-            'order': '5'
+            'order': '5',
+            'permissions': ['admin']
         },
         'authMethod': {
             'description': 'Authentication method',
@@ -248,14 +254,16 @@ class Server:
             'options': ["any", "password", "certificate"],
             'default': 'any',
             'displayName': 'Authentication method',
-            'order': '6'
+            'order': '6',
+            'permissions': ['admin']
         },
         'authCertificateName': {
             'description': 'Auth Certificate name',
             'type': 'string',
             'default': 'ca',
             'displayName': 'Auth Certificate',
-            'order': '7'
+            'order': '7',
+            'permissions': ['admin']
         },
         'allowPing': {
             'description': 'Allow access to ping, regardless of the authentication required and'
@@ -263,15 +271,27 @@ class Server:
             'type': 'boolean',
             'default': 'true',
             'displayName': 'Allow Ping',
-            'order': '8'
+            'order': '8',
+            'permissions': ['admin']
         },
         'authProviders': {
             'description': 'Authentication providers to use for the interface (JSON array object)',
             'type': 'JSON',
             'default': '{"providers": ["username", "ldap"] }',
             'displayName': 'Auth Providers',
-            'order': '9'
+            'order': '9',
+            'permissions': ['admin']
         },
+        'disconnectIdleUserSession': {
+            'description': 'Disconnect idle user session after certain period of inactivity',
+            'type': 'integer',
+            'default': '15',
+            'displayName': 'Idle User Session Disconnection (In Minutes)',
+            'order': '10',
+            'minimum': '1',
+            'maximum': '1440',
+            'permissions': ['admin']
+        }
     }
 
     _LOGGING_DEFAULT_CONFIG = {
@@ -279,9 +299,21 @@ class Server:
             'description': 'Minimum logging level reported for Core server',
             'type': 'enumeration',
             'displayName': 'Minimum Log Level',
-            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'options': ['debug', 'info', 'warning', 'error'],
             'default': 'warning',
             'order': '1'
+        }
+    }
+
+    _CONFIGURATION_DEFAULT_CONFIG = {
+        'cacheSize': {
+            'description': 'To control the caching size of Core Configuration Manager',
+            'type': 'integer',
+            'displayName': 'Cache Size',
+            'default': '30',
+            'order': '1',
+            'minimum': '1',
+            'maximum': '1000'
         }
     }
 
@@ -323,6 +355,12 @@ class Server:
 
     _package_cache_manager = None
     """ Package Cache Manager """
+
+    _user_sessions = []
+    """ User sessions information to disconnect when idle for a certain period """
+
+    _user_idle_session_timeout = 15 * 60
+    """ User idle session timeout (in minutes) """
 
     _INSTALLATION_DEFAULT_CONFIG = {
         'maxUpdate': {
@@ -476,6 +514,10 @@ class Server:
                 _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
+            try:
+                cls._user_idle_session_timeout = int(config['disconnectIdleUserSession']['value']) * 60
+            except:
+                cls._user_idle_session_timeout = 15 * 60
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -490,7 +532,8 @@ class Server:
                     'options': ['Any characters', 'Mixed case Alphabetic', 'Mixed case and numeric', 'Mixed case, numeric and special characters'],
                     'default': 'Any characters',
                     'displayName': 'Policy',
-                    'order': '1'
+                    'order': '1',
+                    'permissions': ['admin']
                 },
                 'length': {
                     'description': 'Minimum password length',
@@ -499,14 +542,16 @@ class Server:
                     'displayName': 'Minimum Length',
                     'minimum': '6',
                     'maximum': '80',
-                    'order': '2'
+                    'order': '2',
+                    'permissions': ['admin']
                 },
                 'expiration': {
                     'description': 'Number of days after which passwords must be changed',
                     'type': 'integer',
                     'default': '0',
                     'displayName': 'Expiry (in Days)',
-                    'order': '3'
+                    'order': '3',
+                    'permissions': ['admin']
                 }
             }
             category = 'password'
@@ -517,6 +562,19 @@ class Server:
             _logger.exception(ex)
             raise
 
+    @classmethod
+    async def firewall_config(cls):
+        try:
+            _firewall = Firewall()
+            category = _firewall.category
+            await cls._configuration_manager.create_category(category, _firewall.config, _firewall.description, True,
+                                                             display_name=_firewall.display_name)
+            config = await cls._configuration_manager.get_category_all_items(category)
+            Firewall.IPAddresses.save(data=config)
+            await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
 
     @classmethod
     async def service_config(cls):
@@ -580,6 +638,31 @@ class Server:
             cls._log_level = config['logLevel']['value']
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def setup_config_manager(cls):
+        """ Configuration manager category """
+        try:
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+
+            config = cls._CONFIGURATION_DEFAULT_CONFIG
+            category = 'CONFIGURATION'
+            description = "Core Configuration Manager"
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Configuration Manager')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cache_size = int(config['cacheSize']['value'])
+            # Internal handling of cache size
+            if cache_size == 0:
+                default_cache_size = cls._configuration_manager._cacheManager.max_cache_size
+                _logger.warn("Configuration Manager Cache Size is being set to the default size {}.".format(
+                    default_cache_size))
+                cache_size = default_cache_size
+            cls._configuration_manager._cacheManager.max_cache_size = cache_size
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -829,7 +912,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+                                                                                "CONFIGURATION"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -879,6 +963,9 @@ class Server:
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
+            # Configuration Manager setup
+            loop.run_until_complete(cls.setup_config_manager())
+
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())
 
@@ -894,8 +981,11 @@ class Server:
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
+            # REST API
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
+            loop.run_until_complete(cls.firewall_config())
+
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
             # ssl context
@@ -2041,6 +2131,21 @@ class Server:
         except Exception as ex:
             msg = str(ex)
             _logger.error(ex, "Failed to get an alert.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            return web.json_response({"alert": alert})
+
+    @classmethod
+    async def delete_alert(cls, request):
+        name = request.match_info.get('key', None)
+        try:
+            alert = await cls._alert_manager.delete(name)
+        except KeyError as err:
+            msg = str(err.args[0])
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            _logger.error(ex, "Failed to delete an alert.")
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
         else:
             return web.json_response({"alert": alert})

@@ -47,12 +47,13 @@ _help = """
 """
 
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
@@ -283,6 +284,7 @@ async def logout(request):
     return web.json_response({"logout": True})
 
 
+@has_permission("admin")
 async def get_roles(request):
     """ get roles
 
@@ -315,9 +317,13 @@ async def get_user(request):
 
     if 'username' in request.query and request.query['username'] != '':
         user_name = request.query['username'].lower()
-
     if user_id or user_name:
         try:
+            if not request.is_auth_optional:
+                if int(request.user["role_id"]) not in [1, 5]:
+                    if ((user_id is not None and int(request.user["id"]) != user_id)
+                            or (user_name is not None and request.user["uname"] != user_name)):
+                        raise web.HTTPForbidden
             user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')
@@ -342,6 +348,11 @@ async def get_user(request):
                 u["accessMethod"] = row["access_method"]
                 u["realName"] = row["real_name"]
                 u["description"] = row["description"]
+                if row["block_until"]:
+                    curr_time = datetime.datetime.now(datetime.timezone.utc).strftime(DATE_FORMAT)
+                    block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
+                    if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
+                        u["blockUntil"] = block_time
                 res.append(u)
         result = {'users': res}
 
@@ -570,6 +581,16 @@ async def update_password(request):
         msg = "User ID should be in integer."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    # Restrictions
+    if int(request.user["id"]) != int(user_id):
+        # Super Admin default user
+        if int(user_id) == 1:
+            raise web.HTTPUnauthorized(reason="Insufficient privileges to update the password for the given user.")
+        else:
+            if int(request.user["role_id"]) != ADMIN_ROLE_ID:
+                raise web.HTTPUnauthorized(
+                    reason="Insufficient privileges to update the password for the given user.")
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -578,7 +599,7 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        err_msg = "New password should be in string format."
+        err_msg = "New password should be a valid string."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
     error_msg = await validate_password(new_password)
     if error_msg:
@@ -680,6 +701,59 @@ async def enable_user(request):
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
+@has_permission("admin")
+async def unblock_user(request):
+    """ Unblock the user got blocked due to multiple invalid log in attempts
+        :Example:
+            curl -H "authorization: <token>" -X PUT  http://localhost:8081/fledge/admin/{user_id}/unblock
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+
+    try:
+        from fledge.services.core import connect
+        storage_client = connect.get_storage_async()
+        result = await _unblock_user(user_id,storage_client)
+        if 'response' in result:
+            if result['response'] == 'updated':
+                # USRUB audit trail entry
+                audit = AuditLogger(storage_client)
+                await audit.information('USRUB', {'user_id': int(user_id),
+                                "message": "User with ID:<{}> has been unblocked.".format(user_id)})
+        else:
+            raise KeyError("Unblock operation for user with ID:<{}> failed".format(user_id))
+    except (KeyError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        _logger.error(exc, "Failed to unblock user ID:<{}>.".format(user_id))
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'message': 'User with ID:<{}> has been unblocked successfully.'.format(int(user_id))})
+
+
+async def _unblock_user(user_id, storage_client):
+    """ implementation for unblock user
+    """
+
+    from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+    payload = PayloadBuilder().SELECT("id").WHERE(
+        ['id', '=', user_id]).payload()
+    old_result = await storage_client.query_tbl_with_payload('users', payload)
+    if len(old_result['rows']) == 0:
+        raise User.DoesNotExist('User does not exist')
+
+    # Clear the failed_attempts so that maximum allowed attempts can be used correctly
+    payload = PayloadBuilder().SET(block_until=None, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
+    result = await storage_client.update_tbl("users", payload)
+    return result
 
 @has_permission("admin")
 async def reset(request):
@@ -714,9 +788,10 @@ async def reset(request):
     if password and not isinstance(password, str):
         err_msg = "New password should be in string format."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
-    error_msg = await validate_password(password)
-    if error_msg:
-        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
+    if password:
+        error_msg = await validate_password(password)
+        if error_msg:
+            raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})
@@ -828,9 +903,9 @@ async def validate_password(password) -> str:
     min_chars = category['length']['value']
     max_chars = category['length']['maximum']
     if len(password) < int(min_chars):
-        message = "Password length is minimum of {} characters.".format(min_chars)
+        message = "Password should have minimum {} characters.".format(min_chars)
     if len(password) > int(max_chars):
-        message = "Password length is maximum of {} characters.".format(max_chars)
+        message = "Password should have maximum {} characters.".format(max_chars)
     if not message:
         has_lower = any(pwd.islower() for pwd in password)
         has_upper = any(pwd.isupper() for pwd in password)

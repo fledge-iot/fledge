@@ -18,6 +18,7 @@
 .. |reset_password| image:: images/reset_password.jpg
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
+.. |firewall| image:: images/firewall.jpg
 
 
 .. Links
@@ -37,7 +38,26 @@
 Securing Fledge
 *****************
 
-The default installation of a Fledge service comes with security features turned off, there are several things that can be done to add security to Fledge.  The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used. The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. Authentication can be via username and password or by means of an authentication certificate.
+The default installation of a Fledge service comes with security features turned off, whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. There are several features in Fledge that can be used to add security to Fledge.  
+
+  - The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used.
+
+  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system.
+   
+  - Authentication can be via username and password or by means of an authentication certificate.
+
+  - Fledge supports a number of different user types or roles, care should be taken to only give users access they require and in particular the administration user rights should be reserved.
+
+  - If authentication is via username and password the administrator is able to select one of a set of password policy that define restrictions as to what characters must be included in any password as well as requiring a minimum length of password.
+
+  - The system can be configured to require users to change their password regularly and a list of previous passwords is maintained to prevent users simply reusing old passwords.
+
+  - If a user attempts to authenticate and fails then that user will be blocked for a short time. If multiple failures occur the blocked period will be increased until ultimately the user is blocked for a 24 hour period. This is to prevent automated systems attempting to guess passwords.
+
+  - Fledge maintains full audit logs of all updates to the Fledge configuration, and other events. This allows for complete auditing of who made what changes to the Fledge configuration and when the changes were made.
+
+.. note::
+  Although all these features add security to a Fledge installation it is still recommended to run Fledge within firewalls and limit those networks that have access to the Fledge API port when using for production purposes.
 
 Enabling HTTPS Encryption
 =========================
@@ -60,15 +80,35 @@ The *Certificate Name* is the name of the certificate that will be used for encr
 
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 
-*Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
-Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-;
-Then follow browser instruction in order to allow the connection and close the tab.
-In the Fledge GUI you should see the green icon (Fledge is running).
+.. note::
+  If using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
+  Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
+  
+  Then follow the instructions in the browser in order to allow the connection and close the tab.
+  In the Fledge GUI you should see the green icon (Fledge is running).
 
 +--------------------+
 | |connection_https| |
 +--------------------+
+
+Allow & Deny Lists
+==================
+
+Fledge supports a pair of optional lists of IP addresses that can be set to allow or deny access to the Fledge API. These lists can be accessed via the *Configuration* menu option in the user interface in the *General*, *Admin API*, *Firewall* configuration category.
+
++------------+
+| |firewall| |
++------------+
+
+  - Clicking on the arrow icon beside each list will expand the list and show the current contents of the list.
+
+  - Click on the *Add new item* link to create a new entry in the list.
+
+  - To remove an entry from the list click on the *x* icon to the right of the list item.
+
+If the allow list is non-empty, then any access, including ping, to the Fledge API port will be checked to see if the source IP address of the request matches an entry in the allow list. If the address of the requester is not in this allow list then the API will not send any response to the caller and the connection will be closed. The only address that is exempt from this checking is the localhost via the loopback interface, 127.0.0.1. This is required for local management of the Fledge instance and must always be accessible.
+
+If the blocked list is non-empty then any access, including ping, to the API will check the source address of the caller to see if it is included in the block list. If it is then the connection will be closed without sending any response to the caller. Again the address 127.0.0.1 is immune from this test.
 
 Requiring User Login
 ====================
@@ -103,6 +143,14 @@ The default username is "admin" with a password of "fledge". Use these to login 
 
 The status bar now contains the name of the user that is currently logged in and a new option has appeared in the left-hand menu, *User Management*.
 
+.. note::
+   Any session that is idle for 15 minutes or longer will be disconnected. The user will then be required to authenticate again before being able to issue any further commands via the API or user interface.
+
+Failed Login Attempts
+---------------------
+
+If a user makes an incorrect login attempt, such as entering the wrong password, that user will be blocked from logging in for a short period. If more than a certain number of consecutive login attempts fail then the user account will be blocked for 24 hours. The account may be unblocked by an administrative user before the 24 hours has elapsed.
+
 Changing Your Password
 ----------------------
 
@@ -132,7 +180,7 @@ This popup can be used to change your password. On successfully changing your pa
 Password Policy
 ---------------
 
-Fledge provides different policies to control the passwords. The following options are currently available:
+Fledge provides different policies to control the managed users password. The following options are currently available:
 
 +-------------------+
 | |password_policy| |
@@ -144,7 +192,7 @@ Fledge provides different policies to control the passwords. The following optio
 
 - *Mixed case and numeric* - password must contain upper, lower case letters and numeric values.
 
-- *Mixed case, numeric and special characters* - password must contain atleast one upper and lower case letter, numeric and special characters.
+- *Mixed case, numeric and special characters* - password must contain at least one upper and lower case letter, numeric and special characters.
 
 .. note::
 
@@ -186,7 +234,9 @@ The user management pages allows
 
 Fledge currently supports four roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users, backups and support bundles.
+
+  - **Control**: a user with this role is able to configure Fledge, execute control scripts and pipelines and also view the data read by Fledge. The user can not manage other users or add new users.
 
   - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
 
@@ -194,7 +244,7 @@ Fledge currently supports four roles for users:
 
   - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
 
-Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both that menu items will be removed completely or options on certain pages will be unavailable if they are not privileged to access those features.
 
 Adding Users
 ------------

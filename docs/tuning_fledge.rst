@@ -10,6 +10,8 @@
 .. |postgres_config| image:: images/postgres_config.png
 .. |sqlitememory_config| image:: images/sqlitememory_config.png
 .. |poll_type| image:: images/poll_type.png
+.. |config_cache| image:: images/config_cache.jpg
+.. |core_log_level| image:: images/core_log_level.jpg
 
 ***************
 Tuning Fledge
@@ -29,6 +31,44 @@ Many factors will impact the performance of a Fledge system
 
 
 Many of these are outside of the control of Fledge itself, however it is possible to tune the way Fledge will use certain resources to achieve better performance within the constraints of a deployment environment.
+
+Setting Log Level
+=================
+
+Fledge writes logs via the *syslog* facility of Linux, this allows for multiple different log levels. Altering the log level will impact the performance of the system and can use significant disk space when set to *debug* or *info* levels. Each of the services within a Fledge instance may have the log level set of that service individually.
+
+The logging level for the Fledge core can be set in the *Logging* configuration category in the *Advanced* parent category that can be accessed from the *Configuration* menu item.
+
++------------------+
+| |core_log_level| |
++------------------+
+
+The logging level can be set to *error*, *warning*, *info* or *debug*, the default setting is *warning*. The level set defines the least severe error that will be logged, logs or higher severity that set will also be logged. In the default setting both *error* and *warning* level logs will be sent to the syslog facility.
+
+The storage log level setting can be found in the *Storage* configuration category.
+
++------------------+
+| |storage_config| |
++------------------+
+
+The south and north services also have log level settings for each service that can be accessed via the *Advanced* tab within the configuration of each of the services.
+
+All other optional services will also have a log level setting accessible via the configuration for each service.
+
+.. note::
+
+   It is recommended to only set the log level of a service to *info* or *debug* when actively tracing a problem with the configuration or operation of a service and to always run with the default, *warning*, log level in production.
+
+Configuration Manager Cache
+===========================
+
+The Fledge system has an internal configuration manager that is used to load, distribute configuration categories and to dynamically update the other components of the system. These configuration categories are stored in the Fledge storage layer, in order to prevent the need for the configuration manager to query the database for each request to read a configuration category. The size of this cache can be configured in the *Configuration Manager* configuration page which is located with the *Advanced* configuration parent category.
+
++----------------+
+| |config_cache| |
++----------------+
+
+The cache size is expressed as a number of configuration categories to hold in the cache. Increasing this value will increase the amount of memory required for the core service, but will increase the performance, particularly when starting up with a large number of services. Increasing the cache size will also reduce the load on the storage service.
 
 South Service Advanced Configuration
 ====================================
@@ -189,6 +229,8 @@ In a similar way to the south services, north services and tasks also have advan
   - *Data block size* - This defines the number of readings that will be sent to the north plugin for each call to the *plugin_send* entry point. This allows the performance of the north data pipeline to be adjusted, with larger blocks sizes increasing the performance, by reducing overhead, but at the cost of requiring more memory in the north service or task to buffer the data as it flows through the pipeline. Setting this value too high may cause issues for certain of the north plugins that have limitations on the number of messages they can handle within a single block.
 
   - *Stream update frequency* - This controls how frequently the north service updates the current position it has reached in the stream of data it is sending north. The value is expressed as a number of data blocks between updates. Increasing this value will write the position to the storage less frequently, increasing the performance. However in the event of a failure data in the stream may be repeated for this number of blocks.
+
+  - *Data block prefetch* - The north service has a read-ahead buffering scheme to allow a thread to prefetch buffers of readings data ready to be consumed by the thread sending to the plugin. This value allows the number of blocks that will be prefetched to be tuned. If the sending thread is starved of data, and data is available to be sent, increasing this value can increase the overall throughput of the north service. Caution should however be exercised as increasing this value will also increase the amount of memory consumed.
 
   - *Asset Tracker Update* - This control how frequently the asset tracker flushes the cache of asset tracking information to the storage layer. It is a value expressed in milliseconds. The asset tracker only write updates, therefore if you have a fixed set of assets flowing in a pipeline the asset tracker will only write any data the first time each asset is seen and will then perform no further writes. If you have variability in your assets or asset structure the asset tracker will be more active and it becomes more useful to tune this parameter.
 
@@ -367,6 +409,9 @@ When collection is enabled the following counters will be collected for the sout
     * - Readings added to buffer
       - An absolute count of the number of readings read into each block.
       - If this value is significantly less than the block size it is an indication that the block size can be lowered. If it is always close to the block size then consider increasing the block size.
+    * - No data available to fetch
+      - Signifies how often there was no data available to be sent to the north plugin.
+      - This performance monitor is useful to aid in tuning the number of buffers to prefetch. It is set to one each time the north plugin is ready to consume more data and no data is available. The count of samples will indicate how often this condition was true within the one minute sampling period.
 
 Health Monitoring
 =================

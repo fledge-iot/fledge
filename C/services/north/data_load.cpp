@@ -11,6 +11,9 @@
 #include <data_load.h>
 #include <north_service.h>
 
+#define INITIAL_BLOCK_WAIT	10
+#define MAX_WAIT_PERIOD		200
+
 using namespace std;
 
 static void threadMain(void *arg)
@@ -26,7 +29,8 @@ static void threadMain(void *arg)
  */
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
-	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL)
+	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL),
+	m_prefetchLimit(2)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -37,6 +41,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_nextStreamUpdate = 1;
 	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
+	m_streamSent = getLastSentId();
 	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
@@ -77,7 +82,7 @@ DataLoad::~DataLoad()
 }
 
 /**
- * External call to shutdown
+ * External call to shutdown the north service
  */
 void DataLoad::shutdown()
 {
@@ -87,7 +92,7 @@ void DataLoad::shutdown()
 }
 
 /**
- * External call to restart
+ * External call to restart the north service
  */
 void DataLoad::restart()
 {
@@ -124,12 +129,20 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		readBlock(block);
+		while (m_shutdown == false && m_queue.size() < m_prefetchLimit)
+		{
+			// Read another block if we have less than 
+			// the prefetch limit already queued
+			readBlock(block);
+		}
 	}
 }
 
 /**
- * Wait for a read request to be made
+ * Wait for a read request to be made. Read requests come from consumer
+ * threads calling the triggerRead call that will cause a block of reading
+ * data (or whatever the source of data is) to be added to the reading
+ * buffer.
  *
  * @return int	The size of the block to read
  */
@@ -147,7 +160,8 @@ unsigned int DataLoad::waitForReadRequest()
 }
 
 /**
- * Trigger the loading thread to read a block of data
+ * Trigger the loading thread to read a block of data. This is called by
+ * any thread to request that data be added to the buffer ready for collection.
  */
 void DataLoad::triggerRead(unsigned int blockSize)
 {
@@ -157,13 +171,16 @@ void DataLoad::triggerRead(unsigned int blockSize)
 }
 
 /**
- * Read a block of readings from the storage service
+ * Read a block of readings, statistics or audit date  from the storage service
  *
  * @param blockSize	The number of readings to fetch
  */
 void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
+	int n_update_streamId = 0;
+	int max_wait_count = 5;	// Maximum wait counter to update streams table
+	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
 	do
 	{
 		ReadingSet* readings = nullptr;
@@ -200,6 +217,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
+			n_update_streamId = 0;
 			m_lastFetched = readings->getLastId();
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
 							readings->getCount(), m_lastFetched);
@@ -215,6 +233,13 @@ void DataLoad::readBlock(unsigned int blockSize)
 		{
 			// Delete the empty readings set
 			delete readings;
+			n_update_streamId++;
+			if (n_update_streamId > max_wait_count) {
+				// Update 'last_object_id' in 'streams' table when no readings to send
+				n_update_streamId = 0;
+				m_streamSent = getLastFetched();
+				flushLastSentId();
+			}
 		}
 		else
 		{
@@ -223,7 +248,10 @@ void DataLoad::readBlock(unsigned int blockSize)
 		if (!m_shutdown)
 		{
 			// TODO improve this
-			this_thread::sleep_for(chrono::milliseconds(250));
+			this_thread::sleep_for(chrono::milliseconds(waitPeriod));
+			waitPeriod *= 2;
+			if (waitPeriod > MAX_WAIT_PERIOD)
+				waitPeriod = MAX_WAIT_PERIOD;
 			n_waits++;
 		}
 	} while (m_shutdown == false);
@@ -239,7 +267,7 @@ ReadingSet *DataLoad::fetchStatistics(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -273,7 +301,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -336,7 +364,9 @@ unsigned long DataLoad::getLastSentId()
 }
 
 /**
- * Buffer a block of readings
+ * Buffer a block of readings. Called after a block of data has been
+ * read to add that block to the queue reading for collection by the
+ * consuming thread.
  *
  * @param readings	The readings to buffer
  */
@@ -344,8 +374,8 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 {
 	if (m_pipeline)
 	{
-		FilterPlugin *firstFilter = m_pipeline->getFirstFilterPlugin();
-		if (firstFilter)
+		PipelineElement *firstElement = m_pipeline->getFirstFilterPlugin();
+		if (firstElement)
 		{
 
 			// Check whether filters are set before calling ingest
@@ -355,14 +385,18 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 									  "filter pipeline is ready");
 				std::this_thread::sleep_for(std::chrono::milliseconds(150));
 			}
+
+			m_pipeline->execute();
 			// Pass readingSet to filter chain
-			firstFilter->ingest(readings);
+			firstElement->ingest(readings);
+			m_pipeline->completeBranch();	// Main branch has completed
+			m_pipeline->awaitCompletion();
 			return;
 		}
 	}
 	unique_lock<mutex> lck(m_qMutex);
 	m_queue.push_back(readings);
-	if (m_perfMonitor)
+	if (m_perfMonitor && m_perfMonitor->isCollecting())
 	{
 		m_perfMonitor->collect("Readings added to buffer", (long)(readings->getCount()));
 		m_perfMonitor->collect("Reading sets buffered", (long)(m_queue.size()));
@@ -384,8 +418,12 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 ReadingSet *DataLoad::fetchReadings(bool wait)
 {
 	unique_lock<mutex> lck(m_qMutex);
-	while (m_queue.empty())
+	while (m_shutdown == false && m_queue.empty())
 	{
+		if (m_perfMonitor && m_perfMonitor->isCollecting())
+		{
+			m_perfMonitor->collect("No data available to fetch", 1);
+		}
 		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)
 		{
@@ -396,9 +434,13 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 			return NULL;
 		}
 	}
-	ReadingSet *rval = m_queue.front();
-	m_queue.pop_front();
-	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	ReadingSet *rval = NULL;
+	if (!m_queue.empty())
+	{
+		rval = m_queue.front();
+		m_queue.pop_front();
+	}
+	if (m_queue.size() < m_prefetchLimit && m_shutdown == false)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}
@@ -421,7 +463,7 @@ InsertValues streamValues;
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
 		Logger::getLogger()->error("Failed to insert a row into the streams table");
-        }
+    }
 	else
 	{
 		// Select the row just created, having description='process name'
@@ -540,8 +582,8 @@ bool DataLoad::loadFilters(const string& categoryName)
 void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
-	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	// Get next element in the pipeline
+	PipelineElement *next = (PipelineElement *)outHandle;
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }

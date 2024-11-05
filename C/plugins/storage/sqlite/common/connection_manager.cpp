@@ -16,6 +16,9 @@
 #include <connection.h>
 #include <readings_catalogue.h>
 #include <logger.h>
+#include <disk_monitor.h>
+#include <utils.h>
+#include <sqlite_common.h>
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -33,7 +36,8 @@ static void managerBackground(void *arg)
  */
 ConnectionManager::ConnectionManager() : m_shutdown(false),
 					m_vacuumInterval(6 * 60 * 60),
-					m_attachedDatabases(0)
+					m_attachedDatabases(0),
+					m_diskSpaceMonitor(0)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -41,13 +45,41 @@ ConnectionManager::ConnectionManager() : m_shutdown(false),
 		m_trace = true;
 	else
 		m_trace = false;
+	
+	std::string dbPath, dbPathReadings;
+	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
+	const char *defaultReadingsConnection = getenv("DEFAULT_SQLITE_DB_READINGS_FILE");
+	if (defaultConnection == NULL)
+	{
+		// Set DB base path
+		dbPath = getDataDir();
+		// Add the filename
+		dbPath += _DB_NAME;
+	}
+	else
+	{
+		dbPath = defaultConnection;
+	}
+
+	if (defaultReadingsConnection == NULL)
+	{
+		// Set DB base path
+		dbPathReadings = getDataDir();
+		// Add the filename
+		dbPathReadings += READINGS_DB_FILE_NAME;
+	}
+	else
+	{
+		dbPathReadings = defaultReadingsConnection;
+	}
+
+	m_diskSpaceMonitor = new DiskSpaceMonitor(dbPath, dbPathReadings);
+
 	m_background = new std::thread(managerBackground, this);
 
         struct rlimit lim;
         getrlimit(RLIMIT_NOFILE, &lim);
 	m_descriptorLimit = lim.rlim_cur;
-
-	
 }
 
 /**
@@ -60,6 +92,11 @@ void ConnectionManager::shutdown()
 	shrinkPool(idle.size());
 	if (m_background)
 		m_background->join();
+	if (m_diskSpaceMonitor)
+	{
+		delete m_diskSpaceMonitor;
+		m_diskSpaceMonitor = NULL;
+	}
 }
 
 /**
@@ -497,6 +534,8 @@ void ConnectionManager::background()
 
 	while (!m_shutdown)
 	{
+		if (m_diskSpaceMonitor)
+			m_diskSpaceMonitor->periodic(15);	// Called with the interval we sleep for
 		sleep(15);
 		time_t tim = time(0);
 		if (m_vacuumInterval && tim > nextVacuum)
@@ -513,7 +552,7 @@ void ConnectionManager::background()
  * Determine if we can allow another database to be created and attached to all the
  * connections.
  *
- * @return True if we can create anotehr database.
+ * @return True if we can create another database.
  */
 bool ConnectionManager::allowMoreDatabases()
 {

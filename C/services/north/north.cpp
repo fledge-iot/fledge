@@ -502,6 +502,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_dataLoad->setStreamUpdate(newStreamUpdate);
 			}
 		}
+		if (m_configAdvanced.itemExists("prefetchLimnit"))
+		{
+			unsigned long limit = strtoul(
+						m_configAdvanced.getValue("prefetchLimit").c_str(),
+						NULL,
+						10);
+			if (limit > 0)
+			{
+				m_dataLoad->setPrefetchLimit(limit);
+			}
+		}
 		if (m_configAdvanced.itemExists("assetTrackerInterval"))
 		{
 			unsigned long interval  = strtoul(
@@ -984,6 +995,16 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		std::to_string(1),
 		std::to_string(1));
 	defaultConfig.setItemDisplayName("streamUpdate", "Stream update frequency");
+	defaultConfig.setItemAttribute("streamUpdate", ConfigCategory::MINIMUM_ATTR, "1");
+	// Add prefetch limit item
+	defaultConfig.addItem("prefetchLimit",
+		"The maximum number of blocks to be prefetched and queued ready for transmission.",
+		"integer",
+		std::to_string(2),
+		std::to_string(2));
+	defaultConfig.setItemDisplayName("prefetchLimit", "Data block prefetch");
+	defaultConfig.setItemAttribute("prefetchLimit", ConfigCategory::MINIMUM_ATTR, "2");
+	defaultConfig.setItemAttribute("prefetchLimit", ConfigCategory::MAXIMUM_ATTR, "10");
 	defaultConfig.addItem("assetTrackerInterval",
 			"Number of milliseconds between updates of the asset tracker information",
 			"integer", std::to_string(MIN_ASSET_TRACKER_UPDATE),
@@ -1294,4 +1315,30 @@ string NorthService::controlSource()
 	source += "\"";
 
 	return source;
+}
+
+/**
+ * Raise an alert that we are having issues sending data
+ *
+ * We also write a warning to the system log to aid with debugging
+ */
+void NorthService::alertFailures()
+{
+	string key = "North " + m_name;
+	string message = "Repeated failures to send data via the " + m_name + " north service ";
+	m_mgtClient->raiseAlert(key, message, "normal");
+	logger->warn("Repeated failures to send data to destination");
+}
+
+/**
+ * Clear the failure alert for sending data
+ *
+ * We clear the alert from the status bar and write a message to the system
+ * log
+ */
+void NorthService::clearFailures()
+{
+	string key = "North " + m_name;
+	m_mgtClient->clearAlert(key);
+	logger->info("The sending of data has resumed");
 }

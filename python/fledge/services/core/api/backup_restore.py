@@ -19,6 +19,7 @@ from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
 
 from fledge.common.storage_client import payload_builder
+from fledge.common.web.middleware import has_permission
 from fledge.plugins.storage.common import exceptions
 from fledge.services.core import connect
 
@@ -121,6 +122,7 @@ async def get_backups(request):
     return web.json_response({"backups": res})
 
 
+@has_permission("admin")
 async def create_backup(request):
     """ Creates a backup
 
@@ -163,6 +165,7 @@ async def get_backup_details(request):
     return web.json_response(resp)
 
 
+@has_permission("admin")
 async def get_backup_download(request):
     """ Download back up file by id
 
@@ -209,9 +212,10 @@ async def get_backup_download(request):
         _logger.error(ex, "Failed to download Backup file for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.FileResponse(path=gz_path)
+        return web.FileResponse(path=gz_path, headers={'Content-Type': 'application/gzip'})
 
 
+@has_permission("admin")
 async def delete_backup(request):
     """ Delete a backup
 
@@ -233,6 +237,7 @@ async def delete_backup(request):
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
+@has_permission("admin")
 async def restore_backup(request):
     """
     Restore from a backup
@@ -274,6 +279,7 @@ async def get_backup_status(request):
     return web.json_response({"backupStatus": results})
 
 
+@has_permission("admin")
 async def upload_backup(request: web.Request) -> web.Response:
     """
     Upload a backup file
@@ -332,8 +338,11 @@ async def upload_backup(request: web.Request) -> web.Response:
             # TODO: FOGL-5876 ts as per post param if given in payload
             # insert backup record entry in db
             full_file_name_path = "{}/{}".format(backup_path, backup_file_name)
+            # Get the current UTC date and format as 'YYYY-MM-DD HH:MM:SS'
+            from datetime import datetime
+            now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             payload = payload_builder.PayloadBuilder().INSERT(
-                file_name=full_file_name_path, ts="now()", type=1, status=2, exit_code=0).payload()
+                file_name=full_file_name_path, ts=now_utc, type=1, status=2, exit_code=0).payload()
             # audit trail entry
             storage = connect.get_storage_async()
             await storage.insert_into_tbl("backups", payload)

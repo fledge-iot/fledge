@@ -181,7 +181,7 @@ TEST(ReadingTest, SimpleSub)
 	ASSERT_STREQ(res.c_str(), "test3 a string");
 }
 
-TEST(ReadingTest, DefaultSub)
+TEST(ReadingTest, SubWithDefault)
 {
 	DatapointValue value("a string");
 	Reading reading(string("test3"), new Datapoint("str", value));
@@ -193,7 +193,7 @@ TEST(ReadingTest, DefaultSub)
 	ASSERT_STREQ(res.c_str(), "test3 foobar");
 }
 
-TEST(ReadingTest, DefaultNoSub)
+TEST(ReadingTest, DefaultSub)
 {
 	DatapointValue value("a string");
 	Reading reading(string("test3"), new Datapoint("str", value));

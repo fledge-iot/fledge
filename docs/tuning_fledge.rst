@@ -213,7 +213,25 @@ The tuning of the south service allows the way the buffering is used within the 
 
 Setting the *Maximum buffers Readings* value allows the user to place a cap on the amount of memory used to buffer within the south service, since when this value is reach, regardless of the age of the data and the setting of the latency parameter, the data will be sent to the storage service. Setting this to a smaller value allows tighter control on the memory footprint at the cost of less efficient use of the communication and storage service.
 
-Tuning between performance, latency and memory usage is always a balancing act, there are situations where the performance requirements mean that a high latency will need to be incurred in order to make the most efficient use of the communications between the micro services and the transnational performance of the storage engine. Likewise the memory resources available for buffering may restrict the performance obtainable.
+Tuning between performance, latency and memory usage is always a balancing act, there are situations where the performance requirements mean that a high latency will need to be incurred in order to make the most efficient use of the communications between the micro services and the transactional performance of the storage engine. Likewise the memory resources available for buffering may restrict the performance obtainable.
+
+Reading Latency
+---------------
+
+Closely related to buffer usage is reading latency in the south service. This is a measure of the delay between the south service receiving a new reading and that reading appearing in the storage subsystem. We deliberately delay the forwarding of readings from the south service to storage in order to create blocks of multiple readings to send per call to the storage layer. This increases the overall throughput of the south to storage interface at the cost of increasing the latency. There are two settings that come into play when defining this, the maximum latency we will accept and the maximum number of readings we will buffer.
+
+In situations where readings are arriving in the south service relatively frequently these can be set to values to allow data to build up reasonable size blocks of readings to send and hence be more efficient in sending the data to the storage layer. However if data does not arrive frequently or is not predictable in the way it arrives then these settings may cause unexpected latency and delays within the system.
+
+The buffering subsystem within the south service will buffer readings in the south as they arrive. It checks the time difference between the oldest buffered reading and the current time to see if the maximum latency setting is about to be exceeded. If it is it will send the buffered data. If latency check does not result in the data queue being sent to the storage subsystems, the south service will check the number of readings buffered. If the count of buffered readings is about to exceed the maximum allowed number of buffered readings, the south service will then send all the buffered readings to the storage service. No further checks are done until the next reading arrives.
+
+Therefore, if readings do not arrive very frequently, or the south plugin is asynchronous and data arrives sporadically, then it may not check the buffer status for more than the maximum configured latency period. The requirement for more data to arrive before more checks are made, may result in that maximum latency being exceeded. When this occurs a warning message will be logged in the system logs.
+
+In these circumstances, it is recommended to disable or severely limit the buffering in the south service. This will result in less efficient interactions with the storage system, but these will be infrequent due to the infrequent nature of data arrival.
+
+.. note::
+
+   Data arrives at the buffering subsystem **after** it has passed through the processing pipeline in the south service. Therefore if the pipeline does data compression, for example using the delta filter, this may reduce the arrival rate of data at the buffering subsystem and convert high bandwidth data from the plugin to low bandwidth data to send to the storage subsystem.
+
 
 North Advanced Configuration
 ============================

@@ -179,6 +179,10 @@ The *plugin_register_ingest* call in versions 2.0.0 and later of the interface w
 
   /**
    * Register ingest callback
+   *
+   * @param handle      The plugin handle
+   * @param cb          The callback function to be called with the readings
+   * @param data        Data to be passed to the callback function
    */
   void plugin_register_ingest(PLUGIN_HANDLE *handle, INGEST_CB2 cb, void *data)
   {
@@ -227,6 +231,8 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
 
   /**     
    * Start the Async handling for the plugin
+   *
+   * @param handle      The plugin instance handle
    */
   void plugin_start(PLUGIN_HANDLE *handle)
   {

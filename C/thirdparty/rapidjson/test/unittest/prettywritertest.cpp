@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -338,6 +338,35 @@ TEST(PrettyWriter, MoveCtor) {
         buffer.GetString());
 }
 #endif
+
+TEST(PrettyWriter, Issue_1336) {
+#define T(meth, val, expected)                          \
+    {                                                   \
+        StringBuffer buffer;                            \
+        PrettyWriter<StringBuffer> writer(buffer);      \
+        writer.meth(val);                               \
+                                                        \
+        EXPECT_STREQ(expected, buffer.GetString());     \
+        EXPECT_TRUE(writer.IsComplete());               \
+    }
+
+    T(Bool, false, "false");
+    T(Bool, true, "true");
+    T(Int, 0, "0");
+    T(Uint, 0, "0");
+    T(Int64, 0, "0");
+    T(Uint64, 0, "0");
+    T(Double, 0, "0.0");
+    T(String, "Hello", "\"Hello\"");
+#undef T
+
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    writer.Null();
+
+    EXPECT_STREQ("null", buffer.GetString());
+    EXPECT_TRUE(writer.IsComplete());
+}
 
 #ifdef __clang__
 RAPIDJSON_DIAG_POP

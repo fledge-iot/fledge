@@ -181,6 +181,18 @@ TEST(ReadingTest, SimpleSub)
 	ASSERT_STREQ(res.c_str(), "test3 a string");
 }
 
+TEST(ReadingTest, SubWithDefault)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	DatapointValue val2("foobar");
+	reading.addDatapoint(new Datapoint("foo", val2));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo|bar$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 foobar");
+}
+
 TEST(ReadingTest, DefaultSub)
 {
 	DatapointValue value("a string");

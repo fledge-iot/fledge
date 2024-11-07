@@ -24,6 +24,84 @@ Version History
 Fledge v2
 ==========
 
+v2.6.0
+-------
+
+Release Date: 2024-10-24
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Monitoring of the available space on the disk that holds the SQLite buffer for readings ingested by Fledge has been added. Entries will be written to the error log to predict the expiration of the disk space and also logs when the spaces left available fall below 10% and 5%.
+       - Failures to send data north via the north service raise an alert. This is now cleared if the flow of data north later resumes.
+       - An issue that could cause high CPU utilisation when a north service was unable to send data to the upstream system has been resolved. The user is also made more aware of failed attempts to send data upstream using the alerting feature. An alert will be created and shown in the GUI status bar.
+       - It is now possible to create allow and block lists for IP addresses that are allowed access or explicitly denied access to the API port of the instance.
+       - The configuration items within the configuration category now have the ability to limit the user roles that are allowed to update the configuration item.
+       - Configuration items can now be given a permission property that can be used to control which user roles have access to the configuration item.
+       - Performance monitors have been improved.
+       - A new section relating to all aspects of monitoring within Fledge has been added to the documentation.
+       - The tuning documentation has been updated to discuss the use of the configuration cache size tuning parameter and to add a discussion on tuning the log level for the various services.
+
+    - Bug Fix:
+
+       - An issue that caused incorrect payloads to be sent north when choosing the audit log as the data source has been resolved.
+       - An issue that incorrectly prevented some authorised users from executing a control endpoint has been resolved.
+       - An issue with backup and restore when using Postgres as the storage engine to store the configuration data has been resolved.
+       - The manual purge, in the developer features of the user interface, was not working for assets containing ' #',  ‘+' or '&’ characters in asset name.
+       - An issue with north services that have been misconfigured not cleanly shutting down has been resolved.
+       - An issue that could cause a backup file to not download has been resolved.
+       - An issue that could allow an unauthorised user to change the password of another user has been resolved.
+       - After restart of Fledge, the sent count in the Fledge GUI dashboard would increase by few readings after every restart of Fledge, even if no south plugins were running. This has been fixed. This was an error in the increment of the counter; there were never any additional readings sent.
+       - An issue with an incorrect audit entry being created when adding new properties to a configuration item has been resolved.
+       - A security issue that could allow one user to see the profile of another has been resolved.
+       - Users now need to have administration permissions to see the user names and roles of other users.
+       - The handling of errors during pipeline creation has been enhanced to give better reporting of filter plugin exceptions.
+       - The notification service has been updated to allow sub-second retriever times for notifications to be specified.
+       - The documentation for deleting users via the REST API has been corrected.
+
+
+- **GUI**
+
+    - New Features:
+
+       - The rendering of lists in the configuration options has been improved.
+       - The ordering of the tabs in the configuration user interface is no longer alphabetical but controlled by the configuration category itself.
+       - The user interface now hides configuration options the user does not have permission to change.
+       - The rendering of the developer menu has been brought into line with other sub-menu rendering.
+
+
+    - Bug Fix:
+
+       - An issue with the user interface incorrectly displaying a timestamp has been resolved.
+       - An issue with list type configuration items occasionally not rendering correctly for filters has been resolved.
+       - An issue related to improper length validation for certain entries in the configuration items has been resolved.
+       - An issue with forcible session disconnection sometimes failing has been resolved.
+       - The performance related to management of services and plugins has been improved.
+       - An issue that prevents export of persisted data in developer mode has been resolved.
+       - An issue that prevented deletion of persisted data for plugins in developer mode has been resolved.
+       - An issue with the filter plugin that involved underscores in the name has been resolved.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - fledge-filter-asset now supports to allow regular expressions to be used in the asset name to match when applying the filter.
+       - fledge-filter-delta has been enhanced to give greater control over the action when one or more datapoints in an asset reading are detected as changing.
+       - fledge-notify-operation now supports data substitution as with the other control-related notification delivery plugins.
+       - fledge-north-OMF plugin's *action* code in the HTTP header is typically set to *update* for OMF Data messages. This setting allows old values to be updated when timestamps match and ensures that new data is compressed correctly by the PI Data Archive. However, if the AVEVA PI Buffer Subsystem is configured, the *update* action code is converted to an internal PI storage mode, which causes new data to bypass compression and may lead to excessive storage of too many data values. To address this issue, the OMF North plugin now allows you to change the OMF Data action code to *create*. This option should only be used when the AVEVA PI Buffer Subsystem is configured.
+       - fledge-south-s2opcua now supports for the OPC UA Data Change Filter. This filter type is defined in the `OPC UA Specification, Part 4, Section 7.22.2 <https://reference.opcfoundation.org/Core/Part4/v105/docs/7.22.2>`_. The Data Change Filter allows OPC UA clients (such as this plugin) to request that the OPC UA server send data value updates only if the server's data values have changed significantly. With careful tuning, you can reduce the data traffic from OPC UA server to the client without significant loss of fidelity. This plugin has been upgraded to use Systerel's `S2OPC Toolkit Version 1.5.0 <https://gitlab.com/systerel/S2OPC/-/releases/S2OPC_Toolkit_1.5.0>`_.
+
+    - Bug Fix:
+
+       - An issue that could cause a crash during purge operations has been resolved.
+       - fledge-south-modbusc plugin that could cause it to fail if the IP address of the MODBUS device was changed incorrectly and then changed back to the correct address has been resolved.
+       - fledge-south-mqtt-sparkplug now supports various data types, including string, integer, float and boolean.
+       - fledge-south-randomwalk has been improved to give a more random result.
+       - fledge-south-s2opcua would sometimes fail to connect to an OPC UA server with a large number of available endpoints on a distant or noisy network. This has been fixed.
+
+
 v2.5.0
 -------
 

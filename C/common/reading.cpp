@@ -700,7 +700,9 @@ string Reading::substitute(const string& str)
 				datapointValue = datapoint->getData().toStringValue();
 				break;
 			}
-			rval.replace(it->start, it->name.length()+2, datapointValue );
+			rval.replace(it->start, it->name.length()+2
+						+ (it->def.empty() ? 0 : it->def.length() + 1),
+						datapointValue );
 		}
 		else if (!it->def.empty())
 		{

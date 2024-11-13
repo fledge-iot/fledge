@@ -630,3 +630,97 @@ vector<Datapoint *> *values = new vector<Datapoint *>;
 	}
 	return values;
 }
+
+/**
+ * Create the information about the macros to substitute in the given string
+ *
+ * @param str	The string we are substituting
+ * @param macros	Vector of macros to build up
+ */
+void Reading::collectMacroInfo(const string& str, vector<Macro>& macros)
+{
+	string::size_type start = str.find('$');
+	string::size_type end = str.find('$', start + 1);
+
+	while (start != string::npos && end != string::npos) 
+	{
+		string::size_type bar = str.find('|', start + 1);
+		if (bar != string::npos && bar < end && bar > start + 1) 
+		{
+			string def = str.substr(bar + 1, end - bar - 1);
+			macros.emplace_back(Macro(str.substr(start + 1, bar - start - 1), start, def));
+		}
+		else if (end > start + 1)
+		{
+			macros.emplace_back(Macro(str.substr(start + 1, end - start - 1), start));
+		}
+		start = str.find('$', end + 1);
+		end = str.find('$', start + 1);
+	}
+}
+
+/**
+ * Substitute values from this reading into the string.
+ * Macros are of the form $datapointname$, $ASSET$ or 
+ * $datapointname|default$
+ *
+ * @param str	The string to substitute into
+ * @return string	The substituted string
+ */
+string Reading::substitute(const string& str)
+{
+	string rval = str;
+	vector<Macro> macros;
+	collectMacroInfo(rval, macros);
+	// Replace Macros by datapoint value
+	for (auto it =  macros.rbegin(); it != macros.rend(); ++it)
+	{
+		// In case of ASSET Macro, replace it by asset name instead of datapoint value
+		if (it->name == "ASSET")
+		{
+			rval.replace(it->start, it->name.length()+2, this->getAssetName() );
+			continue;
+		}
+		Datapoint * datapoint = this->getDatapoint(it->name);
+
+		if (datapoint)
+		{
+			// Check for datapoint type for string and numbers
+			DatapointValue::dataTagType dataType = datapoint->getData().getType();
+			if (
+				dataType != DatapointValue::dataTagType::T_STRING &&
+				dataType != DatapointValue::dataTagType::T_INTEGER &&
+				dataType != DatapointValue::dataTagType::T_FLOAT
+			)
+			{
+				Logger::getLogger()->warn("The datapoint %s cannot be used as a macro substitution as it is not a string or numeric value",it->name.c_str());
+				continue;
+			}
+			string datapointValue = "";
+			switch (dataType)
+			{
+				case DatapointValue::dataTagType::T_INTEGER: 
+					datapointValue = std::to_string(datapoint->getData().toInt());
+					break;
+				case DatapointValue::dataTagType::T_FLOAT: 
+					datapointValue = std::to_string(datapoint->getData().toDouble());
+					break;
+				default: 
+				datapointValue = datapoint->getData().toStringValue();
+				break;
+			}
+			rval.replace(it->start, it->name.length()+2
+						+ (it->def.empty() ? 0 : it->def.length() + 1),
+						datapointValue );
+		}
+		else if (!it->def.empty())
+		{
+			rval.replace(it->start, it->name.length() + it->def.length() + 3, it->def);
+		}
+		else
+		{
+			rval.replace(it->start, it->name.length()+2, "");
+		}
+	}
+	return rval;
+}

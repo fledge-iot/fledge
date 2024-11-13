@@ -81,7 +81,7 @@ void StatsHistory::run() const
 
 		try {
 			processKey(key, historyValues, updateValues, dateTimeStr, val, prev);
-		} catch (exception e) {
+		} catch (exception& e) {
 			getLogger()->error("Failed to process statisitics key %s, %s", key, e.what());
 		}
 		if (!keySet->isLastRow(rowIter))

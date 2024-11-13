@@ -170,3 +170,63 @@ TEST(ReadingTest, ISO8601MS)
 	string datetime = reading.getAssetDateUserTime(Reading::FMT_ISO8601MS);
 	ASSERT_EQ(datetime.compare("2019-01-10 10:01:03.123456 +0000"), 0);
 }
+
+TEST(ReadingTest, SimpleSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $str$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 a string");
+}
+
+TEST(ReadingTest, SubWithDefault)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	DatapointValue val2("foobar");
+	reading.addDatapoint(new Datapoint("foo", val2));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo|bar$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 foobar");
+}
+
+TEST(ReadingTest, DefaultSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo|bar$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 bar");
+}
+
+TEST(ReadingTest, NoDefaultSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 ");
+}
+
+TEST(ReadingTest, MultipleSub)
+{
+	DatapointValue value("first");
+	Reading reading(string("test3"), new Datapoint("str1", value));
+	DatapointValue val2("second");
+	reading.addDatapoint(new Datapoint("str2", val2));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $str1$ $str2$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 first second");
+	s = "$ASSET$ $str2$ $str1$";
+	res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 second first");
+	s = "$ASSET$ $str1$ $str2$ $str1$";
+	res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 first second first");
+}

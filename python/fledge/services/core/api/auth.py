@@ -284,6 +284,7 @@ async def logout(request):
     return web.json_response({"logout": True})
 
 
+@has_permission("admin")
 async def get_roles(request):
     """ get roles
 
@@ -318,6 +319,11 @@ async def get_user(request):
         user_name = request.query['username'].lower()
     if user_id or user_name:
         try:
+            if not request.is_auth_optional:
+                if int(request.user["role_id"]) not in [1, 5]:
+                    if ((user_id is not None and int(request.user["id"]) != user_id)
+                            or (user_name is not None and request.user["uname"] != user_name)):
+                        raise web.HTTPForbidden
             user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')
@@ -575,6 +581,16 @@ async def update_password(request):
         msg = "User ID should be in integer."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    # Restrictions
+    if int(request.user["id"]) != int(user_id):
+        # Super Admin default user
+        if int(user_id) == 1:
+            raise web.HTTPUnauthorized(reason="Insufficient privileges to update the password for the given user.")
+        else:
+            if int(request.user["role_id"]) != ADMIN_ROLE_ID:
+                raise web.HTTPUnauthorized(
+                    reason="Insufficient privileges to update the password for the given user.")
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -583,7 +599,7 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        err_msg = "New password should be in string format."
+        err_msg = "New password should be a valid string."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
     error_msg = await validate_password(new_password)
     if error_msg:
@@ -887,9 +903,9 @@ async def validate_password(password) -> str:
     min_chars = category['length']['value']
     max_chars = category['length']['maximum']
     if len(password) < int(min_chars):
-        message = "Password length is minimum of {} characters.".format(min_chars)
+        message = "Password should have minimum {} characters.".format(min_chars)
     if len(password) > int(max_chars):
-        message = "Password length is maximum of {} characters.".format(max_chars)
+        message = "Password should have maximum {} characters.".format(max_chars)
     if not message:
         has_lower = any(pwd.islower() for pwd in password)
         has_upper = any(pwd.isupper() for pwd in password)

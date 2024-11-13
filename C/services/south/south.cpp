@@ -124,7 +124,7 @@ bool	       dryrun = false;
 	}
 	Logger *logger = Logger::getLogger();
 	logger->setMinLevel(logLevel);
-	// Start the service. This will oly return whren the serivce is shutdown
+	// Start the service. This will only return whren the serivce is shutdown
 	service->start(coreAddress, corePort);
 	delete service;
 	delete logger;
@@ -345,7 +345,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
-			logger->fatal("Failed to load south plugin, exiting...");
+			logger->fatal("Failed to load south plugin %s, exiting...", m_name.c_str());
+			string key = m_name + "LoadPlugin";
+			m_mgtClient->raiseAlert(key, "South service " + m_name + " is shutting down due to a failure loading the south plugin");
 			management.stop();
 			return;
 		}
@@ -434,7 +436,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					m_throttle = false;
 				}
 			}
-		} catch (ConfigItemNotFound e) {
+		} catch (ConfigItemNotFound& e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
@@ -471,6 +473,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				m_perfMonitor->setCollecting(false);
 		}
 
+		if (m_configAdvanced.itemExists("rateMonitoringInterval") && m_configAdvanced.itemExists("rateSigmaFactor"))
+		{
+			string s = m_configAdvanced.getValue("rateMonitoringInterval");
+			long interval = strtol(s.c_str(), NULL, 10);
+			s = m_configAdvanced.getValue("rateSigmaFactor");
+			long factor = strtol(s.c_str(), NULL, 10);
+			ingest.configureRateMonitor(interval, factor);
+
+		}
+
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
@@ -482,7 +494,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				logger->warn("Invalid setting of reading rate, defaulting to 1");
 				m_readingsPerSec = 1;
 			}
-		} catch (ConfigItemNotFound e) {
+		} catch (ConfigItemNotFound& e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
 
@@ -490,8 +502,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		if (!ingest.loadFilters(m_name))
 		{
 			string errMsg("'" + m_name + "' plugin: failed loading filter plugins.");
-			Logger::getLogger()->fatal((errMsg + " Exiting.").c_str());
-			throw runtime_error(errMsg);
+			Logger::getLogger()->fatal((errMsg + " Shutting down south service.").c_str());
+			string key = m_name + "LoadPipeline";
+			m_mgtClient->raiseAlert(key, "South service " + m_name + " is shutting down due to a failure to create the data pipeline");
+			return;
 		}
 
 		if (southPlugin->persistData())
@@ -849,7 +863,7 @@ bool SouthService::loadPlugin()
 
 			return true;
 		}
-	} catch (exception e) {
+	} catch (exception& e) {
 		logger->fatal("Failed to load south plugin: %s\n", e.what());
 	}
 	return false;
@@ -914,6 +928,8 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
+		// Propogate advanced configuration changes to the ingest class always
+		m_ingest->configChange(categoryName, category);
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		if (m_configAdvanced.itemExists("statistics"))
 		{
@@ -993,7 +1009,7 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 				{
 					m_pollType = POLL_ON_DEMAND;
 				}
-			} catch (ConfigItemNotFound e) {
+			} catch (ConfigItemNotFound& e) {
 				logger->error("Failed to update poll interval following configuration change");
 			}
 		}
@@ -1016,8 +1032,6 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
 			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
-			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
-			m_ingest->configChange(categoryName, "logLevel");
 			
 			if (type == PYTHON_PLUGIN)
 			{
@@ -1235,6 +1249,18 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			       "boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
+
+	// Rate Monitoring options
+	defaultConfig.addItem("rateMonitoringInterval",
+				"The interval in minutes to use when calculating average ingestion rates for monitoring the service ingestion",
+				"integer", "1", "1");
+	defaultConfig.setItemDisplayName("rateMonitoringInterval", "Monitoring Period");
+	defaultConfig.setItemAttribute("rateMonitoringInterval", ConfigCategory::MINIMUM_ATTR, "0");
+	defaultConfig.addItem("rateSigmaFactor",
+				"The sensitivity of the ingest rate monitor, expressed as a number of standard deviations of the average ingest rate.",
+				"integer", "3", "3");
+	defaultConfig.setItemDisplayName("rateSigmaFactor", "Monitoring Sensitivity");
+	defaultConfig.setItemAttribute("rateSigmaFactor", ConfigCategory::MINIMUM_ATTR, "1");
 }
 
 /**

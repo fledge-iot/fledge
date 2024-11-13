@@ -13,6 +13,7 @@
 #include <thread>
 #include <logger.h>
 #include <set>
+#include <ingest_rate.h>
 
 using namespace std;
 
@@ -164,6 +165,9 @@ void Ingest::updateStats()
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
 		m_statsCv.wait_for(lck, std::chrono::seconds(FLUSH_STATS_INTERVAL));
 
+	if (m_ingestRate)
+		m_ingestRate->periodic();
+
 	if (statsPendingEntries.empty())
 	{
 		return;
@@ -310,6 +314,8 @@ Ingest::Ingest(StorageClient& storage,
 
 	m_deprecatedAgeOut = 0;
 	m_deprecatedAgeOutStorage = 0;
+
+	m_ingestRate = new IngestRate(mgmtClient, serviceName);
 }
 
 /**
@@ -392,6 +398,8 @@ Ingest::~Ingest()
 
 	if (m_deprecated)
 		delete m_deprecated;
+	if (m_ingestRate)
+		delete m_ingestRate;
 }
 
 /**
@@ -423,6 +431,9 @@ void Ingest::ingest(const Reading& reading)
 {
 vector<Reading *> *fullQueue = 0;
 
+	if (m_ingestRate)
+		m_ingestRate->ingest(1);
+
 	{
 		lock_guard<mutex> guard(m_qMutex);
 		m_queue->emplace_back(new Reading(reading));
@@ -452,6 +463,9 @@ void Ingest::ingest(const vector<Reading *> *vec)
 vector<Reading *> *fullQueue = 0;
 size_t qSize;
 unsigned int nFullQueues = 0;
+
+	if (m_ingestRate)
+		m_ingestRate->ingest(vec->size());
 
 	{
 		lock_guard<mutex> guard(m_qMutex);
@@ -734,7 +748,7 @@ void Ingest::processQueue()
 			lock_guard<mutex> guard(m_pipelineMutex);
 			if (m_filterPipeline && !m_filterPipeline->isShuttingDown())
 			{
-				FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
+				PipelineElement *firstFilter = m_filterPipeline->getFirstFilterPlugin();
 				if (firstFilter)
 				{
 					// Check whether filters are set before calling ingest
@@ -744,12 +758,14 @@ void Ingest::processQueue()
 									  "filter pipeline is ready");
 						std::this_thread::sleep_for(std::chrono::milliseconds(150));
 					}
-
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
+					m_filterPipeline->execute();	// Set the pipeline executing
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
+					m_filterPipeline->completeBranch();	// Main branch has completed
+					m_filterPipeline->awaitCompletion();
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
 					 * return.
@@ -1020,9 +1036,9 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
 	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	PipelineElement *next = (PipelineElement *)outHandle;
 
-	// Pass readings to next filter
+	// Pass readings to the next stage in the pipeline
 	next->ingest(readingSet);
 }
 
@@ -1050,31 +1066,21 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	Ingest* ingest = (Ingest *)outHandle;
-
-	if (ingest->m_data != readingSet->getAllReadingsPtr())
+	lock_guard<mutex> guard(ingest->m_useDataMutex);
+	
+	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
+	if (!ingest->m_data)
 	{
-		if (ingest->m_data)
-		{
-		    // Remove the readings in the vector
-		    for(auto & rdngPtr : *(ingest->m_data))
-		        delete rdngPtr;
-
-                   ingest->m_data->clear();// Remove any pointers still in the vector
-		   delete ingest->m_data;
-                   ingest->m_data = readingSet->moveAllReadings();
-		}
-		else
-		{
-		    // move reading vector to ingest
-		    ingest->m_data = readingSet->moveAllReadings();
-		}
+		// If we are called during shutdown there will be no m_data in place
+		// and we create a new one to handle this special case. In this case
+		// the m_data will not be explicitly deleted. However as we are shutting
+		// down this will note cause a problem as all memory is recovered at process
+		// exit time.
+		ingest->m_data = new vector<Reading *>;
 	}
-	else
-	{
-	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
-	}
+	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	
 	readingSet->clear();
 	delete readingSet;
@@ -1089,6 +1095,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	Logger::getLogger()->debug("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	string advanced = m_serviceName + "Advanced";
 	if (category == m_serviceName) 
 	{
 		/**
@@ -1142,10 +1149,23 @@ void Ingest::configChange(const string& category, const string& newConfig)
 		lock_guard<mutex> guard(m_pipelineMutex);
 		m_running = true;
 	}
+	else if (category == advanced) 
+	{
+		ConfigCategory config("tmp", newConfig);
+		string s = config.getValue("rateMonitoringInterval");
+		long interval = strtol(s.c_str(), NULL, 10);
+		s = config.getValue("rateSigmaFactor");
+		long factor = strtol(s.c_str(), NULL, 10);
+		m_ingestRate->updateConfig(interval, factor);
+
+		// TODO If the rate has changed we need to restart the monitoring for
+		// now we trigger this if the category changes
+		m_ingestRate->relearn();
+	}
 	else
 	{
 		/*
-		 * The category is for one fo the filters. We simply call the Filter Pipeline
+		 * The category is for one of the filters. We simply call the Filter Pipeline
 		 * instance and get it to deal with sending the configuration to the right filter.
 		 * This is done holding the pipeline mutex to prevent the pipeline being changed
 		 * during this call and also to hold the ingest thread from running the filters
@@ -1161,7 +1181,7 @@ void Ingest::configChange(const string& category, const string& newConfig)
 }
 
 /**
- * Return the numebr fo queued readings in the south service
+ * Return the number of queued readings in the south service
  */
 size_t Ingest::queueLength()
 {
@@ -1510,4 +1530,16 @@ void Ingest::flowControl()
 			       	? "failed to drain in sufficient time" : "has drained");
 		m_performance->collect("flow controlled", total);
 	}
+}
+
+/**
+ * Configure the ingest rate class with the collection interval and
+ * the sigma factor allowed before reporting
+ *
+ * @param interval	Number of minutes to average ingest stats over
+ * @param factor	Number of standard deviations to allow before reporting
+ */
+void Ingest::configureRateMonitor(long interval, long factor)
+{
+	m_ingestRate->updateConfig(interval, factor);
 }

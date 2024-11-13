@@ -270,7 +270,7 @@ ReadingSet *DataLoad::fetchStatistics(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));

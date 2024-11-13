@@ -55,8 +55,8 @@ class TestE2eExprPi:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
                           south_branch, fledge_url, add_filter, filter_branch, filter_name,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token,
-                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,):
+                          start_north_pi_server_c_web_api, pi_host, pi_port,
+                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -90,14 +90,15 @@ class TestE2eExprPi:
 
         # enable_schedule(fledge_url, SVC_NAME)
 
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                    taskname="NorthReadingsToPI")
 
         yield self.start_south_north
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
         remove_directories("/tmp/fledge-filter-{}".format(filter_plugin))
 
-    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi_asset_server, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using expression south plugin & metadata filter, and sent to PI
             start_south_north: Fixture that starts Fledge with south service, add filter and north instance
@@ -128,7 +129,7 @@ class TestE2eExprPi:
         # disable schedule to stop the service and sending data
         disable_schedule(fledge_url, SVC_NAME)
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -176,12 +177,11 @@ class TestE2eExprPi:
         # verify filter is applied and we have {name: value} pair added by metadata filter
         assert "value" == read["name"]
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
-
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, ASSET_NAME, {"Expression", "name"})
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, ASSET_NAME, {"Expression", "name"})
             retry_count += 1
             time.sleep(wait_time * 2)
 

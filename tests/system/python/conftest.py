@@ -717,6 +717,108 @@ def read_data_from_pi_web_api():
 
 
 @pytest.fixture
+def read_data_from_pi_asset_server():
+    def _read_data_from_pi_asset_server(host, admin, password, pi_database, asset, sensor, af_hierarchy_list=['fledge', 'room1', 'machine1']):
+        """This method reads data from PI Web API asset server"""
+
+        # Initialize variables
+        dbs = None
+        # PI logical grouping of attributes and child elements
+        elements = None
+        # List of elements
+        url_elements_list = None
+        # Element's recorded data url
+        url_recorded_data = None
+        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
+        web_id = None
+        # URL of source datapoint
+        source_link = None
+
+        # Create the basic authorization header
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+        try:
+            # Establish a connection to the PI Asset Server
+            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs = r["Items"][0]["Links"]["Databases"]
+
+            if dbs is not None:
+                conn.request("GET", dbs, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                for el in r["Items"]:
+                    if el["Name"] == pi_database:
+                        url_elements_list = el["Links"]["Elements"]
+            else:
+                print("Unable to find Databases")
+                return None
+            
+            # This block is for iteration when we have multi-level hierarchy.
+            # For example, if we have DefaultAFLocation as "foglamp/room1/machine1" then
+            # it will recursively find elements of "foglamp" and then "room1".
+            # And next block is for finding element of "machine1".
+            
+            # Iterate through AF hierarchy list
+            af_level_count = 0
+            for level in af_hierarchy_list:
+                if url_elements_list is not None:
+                    conn.request("GET", url_elements_list, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    for el in r["Items"]:
+                        if el["Name"] == af_hierarchy_list[af_level_count]:
+                            url_elements_list = el["Links"]["Elements"]
+                            if af_level_count == 0:
+                                web_id_root = el["WebId"]
+                            af_level_count += 1
+
+            if url_elements_list is not None:
+                conn.request("GET", url_elements_list, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r["Items"]
+                for el in items:
+                    if asset in el["Name"]:
+                        url_recorded_data = el["Links"]["RecordedData"]
+                        web_id = el["WebId"]
+            
+            _data_pi = {}
+            if url_recorded_data is not None:
+                conn.request("GET", url_recorded_data, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                _items = r["Items"]
+                
+                for el in _items:
+                    _recoded_value_list = list()
+                    if len(sensor) == 1 and el["Name"].endswith(asset):
+                        for itm in el["Items"]:
+                            _recoded_value_list.append(itm["Value"])
+                        _data_pi[sensor.pop()] = _recoded_value_list
+                    else:
+                        for _head in sensor:
+                            if el["Name"].endswith(f"{asset}.{_head}"):
+                                for itm in el["Items"]:
+                                    _recoded_value_list.append(itm["Value"])
+                                    # pprint(_data_pi)
+                                _data_pi[_head] = _recoded_value_list
+
+            return _data_pi
+
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
+            print(ex.__traceback__.tb_lineno)
+            return None
+
+    return _read_data_from_pi_asset_server
+
+
+@pytest.fixture
 def add_filter():
     def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task,
                     installation_type='make', only_installation=False):

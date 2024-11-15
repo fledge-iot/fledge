@@ -70,7 +70,7 @@ class TestE2eRPiEphatEgress:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, south_branch, disable_schedule,
                           remove_data_file, skip_verify_north_interface, remove_directories, enable_schedule,
-                          fledge_url, start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time):
+                          fledge_url, start_north_pi_server_c_web_api, pi_host, pi_port, pi_db, pi_admin, pi_passwd, wait_time):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance
 
         """
@@ -78,7 +78,8 @@ class TestE2eRPiEphatEgress:
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME)
 
         if not skip_verify_north_interface:
-            start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
+            start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                            taskname=TASK_NAME, start_task=False)
 
         # let the readings ingress
         time.sleep(wait_time)
@@ -91,7 +92,7 @@ class TestE2eRPiEphatEgress:
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN))
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, read_data_from_pi_asset_server, fledge_url, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
         # let the readings egress
@@ -101,7 +102,7 @@ class TestE2eRPiEphatEgress:
         self._verify_ingest(fledge_url)
 
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def _verify_ping_and_statistics(self, fledge_url, skip_verify_north_interface):
         ping_response = self.get_ping_status(fledge_url)
@@ -212,7 +213,7 @@ class TestE2eRPiEphatEgress:
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_c,
                                                                                        _sensor)
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
 
         data_from_pi_w = None
@@ -226,16 +227,16 @@ class TestE2eRPiEphatEgress:
         asset_name_with_prefix_c = "{}{}".format(ASSET_PREFIX, ASSET_NAME_C)
 
         while (data_from_pi_w is None or data_from_pi_w == []) and retry_count < retries:
-            data_from_pi_w = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_w,
+            data_from_pi_w = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_w,
                                                SENSOR_READ_KEY_W)
 
-            data_from_pi_m = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_m,
+            data_from_pi_m = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_m,
                                                SENSOR_READ_KEY_M)
 
-            data_from_pi_a = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_a,
+            data_from_pi_a = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_a,
                                                SENSOR_READ_KEY_A)
 
-            data_from_pi_c = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_c,
+            data_from_pi_c = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix_c,
                                                SENSOR_READ_KEY_C)
 
             retry_count += 1

@@ -56,7 +56,7 @@ class TestE2EModbusCPI:
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, remove_directories, south_branch, fledge_url,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, modbus_host, modbus_port,
+                          start_north_pi_server_c_web_api, pi_host, pi_port, modbus_host, modbus_port,
                           clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """ This fixture clone a south and north repo and starts both south and north instance
 
@@ -93,13 +93,13 @@ class TestE2EModbusCPI:
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME, config=cfg,
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)
 
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd)
 
         yield self.start_south_north
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
 
-    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi,
+    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi_asset_server,
                         pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface,
                         modbus_host, modbus_port):
         """ Test that data is inserted in Fledge using modbus-c south plugin and sent to PI
@@ -137,7 +137,7 @@ class TestE2EModbusCPI:
         # disable schedule to stop the service and sending data
         disable_schedule(fledge_url, SVC_NAME)
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -177,11 +177,11 @@ class TestE2EModbusCPI:
         assert 13 == read["front left"]
         assert 14 == read["rear left"]
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, ASSET_NAME,
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, ASSET_NAME,
                                              {"front right", "rear right", "front left", "rear left"})
             retry_count += 1
             time.sleep(wait_time * 2)

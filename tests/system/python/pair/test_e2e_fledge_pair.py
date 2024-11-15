@@ -153,7 +153,7 @@ class TestE2eFogPairPi:
         assert south_service == retval["name"]
 
         # Configure pi north plugin on remote machine
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd, taskname="NorthReadingsToPI")
 
         yield self.start_south_north_remote
 

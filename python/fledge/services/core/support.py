@@ -23,10 +23,10 @@ from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
+from fledge.services.core import server
+from fledge.services.core.connect import *
 from fledge.services.core.api.python_packages import get_packages_installed
 from fledge.services.core.api.service import get_service_records, get_service_installed
-from fledge.services.core.connect import *
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -85,6 +85,15 @@ class SupportBuilder:
                     for task in north_categories:
                         if task != "OMF_TYPES":
                             self.add_syslog_service(pyz, file_spec, task)
+                except:
+                    pass
+                # TODO: FOGL-4015 - other external services
+                try:
+                    schedule_list = await server.Server.scheduler.get_schedules()
+                    for sch in schedule_list:
+                        if sch.process_name == 'management':
+                            self.add_syslog_service(pyz, file_spec, sch.name)
+                            break
                 except:
                     pass
                 db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",

@@ -57,7 +57,7 @@ class TestE2EModbusC_RTU_PI:
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, skip_verify_north_interface, remove_directories,
-                          south_branch, fledge_url, start_north_pi_server_c, pi_host, pi_port, pi_token,
+                          south_branch, fledge_url, start_north_pi_server_c_web_api, pi_host, pi_port, pi_db, pi_admin, pi_passwd,
                           modbus_serial_port, modbus_baudrate):
         """ This fixture clone a south and north repo and starts both south and north instance
 
@@ -84,13 +84,13 @@ class TestE2EModbusC_RTU_PI:
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)
 
         if not skip_verify_north_interface:
-            start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+            start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd)
 
         yield self.start_south_north
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
 
-    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi_asset_server, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using modbus-c south plugin and sent to PI
             start_south_north: Fixture that starts Fledge with south service and north instance
@@ -121,9 +121,9 @@ class TestE2EModbusC_RTU_PI:
             assert 0 < ping_response["dataSent"]
             assert 0 < actual_stats_map['NorthReadingsToPI']
             assert 0 < actual_stats_map['Readings Sent']
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                                 ASSET_NAME_1, {"pt100_1", "pt100_0"})
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                                 ASSET_NAME_2, {"dwyer_temperature", "dwyer_humidity"})
 
     def _verify_ingest(self, conn):
@@ -159,13 +159,12 @@ class TestE2EModbusC_RTU_PI:
         assert read["dwyer_temperature"] is not None
         assert read["dwyer_humidity"] is not None
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset,
-                       datapoints):
-
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+        
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset, datapoints)
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset, datapoints)
             retry_count += 1
             time.sleep(wait_time * 2)
 

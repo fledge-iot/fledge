@@ -250,7 +250,7 @@ elif apt --version 2>/dev/null; then
 	apt install -y avahi-daemon ca-certificates curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
-	apt install -y python-dev python3-dev python3-pip python3-numpy
+	apt install -y python-dev-is-python3  python3-dev python3-pip python3-numpy #python-dev => python-dev-is-python3 required?
 	python3 -m pip install --upgrade pip --break-system-packages
 
 	sqlite3_build_prepare

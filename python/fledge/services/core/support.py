@@ -87,13 +87,11 @@ class SupportBuilder:
                             self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
-                # TODO: FOGL-4015 - other external services
                 try:
                     schedule_list = await server.Server.scheduler.get_schedules()
-                    for sch in schedule_list:
-                        if sch.process_name == 'management':
-                            self.add_syslog_service(pyz, file_spec, sch.name)
-                            break
+                    external_svc_processes = ('bucket_storage_c', 'dispatcher_c', 'management', 'notification_c')
+                    for sch in filter(lambda obj: obj.process_name in external_svc_processes, schedule_list):
+                        self.add_syslog_service(pyz, file_spec, sch.name)
                 except:
                     pass
                 db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",

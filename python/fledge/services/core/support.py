@@ -102,6 +102,7 @@ class SupportBuilder:
                 await self.add_table_statistics_history(pyz, file_spec)
                 await self.add_table_plugin_data(pyz, file_spec)
                 await self.add_table_streams(pyz, file_spec)
+                await self.add_control_info(pyz)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
@@ -303,6 +304,18 @@ class SupportBuilder:
                     # Open the file in write mode ('w'), which will truncate it to zero length
                     with open(file_path, 'w') as file:
                         file.truncate(0)
+
+    async def add_control_info(self, pyz) -> None:
+        today = datetime.datetime.utcnow()
+        file_spec = today.strftime('%y%m%d-%H-%M-%S')
+        control_tables = ['control_acl', 'control_api_acl', 'control_api', 'control_api_parameters',
+                          'control_pipelines', 'control_filters', 'control_script']
+        for tbl in sorted(control_tables):
+            temp_file = "{}/{}-{}".format(self._interim_file_path, tbl.replace("_", "-"), file_spec)
+            data = await self._storage.query_tbl(tbl)
+            with open(temp_file, 'w') as outfile:
+                json.dump(data, outfile, indent=4)
+            pyz.add(temp_file, arcname='control/{}'.format(basename(temp_file)))
 
     def add_software_list(self, pyz, file_spec) -> None:
         data = {

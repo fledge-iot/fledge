@@ -96,7 +96,7 @@ class SupportBuilder:
                     pass
                 db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",
                              "scheduled_processes": "schedule-process", "monitors": "service-monitoring",
-                             "statistics": "statistics"}
+                             "statistics": "statistics", "alerts": "alerts"}
                 for tbl_name, file_name in sorted(db_tables.items()):
                     await self.add_db_content(pyz, file_spec, tbl_name, file_name)
                 await self.add_table_statistics_history(pyz, file_spec)

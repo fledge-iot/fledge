@@ -107,6 +107,7 @@ class SupportBuilder:
                 self.add_psinfo(pyz, file_spec)
                 self.add_script_dir_content(pyz)
                 self.add_package_log_dir_content(pyz)
+                self.add_debug_trace_log_dir_content(pyz)
                 self.add_software_list(pyz, file_spec)
                 self.add_python_packages_list(pyz, file_spec)
             finally:
@@ -279,11 +280,29 @@ class SupportBuilder:
             # recursively 'true' by default and __pycache__ dir excluded
             pyz.add(script_file_path, arcname='scripts', filter=self.exclude_pycache)
 
-    def add_package_log_dir_content(self, pyz):
-        script_package_logs_path = _PATH + '/logs'
-        if os.path.exists(script_package_logs_path):
-            # recursively 'true' by default and __pycache__ dir excluded
-            pyz.add(script_package_logs_path, arcname='logs/package', filter=self.exclude_pycache)
+    def add_package_log_dir_content(self, pyz) -> None:
+        package_logs_path = _PATH + '/logs'
+        if os.path.exists(package_logs_path):
+            for filename in os.listdir(package_logs_path):
+                if filename.endswith('.log'):
+                    file_path = os.path.join(package_logs_path, filename)
+                    # recursively 'true' by default and __pycache__ dir excluded
+                    pyz.add(file_path, arcname='logs/package/{}'.format(basename(file_path)),
+                            filter=self.exclude_pycache)
+
+    def add_debug_trace_log_dir_content(self, pyz) -> None:
+        debug_trace_logs_path = _PATH + '/logs/debug-trace'
+        if os.path.exists(debug_trace_logs_path):
+            for filename in os.listdir(debug_trace_logs_path):
+                # Check if the file has a .log extension
+                if filename.endswith('.log'):
+                    file_path = os.path.join(debug_trace_logs_path, filename)
+                    # recursively 'true' by default and __pycache__ dir excluded
+                    pyz.add(file_path, arcname='logs/debug-trace/{}'.format(basename(file_path)),
+                            filter=self.exclude_pycache)
+                    # Open the file in write mode ('w'), which will truncate it to zero length
+                    with open(file_path, 'w') as file:
+                        file.truncate(0)
 
     def add_software_list(self, pyz, file_spec) -> None:
         data = {

@@ -591,6 +591,14 @@ The storage plugin configuration can be found in the *Advanced* section of the *
 | |sqlite_config| |
 +-----------------+
 
+- **Deployment**: This option controls a number of settings within the SQLite storage layer. Three options are available;
+
+  - **Small** Used when Fledge is installed with minimal resources. This reduces the disk and memory footprint of the storage layer. It is only recommended when the data flowing through the Fledge instance is of limited quantity and frequency.
+
+  - **Normal** This is the most commonly used setting and provides a compromise of memory and disk footprint for the storage system. This is the setting that is recommended in most circumstances and should be sufficient in must cases.
+
+  - **High Bandwidth** This setting is best when the Fledge instance is being used to process very high traffic loads. It increases both the disk and memory footprint of the storage layer in order to provide for high throughput of data in the storage layer.
+
 - **Pool Size**: The storage service uses a connection pool to communicate with the underlying database, it is this pool size that determines how many parallel operations can be invoked on the database.
 
   This pool size is only the initial size, the storage service will grow the pool if required, however setting a realistic initial pool size will improve the ramp up performance of Fledge.

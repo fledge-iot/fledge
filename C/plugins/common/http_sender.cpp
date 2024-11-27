@@ -51,11 +51,11 @@ std::string HttpSender::getOMFTracePath()
 
     if (fledgeData) 
     {
-        pathStream << fledgeData << "/omf.log"; // Construct path using FLEDGE_DATA
+        pathStream << fledgeData << "/debug-trace/omf.log"; // Construct path using FLEDGE_DATA
     } 
     else if (fledgeRoot)
     {
-        pathStream << fledgeRoot << "/data/omf.log"; // Construct path using FLEDGE_ROOT
+        pathStream << fledgeRoot << "/data/debug-trace/omf.log"; // Construct path using FLEDGE_ROOT
     } 
     else 
     {

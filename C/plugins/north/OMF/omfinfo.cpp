@@ -8,6 +8,7 @@
  * Author: Mark Riddoch
  */
 #include <omfinfo.h>
+#include <utils.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -86,18 +87,17 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 	}
 	ServerPort = (ServerPort.compare("0") == 0) ? to_string(endpointPort) : ServerPort;
 
-	if (endpointPort == ENDPOINT_PORT_PIWEB_API) {
-
+	if (endpointPort == ENDPOINT_PORT_PIWEB_API) 
+    {
 		// Use SendFullStructure ?
-		string fullStr = config->getValue("SendFullStructure");
+		m_sendFullStructure = stringToBool(config->getValue("SendFullStructure"));
 
-		if (fullStr == "True" || fullStr == "true" || fullStr == "TRUE")
-			m_sendFullStructure = true;
-		else
-			m_sendFullStructure = false;
-	} else {
+	} else 
+    {
 		m_sendFullStructure = true;
 	}
+
+    m_omfLogEnabled = stringToBool(config->getValue("EnableOMFLogging"));
 
 	unsigned int retrySleepTime = atoi(config->getValue("OMFRetrySleepTime").c_str());
 	unsigned int maxRetry = atoi(config->getValue("OMFMaxRetry").c_str());
@@ -295,7 +295,75 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		m_legacy = true;
 	else
 		m_legacy = false;
+    
+    // Enable or disable OMF tracing based on the current configuration
+    handleOMFTracing();
+}
 
+/**
+ * @brief Handles the enabling and configuration of OMF tracing.
+ *
+ * If OMF tracing is enabled, this function checks if the trace file exists.
+ * If it does not exist, the file is created in write mode. If the file
+ * exists but is read-only, the function changes the file permissions to
+ * allow writing. If OMF tracing is disabled, it checks if the trace file
+ * exists and has write permissions, and if so, sets it to read-only.
+ */
+void OMFInformation::handleOMFTracing() 
+{
+    std::string filename = HttpSender::getOMFTracePath(); // Retrieve the trace file path
+
+    if (m_omfLogEnabled) 
+    {
+        // Check if the trace file exists
+        std::ifstream fileCheck(filename.c_str());
+        if (!fileCheck) 
+        {
+            // File does not exist, create it in write mode
+            std::ofstream traceFile(filename.c_str(), std::ofstream::out);
+            if (!traceFile) 
+            {
+                Logger::getLogger()->error("Unable to create trace file: %s", filename.c_str());
+            } 
+        } 
+        else 
+        {
+            // File exists, check if it is read-only
+            struct stat fileStat;
+            if (stat(filename.c_str(), &fileStat) == 0) 
+            {
+                // Check if the file is read-only
+                if (!(fileStat.st_mode & S_IWUSR)) 
+                {
+                    // Change the file permissions to allow writing
+                    if (chmod(filename.c_str(), fileStat.st_mode | S_IWUSR) != 0) 
+                    {
+                        Logger::getLogger()->error("Unable to set write permissions for: %s", filename.c_str());
+                    } 
+                }
+            }
+        }
+    } 
+    else 
+    {
+        // Check if the trace file exists before attempting to make it read-only
+        if (access(filename.c_str(), F_OK) == 0) 
+        {
+            // Check if the file has write permissions
+            struct stat fileStat;
+            if (stat(filename.c_str(), &fileStat) == 0) 
+            {
+                // If the file has write permission, change it to read-only
+                if (fileStat.st_mode & S_IWUSR) 
+                {
+                    if (chmod(filename.c_str(), fileStat.st_mode & ~S_IWUSR) != 0) 
+                    {
+                        Logger::getLogger()->error("Unable to set read-only permissions for: %s", filename.c_str());
+                    } 
+                }
+            }
+        } 
+    }
 }
 
 /**

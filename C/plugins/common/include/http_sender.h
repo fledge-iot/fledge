@@ -56,6 +56,19 @@ class HttpSender
 		virtual void setOCSClientSecret      (std::string& OCSClientSecret) = 0;
 		virtual void setOCSToken             (std::string& OCSToken) = 0;
 
+        /**
+         * @brief Constructs the file path for the OMF log based on environment variables.
+         *
+         * This function checks for the existence of two environment variables:
+         * FLEDGE_DATA and FLEDGE_ROOT. It constructs the file path to the OMF log
+         * file accordingly. The priority is given to FLEDGE_DATA. If neither
+         * environment variable is set, an error message is printed, and an empty
+         * string is returned.
+         *
+         * @return A string representing the path to the OMF log file, or an empty
+         *         string if neither environment variable is set.
+         */
+        static std::string getOMFTracePath();
 };
 
 /**
@@ -117,4 +130,5 @@ class Conflict  : public std::exception {
 	private:
 		std::string     m_errmsg;
 };
+
 #endif

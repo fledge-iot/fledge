@@ -341,7 +341,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "29",
 			"group": "Formats & Types",
 			"displayName": "Complex Types"
-		}
+		},
+        "EnableOMFLogging" : {
+            "description" : "If true, write to the omf.log file. If false, do not create log entries.",
+            "type" : "boolean",
+            "default" : "false",
+            "order" : "31",
+            "displayName" : "Enable OMF Logging"
+        }
 	}
 );
 
@@ -383,6 +390,7 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
+    Logger::getLogger()->error("plugin_init called");
 #if INSTRUMENT
 	struct timeval startTime;
 	gettimeofday(&startTime, NULL);
@@ -461,6 +469,7 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 
 	string rval = info->saveData();
 	delete info;
+    Logger::getLogger()->error("plugin_shutdown called");
 	return rval;
 }
 

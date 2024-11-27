@@ -165,6 +165,9 @@ The *Basic* tab contains the most commonly modified items
     When using the PI Buffer Subsystem, set the action code to *create* which will allow new data to be compressed normally.
     One disadvantage of the *create* action code is that multiple values with the same timestamp will all be stored. 
 
+  - **Enable OMF Logging**: The Enable OMF Logging flag allows users to toggle the logging functionality on or off.
+
+
 Asset Framework
 ~~~~~~~~~~~~~~~
 

@@ -428,7 +428,7 @@ bool retCode;
 /**
  * Create a SQLite3 database connection
  */
-Connection::Connection()
+Connection::Connection(ConnectionManager *manager) : m_manager(manager)
 {
 	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
@@ -502,12 +502,12 @@ Connection::Connection()
 		char *zErrMsg = NULL;
 
 		// Enable the WAL for the fledge DB
-		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, m_manager->getDBConfiguration().c_str(), NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
+			string errMsg = "Failed to set WAL from the fledge DB - " + m_manager->getDBConfiguration();
 			logger->error("%s : error %s",
-			                           DB_CONFIGURATION,
+			                           m_manager->getDBConfiguration().c_str(),
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -596,10 +596,10 @@ Connection::Connection()
 			delete[] sqlReadingsStmt;
 
 			// Enable the WAL for the readings DB
-			rc = sqlite3_exec(dbHandle, DB_CONFIGURATION,NULL, NULL, &zErrMsg);
+			rc = sqlite3_exec(dbHandle, m_manager->getDBConfiguration().c_str(), NULL, NULL, &zErrMsg);
 			if (rc != SQLITE_OK)
 			{
-				string errMsg = "Failed to set WAL from the readings DB - " DB_CONFIGURATION;
+				string errMsg = "Failed to set WAL from the readings DB - " + m_manager->getDBConfiguration();
 				Logger::getLogger()->error("%s : error %s",
 										   errMsg.c_str(),
 										   zErrMsg);

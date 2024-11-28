@@ -680,7 +680,8 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 	else
 	{
 		// Enables the WAL feature
-		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+		ConnectionManager *manager = ConnectionManager::getInstance();
+		rc = sqlite3_exec(dbHandle, manager->getDBConfiguration().c_str(), NULL, NULL, NULL);
 		if (rc != SQLITE_OK)
 		{
 			raiseError("enableWAL", sqlite3_errmsg(dbHandle));

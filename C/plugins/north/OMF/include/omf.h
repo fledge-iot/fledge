@@ -197,6 +197,8 @@ class OMF
 
 		void setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
 
+		void setDataActionCode(const std::string &actionCode) {m_dataActionCode = actionCode;};
+
 		// Get saved OMF formats
 		std::string getFormatType(const std::string &key) const;
 
@@ -389,6 +391,7 @@ private:
 		std::string		      m_DefaultAFLocation;
 		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
 		std::string			  m_delimiter;
+		std::string			  m_dataActionCode;
 
 		// Asset Framework Hierarchy Rules handling - Metadata MAP
 		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules

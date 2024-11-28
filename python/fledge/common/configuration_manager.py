@@ -643,19 +643,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if needed_value == 0:
                     raise ValueError('For {} category, missing entry name {} for item name {}'.format(
                         category_name, needed_key, item_name))
-
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
                 raise ValueError(
                     'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:
-                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+                item_val['readonly'] = self._clean(item_val, item_val['readonly'])
             if 'deprecated' in item_val:
-                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
+                item_val['deprecated'] = self._clean(item_val, item_val['deprecated'])
             if 'mandatory' in item_val:
-                item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
+                item_val['mandatory'] = self._clean(item_val, item_val['mandatory'])
             if set_value_val_from_default_val:
-                item_val['default'] = self._clean(item_val['type'], item_val['default'])
+                item_val['default'] = self._clean(item_val, item_val['default'])
                 item_val['value'] = item_val['default']
         return category_val_copy
 
@@ -926,7 +925,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             if s not in ev_options:
                                 raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
-                new_val = self._clean(cat_info[item_name]['type'], new_val)
+                new_val = self._clean(cat_info[item_name], new_val)
                 # Validations on the basis of optional attributes
                 self._validate_value_per_optional_attribute(item_name, cat_info[item_name], new_val)
 
@@ -1202,7 +1201,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise ValueError("A value must be given for {}".format(item_name))
                     elif storage_value_entry['type'] == 'JSON' and not len(new_value_entry):
                         raise ValueError("Dict cannot be set as empty. A value must be given for {}".format(item_name))
-            new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
+            new_value_entry = self._clean(storage_value_entry, new_value_entry)
             # Evaluate new_value_entry as per rule if defined
             if 'rule' in storage_value_entry:
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
@@ -1933,11 +1932,28 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         elif _type == 'string' or _type == 'northTask':
             return isinstance(_value, str)
 
-    def _clean(self, item_type, item_val):
-        if item_type == 'boolean':
+    def _clean(self, storage_val, item_val) -> str:
+        if storage_val['type'] == 'boolean':
             return item_val.lower()
-        elif item_type == 'float':
+        elif storage_val['type'] == 'float':
             return str(float(item_val))
+        elif storage_val.get('items') == 'object':
+            if storage_val.get('type') == 'list':
+                # Convert string to list
+                data_list = json.loads(item_val)
+                # Remove duplicate objects
+                new_item_val = []
+                seen = set()
+                for item in data_list:
+                    item_frozenset = frozenset(item.items())
+                    if item_frozenset not in seen:
+                        new_item_val.append(item)
+                        seen.add(item_frozenset)
+                return json.dumps(new_item_val)
+            elif storage_val.get('type') == 'kvlist':
+                # Remove duplicate objects
+                new_item_val = json.loads(item_val)
+                return json.dumps(new_item_val)
 
         return item_val
 

@@ -654,8 +654,13 @@ Datapoint *rval = NULL;
 					arrayValues.push_back(i);
 				}
 			}
-			DatapointValue value(arrayValues);
-			rval = new Datapoint(name, value);
+
+			// Don't create blank array of datapoint values
+			if (!arrayValues.empty())
+			{
+				DatapointValue value(arrayValues);
+				rval = new Datapoint(name, value);
+			}
 			break;
 			    
 		}

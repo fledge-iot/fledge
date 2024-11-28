@@ -70,7 +70,7 @@ class TestE2ePiEgressWithScalesetFilter:
                                       remove_data_file, remove_directories, enable_schedule,
                                       fledge_url, add_filter, filter_branch, filter_name,
                                       clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
-                                      start_north_pi_server_c, pi_host, pi_port, pi_token):
+                                      start_north_pi_server_c_web_api, pi_host, pi_port):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance with filter
 
         """
@@ -100,7 +100,8 @@ class TestE2ePiEgressWithScalesetFilter:
 
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME)
 
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, taskname=TASK_NAME, start_task=False)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd, 
+                                        taskname=TASK_NAME, start_task=False)
 
         filter_cfg = {"enable": "true",
                       "factors": {"factors": [
@@ -121,7 +122,7 @@ class TestE2ePiEgressWithScalesetFilter:
         remove_directories("/tmp/fledge-south-{}".format(ASSET_NAME.lower()))
         remove_directories("/tmp/fledge-filter-{}".format(FILTER_PLUGIN))
 
-    def test_end_to_end(self, start_south_north_with_filter, read_data_from_pi, fledge_url, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north_with_filter, read_data_from_pi_asset_server, fledge_url, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
 
         subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]
@@ -144,7 +145,7 @@ class TestE2ePiEgressWithScalesetFilter:
         time.sleep(wait_time * 3)
 
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
         
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
@@ -196,12 +197,13 @@ class TestE2ePiEgressWithScalesetFilter:
         assert len(jdoc), "No asset found"
         assert value == jdoc[0]["reading"][READ_KEY]
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
             asset_name_with_prefix = "{}{}".format(ASSET_PREFIX, ASSET_NAME)
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix, {READ_KEY})
+            # data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix, {READ_KEY})
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name_with_prefix, {READ_KEY})
             retry_count += 1
             time.sleep(wait_time * 2)
 

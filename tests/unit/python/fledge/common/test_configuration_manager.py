@@ -3573,6 +3573,8 @@ class TestConfigurationManager:
             assert str(msg) == str(excinfo.value)
 
     @pytest.mark.parametrize("item_type, item_val, result", [
+        ('boolean', "True", "true"),
+        ('string', "Plugin", "Plugin"),
         ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "True", "true"),
         ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "true", "true"),
         ({'description': 'Test', 'type': 'boolean', 'default': 'false'}, "false", "false"),
@@ -3591,7 +3593,8 @@ class TestConfigurationManager:
         ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
          '{"plc": {"register": "0"}, "plc": {"type": "integer"}}', '{"plc": {"type": "integer"}}'),
         ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
-         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}', '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}')
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}',
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}')
     ])
     async def test__clean(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

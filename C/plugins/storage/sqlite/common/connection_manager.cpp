@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
 #include <connection_manager.h>
 #include <connection.h>
 #include <readings_catalogue.h>
@@ -41,7 +40,8 @@ static void managerBackground(void *arg)
 ConnectionManager::ConnectionManager() : m_shutdown(false),
 					m_vacuumInterval(6 * 60 * 60),
 					m_attachedDatabases(0),
-					m_diskSpaceMonitor(0)
+					m_diskSpaceMonitor(0),
+					m_config(0)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -594,7 +594,7 @@ void ConnectionManager::noConnectionsDiagnostic()
  */
 string ConnectionManager::getDBConfiguration()
 {
-	if (m_config->itemExists("deployment"))
+	if (m_config && m_config->itemExists("deployment"))
 	{
 		string mode = m_config->getValue("deployment");
 		if (mode.compare("Small") == 0)

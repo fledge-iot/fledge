@@ -184,6 +184,6 @@ class OMFInformation {
 		bool		m_legacy;
 		string		m_name;
 		bool		m_connected;
-        bool        m_omfLogEnabled;
+        bool        m_tracingEnabled;
 };
 #endif

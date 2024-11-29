@@ -342,12 +342,12 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"group": "Formats & Types",
 			"displayName": "Complex Types"
 		},
-        "EnableOMFLogging" : {
+        "EnableTracing" : {
             "description" : "If true, write to the omf.log file. If false, do not create log entries.",
             "type" : "boolean",
             "default" : "false",
             "order" : "31",
-            "displayName" : "Enable OMF Logging"
+            "displayName" : "Enable Tracing"
         }
 	}
 );

@@ -97,7 +97,7 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		m_sendFullStructure = true;
 	}
 
-    m_omfLogEnabled = stringToBool(config->getValue("EnableOMFLogging"));
+    m_tracingEnabled = stringToBool(config->getValue("EnableTracing"));
 
 	unsigned int retrySleepTime = atoi(config->getValue("OMFRetrySleepTime").c_str());
 	unsigned int maxRetry = atoi(config->getValue("OMFMaxRetry").c_str());
@@ -313,8 +313,13 @@ void OMFInformation::handleOMFTracing()
 {
     std::string filename = HttpSender::getOMFTracePath(); // Retrieve the trace file path
 
-    if (m_omfLogEnabled) 
+    if (m_tracingEnabled) 
     {
+        if(!HttpSender::createDebugTraceDirectory())
+        {
+            return;
+        }
+
         // Check if the trace file exists
         std::ifstream fileCheck(filename.c_str());
         if (!fileCheck) 

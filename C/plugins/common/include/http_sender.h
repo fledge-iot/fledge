@@ -69,6 +69,12 @@ class HttpSender
          *         string if neither environment variable is set.
          */
         static std::string getOMFTracePath();
+
+        /**
+         * @brief Creates the "debug-trace" directory under the base directory returned by getDataDir().
+         * 
+         */
+        static bool createDebugTraceDirectory();
 };
 
 /**

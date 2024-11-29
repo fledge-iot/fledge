@@ -93,7 +93,8 @@ class TestE2EModbusCPI:
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME, config=cfg,
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)
 
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                        taskname="NorthReadingsToPI")
 
         yield self.start_south_north
 

@@ -1185,6 +1185,8 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		}
 	}
 
+	defaultConfig.defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, MAXSENLATENCY);
+
 	if (!isAsync)
 	{
 		/* Add the reading rate units */

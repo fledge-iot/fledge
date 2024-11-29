@@ -10,6 +10,10 @@
  * Author: Mark Riddoch
  */
 
+// The maximum value a user will be allowed to set the maxSendLatency config item
+#define MAXSENDLATENCY	600000	// 10 minutes
+
+// The default advanced configuration items to add to the category
 static struct {
 	const char	*name;
 	const char	*displayName;

@@ -464,22 +464,22 @@ std::string StringAround(const std::string& str, unsigned int pos,
 }
 
 /**
- * Replicate a character/substring within an string
+ * Search and duplicate all the occurances of a string
  *
- * @param out StringToManage    string in which apply the search and replicate
- * @param     StringToSearch    string to search and replicate
- * @param     StringReplicate  substitution string
+ * @param out StringToManage    string in which apply the search
+ * @param     StringToSearch    string to search
+ * @param     StringToChange  substitution string
  *
  */
-void replicate(std::string& StringToManage,
+void StringReplaceAllEx(std::string& StringToManage,
 					  const std::string& StringToSearch,
-					  const std::string& StringReplicate)
+					  const std::string& StringToChange)
 {
 	size_t pos = 0;
 	while ((pos = StringToManage.find(StringToSearch, pos)) != std::string::npos)
 	{
-		StringToManage.replace(pos, StringToSearch.length(), StringReplicate);
-		pos += StringReplicate.length(); // Move past the last replaced substring
+		StringToManage.replace(pos, StringToSearch.length(), StringToChange);
+		pos += StringToChange.length(); // Move past the last replaced substring
 	}
 
 }

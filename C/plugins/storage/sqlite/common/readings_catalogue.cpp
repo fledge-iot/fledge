@@ -2029,7 +2029,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 	std::string escaped_asset = std::string(asset_code);
 	std::string target ="\"";
 	std::string replacement ="\"\"";
-	replicate(escaped_asset, target, replacement);
+	StringReplaceAllEx(escaped_asset, target, replacement);
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
@@ -2545,7 +2545,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
 				std::string target ="\"";
 				std::string replacement ="\"\"";
-				replicate(assetCode, target, replacement);
+				StringReplaceAllEx(assetCode, target, replacement);
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");

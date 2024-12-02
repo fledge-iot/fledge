@@ -46,9 +46,9 @@ bool IsRegex(const std::string &str);
 std::string StringAround(const std::string& str, unsigned int pos,
 		unsigned int after = 30, unsigned int before = 10);
 
-void replicate(std::string& StringToManage,
+void StringReplaceAllEx(std::string& StringToManage,
 					  const std::string& StringToSearch,
-					  const std::string& StringReplicate);
+					  const std::string& StringToChange);
 
 std::string	escape(const std::string& str);
 

@@ -976,6 +976,9 @@ std::size_t arr = data.find("inserts");
 						itr != (*iter).MemberEnd();
 						++itr)
 		{
+			if (itr->value.IsNull())
+				continue;
+
 			// Append column name
 			if (col)
 			{
@@ -1695,7 +1698,7 @@ bool 		add_row = false;
 			std::string escaped_asset(asset_code);
 			std::string target ="'";
 			std::string replacement ="''";
-			replicate(escaped_asset, target, replacement);
+			StringReplaceAllEx(escaped_asset, target, replacement);
 			sql.append(escaped_asset);
 			sql.append("', '");
 

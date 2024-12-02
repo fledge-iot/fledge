@@ -1185,7 +1185,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		}
 	}
 
-	defaultConfig.defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, MAXSENLATENCY);
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, to_string(MAXSENDLATENCY));
 
 	if (!isAsync)
 	{

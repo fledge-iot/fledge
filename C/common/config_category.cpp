@@ -174,6 +174,8 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 
 /**
  * Copy constructor for a configuration category
+ *
+ * @param rhs	The configuration category to copy
  */
 ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 {
@@ -181,6 +183,22 @@ ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 	m_description = rhs.m_description;
 
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+}
+
+/**
+ * Copy constructor for a configuration category when copying from a pointer
+ *
+ * @param rhs	The configuration category to copy
+ */
+ConfigCategory::ConfigCategory(ConfigCategory const *rhs)
+{
+	m_name = rhs->m_name;
+	m_description = rhs->m_description;
+
+	for (auto it = rhs->m_items.cbegin(); it != rhs->m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));
 	}

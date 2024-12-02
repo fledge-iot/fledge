@@ -74,6 +74,7 @@ class ConfigCategory {
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
+		ConfigCategory(const ConfigCategory *orig);
 		~ConfigCategory();
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,

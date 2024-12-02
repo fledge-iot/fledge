@@ -390,7 +390,6 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
-    Logger::getLogger()->error("plugin_init called");
 #if INSTRUMENT
 	struct timeval startTime;
 	gettimeofday(&startTime, NULL);
@@ -469,7 +468,6 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 
 	string rval = info->saveData();
 	delete info;
-    Logger::getLogger()->error("plugin_shutdown called");
 	return rval;
 }
 

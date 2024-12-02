@@ -343,7 +343,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Complex Types"
 		},
         "EnableTracing" : {
-            "description" : "If true, write to the omf.log file. If false, do not create log entries.",
+            "description" : "If enabled, a detailed tracing of OMF Messages will be written to debug-trace/omf.log file in Fledge data directory.",
             "type" : "boolean",
             "default" : "false",
             "order" : "31",

@@ -331,6 +331,14 @@ int bscount = 0;
 	{
 		if (str[i] == '\\')
 		{
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/'|| str[i-1] == '\\'))
+			{
+				rval += '\\';
+			}
+			else
+			{
+				rval += "\\\\";
+			}
 			bscount++;
 		}
 		else if (str[i] == '\"')
@@ -339,13 +347,14 @@ int bscount = 0;
 			{
 				rval += "\\";	// Add escape of "
 			}
+			rval += str[i];
 			bscount = 0;
 		}
 		else
 		{
+			rval += str[i];
 			bscount = 0;
 		}
-		rval += str[i];
 	}
 	return rval;
 }

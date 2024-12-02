@@ -122,9 +122,9 @@ curl_tmp_path="/tmp/${curl_filename}"
 curl_fledge_version="7.65.3"
 curl_rhel_version="7.29"
 
-fledge_location=`pwd`
-os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
-os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+fledge_location=$(pwd)
+os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
+os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 echo "Platform is ${os_name}, Version: ${os_version}"
 
 USE_SCL=false
@@ -250,7 +250,9 @@ elif apt --version 2>/dev/null; then
 	apt install -y avahi-daemon ca-certificates curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
-	apt install -y python-dev python3-dev python3-pip python3-numpy
+	PYTHON_DEV_PKG="python-dev-is-python3"
+	if [[ $os_name == "Ubuntu" && $os_version == "18.04" ]]; then PYTHON_DEV_PKG="python-dev"; fi
+	apt install -y $PYTHON_DEV_PKG python3-dev python3-pip python3-numpy
 	python3 -m pip install --upgrade pip
 
 	sqlite3_build_prepare

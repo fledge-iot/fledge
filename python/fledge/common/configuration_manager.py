@@ -648,11 +648,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError(
                     'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:
-                item_val['readonly'] = self._clean(item_val, item_val['readonly'])
+                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
             if 'deprecated' in item_val:
-                item_val['deprecated'] = self._clean(item_val, item_val['deprecated'])
+                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
             if 'mandatory' in item_val:
-                item_val['mandatory'] = self._clean(item_val, item_val['mandatory'])
+                item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val, item_val['default'])
                 item_val['value'] = item_val['default']
@@ -1933,6 +1933,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return isinstance(_value, str)
 
     def _clean(self, storage_val, item_val) -> str:
+        # For optional attributes
+        if isinstance(storage_val, str):
+            return item_val.lower() if storage_val == 'boolean' else item_val
+        # For required attributes
         if storage_val['type'] == 'boolean':
             return item_val.lower()
         elif storage_val['type'] == 'float':

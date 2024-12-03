@@ -10,7 +10,7 @@
  * Author: Mark Riddoch
  */
 
-// The maximum value a user will be allowed to set the maxSendLatency config item
+// The maximum value a user will be allowed to set the maxSendLatency config item expressed in mS
 #define MAXSENDLATENCY	600000	// 10 minutes
 
 // The default advanced configuration items to add to the category

@@ -46,9 +46,9 @@ static const string getDataDir()
 }
 
 /**
- * @brief Constructs the path for the debug-trace dir based on the directory returned by getDataDir().
+ * @brief Constructs the path for the debug-trace subdirectory in the Fledge data directory.
  *
- * @return A string representing the path to the debug-trace dir.
+ * @return A string representing the path to the debug-trace directory.
  */
 static std::string getDebugTracePath() 
 {

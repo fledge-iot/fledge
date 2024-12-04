@@ -64,7 +64,7 @@ class HttpSender
         static std::string getOMFTracePath();
 
         /**
-         * @brief Creates the "debug-trace" directory under the directory returned by getDataDir().
+         * @brief Creates the '/logs/debug-trace' subdirectory in the Fledge data directory.
          * 
          */
         static bool createDebugTraceDirectory();

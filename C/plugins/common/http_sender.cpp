@@ -35,7 +35,7 @@ HttpSender::~HttpSender()
 }
 
 /**
- * @brief Creates the '/logs/debug-trace' directory under the directory returned by getDataDir().
+ * @brief Creates the '/logs/debug-trace' subdirectory in the Fledge data directory.
  * 
  * This function ensures that both the 'logs' directory and the 'debug-trace' directory are created if they do not exist.
  */

@@ -46,6 +46,16 @@ static const string getDataDir()
 }
 
 /**
+ * @brief Constructs the path for the debug-trace dir based on the directory returned by getDataDir().
+ *
+ * @return A string representing the path to the debug-trace dir.
+ */
+static std::string getDebugTracePath() 
+{
+    return getDataDir() + "/logs/debug-trace";
+}
+
+/**
  * @brief Converts a string representation of a boolean value to a boolean type.
  *
  * This function takes a string input and checks if it represents a boolean value.

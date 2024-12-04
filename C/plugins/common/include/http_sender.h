@@ -57,21 +57,14 @@ class HttpSender
 		virtual void setOCSToken             (std::string& OCSToken) = 0;
 
         /**
-         * @brief Constructs the file path for the OMF log based on environment variables.
+         * @brief Constructs the file path for the OMF log.
          *
-         * This function checks for the existence of two environment variables:
-         * FLEDGE_DATA and FLEDGE_ROOT. It constructs the file path to the OMF log
-         * file accordingly. The priority is given to FLEDGE_DATA. If neither
-         * environment variable is set, an error message is printed, and an empty
-         * string is returned.
-         *
-         * @return A string representing the path to the OMF log file, or an empty
-         *         string if neither environment variable is set.
+         * @return A string representing the path to the OMF log file.
          */
         static std::string getOMFTracePath();
 
         /**
-         * @brief Creates the "debug-trace" directory under the base directory returned by getDataDir().
+         * @brief Creates the "debug-trace" directory under the directory returned by getDataDir().
          * 
          */
         static bool createDebugTraceDirectory();

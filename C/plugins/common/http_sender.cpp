@@ -35,64 +35,71 @@ HttpSender::~HttpSender()
 }
 
 /**
- * @brief Creates the "debug-trace" directory under the base directory returned by getDataDir().
+ * @brief Creates the '/logs/debug-trace' directory under the directory returned by getDataDir().
  * 
- * This function ensures that the "debug-trace" directory is created only if the base directory exists
+ * This function ensures that both the 'logs' directory and the 'debug-trace' directory are created if they do not exist.
  */
 bool HttpSender::createDebugTraceDirectory() 
 {
-    // Step 1: Retrieve the base data directory
-    std::string baseDir = getDataDir(); 
-    std::string debugTraceDir = baseDir + "/debug-trace";
+    // Retrieve the 'logs' and 'debug-trace' directory paths
+    std::string logsDir = getDataDir() + "/logs";
+    std::string debugTraceDir = logsDir + "/debug-trace";
 
-    // Step 2: Check if the base directory exists
-    struct stat baseInfo;
-    if (stat(baseDir.c_str(), &baseInfo) == 0 && (baseInfo.st_mode & S_IFDIR))
+    // Ensure path consistency with getDebugTracePath(). Assert is commented out to prevent unexpected runtime interruptions in execution
+    // std::assert(debugTraceDir == getDebugTracePath()); 
+
+    auto createDir = [](const std::string& dirPath) -> bool 
     {
-        // Base directory exists, proceed to creating the debug-trace directory
-
-        // Step 3: Check if the debug-trace directory exists
-        struct stat debugTraceInfo;
-        if (stat(debugTraceDir.c_str(), &debugTraceInfo) != 0) 
+        struct stat dirInfo;
+        if (stat(dirPath.c_str(), &dirInfo) == 0)
         {
-            // debug-trace directory does not exist; attempt to create it
-            if (mkdir(debugTraceDir.c_str(), 0755) == 0) 
+            if (dirInfo.st_mode & S_IFDIR)
             {
-                Logger::getLogger()->info("Successfully created 'debug-trace' directory at: %s", debugTraceDir.c_str());
-                return true;
-            } 
+                return true; // Directory exists
+            }
             else
             {
-                Logger::getLogger()->error("Failed to create 'debug-trace' directory at: %s. Please check permissions.", debugTraceDir.c_str());
+                Logger::getLogger()->error("Path exists but is not a directory: %s", dirPath.c_str());
                 return false;
             }
-        } 
-        else if (debugTraceInfo.st_mode & S_IFDIR)
-        {
-            // debug-trace directory already exists
-            Logger::getLogger()->info("'debug-trace' directory already exists at: %s", debugTraceDir.c_str());
-            return true;
-        } 
-        else 
-        {
-            // Path exists but is not a directory
-            Logger::getLogger()->error("Path exists but is not a directory: %s", debugTraceDir.c_str());
-            return false;
         }
-    } 
-    
-    // Base directory does not exist
-    Logger::getLogger()->warn("Base directory does not exist: %s. 'debug-trace' directory will not be created.", baseDir.c_str());
-    return false;
+        else
+        {
+            // Directory does not exist, attempt to create it
+            if (mkdir(dirPath.c_str(), 0755) == 0)
+            {
+                return true; // Success
+            }
+            else
+            {
+                return false;
+            }
+        }
+    };
+
+    // Create the logs directory if it does not exist
+    if (!createDir(logsDir))
+    {
+        Logger::getLogger()->error("Failed to create directory: %s. 'debug-trace' directory will not be created.", logsDir.c_str());
+        return false;
+    }
+
+    // Create the debug-trace directory if it does not exist
+    if (!createDir(debugTraceDir))
+    {
+        Logger::getLogger()->error("Failed to create 'debug-trace' directory: %s.", debugTraceDir.c_str());
+        return false;
+    }
+
+    return true; 
 }
 
 /**
- * @brief Constructs the file path for the OMF trace based on environment variables.
+ * @brief Constructs the file path for the OMF log.
  *
- * @return A string representing the path to the OMF trace file, or an empty
- *         string if neither environment variable is set.
+ * @return A string representing the path to the OMF log file.
  */
 std::string HttpSender::getOMFTracePath() 
 {
-    return getDataDir() + "/debug-trace/omf.log";
+    return getDebugTracePath() + "/omf.log";
 }

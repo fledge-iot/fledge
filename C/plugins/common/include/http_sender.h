@@ -56,6 +56,18 @@ class HttpSender
 		virtual void setOCSClientSecret      (std::string& OCSClientSecret) = 0;
 		virtual void setOCSToken             (std::string& OCSToken) = 0;
 
+        /**
+         * @brief Constructs the file path for the OMF log.
+         *
+         * @return A string representing the path to the OMF log file.
+         */
+        static std::string getOMFTracePath();
+
+        /**
+         * @brief Creates the '/logs/debug-trace' subdirectory in the Fledge data directory.
+         * 
+         */
+        static bool createDebugTraceDirectory();
 };
 
 /**
@@ -117,4 +129,5 @@ class Conflict  : public std::exception {
 	private:
 		std::string     m_errmsg;
 };
+
 #endif

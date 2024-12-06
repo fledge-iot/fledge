@@ -252,7 +252,7 @@ elif apt --version 2>/dev/null; then
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	PYTHON_DEV_PKG="python-dev-is-python3"
 	if [[ $os_name == "Ubuntu" && $os_version == "18.04" ]]; then PYTHON_DEV_PKG="python-dev"; fi
-	apt install -y $PYTHON_DEV_PKG python3-dev python3-pip python3-numpy
+	apt install -y ${PYTHON_DEV_PKG} python3-dev python3-pip python3-numpy
 	python3 -m pip install --upgrade pip
 
 	sqlite3_build_prepare

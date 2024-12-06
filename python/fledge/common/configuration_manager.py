@@ -220,6 +220,37 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items,
                                    category_name=None):
+
+        def convert_json_type_to_list(list_name: str, old_config: dict, new_config: dict):
+            # Load the 'value' strings as JSON objects
+            old_config_value = json.loads(old_config['value'])
+            new_config_value = json.loads(new_config['value'])
+            # Extract the 'listName' key from old_config
+            item_name_list = old_config_value.get(list_name, [])
+            # Update the 'value' field in new_config with values from listName key of old_config['value']
+            # If item_name_list is not empty, update new_config_value
+            if item_name_list:
+                # Iterate over each item in item_name_list (old_config_value list_name)
+                updated_list = []
+                for item_name in item_name_list:
+                    # We want to merge each item from item_name_list into a new structure
+                    if isinstance(item_name, dict):
+                        # Create a copy of the current item (to preserve old structure)
+                        updated_item = {}
+                        # Now, iterate through the new_config_value and map its keys to the item
+                        for new_item in new_config_value:
+                            for nk, nv in new_item.items():
+                                # Check if the key exists in the current item and add it to the updated_item
+                                # value always save in string
+                                updated_item[nk] = str(item_name[nk]) if nk in item_name else str(nv)
+                        # Append the updated item to the new_config list
+                        updated_list.append(updated_item)
+                    else:
+                        updated_list.append(item_name)
+                # Update the new_config value with the updated list
+                new_config['value'] = json.dumps(updated_list)
+            return new_config['value']
+
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -235,6 +266,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 else:
                     if 'value' not in item_val_new:
                         item_val_new['value'] = item_val_new['default']
+                    # Case JSON to list
+                    if item_val_new['type'] == 'list' and item_val_storage['type'] == 'JSON':
+                        if 'listName' in item_val_new:
+                            convert_json_type_to_list(item_val_new['listName'], item_val_storage, item_val_new)
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)
@@ -245,11 +280,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
-
         if keep_original_items:
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
-
         return category_val_new_copy
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):

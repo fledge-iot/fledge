@@ -137,8 +137,10 @@ PLUGIN_INFORMATION *plugin_info()
 PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 	ConnectionManager *manager = ConnectionManager::getInstance();
-
-	manager->setConfiguration(category);
+	
+	// Create a copy as the category we are called with has been constructed on the stack
+	ConfigCategory *newCategory = new ConfigCategory(category);
+	manager->setConfiguration(newCategory);
 
 	STORAGE_CONFIGURATION storageConfig;
 

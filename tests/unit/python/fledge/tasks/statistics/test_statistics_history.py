@@ -33,8 +33,6 @@ async def mock_coro(*args, **kwargs):
         return ""
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("tasks", "statistics")
 class TestStatisticsHistory:
     """Test the units of statistics_history.py
     """

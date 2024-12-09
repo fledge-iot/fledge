@@ -23,8 +23,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "plugin-discovery")
 class TestPluginDiscoveryApi:
     @pytest.fixture
     def client(self, loop, test_client):

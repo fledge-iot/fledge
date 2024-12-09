@@ -20,8 +20,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "asset-tracker")
 class TestAssetTracker:
 
     async def test_init_with_no_storage(self):

@@ -25,8 +25,6 @@ def _payload(test_data_file=None):
     return json_data
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "storage_client", "payload_builder")
 class TestPayloadBuilderRead:
     """
     This class tests all SELECT (Read) data specific payload methods of payload builder
@@ -483,8 +481,6 @@ class TestPayloadBuilderRead:
         assert exc_info.value.args[0] == "The query payload parameter must be an OrderedDict."
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("payload_builder")
 class TestPayloadBuilderCreate:
     """
     This class tests all INSERT data specific payload methods of payload builder
@@ -533,8 +529,6 @@ class TestPayloadBuilderUpdate:
         assert expected == json.loads(res)
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("payload_builder")
 class TestPayloadBuilderDelete:
     """
     This class tests all DELETE specific payload methods of payload builder

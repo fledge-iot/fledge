@@ -11,8 +11,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "utils")
 class TestUtils:
 
     @pytest.mark.parametrize("direction", ['south', 'north', 'filter', 'notificationDelivery', 'notificationRule'])

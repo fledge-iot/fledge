@@ -30,8 +30,6 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "auth-optional")
 class TestAuthOptional:
 
     @pytest.fixture

@@ -52,8 +52,6 @@ def mock_request(data, loop):
     return req
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "server")
 class TestServer:
 
     @pytest.fixture

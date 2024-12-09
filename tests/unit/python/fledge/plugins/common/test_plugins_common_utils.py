@@ -11,8 +11,6 @@ import fledge.plugins.common.utils as utils
 from collections import Counter
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("plugins", "common")
 class TestUtils:
     @pytest.mark.parametrize("test_input_old, test_input_new, expected", [
         ({'a': 1, 'b': 2, 'c': 3}, {'a': 11, 'b': 22, 'c': 33}, ['a', 'b', 'c']),

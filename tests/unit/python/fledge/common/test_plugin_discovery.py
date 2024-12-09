@@ -22,8 +22,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "plugin-discovery")
 class TestPluginDiscovery:
     mock_north_folders = ["OMF", "fledge-north"]
     mock_south_folders = ["modbus", "http"]

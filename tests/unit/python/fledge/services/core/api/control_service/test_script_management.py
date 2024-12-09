@@ -43,8 +43,6 @@ async def mock_schedule(name):
     return schedules
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "script-management")
 class TestScriptManagement:
     """ Automation script API tests
     """

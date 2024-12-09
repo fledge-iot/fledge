@@ -28,8 +28,6 @@ async def mock_coro(return_value):
     return return_value
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "asset-tracker")
 class TestAssetTracker:
 
     @pytest.fixture

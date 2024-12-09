@@ -29,8 +29,7 @@ pytestmark = pytest.mark.asyncio
 def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "user-model")
+
 class TestUserModel:
 
     async def test_initial_value(self):

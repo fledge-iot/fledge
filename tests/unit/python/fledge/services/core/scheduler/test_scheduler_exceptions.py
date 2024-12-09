@@ -16,8 +16,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "scheduler")
 class TestSchedulerExceptions:
     def test_NotReadyError(self):
         with pytest.raises(NotReadyError) as excinfo:

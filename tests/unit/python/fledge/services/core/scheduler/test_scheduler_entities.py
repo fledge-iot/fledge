@@ -18,8 +18,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "scheduler")
 class TestSchedulerEntities:
     def test_scheduled_process(self):
         scheduled_process = ScheduledProcess()

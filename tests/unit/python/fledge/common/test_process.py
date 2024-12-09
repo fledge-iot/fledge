@@ -17,8 +17,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "fledge-process")
 class TestFledgeProcess:
 
     def test_constructor_abstract_method_run(self):

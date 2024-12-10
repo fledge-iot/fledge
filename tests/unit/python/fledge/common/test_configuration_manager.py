@@ -23,8 +23,6 @@ CAT_NAME = 'test'
 ITEM_NAME = "test_item_name"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "configuration_manager")
 class TestConfigurationManager:
     @pytest.fixture()
     def reset_singleton(self):

@@ -37,8 +37,6 @@ async def mock_coro(*args, **kwargs):
         return ""
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "backup")
 class TestBackup:
     """Unit test the Backup functionality
     """
@@ -283,8 +281,6 @@ class TestBackup:
         assert 1 == file_res.call_count
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "restore")
 class TestRestore:
     """Unit test the Restore functionality"""
 

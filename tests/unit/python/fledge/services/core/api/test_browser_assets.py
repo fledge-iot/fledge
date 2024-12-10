@@ -76,8 +76,6 @@ async def mock_coro(*args, **kwargs):
         return ""
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "assets")
 class TestBrowserAssets:
     """Browser Assets"""
 

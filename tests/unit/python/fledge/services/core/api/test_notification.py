@@ -320,8 +320,6 @@ async def mock_check_category(val=None):
     return val
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("core", "api", "notification")
 class TestNotification:
     @pytest.fixture
     def client(self, loop, test_client):

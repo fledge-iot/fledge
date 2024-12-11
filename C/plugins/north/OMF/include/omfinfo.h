@@ -125,6 +125,7 @@ class OMFInformation {
 		void		AuthKerberosSetup(std::string& keytabEnv, std::string& keytabFileName);
 		double		GetElapsedTime(struct timeval *startTime);
 		bool		IsPIWebAPIConnected();
+        void handleOMFTracing();
 		
 	private:
 		Logger		*m_logger;
@@ -183,5 +184,6 @@ class OMFInformation {
 		bool		m_legacy;
 		string		m_name;
 		bool		m_connected;
+        bool        m_tracingEnabled;
 };
 #endif

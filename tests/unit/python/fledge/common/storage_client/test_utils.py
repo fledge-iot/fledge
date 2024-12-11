@@ -14,8 +14,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "storage_client")
 class TestUtils:
 
     @pytest.mark.parametrize("test_input", ['{"k": "v"}',

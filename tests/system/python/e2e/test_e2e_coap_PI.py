@@ -47,11 +47,11 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
-def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
+def _verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
     retry_count = 0
     data_from_pi = None
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"sensor"})
+        data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"sensor"})
         retry_count += 1
         time.sleep(wait_time*2)
 
@@ -62,13 +62,13 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 
 @pytest.fixture
-def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token, pi_passwd,
+def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c_web_api, remove_data_file,
+                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_passwd,
                       pi_db, pi_admin, clear_pi_system_through_pi_web_api, asset_name=ASSET_NAME):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
         add_south: Fixture that adds a south service with given configuration
-        start_north_pi_server_c: Fixture that starts PI north task
+        start_north_pi_server_c_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests
         remove_directories: Fixture that remove directories created during the tests"""
 
@@ -96,7 +96,8 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
 
     south_plugin = "coap"
     add_south(south_plugin, south_branch, fledge_url, service_name="coap")
-    start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+    start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                    taskname="NorthReadingsToPI")
 
     yield start_south_north
 
@@ -106,11 +107,11 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
 
 
 class TestE2E_CoAP_PI:
-    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, read_data_from_pi_asset_server, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface, asset_name=ASSET_NAME):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that starts Fledge with south and north instance
-            read_data_from_pi: Fixture to read data from PI
+            read_data_from_pi_asset_server: Fixture to read data from PI
             skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /fledge/asset
@@ -153,7 +154,7 @@ class TestE2E_CoAP_PI:
         assert {'sensor': SENSOR_VALUE} == retval[0]["reading"]
 
         if not skip_verify_north_interface:
-            _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
+            _verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"

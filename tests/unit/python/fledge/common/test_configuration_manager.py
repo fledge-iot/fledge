@@ -23,8 +23,6 @@ CAT_NAME = 'test'
 ITEM_NAME = "test_item_name"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "configuration_manager")
 class TestConfigurationManager:
     @pytest.fixture()
     def reset_singleton(self):
@@ -3573,10 +3571,28 @@ class TestConfigurationManager:
             assert str(msg) == str(excinfo.value)
 
     @pytest.mark.parametrize("item_type, item_val, result", [
-        ("boolean", "True", "true"),
-        ("boolean", "true", "true"),
-        ("boolean", "false", "false"),
-        ("boolean", "False", "false")
+        ('boolean', "True", "true"),
+        ('string', "Plugin", "Plugin"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "True", "true"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "true", "true"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'false'}, "false", "false"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'false'}, "False", "false"),
+        ({'description': 'Datapoint', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "sin"}]'},
+         '[{"datapoint": "sin"}]', '[{"datapoint": "sin"}]'),
+        ({'description': 'Datapoints', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "dp"}]'},
+         '[{"datapoint": "dp"}, {"datapoint": "dp"}]', '[{"datapoint": "dp"}]'),
+        ({'description': 'Datapoints', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "dp"}]'},
+         '[{"datapoint": "dp"}, {"datapoint": "dp2"}, {"datapoint": "dp"}]',
+         '[{"datapoint": "dp"}, {"datapoint": "dp2"}]'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}}' , '{"plc": {"register": "0"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc": {"register": "0"}}', '{"plc": {"register": "0"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc": {"type": "integer"}}', '{"plc": {"type": "integer"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}',
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}')
     ])
     async def test__clean(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)

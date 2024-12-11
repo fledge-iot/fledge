@@ -35,8 +35,6 @@ def get_cat(old_config):
     return new_config
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "south", "ingest")
 class TestIngest:
     def setup_method(self):
         # Important - We need to initialize class variables before each test

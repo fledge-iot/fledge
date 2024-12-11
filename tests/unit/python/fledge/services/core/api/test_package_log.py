@@ -27,8 +27,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "package-log")
 class TestPackageLog:
 
     @pytest.fixture
@@ -95,7 +93,7 @@ class TestPackageLog:
                 assert files[7] == obj['filename']
                 assert len(obj['timestamp']) > 0
                 assert "20230609_093006_Trace_00000" == obj['name']
-            mockwalk.assert_called_once_with(logs_path)
+            mockwalk.assert_called_once_with(logs_path, topdown=True)
 
     async def test_get_log_by_name_with_invalid_extension(self, client):
         resp = await client.get('/fledge/package/log/blah.txt')

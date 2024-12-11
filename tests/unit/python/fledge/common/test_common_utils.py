@@ -11,8 +11,6 @@ from fledge.common import utils as common_utils
 from collections import Counter
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "utils")
 class TestCommonUtils:
     @pytest.mark.parametrize("test_string, expected", [
         ("Gabbar&Gang", False),

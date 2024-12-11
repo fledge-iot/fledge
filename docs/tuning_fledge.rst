@@ -253,7 +253,7 @@ Closely related to buffer usage is reading latency in the south service. This is
 
 .. note::
 
-   The maximum reading latency may be set to any value between 0 and 600000 millisconds. A value of zero will disable the buffering. See below for a discussion of the impact of large values of maximum reading latency.
+   The maximum reading latency may be set to any value between 0 and 600000 milliseconds. A value of zero will disable the buffering. See below for a discussion of the impact of large values of maximum reading latency.
 
 In situations where readings are arriving in the south service relatively frequently these can be set to values to allow data to build up reasonable size blocks of readings to send and hence be more efficient in sending the data to the storage layer. However if data does not arrive frequently or is not predictable in the way it arrives then these settings may cause unexpected latency and delays within the system.
 

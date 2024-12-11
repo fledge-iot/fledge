@@ -37,8 +37,6 @@ async def mock_coro_response(*args, **kwargs):
         return ""
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("core", "api", "schedule")
 class TestScheduledProcesses:
 
     @pytest.fixture

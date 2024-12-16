@@ -39,8 +39,6 @@ async def mock_value(val):
     return val
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("tasks", "purge")
 class TestPurge:
     """Test the units of purge.py"""
 

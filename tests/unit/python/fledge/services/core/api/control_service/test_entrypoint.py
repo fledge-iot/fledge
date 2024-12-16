@@ -23,8 +23,6 @@ async def mock_coro(*args):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "entrypoint")
 class TestEntrypoint:
     """ Control Flow Entrypoint API tests """
 

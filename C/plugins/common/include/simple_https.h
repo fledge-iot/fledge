@@ -66,6 +66,8 @@ class SimpleHttps: public HttpSender
 		// Make private the copy constructor and operator=
 		SimpleHttps(const SimpleHttps&);
 		SimpleHttps&     operator=(SimpleHttps const &);
+        void setTrace();
+        void resetTrace();
 	private:
 		std::string	    m_host_port;
 		HttpsClient	   *m_sender;

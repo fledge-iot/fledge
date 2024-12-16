@@ -9,8 +9,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "configuration_manager", "configuration_cache")
 class TestConfigurationCache:
 
     @pytest.mark.parametrize("size", [

@@ -38,8 +38,6 @@ class mServiceThing(FledgeMicroservice):
         pass
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "common")
 class TestUtils:
 
     utils._MAX_ATTEMPTS = 2

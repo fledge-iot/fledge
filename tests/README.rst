@@ -68,14 +68,6 @@ Running the python tests:
 
 **NOTE:** *Information to run the different categories of tests can be found in their respective documentation*
 
-Fledge also use |pytest decorators| heavily. For example pytest allure decorators like:
-::
-   @pytest.allure.feature("unit")
-   @pytest.allure.story("south")
-
-feature can be anything from unit or system and story is Fledge component/sub-component.
-These decorators are used in generating allure test reports on CI systems.
-
 
 C Tests
 +++++++

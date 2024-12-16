@@ -37,8 +37,6 @@ async def _purge_instance():
     return p
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("tasks", "purge")
 async def test_main(_purge_instance):
     async def mock_coro():
         return None

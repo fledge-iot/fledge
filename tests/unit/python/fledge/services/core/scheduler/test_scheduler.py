@@ -37,8 +37,6 @@ async def mock_process():
     return m
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("scheduler")
 class TestScheduler:
 
     async def scheduler_fixture(self, mocker):

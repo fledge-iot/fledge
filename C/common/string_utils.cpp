@@ -462,3 +462,71 @@ std::string StringAround(const std::string& str, unsigned int pos,
 	size_t	len = before + after;
 	return str.substr(start, len);
 }
+
+/**
+ * Search and duplicate all the occurances of a string
+ *
+ * @param out StringToManage    string in which apply the search
+ * @param     StringToSearch    string to search
+ * @param     StringToChange  substitution string
+ *
+ */
+void StringReplaceAllEx(std::string& StringToManage,
+					  const std::string& StringToSearch,
+					  const std::string& StringToChange)
+{
+	size_t pos = 0;
+	while ((pos = StringToManage.find(StringToSearch, pos)) != std::string::npos)
+	{
+		StringToManage.replace(pos, StringToSearch.length(), StringToChange);
+		pos += StringToChange.length(); // Move past the last replaced substring
+	}
+
+}
+
+/**
+ * Escape double quotes, forward and backword slash
+ *
+ * @param str	The string to escape
+ * @return The escaped string
+ */
+std::string	escape(const std::string& str)
+{
+	size_t pos = 0;
+	if (str.find("\"", pos) == std::string::npos && str.find("\\", pos) == std::string::npos && str.find("/", pos) == std::string::npos)
+		return str; //return if none of the following character exists '"' , "\" , "/"
+
+	std::string rval;
+	int bscount = 0;
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] == '\\')
+		{
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/' || str[i-1] == '\\'))
+			{
+				rval += '\\';
+			}
+			else
+			{
+				rval += "\\\\";
+			}
+			bscount++;
+		}
+		else if (str[i] == '\"')
+		{
+			if ((bscount & 1) == 0) // not already escaped
+			{
+				rval += "\\"; // Add escape of "
+			}
+			rval += str[i];
+			bscount = 0;
+		}
+		else
+		{
+			rval += str[i];
+			bscount = 0;
+		}
+	}
+	return rval;
+}
+

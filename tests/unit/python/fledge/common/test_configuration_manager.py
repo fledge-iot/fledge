@@ -868,6 +868,30 @@ class TestConfigurationManager:
             "object", "properties": {"width": {"description": "", "default": ""}}}}, ValueError,
          "For {} category, width properties must have type, description, default keys for item name {}".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName": 1,
+                      "properties": {"width": {"description": "Width", "default": "1", "type": "integer"}}}},
+         TypeError, "For {} category, keyName type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object",
+                      "keyDescription": False, "properties": {"width": {"description": "Width", "default": "1", "type":
+                "integer"}}}}, TypeError, "For {} category, keyDescription type must be a string for item name {}; "
+                                          "got <class 'bool'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "DP", "keyDescription": False, "properties": {"width": {"description": "Width", "default": "1", "type":
+                "integer"}}}}, TypeError, "For {} category, keyDescription type must be a string for item name {}; "
+                                          "got <class 'bool'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            4.5, "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, TypeError, "For {} category, keyName type must be a string for item name {}; "
+                                      "got <class 'float'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "", "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, ValueError, "For {} category, keyName cannot be empty for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "DP", "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, ValueError, "For {} category, keyDescription cannot be empty for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
                       "items": "enumeration"}}, KeyError,
          "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
@@ -977,6 +1001,7 @@ class TestConfigurationManager:
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
                      "default": "{}", "order": "1", "displayName": "labels", "listSize": "3"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "object",
+                     "keyName": "Register", "keyDescription": "Register to read",
                      "default": "{\"register\": {\"width\": \"2\"}}", "order": "1", "displayName": "labels",
                      "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
                                               "type": "integer", "maximum": "4", "default": "1"}}}},

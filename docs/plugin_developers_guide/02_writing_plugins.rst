@@ -554,6 +554,8 @@ An alternative might be to use a key/value pair list, *kvlist* type, where the k
         "default": "{\"speed\" : {\"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"}}",
         "order" : "3",
         "displayName" : "PLC Map",
+        "keyName": "Datapoints",
+        "keyDescription": "A list of datapoints to read",
         "properties" : {
                 "register" : {
                         "description" : "The register number to read",
@@ -594,6 +596,8 @@ The *value* and *default* properties for a list of objects is returned as a JSON
                         "type" : "float"
                 }
   }
+
+The *keyName* and *keyDescription* will be used by the GUI client to display a name and description associated with an entry in the key/value list.
 
 Properties
 ~~~~~~~~~~
@@ -641,6 +645,10 @@ Properties
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
    * - properties
      - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
+   * - keyName
+     - A display name to be used for entry and display of key in the key-value list type, with item being an object.
+   * - keyDescription
+     - A description of key value in the key-value list type, with item being an object.
    * - permissions
      - An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user. If the permissions property is included in a configuration item the array must have at least one entry.
 

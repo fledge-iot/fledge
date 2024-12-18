@@ -145,7 +145,9 @@ class ConfigCategory {
 					BUCKET_PROPERTIES_ATTR,
 					LIST_SIZE_ATTR,
 					ITEM_TYPE_ATTR,
-					LIST_NAME_ATTR
+					LIST_NAME_ATTR,
+					KVLIST_KEY_NAME_ATTR,
+					KVLIST_KEY_DESCRIPTION_ATTR
 					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -197,6 +199,8 @@ class ConfigCategory {
 				std::string	m_listSize;
 				std::string	m_listItemType;
 				std::string	m_listName;
+				std::string	m_kvlistKeyName;
+				std::string	m_kvlistKeyDescription;
 				std::vector<std::string>
 						m_permissions;
 		};

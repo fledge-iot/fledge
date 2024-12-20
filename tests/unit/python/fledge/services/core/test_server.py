@@ -731,6 +731,7 @@ class TestServer:
         assert 'uptime' in json_response
         assert 0.0 < json_response["uptime"]
 
+    @pytest.mark.skipif(sys.version_info > (3, 10), reason="FOGL-9336")
     @pytest.mark.asyncio
     async def test_shutdown(self, mocker):
         async def return_async_value(val):

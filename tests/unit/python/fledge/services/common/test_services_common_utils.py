@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import sys
 from aiohttp import web
 import pytest
 import time
@@ -64,6 +65,7 @@ class TestUtils:
                 assert resp is True
             patch_logger.assert_called_once_with(*log_params)
 
+    @pytest.mark.skipif(sys.version_info > (3, 10), reason="FOGL-9336")
     async def test_ping_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()

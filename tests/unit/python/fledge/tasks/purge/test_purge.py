@@ -18,7 +18,6 @@ from fledge.common.storage_client.storage_client import StorageClientAsync, Read
 from fledge.common.statistics import Statistics
 from fledge.tasks.purge.purge import Purge
 
-
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -60,11 +59,11 @@ class TestPurge:
 
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         _rv = await mock_value("") if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
             asyncio.ensure_future(mock_value(""))
-        
+
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(Statistics, '_load_keys', return_value=_rv):
                 with patch.object(Statistics, 'update', return_value=_rv) as mock_stats_update:
@@ -78,7 +77,7 @@ class TestPurge:
         """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         _rv = await mock_value("") if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
             asyncio.ensure_future(mock_value(""))
@@ -104,16 +103,21 @@ class TestPurge:
     async def store_purge(self, **kwargs):
         if kwargs.get('age') == '-1' or kwargs.get('size') == '-1':
             raise StorageServerError(400, "Bla", "Some Error")
-        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7, "duration": 100, "method":"mock"}
+        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7, "duration": 100, "method": "mock"}
 
-    config = {"purgeAgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              "purgeAge": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              "purgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "0"}, "size": {"value": "100"}},
-              "retainAgeSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              "retainAge": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              "retainSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"}, "size": {"value": "100"}},
-              "retainSizeAny": {"retainUnsent": {"value": "retain unsent to any destination"}, "age": {"value": "0"}, "size": {"value": "100"}}
-              }
+    config = {
+        "purgeAgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "20"}},
+        "purgeAge": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "0"}},
+        "purgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "0"}, "size": {"value": "100"}},
+        "retainAgeSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"},
+                          "size": {"value": "20"}},
+        "retainAge": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"},
+                      "size": {"value": "0"}},
+        "retainSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"},
+                       "size": {"value": "100"}},
+        "retainSizeAny": {"retainUnsent": {"value": "retain unsent to any destination"}, "age": {"value": "0"},
+                          "size": {"value": "100"}}
+        }
 
     @pytest.mark.parametrize("conf, expected_return, expected_calls", [
         (config["purgeAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'purge'}),
@@ -122,7 +126,7 @@ class TestPurge:
         (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retainall'}),
         (config["retainSizeAny"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retainany'})
     ])
-    async def test_purge_data(self, conf, expected_return, expected_calls):
+    async def test_purge_data(self, store_purge, conf, expected_return, expected_calls):
         """Test that purge_data calls Storage's purge with defined configuration"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
@@ -151,7 +155,7 @@ class TestPurge:
                 audit = p._audit
                 with patch.object(p._storage_async, "query_tbl_with_payload", return_value=_rv1) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge',
-                                      side_effect=self.store_purge) as mock_storage_purge:
+                                      return_value=store_purge) as mock_storage_purge:
                         with patch.object(audit, 'information', return_value=_rv2) as audit_info:
                             # Test the positive case when all if conditions in purge_data pass
                             assert expected_return == await p.purge_data(conf)
@@ -170,7 +174,7 @@ class TestPurge:
         (config["retainAgeSize"], (2, 4), [{'sent_id': 0, 'size': '20', 'flag': 'retainall'},
                                            {'sent_id': 0, 'age': '72', 'flag': 'retainall'}])
     ])
-    async def test_data_with_age_and_size(self, conf, expected_return, expected_calls):
+    async def test_data_with_age_and_size(self, store_purge, conf, expected_return, expected_calls):
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
         mock_stream_result = q_result('streams')
@@ -196,7 +200,7 @@ class TestPurge:
                 with patch.object(p._storage_async, "query_tbl_with_payload", return_value=_rv1
                                   ) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge',
-                                      side_effect=self.store_purge) as mock_storage_purge:
+                                      return_value=store_purge) as mock_storage_purge:
                         with patch.object(audit, 'information', return_value=_rv2) as audit_info:
                             assert expected_return == await p.purge_data(conf)
                         assert audit_info.called
@@ -216,7 +220,7 @@ class TestPurge:
         ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"},
           "size": {"value": "0"}}, (0, 0))
     ])
-    async def test_purge_data_no_data_purged(self, conf, expected_return):
+    async def test_purge_data_no_data_purged(self, store_purge, conf, expected_return):
         """Test that purge_data logs message when no data was purged"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
@@ -228,7 +232,7 @@ class TestPurge:
         else:
             _rv1 = asyncio.ensure_future(q_result('streams'))
             _rv2 = asyncio.ensure_future(mock_value(""))
-        
+
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -240,7 +244,7 @@ class TestPurge:
                 audit = p._audit
                 with patch.object(p._storage_async, "query_tbl_with_payload",
                                   return_value=_rv1) as patch_storage:
-                    with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
+                    with patch.object(p._readings_storage_async, 'purge', return_value=store_purge):
                         with patch.object(audit, 'information', return_value=_rv2):
                             assert expected_return == await p.purge_data(conf)
                             p._logger.info.assert_called_once_with("No rows purged")
@@ -249,9 +253,9 @@ class TestPurge:
 
     @pytest.mark.parametrize("conf, expected_return", [
         ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "-1"},
-          "size": {"value": "-1"}}, (0, 0))
+          "size": {"value": "-1"}}, (2, 4))
     ])
-    async def test_purge_error_storage_response(self, conf, expected_return):
+    async def test_purge_error_storage_response(self, store_purge, conf, expected_return):
         """Test that purge_data logs error when storage purge returns an error response"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
@@ -263,19 +267,20 @@ class TestPurge:
         else:
             _rv1 = asyncio.ensure_future(q_result('streams'))
             _rv2 = asyncio.ensure_future(mock_value(""))
-        
+
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
                 p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
+                p._logger.debug = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._storage_async, "query_tbl_with_payload",
                                   return_value=_rv1) as patch_storage:
-                    with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
+                    with patch.object(p._readings_storage_async, 'purge', return_value=store_purge):
                         with patch.object(audit, 'information', return_value=_rv2):
                             assert expected_return == await p.purge_data(conf)
                 assert patch_storage.called
@@ -298,7 +303,7 @@ class TestPurge:
         else:
             _rv1 = asyncio.ensure_future(q_result('streams'))
             _rv2 = asyncio.ensure_future(mock_value(""))
-        
+
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -331,7 +336,7 @@ class TestPurge:
             _rv1 = asyncio.ensure_future(mock_value("Some config"))
             _rv2 = asyncio.ensure_future(mock_value((1, 2)))
             _rv3 = asyncio.ensure_future(mock_value(None))
-        
+
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()

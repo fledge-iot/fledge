@@ -66,10 +66,10 @@ def reset_and_start_fledge(storage_plugin, readings_plugin):
          "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin)],
         shell=True, check=True)
     subprocess.run(
-        ["echo $(jq -c --arg READINGS_PLUGIN_VAL {} '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
+        ["echo $(jq -c --arg READINGS_PLUGIN_VAL \"{}\" '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
          "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(readings_plugin)],
         shell=True, check=True)
-    subprocess.run(["echo -e 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)

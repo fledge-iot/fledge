@@ -4,9 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import sys
 from aiohttp import web
-import pytest
 import time
 from unittest.mock import patch
 
@@ -58,14 +56,14 @@ class TestUtils:
             # WHEN the service is pinged with a valid URL
             with patch.object(utils._logger, "debug") as patch_logger:
                 service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
-                url_ping = "{}://{}:{}/fledge/service/ping".format(service._protocol, service._address, service._management_port)
+                url_ping = "{}://{}:{}/fledge/service/ping".format(service._protocol, service._address,
+                                                                   service._management_port)
                 log_params = 'Ping received for Service %s id %s at url %s', service._name, service._id, url_ping
                 resp = await utils.ping_service(service, loop=loop)
                 # THEN ping response is received
                 assert resp is True
             patch_logger.assert_called_once_with(*log_params)
 
-    @pytest.mark.skipif(sys.version_info > (3, 10), reason="FOGL-9336")
     async def test_ping_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
         app = web.Application()

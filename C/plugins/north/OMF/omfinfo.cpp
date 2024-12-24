@@ -479,11 +479,13 @@ void OMFInformation::start(const string& storedData)
 	{
 		EDSGetVersion();
 		SetOMFVersion();
+		CheckDataActionCode();
 		Logger::getLogger()->info("Edge Data Store %s OMF Version: %s", m_RestServerVersion.c_str(), m_omfversion.c_str());
 	}
 	else
 	{
 		SetOMFVersion();
+		CheckDataActionCode();
 		Logger::getLogger()->info("OMF Version: %s", m_omfversion.c_str());
 	}
 }

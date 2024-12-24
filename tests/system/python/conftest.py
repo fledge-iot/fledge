@@ -51,7 +51,7 @@ def clean_setup_fledge_packages(package_build_version):
 
 
 @pytest.fixture
-def reset_and_start_fledge(storage_plugin):
+def reset_and_start_fledge(storage_plugin, readings_plugin):
     """Fixture that kills fledge, reset database and starts fledge again
         storage_plugin: Fixture that defines the storage plugin to be used for tests
     """
@@ -59,12 +59,17 @@ def reset_and_start_fledge(storage_plugin):
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
-    storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
+    assert storage_plugin in ["sqlite", "postgres", "sqlitelb"]
+    assert readings_plugin in ["Use main plugin", "sqlitememory", "sqlite", "postgres", "sqlitelb"]
     subprocess.run(
         ["echo $(jq -c --arg STORAGE_PLUGIN_VAL {} '.plugin.value=$STORAGE_PLUGIN_VAL' "
-         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin_val)],
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin)],
         shell=True, check=True)
-    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    subprocess.run(
+        ["echo $(jq -c --arg READINGS_PLUGIN_VAL {} '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(readings_plugin)],
+        shell=True, check=True)
+    subprocess.run(["echo -e 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)

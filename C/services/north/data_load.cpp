@@ -237,7 +237,6 @@ void DataLoad::readBlock(unsigned int blockSize)
 			if (n_update_streamId > max_wait_count) {
 				// Update 'last_object_id' in 'streams' table when no readings to send
 				n_update_streamId = 0;
-				m_streamSent = getLastFetched();
 				flushLastSentId();
 			}
 		}

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <connection.h>
+#include <connection_manager.h>
+#include <config_category.h>
 #include <logger.h>
 #include <string.h>
 #include <string>
@@ -67,7 +69,11 @@ class TestFormatDate : public ::testing::TestWithParam<RowFormatDate> {
 TEST_P(TestFormatDate, TestConversions)
 {
 EXPECT_EXIT({
-	Connection a;
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	ConfigCategory category;
+
+	manager->setConfiguration(&category);
+	Connection a(manager);
 	Logger::getLogger()->setMinLevel("debug");
 
 	RowFormatDate const& p = GetParam();

@@ -253,6 +253,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_val_new_copy
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
+
+        def _validate_optional_attribute_string_type(optional_key_name, optional_key_value, config_item_name):
+            if not isinstance(optional_key_value, str):
+                raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
+                    category_name, optional_key_name, config_item_name, type(optional_key_value)))
+            final_optional_key_value = optional_key_value.strip()
+            if not final_optional_key_value:
+                raise ValueError('For {} category, {} cannot be empty for item name {}'.format(
+                    category_name, optional_key_name, config_item_name))
+            return final_optional_key_value
+
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
             raise TypeError('For {} category, category value must be a dictionary; got {}'
@@ -368,16 +379,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if 'items' not in item_val:
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
+                        if 'keyName' in item_val:
+                            item_val['keyName'] = _validate_optional_attribute_string_type('keyName',
+                                                                                           item_val['keyName'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
+                        if 'keyDescription' in item_val:
+                            item_val['keyDescription'] = _validate_optional_attribute_string_type(
+                                'keyDescription', item_val['keyDescription'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
                     if 'listName' in item_val:
-                        list_name = item_val['listName']
-                        if not isinstance(list_name, str):
-                            raise TypeError('For {} category, listName type must be a string for item name {}; '
-                                            'got {}'.format(category_name, item_name, type(list_name)))
-                        list_name = item_val['listName'].strip()
-                        if not list_name:
-                            raise ValueError('For {} category, listName cannot be empty for item name '
-                                             '{}'.format(category_name, item_name))
-                        item_val['listName'] = list_name
+                        item_val['listName'] = _validate_optional_attribute_string_type('listName',
+                                                                     item_val['listName'], item_name)
                     elif "permissions" in item_val:
                         permissions = item_val['permissions']
                         if not isinstance(permissions, list):
@@ -619,11 +632,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError(
                     'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:
-                item_val['readonly'] = self._clean(item_val, item_val['readonly'])
+                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
             if 'deprecated' in item_val:
-                item_val['deprecated'] = self._clean(item_val, item_val['deprecated'])
+                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
             if 'mandatory' in item_val:
-                item_val['mandatory'] = self._clean(item_val, item_val['mandatory'])
+                item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
             if set_value_val_from_default_val:
                 item_val['default'] = self._clean(item_val, item_val['default'])
                 item_val['value'] = item_val['default']
@@ -1904,6 +1917,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             return isinstance(_value, str)
 
     def _clean(self, storage_val, item_val) -> str:
+        # For optional attributes
+        if isinstance(storage_val, str):
+            return item_val.lower() if storage_val == 'boolean' else item_val
+        # For required attributes
         if storage_val['type'] == 'boolean':
             return item_val.lower()
         elif storage_val['type'] == 'float':

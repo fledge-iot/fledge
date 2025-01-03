@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+import asyncio
 import functools
 import datetime
 
@@ -138,7 +139,6 @@ def get_open_ssl_version(version_string=True):
 def make_async(fn):
     """ turns a sync function to async function using threads """
     from concurrent.futures import ThreadPoolExecutor
-    import asyncio
     pool = ThreadPoolExecutor()
 
     @functools.wraps(fn)
@@ -179,4 +179,15 @@ def dict_difference(dict1, dict2):
             elif dict1[key] != dict2[key]:
                 diff[key] = dict2[key]
     return diff
+
+
+def async_sleep(seconds):
+    # Check Python version
+    if sys.version_info < (3, 7):
+        # For older versions, explicitly pass the loop argument
+        loop = asyncio.get_event_loop()
+        return asyncio.sleep(seconds, loop=loop)
+    else:
+        # For Python 3.7+, just use asyncio.sleep as usual
+        return asyncio.sleep(seconds)
 

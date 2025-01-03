@@ -37,8 +37,6 @@ async def mock_process():
     return m
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("scheduler")
 class TestScheduler:
 
     async def scheduler_fixture(self, mocker):
@@ -916,35 +914,35 @@ class TestScheduler:
             temp_schedule.name = None
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith("name can not be empty")
+        assert "name can not be empty" in str(ex)
 
         with pytest.raises(ValueError) as ex:
             temp_schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
             temp_schedule.name = ""
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith("name can not be empty")
+        assert "name can not be empty" in str(ex)
 
         with pytest.raises(ValueError) as ex:
             temp_schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
             temp_schedule.repeat = 1234
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith('repeat must be of type datetime.timedelta')
+        assert "repeat must be of type datetime.timedelta" in str(ex)
 
         with pytest.raises(ValueError) as ex:
             temp_schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
             temp_schedule.exclusive = None
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith('exclusive can not be None')
+        assert "exclusive can not be None" in str(ex)
 
         with pytest.raises(ValueError) as ex:
             temp_schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
             temp_schedule.time = 1234
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith('time must be of type datetime.time')
+        assert "time must be of type datetime.time" in str(ex)
 
         with pytest.raises(ValueError) as ex:
             temp_schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
@@ -952,7 +950,7 @@ class TestScheduler:
             temp_schedule.time = datetime.time()
             await scheduler.save_schedule(temp_schedule)
             del temp_schedule
-        assert str(ex).endswith('day must be between 1 and 7')
+        assert "day must be between 1 and 7" in str(ex)
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="To be done")

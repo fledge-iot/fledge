@@ -473,6 +473,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				m_perfMonitor->setCollecting(false);
 		}
 
+		if (m_configAdvanced.itemExists("rateMonitoringInterval") && m_configAdvanced.itemExists("rateSigmaFactor"))
+		{
+			string s = m_configAdvanced.getValue("rateMonitoringInterval");
+			long interval = strtol(s.c_str(), NULL, 10);
+			s = m_configAdvanced.getValue("rateSigmaFactor");
+			long factor = strtol(s.c_str(), NULL, 10);
+			ingest.configureRateMonitor(interval, factor);
+
+		}
+
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
@@ -918,6 +928,8 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
+		// Propogate advanced configuration changes to the ingest class always
+		m_ingest->configChange(categoryName, category);
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		if (m_configAdvanced.itemExists("statistics"))
 		{
@@ -1020,8 +1032,6 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
 			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
-			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
-			m_ingest->configChange(categoryName, "logLevel");
 			
 			if (type == PYTHON_PLUGIN)
 			{
@@ -1175,6 +1185,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		}
 	}
 
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, to_string(MAXSENDLATENCY));
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MINIMUM_ATTR, "0");
+
 	if (!isAsync)
 	{
 		/* Add the reading rate units */
@@ -1239,6 +1252,18 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			       "boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
+
+	// Rate Monitoring options
+	defaultConfig.addItem("rateMonitoringInterval",
+				"The interval in minutes to use when calculating average ingestion rates for monitoring the service ingestion",
+				"integer", "1", "1");
+	defaultConfig.setItemDisplayName("rateMonitoringInterval", "Monitoring Period");
+	defaultConfig.setItemAttribute("rateMonitoringInterval", ConfigCategory::MINIMUM_ATTR, "0");
+	defaultConfig.addItem("rateSigmaFactor",
+				"The sensitivity of the ingest rate monitor, expressed as a number of standard deviations of the average ingest rate.",
+				"integer", "3", "3");
+	defaultConfig.setItemDisplayName("rateSigmaFactor", "Monitoring Sensitivity");
+	defaultConfig.setItemAttribute("rateSigmaFactor", ConfigCategory::MINIMUM_ATTR, "1");
 }
 
 /**

@@ -3,7 +3,6 @@ import pytest
 
 
 # noinspection PyClassHasNoInit
-@pytest.allure.feature("TestDoc")
 class TestDoc:
 
     def test_linkcheck(self, tmpdir):

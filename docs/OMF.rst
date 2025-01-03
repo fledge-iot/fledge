@@ -165,6 +165,9 @@ The *Basic* tab contains the most commonly modified items
     When using the PI Buffer Subsystem, set the action code to *create* which will allow new data to be compressed normally.
     One disadvantage of the *create* action code is that multiple values with the same timestamp will all be stored. 
 
+  - **Enable Tracing**: The Enable Tracing flag allows users to toggle the Tracing functionality on or off. If enabled, a detailed tracing of OMF messages will be written to `logs/debug-trace/omf.log` file in Fledge data directory.
+
+
 Asset Framework
 ~~~~~~~~~~~~~~~
 
@@ -752,9 +755,10 @@ These are the OMF versions the plugin will use to post data:
 +===========+==========+=====================+
 |        1.2|- 2021    |- 2023               |
 |           |- 2021 SP1|- 2023 Patch 1       |
-|           |- 2021 SP2|                     |
+|           |- 2021 SP2|- 2024               |
 |           |- 2021 SP3|                     |
 |           |- 2023    |                     |
+|           |- 2023 SP1|                     |
 +-----------+----------+---------------------+
 |        1.1|          |                     |
 +-----------+----------+---------------------+

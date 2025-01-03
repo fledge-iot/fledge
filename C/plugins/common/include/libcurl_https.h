@@ -67,7 +67,9 @@ private:
 	LibcurlHttps(const LibcurlHttps&);
 	LibcurlHttps&     operator=(LibcurlHttps const &);
 
-    	void setLibCurlOptions(CURL *sender, const std::string& path, const vector<pair<std::string, std::string>>& headers);
+    void setLibCurlOptions(CURL *sender, const std::string& path, const vector<pair<std::string, std::string>>& headers);
+    void setTrace();
+    void resetTrace();
 
 private:
 	CURL               *m_sender;

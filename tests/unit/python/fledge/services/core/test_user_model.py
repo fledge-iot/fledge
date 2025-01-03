@@ -29,8 +29,7 @@ pytestmark = pytest.mark.asyncio
 def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "user-model")
+
 class TestUserModel:
 
     async def test_initial_value(self):
@@ -51,8 +50,8 @@ class TestUserModel:
         with pytest.raises(Exception) as excinfo:
             User()
         assert excinfo.type is TypeError
-        assert str(
-            excinfo.value) == "__init__() missing 3 required positional arguments: 'uid', 'username', and 'password'"
+        assert "__init__() missing 3 required positional arguments: 'uid', 'username', and 'password'" in str(
+            excinfo.value)
 
     async def test_get_roles(self):
         expected = {'rows': [], 'count': 0}

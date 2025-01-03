@@ -48,7 +48,7 @@ class TestInstance:
 
         with pytest.raises(AlreadyExistsWithTheSameName) as excinfo:
             Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
-        assert str(excinfo).endswith('AlreadyExistsWithTheSameName')
+        assert "AlreadyExistsWithTheSameName" in str(excinfo)
 
     async def test_duplicate_address_port_registration(self):
         with patch.object(Service._logger, 'info') as log_info:
@@ -62,7 +62,7 @@ class TestInstance:
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9999, 1998)
-        assert str(excinfo).endswith('AlreadyExistsWithTheSameAddressAndPort')
+        assert "AlreadyExistsWithTheSameAddressAndPort" in str(excinfo)
 
     async def test_duplicate_address_and_mgt_port_registration(self):
         with patch.object(Service._logger, 'info') as log_info:
@@ -76,22 +76,22 @@ class TestInstance:
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndManagementPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
-        assert str(excinfo).endswith('AlreadyExistsWithTheSameAddressAndManagementPort')
+        assert "AlreadyExistsWithTheSameAddressAndManagementPort" in str(excinfo)
 
     async def test_register_wrong_type(self):
         with pytest.raises(ServiceRecord.InvalidServiceType) as excinfo:
             Service.register("StorageService1", "WrongType", "127.0.0.1", 9999, 1999)
-        assert str(excinfo).endswith('InvalidServiceType')
+        assert "InvalidServiceType" in str(excinfo)
 
     async def test_register_invalid_port(self):
         with pytest.raises(NonNumericPortError) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", "808a", 1999)
-        assert str(excinfo).endswith('NonNumericPortError')
+        assert "NonNumericPortError" in str(excinfo)
 
     async def test_register_invalid_mgt_port(self):
         with pytest.raises(NonNumericPortError) as excinfo:
             Service.register("StorageService2", "Core", "127.0.0.1", 8888, "199a")
-        assert str(excinfo).endswith('NonNumericPortError')
+        assert "NonNumericPortError" in str(excinfo)
 
     async def test_unregister(self, mocker):
         # register a service
@@ -167,4 +167,4 @@ class TestInstance:
             assert args[0].endswith(
                 ': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=8888,'
                 ' management port=9999, status=1>')
-        assert str(excinfo).endswith('DoesNotExist')
+        assert "DoesNotExist" in str(excinfo)

@@ -92,7 +92,7 @@ Fledge uses pytest-cov Framework of pytest as the code coverage measuring tool f
 
 To install pytest-cov Framework along with pytest Framework use the following command:
 ::
-   python3 -m pip install pytest==3.6.4 pytest-cov==2.9.0
+   python3 -m pip install pytest==7.0.1 pytest-cov==2.9.0
 
 Running the python tests:
 

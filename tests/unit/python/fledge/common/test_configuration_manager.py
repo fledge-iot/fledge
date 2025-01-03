@@ -1019,6 +1019,90 @@ class TestConfigurationManager:
         assert config['include']['default'] == res['include']['default']
         assert config['include']['default'] == res['include']['value']
 
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        ({ITEM_NAME: {"description": "Test JSON", "type": "json", "default": "A"}}, ValueError,
+         'For {} category, invalid entry value for entry name "type" for item name {}. valid type strings are: {}'
+         ''.format(CAT_NAME, ITEM_NAME, _valid_type_strings)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "A"}}, ValueError,
+         'For {} category, missing entry name value for item name {}'.format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": ""}}, TypeError,
+         "For {} category, {} item name and schema entry value must be an object; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}}, "info": {
+            "description": "test description val", "type": "string", "default": "test default val"}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME)),
+        ({"bool": {"description": "Test boolean", "type": "boolean", "default": "false", "value": "true"},
+          ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}},
+          "str": {"description": "Test simple string", "type": "string", "default": "test default val"}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME))
+    ])
+    async def test__validate_category_val_JSON_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
+    @pytest.mark.parametrize("config", [
+    ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}"}}),
+    ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": {}}}),
+    # Object Schema
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}}}}),
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}}}}),
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}},
+                  "required": ["name"]}}),
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}},
+                  "required": ["name"]}}),
+    # Array Schema
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10]",
+                  "schema": {"type": "array", "items": {"type": "integer"}}}}),
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10, 20, 30]",
+                      "schema": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 5}}}),
+    # Nested Objects with Array of Objects
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {
+        "project_name": "New Project", "tasks": [
+            {"task_id": 1, "completed": True}, {"task_id": 10, "completed": False}]},
+                      "schema": {"type": "object",
+                                 "properties": {
+                                     "project_name": {"type": "string"},
+                                     "tasks":{
+                                         "type": "array",
+                                         "items": {
+                                             "type": "object",
+                                             "properties": {
+                                                 "task_id": {"type": "integer"},
+                                                 "task_name": {"type": "string"},
+                                                 "completed": {"type": "boolean"},
+                                             },
+                                             "required": ["task_id", "completed"]
+                                         }
+                                     }
+                                 },
+                                 "required": ["project_name", "tasks"]
+                                 }}}),
+    # Array of Arrays
+    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[[10, 20, 30], [300], [0, 1]]",
+                  "schema": {"type": "array",
+                             "items": {"type": "array",
+                                       "items": {"type": "integer"}}
+                             }}
+      })
+    ])
+    async def test__validate_category_val_JSON_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        c_return_value = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=True)
+        assert isinstance(c_return_value, dict)
+
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
         ("string", "", False),

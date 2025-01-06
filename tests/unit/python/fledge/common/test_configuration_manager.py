@@ -1075,7 +1075,7 @@ class TestConfigurationManager:
                           "project_name": {"type": "string"}, "tasks": {
                               "type": "array", "items": {"type": "object", "properties": {
                                   "task_id": {"type": "integer"}, "completed": {"type": "boolean"}},
-                                "required": ["taskId", "completed"]}
+                                "required": ["task_id", "completed"]}
                             }},
                                  "required": ["project_name", "tasks"]}}}),
         # Array of Arrays

@@ -1048,59 +1048,45 @@ class TestConfigurationManager:
         assert reason == str(excinfo.value)
 
     @pytest.mark.parametrize("config", [
-    ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}"}}),
-    ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": {}}}),
-    # Object Schema
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
-                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}}}}),
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
-                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}}}}),
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
-                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}},
-                  "required": ["name"]}}),
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
-                  "schema": {"type": "object", "properties": {"name": {"type": "string"}}, "age": {"type": "integer"}},
-                  "required": ["name"]}}),
-    # Array Schema
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10]",
-                  "schema": {"type": "array", "items": {"type": "integer"}}}}),
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10, 20, 30]",
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}"}}),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": {}}}),
+        # Object Schema
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                      "schema": {"type": "object", "properties": {"name": {"type": "string"}}}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                      "schema": {"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}
+                                                                  }}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                      "schema": {"type": "object", "properties": {
+                          "name": {"type": "string"}, "age": {"type": "integer"}}, "required": ["name"]}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                      "schema": {"type": "object", "properties": {
+                          "name": {"type": "string"}, "age": {"type": "integer"}}, "required": ["name"]}}}),
+        # Array Schema
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10]",
+                      "schema": {"type": "array", "items": {"type": "integer"}}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10, 20, 30]",
                       "schema": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 5}}}),
-    # Nested Objects with Array of Objects
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {
-        "project_name": "New Project", "tasks": [
-            {"task_id": 1, "completed": True}, {"task_id": 10, "completed": False}]},
-                      "schema": {"type": "object",
-                                 "properties": {
-                                     "project_name": {"type": "string"},
-                                     "tasks":{
-                                         "type": "array",
-                                         "items": {
-                                             "type": "object",
-                                             "properties": {
-                                                 "task_id": {"type": "integer"},
-                                                 "task_name": {"type": "string"},
-                                                 "completed": {"type": "boolean"},
-                                             },
-                                             "required": ["task_id", "completed"]
-                                         }
-                                     }
-                                 },
-                                 "required": ["project_name", "tasks"]
-                                 }}}),
-    # Array of Arrays
-    ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[[10, 20, 30], [300], [0, 1]]",
-                  "schema": {"type": "array",
-                             "items": {"type": "array",
-                                       "items": {"type": "integer"}}
-                             }}
-      })
+        # Nested Objects with Array of Objects
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON",
+                      "default": {"project_name": "New Project", "tasks": [{"task_id": 1, "completed": True},
+                                                                           {"task_id": 10, "completed": False}]},
+                      "schema": {"type": "object", "properties": {
+                          "project_name": {"type": "string"}, "tasks": {
+                              "type": "array", "items": {"type": "object", "properties": {
+                                  "task_id": {"type": "integer"}, "completed": {"type": "boolean"}},
+                                "required": ["task_id", "completed"]}
+                            }},
+                                 "required": ["project_name", "tasks"]}}}),
+        # Array of Arrays
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[[10, 20, 30], [300], [0, 1]]",
+                      "schema": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}}}})
     ])
     async def test__validate_category_val_JSON_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         c_return_value = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
-                                               set_value_val_from_default_val=True)
+                                                            set_value_val_from_default_val=True)
         assert isinstance(c_return_value, dict)
 
     @pytest.mark.parametrize("_type, value, from_default_val", [

@@ -557,6 +557,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
                             raise ValueError('For {} category, {} entry values must be a string and non-empty '
                                              'for item name {}.'.format(category_name, entry_name, item_name))
+                elif 'type' in item_val and get_entry_val("type") == 'JSON':
+                    if 'schema' in item_val:
+                        if type(item_val['schema']) is not dict:
+                            raise TypeError('For {} category, {} item name and schema entry value must be an object; '
+                                            'got {}'.format(category_name, item_name, type(entry_val)))
+                        if not item_val['schema']:
+                            raise ValueError('For {} category, {} item name and schema entry value can not be empty.'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '

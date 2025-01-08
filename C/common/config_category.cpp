@@ -615,6 +615,8 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 				    return m_items[i]->m_kvlistKeyName;
 				case KVLIST_KEY_DESCRIPTION_ATTR:
 				    return m_items[i]->m_kvlistKeyDescription;
+				case JSON_SCHEMA_ATTR:
+					return m_items[i]->m_jsonSchema;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -698,6 +700,9 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 				case KVLIST_KEY_DESCRIPTION_ATTR:
 					m_items[i]->m_kvlistKeyDescription = value;
 					return true;
+				case JSON_SCHEMA_ATTR:
+				    m_items[i]->m_jsonSchema = value;
+				    return true;
 				default:
 					return false;
 			}
@@ -1385,6 +1390,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	if (item.HasMember("schema"))
+	{
+		Logger::getLogger()->debug("item['schema'].IsString()=%s, item['schema'].IsObject()=%s",
+										item["schema"].IsString()?"true":"false",
+										item["schema"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["schema"].Accept(writer);
+		m_jsonSchema = item["schema"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_jsonSchema=%s", m_jsonSchema.c_str());
+	}
+	else
+	{
+		m_jsonSchema = "";
+	}
+
 	if (item.HasMember("items"))
 	{
 		if (item["items"].IsString())
@@ -1738,6 +1765,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	{
 		m_permissions.push_back(*it);
 	}
+	m_jsonSchema = rhs.m_jsonSchema;
 }
 
 /**
@@ -1882,6 +1910,10 @@ ostringstream convert;
 		{
 			convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
 		}
+		if (!m_jsonSchema.empty())
+		{
+			convert << ", \"schema\" : " << m_jsonSchema;
+		}
 	}
 	convert << " }";
 
@@ -1999,6 +2031,10 @@ ostringstream convert;
 	if (!m_kvlistKeyDescription.empty())
 	{
 	    convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
+	}
+	if (!m_jsonSchema.empty())
+	{
+		convert << ", \"schema\" : " << m_jsonSchema;
 	}
 
 	if (m_itemType == StringItem ||

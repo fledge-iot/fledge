@@ -1074,6 +1074,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	lock_guard<mutex> guard(ingest->m_useDataMutex);
 	
 	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
+	bool isBufferMemory = false;
 	if (!ingest->m_data)
 	{
 		// If we are called during shutdown there will be no m_data in place
@@ -1082,11 +1083,20 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 		// down this will note cause a problem as all memory is recovered at process
 		// exit time.
 		ingest->m_data = new vector<Reading *>;
+		isBufferMemory = true;
 	}
 	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	
 	readingSet->clear();
 	delete readingSet;
+
+	// Recover buffer memory generated to ingest data
+	if (isBufferMemory)
+	{
+		ingest->m_data->clear();
+		delete ingest->m_data;
+		ingest->m_data = NULL;
+	}
 }
 
 /**

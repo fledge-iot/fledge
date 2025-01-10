@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from fledge.common import logger
+from fledge.common.utils import async_sleep
 from fledge.common.alert_manager import AlertManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -1614,7 +1615,7 @@ class Server:
             await cls._stop()
             loop = request.loop
             # allow some time
-            await asyncio.sleep(2.0, loop=loop)
+            await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
@@ -1632,7 +1633,7 @@ class Server:
             await cls._stop()
             loop = request.loop
             # allow some time
-            await asyncio.sleep(2.0, loop=loop)
+            await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 

@@ -23,7 +23,7 @@ class TestStorageClientExceptions:
         with pytest.raises(Exception) as excinfo:
             raise StorageClientException()
         assert excinfo.type is TypeError
-        assert "__init__() missing 1 required positional argument: 'code'" == str(excinfo.value)
+        assert "__init__() missing 1 required positional argument: 'code'" in str(excinfo.value)
 
     def test_default_init_StorageClientException(self):
         with pytest.raises(Exception) as excinfo:

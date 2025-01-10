@@ -50,8 +50,8 @@ class TestUserModel:
         with pytest.raises(Exception) as excinfo:
             User()
         assert excinfo.type is TypeError
-        assert str(
-            excinfo.value) == "__init__() missing 3 required positional arguments: 'uid', 'username', and 'password'"
+        assert "__init__() missing 3 required positional arguments: 'uid', 'username', and 'password'" in str(
+            excinfo.value)
 
     async def test_get_roles(self):
         expected = {'rows': [], 'count': 0}

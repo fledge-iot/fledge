@@ -41,7 +41,7 @@ class TestConnect:
     def test_exception_when_no_storage(self, mock_logger):
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage_async()
-        assert str(excinfo).endswith('DoesNotExist')
+        assert "DoesNotExist" in str(excinfo)
         assert 1 == mock_logger.error.call_count
 
     @patch('fledge.services.core.connect._logger')
@@ -55,5 +55,5 @@ class TestConnect:
                                 'management port=2, status=1>')
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage_async()
-        assert str(excinfo).endswith('DoesNotExist')
+        assert "DoesNotExist" in str(excinfo)
         assert 1 == mock_logger.error.call_count

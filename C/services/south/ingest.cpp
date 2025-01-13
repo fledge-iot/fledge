@@ -13,6 +13,7 @@
 #include <thread>
 #include <logger.h>
 #include <set>
+#include "string_utils.h"
 #include <ingest_rate.h>
 
 using namespace std;
@@ -622,6 +623,7 @@ void Ingest::processQueue()
 				{
 					Reading *reading = *it;
 					string assetName = reading->getAssetName();
+					assetName = escape(assetName);
                                         const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
 					std::set<std::string> tempSet;
@@ -870,6 +872,7 @@ void Ingest::processQueue()
 				{
 		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
+					assetName = escape(assetName);
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
                                         std::set<std::string> tempSet;

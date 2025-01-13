@@ -150,7 +150,36 @@ A JSON document which describes the user to add.
     * - description
       - string
       - Description of the user. It is an optional field.
-      - 1 for Admin and 2 for normal user. If not given it will be treated as normal user.
+      - Member of maintenance team
+
+
+**Response Payload**
+
+The response payload is a JSON document containing the full details of the newly created user.
+
+**Errors**
+
+The following error responses may be returned
+
+.. list-table::
+    :widths: 20 50
+    :header-rows: 1
+
+    * - HTTP Code
+      - Reason
+    * - 400
+      - Incomplete or badly formed request payload
+    * - 403
+      - A user without admin permissions tried to add a new user
+    * - 409
+      - The username is already in use
+
+
+**Example**
+
+.. code-block:: console
+
+    curl -H "authorization: <token>" -X POST -d '{"username": "david", "password": "Inv1nc!ble", "role_id": 1, "real_name": "David Brent"}' http://localhost:8081/fledge/admin/user
 
 To obtain the full list of supported roles;
 
@@ -188,34 +217,9 @@ To obtain the full list of supported roles;
       ]
     }
 
-**Response Payload**
+.. note::
 
-The response payload is a JSON document containing the full details of the newly created user.
-
-**Errors**
-
-The following error responses may be returned
-
-.. list-table::
-    :widths: 20 50
-    :header-rows: 1
-
-    * - HTTP Code
-      - Reason
-    * - 400
-      - Incomplete or badly formed request payload
-    * - 403
-      - A user without admin permissions tried to add a new user
-    * - 409
-      - The username is already in use
-
-
-**Example**
-
-.. code-block:: console
-
-    curl -H "authorization: <token>" -X POST -d '{"username": "david", "password": "Inv1nc!ble", "role_id": 1, "real_name": "David Brent"}' http://localhost:8081/fledge/admin/user
-
+   This entry point is only avaialable to users with the *admin* role.
 
 Get All Users
 -------------

@@ -356,7 +356,7 @@ b) Now, it's time to create user with name **test** (case sensitive). Also only 
 
 .. note::
 
-   Fledge supports a number of different user roles, the appropriate role_id should be passed for the user role required. The full list of supported role_id's can be obtained by called the /fledge/user/role GET API entry point.
+   Fledge supports a number of different user roles, the appropriate role_id should be passed for the user role required. The full list of supported role_id's can be obtained by called the /fledge/user/role GET API entry point. This entry point is only available to users with the *admin* role.
 
 You may also refer the documentation of |REST API| cURL commands. If you are not comfortable with cURL commands then use the GUI steps |User Management| and make sure Login with admin user.
 

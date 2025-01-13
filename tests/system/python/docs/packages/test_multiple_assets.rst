@@ -3,14 +3,13 @@ Test Multiple Assets
 
 Objective
 +++++++++
-This test is designed for the specific purpose of creating large number of assets in Fledge using the fledge-south-benchmark plugin and then checking the stability of Fledge and ots components.
+This test is designed to validate Fledge's ability to handle the creation of a large number of assets using the fledge-south-benchmark plugin while ensuring the stability of Fledge and its components.
 
+This test consists of *TestMultiAssets* class, which contains multiple test case functions:
 
-This test comprises *TestMultiAssets* class having multiple test cases functions:
-
-1. **test_multiple_assets_with_restart**: Test whether Fledge can create multiple fledge-south-benchmark services with a large number of assets, and verify the assets and the stability of Fledge after restarting it.
-2. **test_add_multiple_assets_before_after_restart**: Test whether Fledge can create a large number of assets before and after restarting of it, through multiple fledge-south-benchmark services.
-3. **test_multiple_assets_with_reconfig**: Test whether Fledge can create a large number of assets through reconfiguration of fledge-south-benchmark services and remain stable.
+1. **test_multiple_assets_with_restart**: Verifies that Fledge can create multiple fledge-south-benchmark services with a large number of assets, ensures the assets are correctly created, and checks the stability of Fledge after a restart.
+2. **test_add_multiple_assets_before_after_restart**: Ensures Fledge's ability to create a large number of assets both before and after restarting, using multiple fledge-south-benchmark services.
+3. **test_multiple_assets_with_reconfig**: Tests the creation of a large number of assets through the reconfiguration of fledge-south-benchmark services and confirms Fledge's stability during and after the reconfiguration .
 
 
 Prerequisite
@@ -43,9 +42,9 @@ The minimum required parameters to run,
     --num-assets=NUM_OF_ASSETS
                         Total No. of Assets to be created
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
 
 Execution of Test
 +++++++++++++++++
@@ -53,6 +52,6 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python/
-  $ python3 -m pytest -s -vv packages/test_multiple_assets.py --package-build-version="PACKAGE_BUILD_VERSION" --pi-host="PI_SYSTEM_HOST" \
-        --pi-port="PI_SYSTEM_PORT" --pi-admin="PI_SYSTEM_ADMIN" --pi-passwd="PI_SYSTEM_PWD"  --pi-db="PI_SYSTEM_DB" --num-assets="NUM_OF_ASSETS" \
-        --wait-time="WAIT_TIME" --junit-xml="JUNIT_XML"
+  $ python3 -m pytest -s -vv packages/test_multiple_assets.py --package-build-version="<PACKAGE_BUILD_VERSION>" --pi-host="<PI_SYSTEM_HOST>" \
+      --pi-port="<PI_SYSTEM_PORT>" --pi-admin="<PI_SYSTEM_ADMIN>" --pi-passwd="<PI_SYSTEM_PWD>"  --pi-db="<PI_SYSTEM_DB>" --num-assets="<NUM_OF_ASSETS>" \
+      --wait-time="<WAIT_TIME>" --junit-xml="<JUNIT_XML>"

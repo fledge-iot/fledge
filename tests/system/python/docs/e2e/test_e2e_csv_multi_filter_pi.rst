@@ -3,12 +3,11 @@ Test E2E CSV Multi Filter PI
 
 Objective
 +++++++++
-This test is designed to perform end-to-end testing of Fledge by ingesting data into Fledge using the `fledge-south-playback` plugin from a csv, haiving a filters of `fledge-filter-scale`, `fledge-filter-asset`, `fledge-filter-rate`, `fledge-filter-delta`, `fledge-filter-rms` plugins attached to it and then sending data to the PI Server using the service of `fledge-north-OMF` plugin, having filter of `fledge-filter-threshold` plugin.
+This test is designed to perform end-to-end testing of Fledge by ingesting data into Fledge using the `fledge-south-playback` plugin from a CSV file, with filters of the `fledge-filter-scale`, `fledge-filter-asset`, `fledge-filter-rate`, `fledge-filter-delta`, and `fledge-filter-rms` plugins attached. The data is then sent to the PI Server using the service of the `fledge-north-OMF` plugin, which has the `fledge-filter-threshold` plugin attached.
 
+This test consists of *TestE2eCsvMultiFltrPi* class, which contains only one test cases functions:
 
-This test comprises *TestE2eCsvMultiFltrPi* class having only one test cases functions:
-
-1. **test_end_to_end**: Test that checks data is inserted in Fledge using playback south plugin having filters of Delta, RMS, Rate, Scale, Asset & Metadata and sent to PI or not. It also verifies the data sent and received counts, checks whether the required asset is created, and ensures that the data sent from Fledge via the OMF plugin reaches the PI Server.
+1. **test_end_to_end**: Verifies that data is inserted into Fledge using the playback south plugin with filters for Delta, RMS, Rate, Scale, Asset, and Metadata, and then sent to PI. It also checks the data sent and received counts, verifies the creation of the required asset, and ensures that the data sent from Fledge via the OMF plugin reaches the PI Server.
 
 
 Prerequisite
@@ -39,11 +38,11 @@ The minimum required parameters to run,
     --pi-db=PI_SYSTEM_DB
                         PI Server Database
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --retries=RETIRES
                         Number of tries for polling
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
 
 Execution of Test
 +++++++++++++++++
@@ -53,5 +52,5 @@ Execution of Test
   $ cd fledge/tests/system/python/ ; 
   $ export FLEDGE_ROOT=FLEDGE_ROOT_PATH 
   $ export PYTHONPATH=$FLEDGE_ROOT/python
-  $ python3 -m pytest -s -vv e2e/test_e2e_filter_fft_threshold.py --pi-host="PI_SYSTEM_HOST" --pi-port="PI_SYSTEM_PORT" --pi-admin="PI_SYSTEM_ADMIN" \
-        --pi-passwd="PI_SYSTEM_PWD" --pi-db="PI_SYSTEM_DB" --wait-time="WAIT_TIME" --retries="RETIRES" --junit-xml="JUNIT_XML"
+  $ python3 -m pytest -s -vv e2e/test_e2e_filter_fft_threshold.py --pi-host="<PI_SYSTEM_HOST>" --pi-port="<PI_SYSTEM_PORT>" --pi-admin="<PI_SYSTEM_ADMIN>" \
+      --pi-passwd="<PI_SYSTEM_PWD>" --pi-db="<PI_SYSTEM_DB>" --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>"

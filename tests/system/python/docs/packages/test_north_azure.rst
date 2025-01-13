@@ -3,28 +3,28 @@ Test North Azure
 
 Objective
 +++++++++
-This test is specifically designed for testing of the `fledge-north-azure` plugin. It incorporates the use of `fledge-south-systeminfo` for ingesting data into Fledge and add `fledge-filter-expression` to north side to verify Fledge's stability when service or task of `fledge-north-azure` is sending data to Azure-IoT-Hub.
+This test is specifically designed to verify the functionality and stability of the `fledge-north-azure`` plugin. It uses the `fledge-south-systeminfo`` plugin for ingesting data into Fledge and applies the `fledge-filter-expression`` on the north side to validate that the data is sent to Azure IoT Hub successfully, while ensuring Fledge remains stable when the service or task of fledge-north-azure sends data.
 
-This test comprises following Test classes having multiple test cases functions:
+This test consists of four classes, each contains multiple test case functions:
 
 1. **TestNorthAzureIoTHubDevicePlugin**: 
-    a. **test_send**: Test that check data is inserted in Fledge and sent to Azure-IoT Hub or not.
-    b. **test_mqtt_over_websocket_reconfig**: Test that enable MQTT over websocket then check data inserted into Fledge and sent to Azure-IoT Hub or not.
-    c. **test_disable_enable**: Test that enable and disable south and north service perioically then check data inserted into Fledge and sent to Azure-IoT Hub or not.
-    d. **test_send_with_filter**: Test that attach filters to North service and enable and disable filter periodically then check data inserted into Fledge and sent to Azure-IoT Hub or not.
+    a. **test_send**: Verifies that data is successfully ingested into Fledge and sent to Azure IoT Hub.
+    b. **test_mqtt_over_websocket_reconfig**: Enables MQTT over websocket then verify whether data ingested into Fledge, sent to Azure-IoT Hub.
+    c. **test_disable_enable**: Verifies that enabling and disabling the south and north services periodically does not affect data transmission to Azure IoT Hub.
+    d. **test_send_with_filter**: Verifies the impact of enabling and disabling fledge-filter-expression on the north service while ensuring data is still sent to Azure IoT Hub.
 
 2. **TestNorthAzureIoTHubDevicePluginTask**:
-    a. **test_send_as_a_task**: Test that creates south and north bound as task and check data is inserted in Fledge and sent to Azure-IoT Hub or not.
-    b. **test_mqtt_over_websocket_reconfig_task**: Test that creates south and north bound as task as well as enable MQTT over websocket then check data inserted in Fledge and sent to Azure-IoT Hub or not.
-    c. **test_disable_enable_task**: Test that creates south and north bound as task as enable and disable them periodically then check data inserted in Fledge and sent to Azure-IoT Hub or not.
-    d. **test_send_with_filter_task**: Test that creates south and north bound as task and attach filters to North Bound as well as enable and disable filters periodically then check data inserted in Fledge and sent to Azure-IoT Hub or not.
+    a. **test_send_as_a_task**: Creates south and north bound as task and check if data is ingested in Fledge and sent to Azure-IoT Hub.
+    b. **test_mqtt_over_websocket_reconfig_task**: Verifies that data sent to Azure IoT Hub with MQTT over WebSocket enabled, when south and north services are configured as tasks.
+    c. **test_disable_enable_task**: Verifies that enabling and disabling south and north services configured as tasks does not impact data transmission to Azure IoT Hub.
+    d. **test_send_with_filter_task**: Ensures that applying and toggling filters on the north task does not affect data being sent to Azure IoT Hub.
 
 3. **TestNorthAzureIoTHubDevicePluginInvalidConfig**:
-    a. **test_invalid_connstr**: Test that checks connection string of north azure plugin is invalid or not.
-    b. **test_invalid_connstr_sharedkey**: Test that checks shared key passed to connection string of north azure plugin is invalid or not.
+    a. **test_invalid_connstr**: Checks if the connection string for the north Azure plugin is valid.
+    b. **test_invalid_connstr_sharedkey**: Verifies if the shared key in the connection string for the north Azure plugin is valid.
 
 4. **TestNorthAzureIoTHubDevicePluginLongRun**:
-    a. **test_send_long_run**: Test that check data is inserted in Fledge and sent to Azure-IoT Hub for long duration based parameter passed.
+    a. **test_send_long_run**: Verifies that data is continuously sent to Azure IoT Hub over a long period, based on parameters passed.
 
 
 Prerequisite
@@ -57,9 +57,9 @@ The minimum required parameters to run,
     --azure-storage-container=AZURE_STORAGE_CONTAINER
                         Container Name in Azure where data is stored
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
 
 Execution of Test
 +++++++++++++++++
@@ -67,6 +67,6 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python
-  $ python3 -m pytest -s -vv packages/test_north_azure.py --package-build-version="PACKAGE_BUILD_VERSION" --azure-host="AZURE_HOST" \
-        --azure-device="AZURE_DEVICE" --azure-key="AZURE_KEY" --azure-storage-account-url="AZURE_STORAGE_URL" --azure-storage-account-key="AZURE_STORAGE_KEY" \
-        --azure-storage-container="AZURE_STORAGE_CONTAINER" --wait-time="WAIT_TIME" --junit-xml="JUNIT_XML" 
+  $ python3 -m pytest -s -vv packages/test_north_azure.py --package-build-version="<PACKAGE_BUILD_VERSION>" --azure-host="<AZURE_HOST>" \
+        --azure-device="<AZURE_DEVICE>" --azure-key="<AZURE_KEY>" --azure-storage-account-url="<AZURE_STORAGE_URL>" --azure-storage-account-key="<AZURE_STORAGE_KEY>" \
+        --azure-storage-container="<AZURE_STORAGE_CONTAINER>" --wait-time="<WAIT_TIME>" --junit-xml="<JUNIT_XML>"

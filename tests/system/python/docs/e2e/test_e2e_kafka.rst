@@ -6,9 +6,9 @@ Objective
 This test is designed to perform end-to-end testing of Fledge by ingesting data into Fledge using the `fledge-south-coap` plugin and sending it to the Kafka Server using the `fledge-north-kafka` plugin.
 
 
-This test comprises *TestE2EKafka* class having only one test cases functions:
+This test consists of *TestE2EKafka* class, which contains only one test case functions:
 
-1. **test_end_to_end**: Test that data is ingested into Fledge via south service of `fledge-south-coap` plugin and sent to Kafka Server via `fledge-north-kafka` plugin, also verifies the data sent and received counts, checks whether the required asset is created, and ensures that the data sent from Fledge via the `fledge-north-kafka` plugin reaches the Kafka Server.
+1. **test_end_to_end**: Verifies that data is ingested into Fledge through the south service of the fledge-south-coap plugin and sent to the Kafka Server via the fledge-north-kafka plugin. It also checks the data sent and received counts, ensures the required asset is created, and confirms that the data sent from Fledge via the fledge-north-kafka plugin reaches the Kafka Server.
 
 
 Prerequisite
@@ -30,11 +30,11 @@ The minimum required parameters to run,
     --kafka-host=KAFKA_HOST
                         IP Address of Kafka Server
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --retries=RETIRES
                         Number of tries for polling
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
 
 Execution of Test
 +++++++++++++++++
@@ -44,4 +44,4 @@ Execution of Test
   $ cd fledge/tests/system/python/ ; 
   $ export FLEDGE_ROOT=FLEDGE_ROOT_PATH 
   $ export PYTHONPATH=$FLEDGE_ROOT/python
-  $ python3 -m pytest -s -vv e2e/test_e2e_kafka.py --kafka-host="KAFKA_HOST" --wait-time="WAIT_TIME" --retries="RETIRES" --junit-xml="JUNIT_XML"
+  $ python3 -m pytest -s -vv e2e/test_e2e_kafka.py --kafka-host="<KAFKA_HOST>" --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>"

@@ -3,12 +3,11 @@ Test E2E Filter FFT Threshold
 
 Objective
 +++++++++
-This test is designed to perform end-to-end testing of Fledge by ingesting data into Fledge using the `fledge-south-playback` plugin from a csv, haiving a filter of `fledge-filter-fft` plugin attached to it and then sending data to the PI Server using the service of `fledge-north-OMF` plugin, having filter of `fledge-filter-threshold` plugin.
+This test is designed to perform end-to-end testing of Fledge by ingesting data from a CSV file into Fledge using the `fledge-south-playback` plugin, with the `fledge-filter-fft` plugin attached. The data is then sent to the PI Server using the `fledge-north-OMF` plugin, with the `fledge-filter-threshold` plugin applied.
 
+This test consists of *TestE2eFilterFFTThreshold* class, which contains only one test case functions:
 
-This test comprises *TestE2eFilterFFTThreshold* class having only one test cases functions:
-
-1. **test_e2e_csv_pi**: Test that checks data is inserted into Fledge using playback south plugin & FFT filter, and sent to PI after passing through threshold filter or not, It also verifies the data sent and received counts, checks whether the required asset is created, and ensures that the data sent from Fledge via the OMF plugin reaches the PI Server.
+1. **test_e2e_csv_pi**: Verifies that data is ingested into Fledge using the playback south plugin with an FFT filter, then sent to PI after passing through the threshold filter. It checks the data sent and received counts, ensures the required asset is created, and confirms that the data sent from Fledge via the OMF plugin reaches the PI Server.
 
 
 Prerequisite
@@ -39,11 +38,11 @@ The minimum required parameters to run,
     --pi-db=PI_SYSTEM_DB
                         PI Server Database
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --retries=RETIRES
                         Number of tries for polling
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
 
 Execution of Test
 +++++++++++++++++
@@ -53,5 +52,5 @@ Execution of Test
   $ cd fledge/tests/system/python/ ; 
   $ export FLEDGE_ROOT=FLEDGE_ROOT_PATH 
   $ export PYTHONPATH=$FLEDGE_ROOT/python
-  $ python3 -m pytest -s -vv e2e/test_e2e_filter_fft_threshold.py --pi-host="PI_SYSTEM_HOST" --pi-port="PI_SYSTEM_PORT" --pi-admin="PI_SYSTEM_ADMIN" \
-        --pi-passwd="PI_SYSTEM_PWD" --pi-db="PI_SYSTEM_DB" --wait-time="WAIT_TIME" --retries="RETIRES" --junit-xml="JUNIT_XML"
+  $ python3 -m pytest -s -vv e2e/test_e2e_filter_fft_threshold.py --pi-host="<PI_SYSTEM_HOST>" --pi-port="<PI_SYSTEM_PORT>" --pi-admin="<PI_SYSTEM_ADMIN>" \
+      --pi-passwd="<PI_SYSTEM_PWD>" --pi-db="<PI_SYSTEM_DB>" --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>"

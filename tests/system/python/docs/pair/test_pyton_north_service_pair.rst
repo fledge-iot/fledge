@@ -3,20 +3,20 @@ Test PIWebAPI
 
 Objective
 +++++++++
-This test is designed for the specific purpose to perform testing with two Fledge instances running as a pair. Fledge(A) with the south service of `fledge-south-sinusoid`, which ingest data. This data is then sent to Fledge(B) using the `fledge-north-http-north` (python) plugin. Fledge(B) runs the `fledge-south-http` (Python) plugin to receive data from Fledge(A) and forwards it to the PI Server using the `fledge-north-OMF` plugin.
+This test is specifically designed to validate data ingestion in Fledge(A) using the fledge-south-sinusoid plugin and its subsequent transfer to Fledge(B) via the fledge-north-http-north (Python) plugin. Fledge(B) processes this data through the fledge-south-http (Python) plugin and forwards it to the PI Server using the fledge-north-OMF plugin.
+This test verifies the basic functionality and reliability of the fledge-north-http-north plugin, focusing on scenarios such as restarts, reconfigurations, and filter manipulations.
 
+This test consist of *TestPythonNorthService* class, which contains multiple test case functions:
 
-This test comprises *TestPythonNorthService* class having only one test cases functions:
-
-1. **test_north_python_service_with_restart**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly before and after a Fledge restart.
-2. **test_north_python_service_with_enable_disable**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when disbling and then enabling its service.
-3. **test_north_python_service_with_delete_add**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when deleting and then adding its service.
-4. **test_north_python_service_with_reconfig**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when reconfiguring its service.
-5. **test_north_python_service_with_filter**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when adding `fledge-filter-scale` to its service.
-6. **test_north_python_service_with_filter_enable_disable**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when filter of `fledge-filter-scale` added to its service is disbaled then enabled.
-7. **test_north_python_service_with_filter_reconfig**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when filter of `fledge-filter-scale` added to its service is reconfigured.
-8. **test_north_python_service_with_delete_add_filter**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when filter of `fledge-filter-scale` added to its service is being first deleted then added again.
-9. **test_north_python_service_with_filter_reorder**: This test verifies that Fledge(A) ingests data via the `south-sinusoid` plugin, sends it to Fledge(B) using the `north-httpc` plugin, and Fledge(B) forwards it to the PI Server. It ensures the `north-httpc` plugin sends data correctly when filters of `fledge-filter-scale` and `fledge-filter-metadata` added to its service is being reordered.
+1. **test_north_python_service_with_restart**: Verifies that data ingested into Fledge(A) using fledge-south-sinusoid, sent to Fledge(B) using the fledge-north-http-north plugin, and that Fledge(B) forwards the data to the PI Server correctly, even after restarting Fledge(A).
+2. **test_north_python_service_with_enable_disable**: Ensures that the fledge-north-http-north plugin sends data to Fledge(B) and the PI Server correctly after being disabled and then re-enabled in Fledge(A).
+3. **test_north_python_service_with_delete_add**: Confirms that the fledge-north-http-north plugin continues to function correctly after being deleted and re-added in Fledge(A), with data successfully flowing to Fledge(B) and the PI Server.
+4. **test_north_python_service_with_reconfig**: Validates that reconfiguring the fledge-north-http-north plugin in Fledge(A) does not disrupt the data flow to Fledge(B) and the PI Server. 
+5. **test_north_python_service_with_filter**: Verifies that adding the fledge-filter-scale to the fledge-north-http-north plugin in Fledge(A) applies the filter correctly before forwarding the data to Fledge(B) and the PI Server.
+6. **test_north_python_service_with_filter_enable_disable**: Ensures that disabling and re-enabling the fledge-filter-scale filter on the fledge-north-http-north plugin in Fledge(A) does not disrupt data transformation or flow to Fledge(B) and the PI Server.
+7. **test_north_python_service_with_filter_reconfig**: Confirms that reconfiguring the fledge-filter-scale filter on the fledge-north-http-north plugin applies the updated configuration correctly while maintaining data flow to Fledge(B) and the PI Server.
+8. **test_north_python_service_with_delete_add_filter**: Ensures that deleting and re-adding the fledge-filter-scale filter to the fledge-north-http-north plugin in Fledge(A) does not affect the data flow or transformation, with data reaching Fledge(B) and the PI Server as expected.
+9. **test_north_python_service_with_filter_reorder**: Verifies that reordering filters (e.g., fledge-filter-scale and fledge-filter-metadata) applied to the fledge-north-http-north plugin updates the processing sequence correctly, with data accurately processed and forwarded to Fledge(B) and the PI Server.
 
 
 Prerequisite
@@ -53,13 +53,13 @@ The minimum required parameters to run,
     --pi-db=PI_SYSTEM_DB
                         PI Server Database
     --wait-time=WAIT_TIME
-                        Generic wait time between processes to run
+                        Generic wait time (in seconds) between processes
     --retries=RETIRES
                         Number of tries for polling
     --junit-xml=JUNIT_XML
-                        Pytest XML report 
-    --wait-fix="WAIT_FIX"
-                        Extra wait time required for process to run
+                        Specifies the file path or directory where the JUnit XML test results should be saved.
+    --wait-fix=WAIT_FIX
+                        Extra wait time (in seconds) required for process to run
 
 Execution of Test
 +++++++++++++++++
@@ -67,6 +67,6 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python
-  $ python3 -m pytest -s -vv pair/test_pyton_north_service_pair.py --package-build-version="PACKAGE_BUILD_VERSION" --remote-user="FLEDGE(B)_USER" \ 
-      --remote-ip="FLEDGE(B)_IP" --key-path="KEY_PATH" --pi-admin="PI_SYSTEM_ADMIN" --pi-passwd="PI_SYSTEM_PWD" --pi-host="PI_SYSTEM_HOST" \
-      --pi-port="PI_SYSTEM_PORT" --pi-db="PI_SYSTEM_DB"  --wait-time="WAIT_TIME" --retries="RETIRES" --junit-xml="JUNIT_XML" --wait-fix="WAIT_FIX"
+  $ python3 -m pytest -s -vv pair/test_pyton_north_service_pair.py --package-build-version="<PACKAGE_BUILD_VERSION>" --remote-user="<FLEDGE(B)_USER>" \ 
+      --remote-ip="<FLEDGE(B)_IP>" --key-path="<KEY_PATH>" --pi-admin="<PI_SYSTEM_ADMIN>" --pi-passwd="<PI_SYSTEM_PWD>" --pi-host="<PI_SYSTEM_HOST>" \
+      --pi-port="<PI_SYSTEM_PORT>" --pi-db="<PI_SYSTEM_DB>"  --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>" --wait-fix="<WAIT_FIX>"

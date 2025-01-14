@@ -1102,7 +1102,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 		// exit time.
 		lock_guard<mutex> guard_buffer(ingest->m_bufferMutex);
 		ingest->m_data = new vector<Reading *>;
-		ingest->isBufferMemory = true;
+		ingest->m_isBufferMemory = true;
 	}
 	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	

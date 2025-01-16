@@ -219,7 +219,7 @@ To obtain the full list of supported roles;
 
 .. note::
 
-   This entry point is only avaialable to users with the *admin* role.
+   This entry point is only available to users with the *admin* role.
 
 Get All Users
 -------------

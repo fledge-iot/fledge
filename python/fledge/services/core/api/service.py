@@ -170,6 +170,7 @@ async def delete_service(request):
         # Delete streams and plugin data
         await delete_streams(storage, svc)
         await delete_plugin_data(storage, svc)
+        await delete_filters(storage, svc)
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
@@ -196,6 +197,21 @@ async def delete_streams(storage, svc):
 async def delete_plugin_data(storage, svc):
     payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def delete_filters(storage, svc):
+    # First, get the filter names related to the user
+    select_payload = PayloadBuilder().SELECT("name").WHERE(['user', '=', svc]).payload()
+    get_result = await storage.query_tbl_with_payload('filter_users', select_payload)
+    if 'rows' in get_result and get_result['rows']:
+        filter_names = [row['name'] for row in get_result['rows']]
+        # Delete each corresponding filter
+        for name in filter_names:
+            del_payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
+            await storage.delete_from_tbl("filters", del_payload)
+    # Delete user filters
+    payload = PayloadBuilder().WHERE(['user', '=', svc]).payload()
+    await storage.delete_from_tbl("filter_users", payload)
 
 
 async def update_deprecated_ts_in_asset_tracker(storage, svc):

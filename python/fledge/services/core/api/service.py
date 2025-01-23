@@ -199,9 +199,9 @@ async def delete_plugin_data(storage, svc):
     await storage.delete_from_tbl("plugin_data", payload)
 
 
-async def delete_filters(storage, svc):
+async def delete_filters(storage, service_name):
     # First, get the filter names related to the user
-    select_payload = PayloadBuilder().SELECT("name").WHERE(['user', '=', svc]).payload()
+    select_payload = PayloadBuilder().SELECT("name").WHERE(['user', '=', service_name]).payload()
     get_result = await storage.query_tbl_with_payload('filter_users', select_payload)
     if 'rows' in get_result and get_result['rows']:
         filter_names = [row['name'] for row in get_result['rows']]
@@ -209,8 +209,8 @@ async def delete_filters(storage, svc):
         for name in filter_names:
             del_payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
             await storage.delete_from_tbl("filters", del_payload)
-    # Delete user filters
-    payload = PayloadBuilder().WHERE(['user', '=', svc]).payload()
+    # Delete filters
+    payload = PayloadBuilder().WHERE(['user', '=', service_name]).payload()
     await storage.delete_from_tbl("filter_users", payload)
 
 

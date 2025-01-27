@@ -1,6 +1,10 @@
 .. |persist_1| image:: ../images/persist_1.png
 .. |persist_2| image:: ../images/persist_2.png
 
+.. |REST API| raw:: html
+
+        <a href= "..//rest_api_guide/05_RESTdeveloper.html#view-plugin-persisted-data.html">REST API</a>
+
 Persisting Data
 ---------------
 
@@ -22,7 +26,7 @@ The state information is persisted within the configuration database of the Fled
 
 .. note::
 
-   At the time of writing the persistance option is only available for plugins written in C/C++. Support for plugins written in Python will be made available in a future release.
+   At the time of writing the persistence option is only available for plugins written in C/C++. Support for plugins written in Python will be made available in a future release.
 
 Restoring Persisted Data
 ########################
@@ -87,7 +91,7 @@ The Fledge user interface has a mechanism that allows features designed for a pi
 
 When multiple plugin in the pipeline support persistence, the particular plugin can be selected from the drop down menu in the left of the tab.
 
-A menu exists that may be accessed by clicking on the the dots to the right of the *Developer* tab.
+A menu exists that may be accessed by clicking on the the three dots, to access the context menu, that are situated to the right of the *Developer* tab.
 
 +-------------+
 | |persist_2| |
@@ -96,3 +100,5 @@ A menu exists that may be accessed by clicking on the the dots to the right of t
 This menu allows the import and export of the persisted data to a file. This is useful when debugging pipelines to alter the state of the plugin. The import function is only available if the plugin is shutdown.
 
 You can also delete the persisted data, allowing you to purge the saved state of the plugin and forcing it back to initial operating conditions.
+
+It is also possible to use the |REST API| to interact with the plugin data that is persisted. 

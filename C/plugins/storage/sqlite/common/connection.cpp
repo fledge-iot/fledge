@@ -1534,10 +1534,8 @@ bool		allowZero = false;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
-					else if (itr->value.IsInt64())
-						sql.append((long)itr->value.GetInt64());
-					else if (itr->value.IsInt())
-						sql.append(itr->value.GetInt());
+					else if (itr->value.IsUint64())
+						sql.append(itr->value.GetUint64());
 					else if (itr->value.IsInt64())
 						sql.append(itr->value.GetInt64());
 					else if (itr->value.IsObject())
@@ -1621,7 +1619,7 @@ bool		allowZero = false;
 						sql.append(value.GetDouble());
 					else if (value.IsInt64())
 						sql.append((long)value.GetInt64());
-					else if (value.IsNumber())
+					else if (value.IsInt())
 						sql.append(value.GetInt());
 					else if (value.IsObject())
 					{
@@ -1734,7 +1732,7 @@ bool		allowZero = false;
 					{
 						sql.append((long)value.GetInt64());
 					}
-					else if (value.IsNumber())
+					else if (value.IsInt())
 					{
 						sql.append(value.GetInt());
 					}

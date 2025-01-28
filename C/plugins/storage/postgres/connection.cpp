@@ -1129,8 +1129,8 @@ SQLBuffer	sql;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
-					else if (itr->value.IsInt())
-						sql.append(itr->value.GetInt());
+					else if (itr->value.IsUint64())
+						sql.append(itr->value.GetUint64());
 					else if (itr->value.IsInt64())
 						sql.append(itr->value.GetInt64());
 					else if (itr->value.IsObject())
@@ -1217,8 +1217,10 @@ SQLBuffer	sql;
 					}
 					else if (value.IsDouble())
 						sql.append(value.GetDouble());
-					else if (value.IsNumber())
-						sql.append(value.GetInt());
+					else if (value.IsUint64())
+						sql.append(value.GetUint64());
+					else if (value.IsInt64())
+						sql.append(value.GetInt64());
 					else if (value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1331,9 +1333,13 @@ SQLBuffer	sql;
 					{
 						sql.append(value.GetDouble());
 					}
-					else if (value.IsNumber())
+					else if (value.IsUint64())
 					{
-						sql.append(value.GetInt());
+						sql.append(value.GetUint64());
+					}
+					else if (value.IsInt64())
+					{
+						sql.append(value.GetInt64());
 					}
 					else if (value.IsObject())
 					{
@@ -1938,7 +1944,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
 		{
 			// Get number of unsent rows we are about to remove
-			unsentPurged = rowidLimit - sent;
+			unsentPurged = lastPurgedId - sent;
 		}
 		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
 	}
@@ -2013,7 +2019,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
 
-	if (sent == 0)	// Special case when not north process is used
+	if (sent == 0)	// Special case when no north process is used
 	{
 		unsentPurged = deletedRows;
 	}
@@ -2194,13 +2200,20 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				{
 					break;
 				}
-				if (limit != 0 && sent != 0)
+				if (limit == 0)
 				{
-					unsentPurged = deletePoint - sent;
-				}
-				else if (!limit)
-				{
-					unsentPurged += rowsAffectedLastComand;
+					// We may purge unsent rows
+					if (minId > sent)
+					{
+						// The entire block was unsent
+						unsentPurged += rowsAffectedLastComand;
+					}
+					else if (minId < sent && deletePoint > sent)
+					{
+						// Only part of the block was unsent
+						long unsentBlock = rowsAffectedLastComand - (sent - minId);
+						unsentPurged += unsentBlock;
+					}
 				}
 			}
 		}

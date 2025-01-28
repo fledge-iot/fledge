@@ -1536,8 +1536,10 @@ bool		allowZero = false;
 						sql.append(itr->value.GetDouble());
 					else if (itr->value.IsInt64())
 						sql.append((long)itr->value.GetInt64());
-					else if (itr->value.IsNumber())
+					else if (itr->value.IsInt())
 						sql.append(itr->value.GetInt());
+					else if (itr->value.IsInt64())
+						sql.append(itr->value.GetInt64());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;

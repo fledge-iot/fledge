@@ -1117,8 +1117,10 @@ SQLBuffer	sql;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
-					else if (itr->value.IsNumber())
+					else if (itr->value.IsInt())
 						sql.append(itr->value.GetInt());
+					else if (itr->value.IsInt64())
+						sql.append(itr->value.GetInt64());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;
@@ -2165,22 +2167,25 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			sqlCommand = "DELETE FROM fledge.readings WHERE id <= " +  to_string(deletePoint);
 			rowsAffectedLastComand = purgeOperation(sqlCommand.c_str(), logSection, "ReadingsPurgeByRows - phase 2, deleting readings", false);
 
-			deletedRows += rowsAffectedLastComand;
-			numReadings -= rowsAffectedLastComand;
-			rowcount    -= rowsAffectedLastComand;
+			if (rowsAffectedLastComand != -1)	// No error occured
+			{
+				deletedRows += rowsAffectedLastComand;
+				numReadings -= rowsAffectedLastComand;
+				rowcount    -= rowsAffectedLastComand;
 
-			logger->debug("Deleted %lu rows", rowsAffectedLastComand);
-			if (rowsAffectedLastComand == 0)
-			{
-				break;
-			}
-			if (limit != 0 && sent != 0)
-			{
-				unsentPurged = deletePoint - sent;
-			}
-			else if (!limit)
-			{
-				unsentPurged += rowsAffectedLastComand;
+				logger->debug("Deleted %lu rows", rowsAffectedLastComand);
+				if (rowsAffectedLastComand == 0)
+				{
+					break;
+				}
+				if (limit != 0 && sent != 0)
+				{
+					unsentPurged = deletePoint - sent;
+				}
+				else if (!limit)
+				{
+					unsentPurged += rowsAffectedLastComand;
+				}
 			}
 		}
 	} while (rowcount > rows);

@@ -40,8 +40,8 @@ static void statsThread(DataSender *sender)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false), m_perfMonitor(NULL), m_sending(false),
-	m_repeatedFailure(0)
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false),
+	m_paused(false), m_sending(false), m_perfMonitor(NULL), m_repeatedFailure(0)
 {
 	m_statsUpdateFails = 0;
 
@@ -189,7 +189,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				m_sendBackoffTime = MAX_SEND_BACKOFF;
 			}
 			// Sleep in small periods to prevent blocking shutdown for too long
-			int cnt = m_sendBackoffTime / MIN_SEND_BACKOFF;
+			int cnt = (int)m_sendBackoffTime / MIN_SEND_BACKOFF;
 			while (cnt-- > 0 && m_shutdown == false)
 			{
 				this_thread::sleep_for(chrono::milliseconds(MIN_SEND_BACKOFF));

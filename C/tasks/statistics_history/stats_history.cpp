@@ -12,6 +12,7 @@
 #include <csignal>
 #include <time.h>
 #include <sys/time.h>
+#include "string_utils.h"
 
 #define DATETIME_MAX_LEN 52
 #define MICROSECONDS_FORMAT_LEN	10
@@ -80,7 +81,7 @@ void StatsHistory::run() const
 
 		try {
 			processKey(key, historyValues, updateValues, dateTimeStr, val, prev);
-		} catch (exception e) {
+		} catch (exception& e) {
 			getLogger()->error("Failed to process statisitics key %s, %s", key, e.what());
 		}
 		if (!keySet->isLastRow(rowIter))
@@ -137,7 +138,8 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	// Insert the row into the statistics history
 	// create an object of InsertValues and push in historyValues vector
 	// for batch insertion
-	iValue.push_back(InsertValue("key", key.c_str()));
+	string escaped_key = escape(key);
+	iValue.push_back(InsertValue("key", escaped_key));
 	iValue.push_back(InsertValue("value", val - prev));
 	iValue.push_back(InsertValue("history_ts", dateTimeStr));
 
@@ -147,7 +149,7 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	// create an object of InsertValue and push in updateValues vector
 	// for batch updation
 	InsertValue *updateValue = new InsertValue("previous_value", val);
-	Where *wKey = new Where("key", Equals, key);
+	Where *wKey = new Where("key", Equals, escaped_key);
 	updateValues.emplace_back(updateValue, wKey);
 }
 

@@ -125,7 +125,7 @@ async def login(request):
 
         try:
             await User.Objects.verify_certificate(data)
-            username = SSLVerifier.get_subject()['commonName']
+            username = SSLVerifier.get_subject()['commonName'].lower()
             uid, token, is_admin = await User.Objects.certificate_login(username, host)
             # set the user to request object
             request.user = await User.Objects.get(uid=uid)

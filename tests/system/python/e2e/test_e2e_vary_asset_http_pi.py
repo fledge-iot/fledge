@@ -44,12 +44,12 @@ class TestE2EAssetHttpPI:
         return utils.serialize_stats_map(jdoc)
 
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
                        sensor_data, sensor_data_2):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"a", "b", "a2", "b2"})
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, asset_name, {"a", "b", "a2", "b2"})
             retry_count += 1
             time.sleep(wait_time * 2)
 
@@ -85,14 +85,14 @@ class TestE2EAssetHttpPI:
         assert data_from_pi["a2"][-6] == 0.0
 
     @pytest.fixture
-    def start_south_north(self, reset_and_start_fledge, add_south, start_north_pi_server_c, remove_directories,
-                          south_branch, fledge_url, pi_host, pi_port, pi_token,
+    def start_south_north(self, reset_and_start_fledge, add_south, start_north_pi_server_c_web_api, remove_directories,
+                          south_branch, fledge_url, pi_host, pi_port,
                           clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
                           asset_name = "e2e_varying"):
         """ This fixture clone a south repo and starts both south and north instance
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             add_south: Fixture that adds a south service with given configuration
-            start_north_pi_server_c: Fixture that starts PI north task
+            start_north_pi_server_c_web_api: Fixture that starts PI north task
             remove_directories: Fixture that remove directories created during the tests"""
 
         # No need to give asset hierarchy in case of connector relay.
@@ -113,18 +113,19 @@ class TestE2EAssetHttpPI:
         south_plugin = "http"
         add_south("http_south", south_branch, fledge_url, config={"assetNamePrefix": {"value": ""}},
                   service_name="http_south")
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
-
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                    taskname="NorthReadingsToPI")
+        
         yield self.start_south_north
 
         # Cleanup code that runs after the caller test is over
         remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
-    def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+    def test_end_to_end(self, start_south_north, read_data_from_pi_asset_server, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                         wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that starts Fledge with south and north instance
-            read_data_from_pi: Fixture to read data from PI
+            read_data_from_pi_asset_server: Fixture to read data from PI
             skip_verify_north_interface: Flag for assertion of data from Pi web API
             Assertions:
                 on endpoint GET /fledge/asset
@@ -194,7 +195,7 @@ class TestE2EAssetHttpPI:
         if not skip_verify_north_interface:
             # Allow some buffer so that data is ingested in PI before fetching using PI Web API
             time.sleep(wait_time)
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name,
                                 sensor_data, sensor_data_2)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")

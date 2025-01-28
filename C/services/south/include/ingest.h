@@ -45,6 +45,8 @@
 #define AFC_SLEEP_MAX		200	// Maximum sleep tiem in ms between tests
 #define AFC_MAX_WAIT		5000	// Maximum amount of time we wait for the queue to drain
 
+class IngestRate;
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -101,6 +103,7 @@ public:
 			{
 				m_performance = mon;
 			};
+	void		configureRateMonitor(long interval, long factor);
 
 private:
 	void				signalStatsUpdate() {
@@ -161,6 +164,7 @@ private:
 	time_t				m_deprecatedAgeOutStorage;
 	PerformanceMonitor		*m_performance;
 	std::mutex			m_useDataMutex;
+	IngestRate			*m_ingestRate;
 };
 
 #endif

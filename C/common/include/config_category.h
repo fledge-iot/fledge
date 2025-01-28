@@ -74,6 +74,7 @@ class ConfigCategory {
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
+		ConfigCategory(const ConfigCategory *orig);
 		~ConfigCategory();
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
@@ -144,7 +145,10 @@ class ConfigCategory {
 					BUCKET_PROPERTIES_ATTR,
 					LIST_SIZE_ATTR,
 					ITEM_TYPE_ATTR,
-					LIST_NAME_ATTR
+					LIST_NAME_ATTR,
+					KVLIST_KEY_NAME_ATTR,
+					KVLIST_KEY_DESCRIPTION_ATTR,
+					JSON_SCHEMA_ATTR
 					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -196,8 +200,11 @@ class ConfigCategory {
 				std::string	m_listSize;
 				std::string	m_listItemType;
 				std::string	m_listName;
+				std::string	m_kvlistKeyName;
+				std::string	m_kvlistKeyDescription;
 				std::vector<std::string>
 						m_permissions;
+				std::string	m_jsonSchema;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

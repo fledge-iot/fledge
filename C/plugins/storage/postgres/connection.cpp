@@ -29,6 +29,7 @@
 #include <sys/time.h>
 
 #include "json_utils.h"
+#include "string_utils.h"
 
 #include <iostream>
 #include <chrono>
@@ -772,6 +773,14 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 								sql.append(" AT TIME ZONE '");
 								sql.append((*itr)["timezone"].GetString());
 								sql.append("' ");
+
+								// Use aliasing to avoid duplicate column name
+								if (!itr->HasMember("alias"))
+								{
+									sql.append(" AS \"");
+									sql.append((*itr)["column"].GetString());
+									sql.append("\"");
+								}
 							}
 							else
 							{
@@ -967,6 +976,9 @@ std::size_t arr = data.find("inserts");
 						itr != (*iter).MemberEnd();
 						++itr)
 		{
+			if (itr->value.IsNull())
+				continue;
+
 			// Append column name
 			if (col)
 			{
@@ -1330,7 +1342,7 @@ SQLBuffer	sql;
 						value.Accept(writer);
 
 						std::string buffer_escaped = "\"";
-						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
+						buffer_escaped.append(escape_double_quotes(escape(buffer.GetString())));
 						buffer_escaped.append( "\"");
 
 						sql.append('\'');
@@ -1685,7 +1697,11 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append(asset_code);
+			std::string escaped_asset(asset_code);
+			std::string target ="'";
+			std::string replacement ="''";
+			StringReplaceAllEx(escaped_asset, target, replacement);
+			sql.append(escaped_asset);
 			sql.append("', '");
 
 			// Handles - reading

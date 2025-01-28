@@ -700,7 +700,7 @@ string  responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("insert rows " + tableName, rval);
-				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("insert Payload Size " + tableName, (long)payload.length());
 			}
 		}
 		else
@@ -783,7 +783,7 @@ string	responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("update rows " + tableName, rval);
-				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("update Payload Size " + tableName, (long)payload.length());
 			}
 		}
 		else
@@ -913,7 +913,7 @@ string  responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("delete rows " + tableName, rval);
-				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("delete Payload Size " + tableName, (long)payload.length());
 			}
 		}
 		else
@@ -1004,7 +1004,7 @@ struct timeval	tStart, tEnd;
 						rval);
 				m_perfMonitor->collect("Reading Append PayloadSize " +
 						(readingPlugin ? readingPlugin : plugin)->getName(),
-						payload.length());
+						(long)payload.length());
 				struct timeval diff;
 				timersub(&tEnd, &tStart, &diff);
 				m_perfMonitor->collect("Reading Append Time (ms)", diff.tv_sec * 1000 + diff.tv_usec / 1000);
@@ -1721,7 +1721,7 @@ string  responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("insert rows " + tableName, rval);
-				m_perfMonitor->collect("insert Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("insert Payload Size " + tableName, (long)payload.length());
 			}
 			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
@@ -1805,7 +1805,7 @@ string  responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("update rows " + tableName, rval);
-				m_perfMonitor->collect("update Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("update Payload Size " + tableName, (long)payload.length());
 			}
 			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
@@ -1849,7 +1849,7 @@ string  responsePayload;
 			if (m_perfMonitor->isCollecting())
 			{
 				m_perfMonitor->collect("delete rows " + tableName, rval);
-				m_perfMonitor->collect("delete Payload Size " + tableName, payload.length());
+				m_perfMonitor->collect("delete Payload Size " + tableName, (long)payload.length());
 			}
 			registry.processTableDelete(tableName, payload);
                         responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";

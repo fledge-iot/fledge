@@ -232,7 +232,7 @@ The user management pages allows
   - Changing the role of a user.
   - Changing the details of a user
 
-Fledge currently supports four roles for users:
+Fledge currently supports a number of roles for users:
 
   - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users, backups and support bundles.
 
@@ -356,7 +356,7 @@ b) Now, it's time to create user with name **test** (case sensitive). Also only 
 
 .. note::
 
-    role_id:2 (non-admin user) | if new user requires admin privileges then pass role_id:1
+   Fledge supports a number of different user roles, the appropriate role_id should be passed for the user role required. The full list of supported role_id's can be obtained by called the /fledge/user/role GET API entry point. This entry point is only available to users with the *admin* role.
 
 You may also refer the documentation of |REST API| cURL commands. If you are not comfortable with cURL commands then use the GUI steps |User Management| and make sure Login with admin user.
 

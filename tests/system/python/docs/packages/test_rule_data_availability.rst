@@ -1,9 +1,9 @@
-Test Rule Data Availability
+Data Availability Rule Test
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Objective
 +++++++++
-This test verifies the basic functionality of the notification rule for the `fledge-rule-dataavailability` plugin. It involves using `fledge-south-sinusoid` for data ingestion into Fledge and `fledge-north-OMF` for sending data to the PI server.
+This test verifies the basic functionality of the notification rule for the `fledge-rule-DataAvailability` (inbuilt) plugin. It involves using `fledge-south-sinusoid` for data ingestion into Fledge and `fledge-north-OMF` for sending data to the PI server.
 
 This test consists of three classes, each containing multiple test case functions:
 
@@ -27,7 +27,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,

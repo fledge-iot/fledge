@@ -1,13 +1,13 @@
-Test PIWebAPI Network Throttle
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PI Web API Network Throttle Test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Objective
 +++++++++
-This test is designed to verify the functionality of Fledge when ingesting data using the `fledge-south-sinusoid` plugin and sending it to the PI Server through the `fledge-north-OMF` plugin under a distorted network condition.
+This test verifies the functionality of Fledge when ingesting data using the fledge-south-sinusoid plugin and sending it to the PI Server via the fledge-north-OMF plugin under distorted network conditions.
 
-This test consists of *TestPackagesSinusoid_PI_WebAPI* class, which contains only one test case functions:
+This test consists of *TestPackagesSinusoid_PI_WebAPI* class, which contains a single test case function:
 
-1. **test_omf_task**: Verifies that data is ingested into Fledge using the fledge-south-sinusoid plugin and sent to the PI Server using the fledge-north-OMF plugin, while simulating an impaired network scenario.
+1. **test_omf_task**: Verifies that data is ingested into Fledge using the fledge-south-sinusoid plugin and sent to the PI Server using the fledge-north-OMF plugin, while simulating a degraded network scenario.
 
 
 Prerequisite
@@ -18,7 +18,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,

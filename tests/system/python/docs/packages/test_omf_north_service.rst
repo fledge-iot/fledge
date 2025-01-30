@@ -3,7 +3,7 @@ Test OMF North Service
 
 Objective
 +++++++++
-This test is designed to verify the basic functionality of the `fledge-north-OMF` plugin's north service, incorporating the use of `fledge-south-sinusoid` for ingesting data into Fledge, and `fledge-filter-scale` & `fledge-filter-metadata` to validate the handling of multiple filters at the north service of `fledge-north-OMF`.
+This test is designed to verify the basic functionality of the `fledge-north-OMF` plugin's north service, incorporating the use of `fledge-south-sinusoid` for ingesting data into Fledge, and `fledge-filter-scale` & `fledge-filter-metadata` filters to validate the handling of multiple filters at the north service.
 
 This test consists of two classes, each contains multiple test cases functions:
 
@@ -30,7 +30,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,

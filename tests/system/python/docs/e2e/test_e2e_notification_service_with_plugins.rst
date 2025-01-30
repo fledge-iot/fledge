@@ -1,4 +1,4 @@
-Test E2E Notification Service with Plugins
+Notification Service E2E Test with Plugins
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Objective
@@ -26,13 +26,13 @@ Prerequisite
 ++++++++++++
 
 1. Fledge must be installed by `make` command
-2. FLEDGE_ROOT environment variable should be exported to location where Fledge is installed.
+2. The FLEDGE_ROOT environment variable should be exported to the directory where Fledge is installed.
 3. Install the prerequisites to run a test:
 
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 The minimum required parameters to run,
 
@@ -51,6 +51,6 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python/ ; 
-  $ export FLEDGE_ROOT=FLEDGE_ROOT_PATH 
+  $ export FLEDGE_ROOT=<path_to_fledge_installation> 
   $ export PYTHONPATH=$FLEDGE_ROOT/python
   $ python3 -m pytest -s -vv e2e/test_e2e_notification_service_with_plugins.py --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>"

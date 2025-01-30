@@ -1,5 +1,5 @@
-Test Rule Data Availability
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Statistics History Notification Rule Test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Objective
 +++++++++
@@ -24,7 +24,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,

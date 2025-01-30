@@ -1,10 +1,10 @@
-Test PIWebAPI
-~~~~~~~~~~~~~
+Python Based North Service Pair Test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Objective
 +++++++++
-This test is specifically designed to validate data ingestion in Fledge(A) using the fledge-south-sinusoid plugin and its subsequent transfer to Fledge(B) via the fledge-north-http-north (Python) plugin. Fledge(B) processes this data through the fledge-south-http (Python) plugin and forwards it to the PI Server using the fledge-north-OMF plugin.
-This test verifies the basic functionality and reliability of the fledge-north-http-north plugin, focusing on scenarios such as restarts, reconfigurations, and filter manipulations.
+This test is designed to validate the data ingestion and transfer process between Fledge(A) and Fledge(B). Specifically, it verifies the functionality of the fledge-south-sinusoid plugin for data ingestion into Fledge(A) and its subsequent transfer to Fledge(B) via the fledge-north-http-north plugin (Python). Fledge(B) then processes the data through the fledge-south-http plugin and forwards it to the PI Server using the fledge-north-OMF plugin.
+The goal of this test is to ensure the basic functionality and reliability of the fledge-north-http-north plugin, with a focus on handling scenarios such as restarts, reconfigurations, and filter manipulations
 
 This test consist of *TestPythonNorthService* class, which contains multiple test case functions:
 
@@ -27,7 +27,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,
@@ -67,6 +67,6 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python
-  $ python3 -m pytest -s -vv pair/test_pyton_north_service_pair.py --package-build-version="<PACKAGE_BUILD_VERSION>" --remote-user="<FLEDGE(B)_USER>" \ 
+  $ python3 -m pytest -s -vv pair/test_python_north_service_pair.py --package-build-version="<PACKAGE_BUILD_VERSION>" --remote-user="<FLEDGE(B)_USER>" \ 
       --remote-ip="<FLEDGE(B)_IP>" --key-path="<KEY_PATH>" --pi-admin="<PI_SYSTEM_ADMIN>" --pi-passwd="<PI_SYSTEM_PWD>" --pi-host="<PI_SYSTEM_HOST>" \
       --pi-port="<PI_SYSTEM_PORT>" --pi-db="<PI_SYSTEM_DB>"  --wait-time="<WAIT_TIME>" --retries="<RETIRES>" --junit-xml="<JUNIT_XML>" --wait-fix="<WAIT_FIX>"

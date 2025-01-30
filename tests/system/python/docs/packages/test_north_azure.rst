@@ -3,7 +3,7 @@ Test North Azure
 
 Objective
 +++++++++
-This test is specifically designed to verify the functionality and stability of the `fledge-north-azure`` plugin. It uses the `fledge-south-systeminfo`` plugin for ingesting data into Fledge and applies the `fledge-filter-expression`` on the north side to validate that the data is sent to Azure IoT Hub successfully, while ensuring Fledge remains stable when the service or task of fledge-north-azure sends data.
+This test is specifically designed to verify the functionality and stability of the `fledge-north-azure` plugin. It uses the `fledge-south-systeminfo`` plugin for ingesting data into Fledge and applies the `fledge-filter-expression`` on the north side to validate that the data is sent to Azure IoT Hub successfully, while ensuring Fledge remains stable when the service or task of fledge-north-azure sends data.
 
 This test consists of four classes, each contains multiple test case functions:
 
@@ -35,7 +35,7 @@ Install the prerequisites to run a test:
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 
 The minimum required parameters to run,

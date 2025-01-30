@@ -1,12 +1,11 @@
-Test E2E Fledge Pair
+E2E Fledge Pair Test
 ~~~~~~~~~~~~~~~~~~~~
 
 Objective
 +++++++++
-This test is specifically designed to perform end-to-end testing with two Fledge instances running as a pair. Fledge(A) having south services of fledge-south-sinusoid, fledge-south-expression, and fledge-south-playback, which ingest data. This data is then sent to Fledge(B) using the fledge-north-http-north plugin. Fledge(B) runs the fledge-south-http (Python) plugin to receive data from Fledge(A) and forwards it to the PI Server using the fledge-north-OMF plugin.
-This test is specifically designed to perform end-to-end testing with two Fledge instances running as a pair. Fledge(A) has south services (fledge-south-sinusoid, fledge-south-expression, fledge-south-playback) to ingest data. This data is then sent to Fledge(B) using the fledge-north-http-north plugin. Fledge(B) receives data via the fledge-south-http plugin and forwards it to the PI Server using the fledge-north-OMF plugin.
+This test is designed for end-to-end validation between two Fledge instances, Fledge(A) and Fledge(B). Fledge(A) uses the fledge-south-sinusoid, fledge-south-expression, and fledge-south-playback south services to ingest data. This data is then transferred to Fledge(B) using the fledge-north-http-north plugin. Fledge(B) processes the data through the fledge-south-http plugin and forwards it to the PI Server via the fledge-north-OMF plugin.
 
-This test consists *TestE2eExprPi* class, which contains only one test cases functions:
+This test consists *TestE2eFogPairPi* class, which contains a single test case function:
 
 1. **test_end_to_end**: Verifies that data is ingested into Fledge(A) using the mentioned south plugins, sent to Fledge(B) via north-http plugin, Then Fledge(B) receive this data via http south and send to PI. Checks data integrity, asset creation, and ensures that data reaches the PI Server.
 
@@ -14,13 +13,13 @@ Prerequisite
 ++++++++++++
 
 1. Fledge must be installed by `make` command
-2. FLEDGE_ROOT environment variable should be exported to location where Fledge is installed.
+2. The FLEDGE_ROOT environment variable should be exported to the directory where Fledge is installed.
 3. Install the prerequisites to run a test:
 
 .. code-block:: console
 
   $ cd fledge/python
-  $ python3 -m pip install -r requirements-test.txt
+  $ python3 -m pip install -r requirements-test.txt --user
 
 The minimum required parameters to run,
 
@@ -55,7 +54,7 @@ Execution of Test
 .. code-block:: console
 
   $ cd fledge/tests/system/python/; 
-  $ export FLEDGE_ROOT=FLEDGE_ROOT_PATH 
+  $ export FLEDGE_ROOT=<path_to_fledge_installation> 
   $ export PYTHONPATH=$FLEDGE_ROOT/python
   $ python3 -m pytest -s -vv pair/test_e2e_fledge_pair.py --remote-user="<FLEDGE(B)_USER>" --remote-ip="<FLEDGE(B)_IP>" --key-path="<KEY_PATH>" \
         --pi-host="<PI_SYSTEM_HOST>" --pi-port="<PI_SYSTEM_PORT>" --pi-admin="<PI_SYSTEM_ADMIN>" --pi-passwd="<PI_SYSTEM_PWD>" --pi-db="<PI_SYSTEM_DB>" \

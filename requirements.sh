@@ -241,8 +241,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		set +e
 		source scl_source enable rh-python36
 		BREAK_PKG_FLAG=$(get_pip_break_system_flag)
-		python3 -m pip install --upgrade pip "$BREAK_PKG_FLAG"
-		python3 -m pip install numpy "$BREAK_PKG_FLAG"
+		python3 -m pip install --upgrade pip ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
+		python3 -m pip install numpy ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
 		set -e
 	fi
 
@@ -275,7 +275,7 @@ elif apt --version 2>/dev/null; then
 	fi
 	apt install -y ${PYTHON_DEV_PKG} python3-dev python3-pip python3-numpy
 	BREAK_PKG_FLAG=$(get_pip_break_system_flag)
-	python3 -m pip install --upgrade pip "$BREAK_PKG_FLAG"
+	python3 -m pip install --upgrade pip ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
 
 	sqlite3_build_prepare
 	make

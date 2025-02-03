@@ -220,6 +220,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items,
                                    category_name=None):
+
+        def _modify_value_by_list_name(key_name):
+            old_value = json.loads(item_val_new[key_name])
+            # Create a new dictionary where listName is the key and old_value is the value,
+            # then convert the resulting dictionary into a JSON string
+            if item_val_new["listName"] not in old_value:
+                new_value = {item_val_new["listName"]: old_value}
+                item_val_new[key_name] = json.dumps(new_value)
+
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -242,6 +251,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                  'newValue': 'deprecated'}
                 await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
+            if 'listName' in item_val_new and item_val_new['type'] == 'list':
+                # TODO: kvlist
+                _modify_value_by_list_name("default")
+                _modify_value_by_list_name("value")
+                _logger.error("Merge For category: {} -- val: {}".format(category_name, item_val_new))
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
@@ -656,10 +670,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         try:
             if isinstance(category_val, dict):
                 new_category_val = copy.deepcopy(category_val)
-                # Remove "deprecated" items from a new category configuration
                 for i, v in category_val.items():
+                    # Remove "deprecated" items from a new category configuration
                     if 'deprecated' in v and v['deprecated'] == 'true':
                         new_category_val.pop(i)
+                    # Add "listName" to the value when the type is a list
+                    if 'listName' in v and v['type'] == 'list':
+                        # TODO: kvlist
+                        # Create a new dictionary where the key is listName and the value remains the same,
+                        # then convert it into a JSON string.
+                        new_category_val[i]['default'] = json.dumps({v["listName"]: json.loads(v["default"])})
+                        new_category_val[i]['value'] = json.dumps({v["listName"]: json.loads(v["value"])})
+                        _logger.error("For category: {} -- val: {}".format(category_name, new_category_val[i]))
             else:
                 new_category_val = category_val
             display_name = category_name if display_name is None else display_name

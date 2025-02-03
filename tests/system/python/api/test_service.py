@@ -306,5 +306,11 @@ class TestService:
         services = [s['name'] for s in jdoc['services']]
         assert SVC_NAME_4 not in services
 
+        # Verify filters
+        jdoc = get_service(fledge_url, '/fledge/filter')
+        assert len(jdoc), "No data found for filters."
+        assert ('filters' in jdoc and
+                not jdoc['filters']), "Unexpected filters found after service deletion. Filters should be empty."
+
     def test_notification_service(self):
         assert 1, "Already verified in test_e2e_notification_service_with_plugins.py"

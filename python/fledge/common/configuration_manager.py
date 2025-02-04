@@ -1234,6 +1234,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 new_val = new_value_entry
                 await self._handle_update_config_for_acl(category_name, old_value, new_val)
 
+            # Special case: If type is list and listName is given then modify the value internally
+            if storage_value_entry['type'] == 'list' and 'listName' in storage_value_entry:
+                if storage_value_entry["listName"] not in new_value_entry:
+                    modify_value = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
+                    new_value_entry = modify_value
+
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)

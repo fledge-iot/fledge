@@ -251,7 +251,7 @@ fledge_start() {
             python3 -m fledge.services.core "$SAFE_MODE" > /dev/null 2> "$FLEDGE_DATA/core.err" & disown
 
             attempts=60
-            while [ $attempts -gt 0 ]; do
+            while [[ $attempts -gt 0 ]]; do
                 sleep 1
                 new_attempt=`fledge_status "silent"`
                 case "$new_attempt" in
@@ -259,12 +259,11 @@ fledge_start() {
                   "0")  # Started
                     echo
                     fledge_log "info" "Fledge started." "all" "pretty"
-                    let attempts=0
+                    attempts=0
                     ;;
 
                   "1")  # Starting
-                    let attempts=attempts-1
-
+                    attempts=$((attempts - 1))
                     # Check the status of the attempts - is the time over?
                     if [[ attempts -gt 0 ]]; then
 
@@ -334,14 +333,14 @@ fledge_stop() {
 
   attempts=60
 
-  while [ $attempts -gt 0 ]; do
+  while [[ $attempts -gt 0 ]]; do
     sleep 1
     new_attempt=`fledge_status "silent"`
     case "$new_attempt" in
 
       0|1 )  # Still running
 
-        let attempts=attempts-1
+        attempts=$((attempts - 1))
 
         # Check the status of the attempts - is the time over?
         if [[ attempts -gt 0 ]]; then
@@ -363,7 +362,7 @@ fledge_stop() {
 
         echo
         fledge_log "info" "Fledge stopped." "all" "pretty"
-        let attempts=0
+        attempts=0
         ;;
 
     esac

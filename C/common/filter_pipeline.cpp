@@ -210,6 +210,11 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 			Logger::getLogger()->error("Unexpected object in pipeline definition, ignoring");
 		}
 	}
+
+	// End the pipeline with a writter element that sends data to the
+	// ingest of the storage system
+	PipelineWriter *element = new PipelineWriter();
+	pipeline.emplace_back(element);
 }
 
 /**
@@ -396,4 +401,193 @@ void FilterPipeline::completeBranch()
 	{
 		m_branchActivations.notify_all();
 	}
+}
+
+/**
+ * Attach the debugger to the pipeline elements
+ */
+bool FilterPipeline::attachDebugger()
+{
+	bool rval =  attachDebugger(m_filters);
+	setDebuggerBuffer(1);
+	return rval;
+}
+
+/**
+ * Attach the debugger to the pipeline elements
+ */
+bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
+{
+	bool ret = true;
+	for (auto& elem : pipeline)
+	{
+		if (!elem->attachDebugger())
+			ret = false;
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			attachDebugger(branch->getBranchElements());
+		}
+	}
+	return ret;
+}
+
+/**
+ * Detach the debugger to the pipeline elements
+ */
+void FilterPipeline::detachDebugger()
+{
+	detachDebugger(m_filters);
+}
+
+/**
+ * Detach the debugger to the pipeline elements
+ */
+void FilterPipeline::detachDebugger(const vector<PipelineElement *>& pipeline)
+{
+	for (auto& elem : pipeline)
+	{
+		elem->detachDebugger();
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			detachDebugger(branch->getBranchElements());
+		}
+	}
+}
+
+/**
+ * Set the debugger buffer size to the pipeline elements
+ */
+void FilterPipeline::setDebuggerBuffer(unsigned int size)
+{
+	setDebuggerBuffer(m_filters, size);
+}
+
+/**
+ * Set the debugger buffer size to the pipeline elements
+ */
+void FilterPipeline::setDebuggerBuffer(const vector<PipelineElement *>& pipeline, unsigned int size)
+{
+	for (auto& elem : pipeline)
+	{
+		elem->setDebuggerBuffer(size);
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			setDebuggerBuffer(branch->getBranchElements(), size);
+		}
+	}
+}
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer()
+{
+	string	rval = "{ \"data\" : [";
+	rval += getDebuggerBuffer(m_filters);
+	rval += "]}";
+	return rval;
+}
+
+
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer(const vector<PipelineElement *>& pipeline)
+{
+	string rval;
+
+	for (auto& elem : pipeline)
+	{
+		vector<shared_ptr<Reading>> buf = elem->getDebuggerBuffer();
+		rval += "{ \"name\" : \"";
+		rval += elem->getName();
+		rval += "\", \"readings\" : [ ";
+		rval += readingsToJSON(buf);
+		rval += "] }";
+		if (elem->getNext())
+			rval += ",";
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			rval += "[ ";
+			rval += getDebuggerBuffer(branch->getBranchElements());
+			rval += "], ";
+		}
+	}
+
+	return rval;
+}
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @param name		The name of the filter element we return the buffer from
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer(const string& name)
+{
+	string	rval;
+
+	for (auto& elem : m_filters)
+	{
+		if (elem->getName().compare(name) == 0)
+		{
+			vector<shared_ptr<Reading>> buf = elem->getDebuggerBuffer();
+			rval += "{ \"name\" : \"";
+			rval += name;
+			rval += "\", ";
+			rval += readingsToJSON(buf);
+			rval += "}";
+		}
+	}
+	return rval;
+}
+
+/**
+ * Convert a vector of readings into JSON that we can use to return 
+ * the buffered data held at each stage within the filter pipeline.
+ *
+ * @param readings	A vector of shared pointers to readings
+ * @return string	A JSON structure containing the pipeline buffers
+ */
+string FilterPipeline::readingsToJSON(vector<shared_ptr<Reading>> readings)
+{
+	string rval;
+
+	for (int j = 0; j < readings.size(); j++)
+	{
+		shared_ptr<Reading> reading = readings[j];
+		rval += reading->toJSON();
+		if (j < readings.size() - 1)
+				rval += ",";
+	}
+
+	return rval;
+}
+
+/**
+ * Replay the data in the first saved buffer to the filter pipeline
+ */
+void FilterPipeline::replayDebugger()
+{
+ReadingSet 		*replay;
+vector<Reading *>	*readings = new vector<Reading *>;
+PipelineElement		*first = m_filters[0]; 
+
+	vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
+	for (int i = 0; i < buf.size(); i++)
+	{
+		readings->emplace_back(new Reading(*buf[i].get()));
+	}
+	replay = new ReadingSet(readings);
+
+	first->ingest(replay);
 }

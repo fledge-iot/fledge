@@ -1,19 +1,16 @@
-#ifndef _SOUTH_API_H
-#define _SOUTH_API_H
+#ifndef _NORTH_API_H
+#define _NORTH_API_H
 /*
- * Fledge storage service.
+ * Fledge north service API.
  *
- * Copyright (c) 2021  Dianomic Systems
+ * Copyright (c) 2025  Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch, Massimiliano Pinto
+ * Author: Mark Riddoch
  */
 #include <logger.h>
 #include <server_http.hpp>
-
-#define SETPOINT	"^/fledge/south/setpoint$"
-#define OPERATION	"^/fledge/south/operation$"
 
 // Debugger URLs
 #define DEBUG_ATTACH		"^/fledge/south/debug/attach$"
@@ -25,20 +22,16 @@
 #define DEBUG_REPLAY		"^/fledge/south/debug/replay$"
 #define DEBUG_STATE		"^/fledge/south/debug/state$"
 
-class SouthService;
+class NorthService;
 
 typedef std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> Response;
 typedef std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> Request;
 
-class SouthApi {
+class NorthApi {
 	public:
-		SouthApi(SouthService *);
-		~SouthApi();
+		NorthApi(NorthService *);
+		~NorthApi();
 		unsigned short		getListenerPort();
-		void			setPoint(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> response,
-							std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
-		void			operation(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> response,
-							std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
 		void			startServer();
 
 		// Debugger entry points
@@ -55,7 +48,7 @@ class SouthApi {
 	private:
 		SimpleWeb::Server<SimpleWeb::HTTP>
 					*m_server;
-		SouthService		*m_service;
+		NorthService		*m_service;
 		std::thread		*m_thread;
 		Logger			*m_logger;
 };

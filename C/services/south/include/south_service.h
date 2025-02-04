@@ -38,6 +38,14 @@
 #define SOUTH_THROTTLE_DOWN_INTERVAL	10	// Interval between throttle down attmepts
 #define SOUTH_THROTTLE_UP_INTERVAL	15	// Interval between throttle up attempts
 
+
+/**
+ * State bits for the south pipeline debugger
+ */
+#define DEBUG_ATTACHED		0x01
+#define DEBUG_SUSPENDED		0x02
+#define DEBUG_ISOLATED		0x04
+
 /**
  * The SouthService class. This class is the core
  * of the service that provides south side services
@@ -65,6 +73,67 @@ class SouthService : public ServiceAuthHandler {
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 		void				setDryRun() { m_dryRun = true; };
 		void				handlePendingReconf();
+		// Debugger Entry point
+		bool				attachDebugger()
+						{
+							if (m_ingest)
+							{
+								m_debugState = DEBUG_ATTACHED;
+								return m_ingest->attachDebugger();
+							}
+							return false;
+						};
+		void				detachDebugger()
+						{
+							if (m_ingest)
+								m_ingest->detachDebugger();
+							suspendDebugger(false);
+							isolateDebugger(false);
+							m_debugState = 0;
+						};
+		void				setDebuggerBuffer(unsigned int size)
+						{
+							if (m_ingest)
+								m_ingest->setDebuggerBuffer(size);
+						};
+		std::string			getDebuggerBuffer()
+						{
+							if (m_ingest)
+								return m_ingest->getDebuggerBuffer();
+							return "";
+						};
+		void				suspendDebugger(bool suspend)
+						{
+							suspendIngest(suspend);
+							if (suspend)
+								m_debugState |= DEBUG_SUSPENDED;
+							else
+								m_debugState &= ~(unsigned int)DEBUG_SUSPENDED;
+						};
+		void				isolateDebugger(bool isolate)
+						{
+							if (m_ingest)
+								m_ingest->isolate(isolate);
+							if (isolate)
+								m_debugState |= DEBUG_ISOLATED;
+							else
+								m_debugState &= ~(unsigned int)DEBUG_ISOLATED;
+						};
+		void				stepDebugger(unsigned int steps)
+						{
+							std::lock_guard<std::mutex> guard(m_suspendMutex);
+							m_steps = steps;
+						}
+		void				replayDebugger()
+						{
+							if (m_ingest)
+								m_ingest->replayDebugger();
+						};
+		std::string			debugState();
+		bool				debuggerAttached()
+						{
+							return m_debugState & DEBUG_ATTACHED;
+						}
 		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
@@ -79,6 +148,27 @@ class SouthService : public ServiceAuthHandler {
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
 		void				checkPendingReconfigure();
+		void				suspendIngest(bool suspend)
+						{
+							std::lock_guard<std::mutex> guard(m_suspendMutex);
+							m_suspendIngest = suspend;
+							m_steps = 0;
+						};
+		bool				isSuspended()
+						{
+							std::lock_guard<std::mutex> guard(m_suspendMutex);
+							return m_suspendIngest;
+						};
+		bool				willStep()
+						{
+							std::lock_guard<std::mutex> guard(m_suspendMutex);
+							if (m_suspendIngest && m_steps > 0)
+							{
+								m_steps--;
+								return true;
+							}
+							return false;
+						};
 	private:
 		std::thread			*m_reconfThread;
 		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
@@ -123,5 +213,9 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_doPoll;
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
+		bool				m_suspendIngest;
+		unsigned int			m_steps;
+		std::mutex			m_suspendMutex;
+		unsigned int			m_debugState;
 };
 #endif

@@ -291,7 +291,10 @@ Ingest::Ingest(StorageClient& storage,
 			m_storageFailed(false),
 			m_storesFailed(0),
 			m_statisticsOption(STATS_BOTH),
-			m_highWater(0)
+			m_highWater(0),
+			m_isolate(false),
+			m_debuggerAttached(false),
+			m_debuggerBufferSize(1)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -1015,6 +1018,12 @@ bool Ingest::loadFilters(const string& categoryName)
 	if (rval)
 	{
 		m_filterPipeline = filterPipeline;
+		// If we previously had a debugger attached then attach to the new pipeline
+		if (m_debuggerAttached)
+		{
+			attachDebugger();
+			setDebuggerBuffer(m_debuggerBufferSize);
+		}
 	}
 	else
 	{
@@ -1071,6 +1080,12 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 {
 
 	Ingest* ingest = (Ingest *)outHandle;
+
+	if (ingest->isolated())
+	{
+		delete readingSet;
+		return;
+	}
 	lock_guard<mutex> guard(ingest->m_useDataMutex);
 	
 	vector<Reading *> *newData = readingSet->getAllReadingsPtr();

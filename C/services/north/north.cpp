@@ -18,6 +18,7 @@
 #include <cxxabi.h>   // for __cxa_demangle
 #include <unistd.h>
 #include <north_service.h>
+#include <north_api.h>
 #include <management_api.h>
 #include <storage_client.h>
 #include <service_record.h>
@@ -307,7 +308,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_dryRun(false),
 	m_requestRestart(),
 	m_auditLogger(NULL),
-	m_perfMonitor(NULL)
+	m_perfMonitor(NULL),
+	m_debugState(0)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -353,10 +355,19 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 	// Listen for incomming managment requests
 	management.start();
 
+
+	// Create the south API
+	NorthApi *api = new NorthApi(this);
+	if (!api)
+	{
+		logger->fatal("Unable to create API object");
+		return;
+	}
 	// Allow time for the listeners to start before we register
 	sleep(1);
 	if (! m_shutdown)
 	{
+		unsigned short sport = api->getListenerPort();
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
@@ -364,7 +375,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				SERVICE_TYPE,		// Service type
 				"http",			// Protocol
 				"localhost",		// Listening address
-				0,			// Service port
+				sport,			// Service port
 				managementListener,	// Management port
 				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
@@ -1341,4 +1352,36 @@ void NorthService::clearFailures()
 	string key = "North " + m_name;
 	m_mgtClient->clearAlert(key);
 	logger->info("The sending of data has resumed");
+}
+
+/**
+ * Return the state of the pipeline debugger
+ *
+ * @return string	JSON document reportign the state of the pipeline debugger
+ */
+string NorthService::debugState()
+{
+	string rval;
+	rval = "{ ";
+	rval += "\"debugger\" : ";
+	if (m_debugState & DEBUG_ATTACHED)
+	{
+		rval += "\"Attached\",";
+		rval += "\"ingress\" : ";
+		if (m_debugState & DEBUG_SUSPENDED)
+			rval += "\"Suspended\", ";
+		else
+			rval += "\"Running\", ";
+		rval += "\"egress\" : ";
+		if (m_debugState & DEBUG_ISOLATED)
+			rval += "\"Isolated\"";
+		else
+			rval += "\"Storage\"";
+	}
+	else
+	{
+		rval += "\"Detached\"";
+	}
+	rval += "}";
+	return rval;
 }

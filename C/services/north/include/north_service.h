@@ -20,11 +20,17 @@
 #include <condition_variable>
 #include <audit_logger.h>
 #include <perfmonitors.h>
+#include <data_load.h>
+#include <data_sender.h>
 
 #define SERVICE_NAME  "Fledge North"
 
-class DataLoad;
-class DataSender;
+/**
+ * State bits for the south pipeline debugger
+ */
+#define DEBUG_ATTACHED		0x01
+#define DEBUG_SUSPENDED		0x02
+#define DEBUG_ISOLATED		0x04
 
 /**
  * The NorthService class. This class is the core
@@ -57,6 +63,73 @@ class NorthService : public ServiceAuthHandler {
 		bool				getDryRun() { return m_dryRun; };
 		void				alertFailures();
 		void				clearFailures();
+		// Debugger Entry point
+		bool				attachDebugger()
+						{
+							if (m_dataLoad)
+							{
+								m_debugState = DEBUG_ATTACHED;
+								return m_dataLoad->attachDebugger();
+							}
+							return false;
+						};
+		void				detachDebugger()
+						{
+							if (m_dataLoad)
+								m_dataLoad->detachDebugger();
+							suspendDebugger(false);
+							isolateDebugger(false);
+							m_debugState = 0;
+						};
+		void				setDebuggerBuffer(unsigned int size)
+						{
+							if (m_dataLoad)
+								m_dataLoad->setDebuggerBuffer(size);
+						};
+		std::string			getDebuggerBuffer()
+						{
+							if (m_dataLoad)
+								return m_dataLoad->getDebuggerBuffer();
+							return "";
+						};
+		void				suspendDebugger(bool suspend)
+						{
+							if (m_dataLoad)
+							{
+								m_dataLoad->suspendIngest(suspend);
+								if (suspend)
+									m_debugState |= DEBUG_SUSPENDED;
+								else
+									m_debugState &= ~(unsigned int)DEBUG_SUSPENDED;
+							}
+						};
+		void				isolateDebugger(bool isolate)
+						{
+							if (m_dataLoad)
+							{
+								m_dataLoad->isolate(isolate);
+								if (isolate)
+									m_debugState |= DEBUG_ISOLATED;
+								else
+									m_debugState &= ~(unsigned int)DEBUG_ISOLATED;
+							}
+						};
+		void				stepDebugger(unsigned int steps)
+						{
+							if (m_dataLoad)
+								m_dataLoad->stepDebugger(steps);
+						}
+		void				replayDebugger()
+						{
+							if (m_dataLoad)
+								m_dataLoad->replayDebugger();
+						};
+		std::string			debugState();
+		bool				debuggerAttached()
+						{
+							return m_debugState & DEBUG_ATTACHED;
+						}
+		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -86,5 +159,6 @@ class NorthService : public ServiceAuthHandler {
 		bool				m_requestRestart;
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
+		unsigned int			m_debugState;
 };
 #endif

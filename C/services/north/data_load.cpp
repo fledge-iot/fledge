@@ -30,7 +30,8 @@ static void threadMain(void *arg)
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
 	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL),
-	m_prefetchLimit(2)
+	m_prefetchLimit(2), m_isolate(false), m_debuggerAttached(false),
+	m_debuggerBufferSize(1), m_suspendIngest(false), m_steps(0)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -181,6 +182,16 @@ void DataLoad::readBlock(unsigned int blockSize)
 	int n_update_streamId = 0;
 	int max_wait_count = 5;	// Maximum wait counter to update streams table
 	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
+	if (m_suspendIngest && willStep())
+	{
+		lock_guard<mutex> guard(m_suspendMutex);
+		blockSize = m_steps;
+		m_steps = 0;
+	}
+	else if (m_suspendIngest)
+	{
+		return;
+	}
 	do
 	{
 		ReadingSet* readings = nullptr;
@@ -613,6 +624,12 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
+
+	if (load->isolated())
+	{
+		delete readingSet;
+		return;
+	}
 	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
     unsigned long lastReadingId = 0;
 

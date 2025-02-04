@@ -15,8 +15,8 @@ from collections import Counter
 import pytest
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 
-__author__ = "Praveen Garg"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems"
+__author__ = "Praveen Garg, Ashish Jabble"
+__copyright__ = "Copyright (c) 2025 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -427,3 +427,91 @@ class TestConfiguration:
         jdoc = json.loads(r)
         assert 'Category {} deleted successfully.'.format(cat_name) == jdoc['result']
         assert os.path.exists(script_file_path) is False
+
+    def test_list_configuration_with_list_name(self, fledge_url):
+        category = "TEST #123"
+        config_item1 = "info"
+        config_item2 = "list-1"
+        config_item3 = "list-2"
+        config_item4 = "list-3"
+        payload = {'key': category, 'description': 'Test description'}
+        conf = {
+            config_item1: {'type': 'boolean', 'description': 'A Boolean check', 'default': 'False', 'order': '1'},
+            config_item2: {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
+                           'items': 'string', 'default': '["a", "b"]', 'displayName': 'ListName', 'order': '2'},
+            config_item3: {'type': 'list', 'description': 'A list of variables', 'items': 'string',
+                           'default': '["foo", "bar"]', 'displayName': 'Simple List', 'order': '3'},
+            config_item4: {'type': 'list', 'description': 'A list of datapoints to read PLC registers definitions',
+                           'items': 'object', 'listName': 'map-items', 'displayName': 'PLC Map',
+                           'default': '[{"datapoint": "voltage", "register": "10", "type": "integer"}]',
+                           'properties': {
+                               'datapoint': {'description': 'The datapoint name to create', 'displayName': 'Datapoint',
+                                             'type': 'string', 'default': ''},
+                               'register': {'description': 'The register number to read', 'displayName': 'Register',
+                                            'type': 'integer', 'default': '0'},
+                               'type': {'description': 'The data type to read', 'displayName': 'Data Type',
+                                        'type': 'enumeration', 'options': ['integer', 'float'], 'default': 'integer'}}}
+        }
+        payload.update({'value': conf})
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request('POST', '/fledge/category', body=json.dumps(payload))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert category == jdoc['key']
+        # Verify default and value KV pair for a config item
+        assert (json.dumps({conf[config_item2]['listName']: json.loads(conf[config_item2]['default'])}) ==
+                jdoc['value'][config_item2]['default'])
+        assert (json.dumps({conf[config_item2]['listName']: json.loads(conf[config_item2]['default'])}) ==
+                jdoc['value'][config_item2]['value'])
+        assert conf[config_item3]['default'] == jdoc['value'][config_item3]['default']
+        assert conf[config_item3]['default'] == jdoc['value'][config_item3]['value']
+        assert (json.dumps({conf[config_item4]['listName']: json.loads(conf[config_item4]['default'])}) ==
+                jdoc['value'][config_item4]['default'])
+        assert (json.dumps({conf[config_item4]['listName']: json.loads(conf[config_item4]['default'])}) ==
+                jdoc['value'][config_item4]['value'])
+
+        # Bulk update
+        encoded_url = '/fledge/category/{}'.format(quote(category))
+        new_value_for_config_item2 = '["a", "b", "c"]'
+        # with single config item
+        conn.request("PUT", encoded_url, body=json.dumps({config_item2: new_value_for_config_item2}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert json.dumps({conf[config_item2]['listName']: json.loads(new_value_for_config_item2)}) == jdoc[config_item2]['value']
+        # with multiple config items
+        new_value_for_config_item4 = ('[{"datapoint": "voltage", "register": "10", "type": "integer"}, '
+                                      '{"datapoint": "pressure", "register": "75.4", "type": "float"}]')
+        conn.request("PUT", encoded_url, body=json.dumps({config_item2: new_value_for_config_item2,
+                                                          config_item4: new_value_for_config_item4}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert json.dumps({conf[config_item2]['listName']: json.loads(new_value_for_config_item2)}) == \
+               jdoc[config_item2]['value']
+        assert json.dumps({conf[config_item4]['listName']: json.loads(new_value_for_config_item4)}) == \
+               jdoc[config_item4]['value']
+
+        # Single update call
+        new_value_for_config_item2 = '["a", "b", "c", "d"]'
+        encoded_url = '/fledge/category/{}/{}'.format(quote(category), config_item2)
+        conn.request("PUT", encoded_url, body=json.dumps({"value": new_value_for_config_item2}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert json.dumps({conf[config_item2]['listName']: json.loads(new_value_for_config_item2)}) == jdoc['value']
+
+        new_value_for_config_item4 = '[{"datapoint": "pressure", "register": "75.4", "type": "float"}]'
+        encoded_url = '/fledge/category/{}/{}'.format(quote(category), config_item4)
+        conn.request("PUT", encoded_url, body=json.dumps({"value": new_value_for_config_item4}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert json.dumps({conf[config_item4]['listName']: json.loads(new_value_for_config_item4)}) == jdoc['value']
+

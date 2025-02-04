@@ -238,6 +238,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                   " not found in the {} config item.".format(category_name, config_item_name))
             return new_config['value']
 
+        def _modify_value_by_list_name(key_name):
+            old_value = json.loads(item_val_new[key_name])
+            # Create a new dictionary where listName is the key and old_value is the value,
+            # then convert the resulting dictionary into a JSON string
+            if item_val_new["listName"] not in old_value:
+                new_value = {item_val_new["listName"]: old_value}
+                item_val_new[key_name] = json.dumps(new_value)
+
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -264,6 +272,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                  'newValue': 'deprecated'}
                 await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
+            if 'listName' in item_val_new and item_val_new['type'] == 'list':
+                _modify_value_by_list_name("default")
+                _modify_value_by_list_name("value")
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
@@ -676,10 +687,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         try:
             if isinstance(category_val, dict):
                 new_category_val = copy.deepcopy(category_val)
-                # Remove "deprecated" items from a new category configuration
                 for i, v in category_val.items():
+                    # Remove "deprecated" items from a new category configuration
                     if 'deprecated' in v and v['deprecated'] == 'true':
                         new_category_val.pop(i)
+                    # Add "listName" to the value when the type is a list
+                    if 'listName' in v and v['type'] == 'list':
+                        # Create a new dictionary where the key is listName and the value remains the same,
+                        # then convert it into a JSON string.
+                        new_category_val[i]['default'] = json.dumps({v["listName"]: json.loads(v["default"])})
+                        new_category_val[i]['value'] = json.dumps({v["listName"]: json.loads(v["value"])})
             else:
                 new_category_val = category_val
             display_name = category_name if display_name is None else display_name
@@ -945,6 +962,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 old_value_for_check = old_value
                 new_val_for_check = new_val
+                # Special case: If type is list and listName is given then modify the value internally
+                if cat_info[item_name]['type'] == 'list' and 'listName' in cat_info[item_name]:
+                    if cat_info[item_name]["listName"] not in new_val:
+                        modify_value = json.dumps({cat_info[item_name]['listName']: json.loads(new_val)})
+                        new_val_for_check = modify_value
+                        new_val = modify_value
                 if type(new_val) == dict:
                     # it converts .old so both .new and .old are dicts
                     # it uses OrderedDict to preserve the sequence of the keys
@@ -1229,6 +1252,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = storage_value_entry['value']
                 new_val = new_value_entry
                 await self._handle_update_config_for_acl(category_name, old_value, new_val)
+
+            # Special case: If type is list and listName is given then modify the value internally
+            if storage_value_entry['type'] == 'list' and 'listName' in storage_value_entry:
+                if storage_value_entry["listName"] not in new_value_entry:
+                    modify_value = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
+                    new_value_entry = modify_value
 
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage

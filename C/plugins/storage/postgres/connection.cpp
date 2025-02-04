@@ -1132,7 +1132,7 @@ SQLBuffer	sql;
 					else if (itr->value.IsUint64())
 						sql.append((unsigned long)itr->value.GetUint64());
 					else if (itr->value.IsInt64())
-						sql.append(itr->value.GetInt64());
+						sql.append((long)itr->value.GetInt64());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1218,9 +1218,9 @@ SQLBuffer	sql;
 					else if (value.IsDouble())
 						sql.append(value.GetDouble());
 					else if (value.IsUint64())
-						sql.append(value.GetUint64());
+						sql.append((unsigned long)value.GetUint64());
 					else if (value.IsInt64())
-						sql.append(value.GetInt64());
+						sql.append((long)value.GetInt64());
 					else if (value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1335,11 +1335,11 @@ SQLBuffer	sql;
 					}
 					else if (value.IsUint64())
 					{
-						sql.append(value.GetUint64());
+						sql.append((unsigned long)value.GetUint64());
 					}
 					else if (value.IsInt64())
 					{
-						sql.append(value.GetInt64());
+						sql.append((long)value.GetInt64());
 					}
 					else if (value.IsObject())
 					{

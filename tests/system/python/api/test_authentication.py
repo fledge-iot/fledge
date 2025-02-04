@@ -327,9 +327,17 @@ class TestAuthenticationAPI:
             assert "token" in jdoc
             assert not jdoc['admin']
 
-    def test_login_with_admin_certificate(self, fledge_url):
+    @pytest.mark.parametrize("cert_path, username, is_admin, role_id", [
+        ('data/etc/certs/admin.cert', 'Admin', True, 1),
+        ('data/etc/certs/admin.cert', 'admin', True, 1),
+        ('data/etc/certs/admin.cert', 'ADMIN', True, 1),
+        ('data/etc/certs/user.cert', 'USER', False, 2),
+        ('data/etc/certs/user.cert', 'User', False, 2),
+        ('data/etc/certs/user.cert', 'user', False, 2)
+    ])
+    def test_login_with_admin_certificate(self, fledge_url, cert_path, username, is_admin, role_id):
         conn = http.client.HTTPConnection(fledge_url)
-        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/admin.cert')
+        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), cert_path)
         with open(cert_file_path, 'r') as f:
             conn.request("POST", "/fledge/login", body=f)
             r = conn.getresponse()
@@ -338,7 +346,17 @@ class TestAuthenticationAPI:
             jdoc = json.loads(r)
             assert "Logged in successfully." == jdoc['message']
             assert "token" in jdoc
-            assert jdoc['admin']
+            assert is_admin == jdoc['admin']
+            # Verify user after login
+            conn.request("GET", "/fledge/user?username={}".format(username),
+                         headers={"authorization": jdoc['token']})
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            user_jdoc = json.loads(r)
+            assert len(user_jdoc) > 0, "No record found for {} username.".format(username)
+            assert role_id == user_jdoc["roleId"]
+            assert username.lower() == user_jdoc['userName']
 
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign

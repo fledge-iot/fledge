@@ -136,7 +136,7 @@ class TestCertificateStore:
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
         assert excinfo.type is FileNotFoundError
-        assert "No such file or directory:" in str(excinfo)
+        assert "No such file or directory" in str(excinfo)
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.pem', 404, "Certificate with name root.pem does not exist"),

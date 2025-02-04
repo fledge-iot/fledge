@@ -29,6 +29,7 @@
 #include <sys/time.h>
 
 #include "json_utils.h"
+#include "string_utils.h"
 
 #include <iostream>
 #include <chrono>
@@ -975,6 +976,9 @@ std::size_t arr = data.find("inserts");
 						itr != (*iter).MemberEnd();
 						++itr)
 		{
+			if (itr->value.IsNull())
+				continue;
+
 			// Append column name
 			if (col)
 			{
@@ -1125,8 +1129,10 @@ SQLBuffer	sql;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
-					else if (itr->value.IsNumber())
-						sql.append(itr->value.GetInt());
+					else if (itr->value.IsUint64())
+						sql.append(itr->value.GetUint64());
+					else if (itr->value.IsInt64())
+						sql.append(itr->value.GetInt64());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1211,8 +1217,10 @@ SQLBuffer	sql;
 					}
 					else if (value.IsDouble())
 						sql.append(value.GetDouble());
-					else if (value.IsNumber())
-						sql.append(value.GetInt());
+					else if (value.IsUint64())
+						sql.append(value.GetUint64());
+					else if (value.IsInt64())
+						sql.append(value.GetInt64());
 					else if (value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1325,9 +1333,13 @@ SQLBuffer	sql;
 					{
 						sql.append(value.GetDouble());
 					}
-					else if (value.IsNumber())
+					else if (value.IsUint64())
 					{
-						sql.append(value.GetInt());
+						sql.append(value.GetUint64());
+					}
+					else if (value.IsInt64())
+					{
+						sql.append(value.GetInt64());
 					}
 					else if (value.IsObject())
 					{
@@ -1336,7 +1348,7 @@ SQLBuffer	sql;
 						value.Accept(writer);
 
 						std::string buffer_escaped = "\"";
-						buffer_escaped.append(escape_double_quotes(buffer.GetString()));
+						buffer_escaped.append(escape_double_quotes(escape(buffer.GetString())));
 						buffer_escaped.append( "\"");
 
 						sql.append('\'');
@@ -1691,7 +1703,11 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append(asset_code);
+			std::string escaped_asset(asset_code);
+			std::string target ="'";
+			std::string replacement ="''";
+			StringReplaceAllEx(escaped_asset, target, replacement);
+			sql.append(escaped_asset);
 			sql.append("', '");
 
 			// Handles - reading
@@ -1928,7 +1944,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
 		{
 			// Get number of unsent rows we are about to remove
-			unsentPurged = rowidLimit - sent;
+			unsentPurged = lastPurgedId - sent;
 		}
 		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
 	}
@@ -2003,7 +2019,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
 
-	if (sent == 0)	// Special case when not north process is used
+	if (sent == 0)	// Special case when no north process is used
 	{
 		unsentPurged = deletedRows;
 	}
@@ -2154,7 +2170,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			return 0;
 		}
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + min(100000UL, rows);
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2173,22 +2189,32 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			sqlCommand = "DELETE FROM fledge.readings WHERE id <= " +  to_string(deletePoint);
 			rowsAffectedLastComand = purgeOperation(sqlCommand.c_str(), logSection, "ReadingsPurgeByRows - phase 2, deleting readings", false);
 
-			deletedRows += rowsAffectedLastComand;
-			numReadings -= rowsAffectedLastComand;
-			rowcount    -= rowsAffectedLastComand;
+			if (rowsAffectedLastComand != -1)	// No error occured
+			{
+				deletedRows += rowsAffectedLastComand;
+				numReadings -= rowsAffectedLastComand;
+				rowcount    -= rowsAffectedLastComand;
 
-			logger->debug("Deleted %lu rows", rowsAffectedLastComand);
-			if (rowsAffectedLastComand == 0)
-			{
-				break;
-			}
-			if (limit != 0 && sent != 0)
-			{
-				unsentPurged = deletePoint - sent;
-			}
-			else if (!limit)
-			{
-				unsentPurged += rowsAffectedLastComand;
+				logger->debug("Deleted %lu rows", rowsAffectedLastComand);
+				if (rowsAffectedLastComand == 0)
+				{
+					break;
+				}
+				if (limit == 0)
+				{
+					// We may purge unsent rows
+					if (minId > sent)
+					{
+						// The entire block was unsent
+						unsentPurged += rowsAffectedLastComand;
+					}
+					else if (minId < sent && deletePoint > sent)
+					{
+						// Only part of the block was unsent
+						long unsentBlock = rowsAffectedLastComand - (sent - minId);
+						unsentPurged += unsentBlock;
+					}
+				}
 			}
 		}
 	} while (rowcount > rows);

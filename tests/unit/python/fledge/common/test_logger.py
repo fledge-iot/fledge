@@ -60,9 +60,10 @@ class TestLogger:
         :assert:
             Assert ValueError is returned when destination=2
         """ 
-        with pytest.raises(ValueError) as error_exec:        
+        with pytest.raises(ValueError) as error_exec:
             logger.setup(__name__, destination=2)
-        assert "ValueError: Invalid destination 2" in str(error_exec)
+        assert error_exec.type is ValueError
+        assert "Invalid destination 2" in str(error_exec)
  
     def test_logger_level(self):
         """ Test logger level gets updated

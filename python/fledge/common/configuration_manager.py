@@ -273,6 +273,17 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         return category_val_new_copy
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
+
+        def _validate_optional_attribute_string_type(optional_key_name, optional_key_value, config_item_name):
+            if not isinstance(optional_key_value, str):
+                raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
+                    category_name, optional_key_name, config_item_name, type(optional_key_value)))
+            final_optional_key_value = optional_key_value.strip()
+            if not final_optional_key_value:
+                raise ValueError('For {} category, {} cannot be empty for item name {}'.format(
+                    category_name, optional_key_name, config_item_name))
+            return final_optional_key_value
+
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
             raise TypeError('For {} category, category value must be a dictionary; got {}'
@@ -388,16 +399,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if 'items' not in item_val:
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
+                        if 'keyName' in item_val:
+                            item_val['keyName'] = _validate_optional_attribute_string_type('keyName',
+                                                                                           item_val['keyName'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
+                        if 'keyDescription' in item_val:
+                            item_val['keyDescription'] = _validate_optional_attribute_string_type(
+                                'keyDescription', item_val['keyDescription'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
                     if 'listName' in item_val:
-                        list_name = item_val['listName']
-                        if not isinstance(list_name, str):
-                            raise TypeError('For {} category, listName type must be a string for item name {}; '
-                                            'got {}'.format(category_name, item_name, type(list_name)))
-                        list_name = item_val['listName'].strip()
-                        if not list_name:
-                            raise ValueError('For {} category, listName cannot be empty for item name '
-                                             '{}'.format(category_name, item_name))
-                        item_val['listName'] = list_name
+                        item_val['listName'] = _validate_optional_attribute_string_type('listName',
+                                                                     item_val['listName'], item_name)
                     elif "permissions" in item_val:
                         permissions = item_val['permissions']
                         if not isinstance(permissions, list):
@@ -564,6 +577,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
                             raise ValueError('For {} category, {} entry values must be a string and non-empty '
                                              'for item name {}.'.format(category_name, entry_name, item_name))
+                elif 'type' in item_val and get_entry_val("type") == 'JSON':
+                    if 'schema' in item_val:
+                        if type(item_val['schema']) is not dict:
+                            raise TypeError('For {} category, {} item name and schema entry value must be an object; '
+                                            'got {}'.format(category_name, item_name, type(entry_val)))
+                        if not item_val['schema']:
+                            raise ValueError('For {} category, {} item name and schema entry value can not be empty.'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '

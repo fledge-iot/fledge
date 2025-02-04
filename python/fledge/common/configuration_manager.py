@@ -252,10 +252,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
             if 'listName' in item_val_new and item_val_new['type'] == 'list':
-                # TODO: kvlist
                 _modify_value_by_list_name("default")
                 _modify_value_by_list_name("value")
-                _logger.error("Merge For category: {} -- val: {}".format(category_name, item_val_new))
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
@@ -676,12 +674,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         new_category_val.pop(i)
                     # Add "listName" to the value when the type is a list
                     if 'listName' in v and v['type'] == 'list':
-                        # TODO: kvlist
                         # Create a new dictionary where the key is listName and the value remains the same,
                         # then convert it into a JSON string.
                         new_category_val[i]['default'] = json.dumps({v["listName"]: json.loads(v["default"])})
                         new_category_val[i]['value'] = json.dumps({v["listName"]: json.loads(v["value"])})
-                        _logger.error("For category: {} -- val: {}".format(category_name, new_category_val[i]))
             else:
                 new_category_val = category_val
             display_name = category_name if display_name is None else display_name
@@ -947,6 +943,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 old_value_for_check = old_value
                 new_val_for_check = new_val
+                # Special case: If type is list and listName is given then modify the value internally
+                if cat_info[item_name]['type'] == 'list' and 'listName' in cat_info[item_name]:
+                    if cat_info[item_name]["listName"] not in new_val:
+                        modify_value = json.dumps({cat_info[item_name]['listName']: json.loads(new_val)})
+                        new_val_for_check = modify_value
+                        new_val = modify_value
                 if type(new_val) == dict:
                     # it converts .old so both .new and .old are dicts
                     # it uses OrderedDict to preserve the sequence of the keys

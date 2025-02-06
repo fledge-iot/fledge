@@ -221,13 +221,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items,
                                    category_name=None):
 
-        def convert_json_type_to_list(config_item_name: str, new_config: dict):
+        def convert_json_to_list_for_category_and_item(config_item_name: str, new_config: dict):
             old_value_json = json.loads(category_val_storage[config_item_name]['value'])
             if isinstance(old_value_json, dict):
                 config_item_list_name = new_config.get('listName')
                 if config_item_list_name is not None:
                     old_list_value = old_value_json.get(config_item_list_name)
                     if old_list_value is not None:
+                        _logger.info("Upgrading the JSON configuration into a list for category: {} and "
+                                     "config item: {}".format(category_name, config_item_name))
                         new_config['value'] = json.dumps(old_list_value)
                     else:
                         _logger.error("The values for the {} category could not be merged "
@@ -261,10 +263,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 else:
                     if 'value' not in item_val_new:
                         item_val_new['value'] = item_val_new['default']
-                    # Case JSON to list
+                    """ Upgrade case: 
+                        when the config item is of type JSON, it will be converted into a list while preserving 
+                        its value as is.
+                    """
                     if item_val_new['type'] == 'list' and item_val_storage['type'] == 'JSON':
                         if 'listName' in item_val_new:
-                            convert_json_type_to_list(item_name_new, item_val_new)
+                            convert_json_to_list_for_category_and_item(item_name_new, item_val_new)
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)

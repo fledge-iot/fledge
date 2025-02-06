@@ -9,6 +9,27 @@
 .. |filter_north| image:: images/filter_8.jpg
 .. |filter_select| image:: images/filter_9.jpg
 .. |filter_floor| image:: images/filter_10.jpg
+.. |branch_1| image:: images/branch_1.jpg
+.. |branch_2| image:: images/branch_2.jpg
+.. |branch_3| image:: images/branch_3.jpg
+.. |branch_4| image:: images/branch_4.jpg
+.. |flow_addfilter| image:: images/flow_addfilter.jpg
+.. |flow_definefilter| image:: images/flow_definefilter.jpg
+.. |flow_added| image:: images/flow_filteradded.jpg
+.. |flow_filterconfig| image:: images/flow_filterconfig.jpg
+.. |flow_filterpipeline| image:: images/flow_filterpipeline.jpg
+.. |flow_sinusoid| image:: images/flow_sinusoid.jpg
+.. |flow_south| image:: images/flow_south.jpg
+.. |flow_southplugin| image:: images/flow_southplugin.jpg
+.. |flow_actionbar| image:: images/flow_actionbar.jpg
+.. |flow_southcontrols| image:: images/flow_southcontrols.jpg
+.. |flow_southhover| image:: images/flow_southhover.jpg
+.. |flow_southmenu| image:: images/flow_southmenu.jpg
+.. |flow_filterdone| image:: images/flow_filterdone.jpg
+.. |flow_filteradded| image:: images/flow_filteradded.jpg
+.. |flow_dragging| image:: images/flow_dragging.jpg
+.. |flow_reordered| image:: images/flow_reordered.jpg
+.. |flow_details| image:: images/flow_details.jpg
 
 .. Links
 .. |filter_plugins| raw:: html
@@ -60,7 +81,7 @@ Filters can be applied in two locations in the Fledge system;
 
 More than one filter can be added to a single south or north within a Fledge instance. Filters are placed in an ordered pipeline of filters that are applied to the data in the order of the pipeline. The output of the first filter becomes the input to the second. Filters can thus be combined to perform complex sets of operations on a particular data stream into Fledge or out of Fledge.
 
-The same filter plugin can appear in multiple places within a filter pipeline, a different instance is created for each and each one has its own configuration.
+The same filter plugin can appear in multiple places within a filter pipeline, a different instance is created for each and each one has its own configuration. Pipelines can also contain branches, allow parallel processing of data.
 
 Adding a South Filter
 ---------------------
@@ -152,6 +173,235 @@ Although this is a simple example of labeling data other things can be done here
 
 This example used a PI Server as the destination, however the same mechanism and filters may be used for any north destination.
 
+Graphical Pipeline Development
+------------------------------
+
+In versions 1.0 up until version 2.4 of Fledge the user interface for creating and editing pipeline was a purely grid based interface as illustrated above. In version 2.4 an option was introduced that allowed a more graphical approach to creating and managing data pipelines. This option was activated via the *Settings* menu option and is call the *Flow editor*. Enabling this will change the user interface for pipeline management.
+
+.. note::
+
+   As of version 3.0 the graphical, flow editor will be the default user interface mode. The previous interface is still available and may be selected by turning off the flow editor in the Settings menu.
+
+Adding A Pipeline
+~~~~~~~~~~~~~~~~~
+
+Adding a pipeline, in for example the south, is done by navigating to the *South* menu item, a page will appear that shows all of the current south service, or pipeline, that have been configured.
+
++--------------+
+| |flow_south| |
++--------------+
+
+.. note::
+
+   The north services and tasks are presented in the same way and the interactions are the same as is described here for the south services.
+
+To add a new service, click on the + icon in the dotted service in the top left corner. You will then be presented with a dialog that allows you to choose the south plugin to use to ingest data. If working on a north service or task you Will choose the plugin to use to send data to the system north of Fledge.
+
++--------------------+
+| |flow_southplugin| |
++--------------------+
+
+This dialog will guide you through a number of steps to configure the south plugin. Once complete you will be presented with your new south pipeline that consists of a data ingestion plugin and a connection to the internal storage buffer. The example below shows the sinusoid south plugin in use.
+
++-----------------+
+| |flow_sinusoid| |
++-----------------+
+
+Plugin Interaction
+~~~~~~~~~~~~~~~~~~
+
+There are a number of ways of interacting with the south plugin, and likewise in the north. If you hover over the plugin it will display a count of the number of readings processed by the pipeline and the distinct number of asset names observed in the pipeline.
+
++-------------------+
+| |flow_southhover| |
++-------------------+
+
+The subscript number is the count of distinct asset names in the pipeline.
+
+The south plugin also has a number of controls and status indicators around the periphery of the display as well as describing the service name and the name of the south ingest plugin.
+
++----------------------+
+| |flow_southcontrols| |
++----------------------+
+
+  - **Service Status** - a coloured indicator of the current monitored status:
+    
+      - Green indicates the service is running and the pipeline is processing data.
+
+      - Yellow indicates the service has started to show signs of failure.
+
+      - Red indicates the service has failed.
+
+      - Grey indicates the service is not enabled.
+
+   - **Enable Control** - a toggle control that can be used to enable and disable the service.
+
+   - **Configuration** - a control that can be used to display the configuration dialog for the plugin. This allows the configuration to be changed for an existing south plugin.
+
+   - **Menu** - enable the display of the context menu for the service:
+
+     +------------------+
+     | |flow_southmenu| |
+     +------------------+
+
+     - Readings - display the readings that are buffered in the storage service as a result of this pipeline.
+
+     - Export Readings - export the buffered readings for this pipeline to a CSV file.
+
+     - Delete - delete the service.
+
+  - **Display Readings** - display the readings that are buffered in the storage service as a result of this pipeline.
+
+  - **Show Logs** - display the logs written by this service.
+
+  - **Help** - show the online documentation of this south plugin. The online documentation will be shown in a new browser tab.
+
+These same controls and status indicators are also available in the south page that shows all of the current south services that are configured within the Fledge instance.
+
++--------------+
+| |flow_south| |
++--------------+
+
+Adding Filters
+~~~~~~~~~~~~~~
+
+Adding a new filter to a pipeline is a simple process of dragging the blank filter icon from the bottom left of the canvas and dropping it on one of the connecting lines in the filter pipeline.
+
++------------------+
+| |flow_addfilter| |
++------------------+
+
+Once the new filter has been dropped onto the connection, the pipeline will redraw and show an empty filter in the pipeline.
+
++--------------------+
+| |flow_filteradded| |
++--------------------+
+
+The dashed outline of the filter signifies that the filter has yet to be defined, its place within the pipeline is set, but the actual filter to be inserted as not been selected and it has not been configured. Clicking on the + icon will bring up the filter selection dialog.
+
++---------------------+
+| |flow_definefilter| |
++---------------------+
+
+Select the filter plugin to use from the list of plugins given. If a filter you need has not been installed you may install it by clicking on the *Install from available plugins* link below the list.
+
+Give the filter a name, names must be unique within the Fledge instance. Once complete click on the *Next* button to configure your chosen filter plugin.
+
+Here we have assumed you selected the *RMS* plugin and see the configuration screen for that plugin.
+
++---------------------+
+| |flow_filterconfig| | 
++---------------------+
+
+Configure your plugin and then click on *Done*. The filter screen will be displayed with the empty filter now replaced with your newly defined and configured filter.
+
++-------------------+
+| |flow_filterdone| |
++-------------------+
+
+.. note::
+
+   The colour of the filter components outline is used to distinguish the type of element it is. South plugins are shown in green and filters in yellow. Filters also display a "funnel" icon in the centre of the element.
+
+Similar controls are shown around the periphery of the filter icon to those shown on the south plugin. There is no count display when you hover over the filter and no readings or logs are available that related just to this filter.
+
+The context menu has a single entry, *Delete*. This will delete the filter from the pipeline.
+
+The filter element also has two green dots that represent the ingress and egress points of the filter.
+
+Reordering Filters
+~~~~~~~~~~~~~~~~~~
+
+Using the flow based pipeline editor the process of reordering filters within a pipeline is simply a case of clicking and dragging the filter you wish to move it.
+
++-----------------+
+| |flow_dragging| |
++-----------------+
+
+In this case the filter called *rename* has been dragged from its position between *Sinusoid* and *SineRMS* and will be dropped on the connection coming from *SinRMS* to the storage layer.
+
+Releasing the mouse button to drop the filter on the connection will cause the pipeline to be drawn with the new filter order.
+
++------------------+
+| |flow_reordered| |
++------------------+
+
+Accessing An Existing Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To access an existing pipeline from the *South* or *North* screen you may either click on the service name or select the *Details* item from the services context menu.
+
++----------------+
+| |flow_details| |
++----------------+
+
+Canvas Action Bar
+~~~~~~~~~~~~~~~~~
+
+At the top of the working canvas for the pipeline flow editor a small action bar allows for some actions related to the drawing of the pipeline.
+
++------------------+
+| |flow_actionbar| |
++------------------+
+
+From left to right in the action bar the operations support are:
+
+  - **Reload** - reloads the pipeline, discarding any part complete actions.
+
+  - **Reset** - Resets the canvas to include the pipeline, useful if you have scrolled or zoomed the display and want to revert to seeing the entire pipeline.
+
+  - **Undo** - Undo the last action.
+
+  - **Redo** - Redo the last action.
+
+  - **Delete** - Deletes the currently selected item in the pipeline. This may be a filter or connection.
+
+Also displayed in the bottom right of the working canvas is an overview "map" that shows the working area, the pipeline and the area shown currently.  You can click and drag on this to scroll the visible area of the pipeline canvas.
+
+Pipeline Branching
+------------------
+
+It is possible, using the graphical pipeline development view to create pipelines that are not linear. This allows for data to be sent via two parallel branches of a pipeline and processed in parallel. This can be very useful when two sets of operations are required to be performed on the same data and you wish to not have the data from both operations combined in a single assets or pipeline. An example of this might be the processing of vibration data. You may wish to run an FFT filter over the data to examine the frequency distribution of the signals, but also calculate the power in the vibration using the RMS filter. It is unlikely that you want to do these two different approaches to the analysis of the vibration data in the same asset.
+
+To create a branch, drag the filter from the bottom right corner and drop it onto the canvas in free space.
+
++------------+
+| |branch_1| |
++------------+
+
+Not click on the green circle on the output side of the pipeline element from which the branch is to start and drag out a connection.
+
++------------+
+| |branch_2| |
++------------+
+
+.. note::
+
+   The branch may start from the output of the south plugin or from the output of a filter. Outputs of filters are the right must green dots and inputs are the left most green dots.
+
+Drop the end of the connection on the input of the filter you just dropped onto the canvas.
+
++------------+
+| |branch_3| |
++------------+
+
+Now click on the output of the filter and again drag out a connection. This time drop the end of the connection onto the input of the storage icon or the input side.
+
++------------+
+| |branch_4| |
++------------+
+
+Now the filter is connected into the pipeline you can click on the *+* icon to select the filter plugin.
+
+.. note::
+
+   The workflow shown here connects the input side before the output side, these may actually be done in the opposite order.
+
+To add more filters on your new branch you can drag and drop the new filter icon from the bottom left of the screen onto one of the connection arrows in the same way as you would with the linear pipeline when using the flow editor view.
+
+.. note::
+
+   It is very important when using branches that if two or more branches write to the storage service that they do not write data with the same asset name and timestamp. Typically a branch should create an asset name that differs from those on any other branch. The easiest way to ensure this is the use the *rename* filter or the *asset* filter to change the name of the asset within each branch.
 
 Some Useful Filters
 ===================

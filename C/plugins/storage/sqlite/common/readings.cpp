@@ -2535,9 +2535,9 @@ struct timeval startTv, endTv;
 				return 0;
 			}
 		}
-		unsigned long deletePoint = minId + 100000;
 
-		deletePoint = minId + 100000;
+		unsigned long deletePoint = minId + min(100000UL, rows);
+
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 

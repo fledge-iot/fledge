@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
-import copy
 import json
 import ipaddress
 from unittest.mock import MagicMock, patch, call
@@ -1358,8 +1357,8 @@ class TestConfigurationManager:
                 "type": "list",
                 "items": "string",
                 "listName": "items",
-                "default": "[\"A\", \"B\"]",
-                "value": "[\"E\", \"F\"]"
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"E\", \"F\"]}"
             }
         }
         test_config_storage = {
@@ -2578,15 +2577,10 @@ class TestConfigurationManager:
                 "type": "list",
                 "items": "string",
                 "listName": "items",
-                "default": "[\"A\", \"B\"]",
-                "value": "[\"A\", \"B\"]"
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"A\", \"B\"]}"
             }
         }
-        modified_category_val = copy.deepcopy(category_val)
-        modified_category_val['config_item']['default'] = json.dumps({modified_category_val['config_item']['listName']:
-                            json.loads(modified_category_val['config_item']['default'])})
-        modified_category_val['config_item']['value'] = json.dumps({modified_category_val['config_item']['listName']:
-                            json.loads(modified_category_val['config_item']['value'])})
         category_description = 'catdesc'
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -2608,8 +2602,8 @@ class TestConfigurationManager:
                             await c_mgr._create_new_category(category_name, category_val, category_description)
                         patch_payload.assert_called_once_with()
                     patch_insert.assert_called_once_with(display_name=category_name, description=category_description,
-                                                          key=category_name, value=modified_category_val)
-            patch_audit_info.assert_called_once_with('CONAD', {'category': modified_category_val,
+                                                          key=category_name, value=category_val)
+            patch_audit_info.assert_called_once_with('CONAD', {'category': category_val,
                                                                'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
 

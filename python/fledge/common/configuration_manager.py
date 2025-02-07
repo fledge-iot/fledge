@@ -220,7 +220,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items,
                                    category_name=None):
-
         def convert_json_to_list_for_category_and_item(config_item_name: str, new_config: dict):
             old_value_json = json.loads(category_val_storage[config_item_name]['value'])
             if isinstance(old_value_json, dict):
@@ -230,7 +229,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if old_list_value is not None:
                         _logger.info("Upgrading the JSON configuration into a list for category: {} and "
                                      "config item: {}".format(category_name, config_item_name))
-                        new_config['value'] = json.dumps(old_list_value)
+                        new_config['value'] = json.dumps(old_value_json)
                     else:
                         _logger.error("The values for the {} category could not be merged "
                                       "because the listName value was missing in the old configuration for the {} "
@@ -239,15 +238,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.error("The values for the {} category could not be merged because the listName key-pair was"
                                   " not found in the {} config item.".format(category_name, config_item_name))
             return new_config['value']
-
-        def _modify_value_by_list_name(key_name):
-            old_value = json.loads(item_val_new[key_name])
-            # Create a new dictionary where listName is the key and old_value is the value,
-            # then convert the resulting dictionary into a JSON string
-            if item_val_new["listName"] not in old_value:
-                new_value = {item_val_new["listName"]: old_value}
-                item_val_new[key_name] = json.dumps(new_value)
-
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -277,9 +267,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                  'newValue': 'deprecated'}
                 await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
-            if 'listName' in item_val_new and item_val_new['type'] == 'list':
-                _modify_value_by_list_name("default")
-                _modify_value_by_list_name("value")
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
@@ -696,12 +683,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     # Remove "deprecated" items from a new category configuration
                     if 'deprecated' in v and v['deprecated'] == 'true':
                         new_category_val.pop(i)
-                    # Add "listName" to the value when the type is a list
-                    if 'listName' in v and v['type'] == 'list':
-                        # Create a new dictionary where the key is listName and the value remains the same,
-                        # then convert it into a JSON string.
-                        new_category_val[i]['default'] = json.dumps({v["listName"]: json.loads(v["default"])})
-                        new_category_val[i]['value'] = json.dumps({v["listName"]: json.loads(v["value"])})
             else:
                 new_category_val = category_val
             display_name = category_name if display_name is None else display_name
@@ -1993,15 +1974,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if storage_val.get('type') == 'list':
                 # Convert string to list
                 data_list = json.loads(item_val)
-                # Remove duplicate objects
-                new_item_val = []
-                seen = set()
-                for item in data_list:
-                    item_frozenset = frozenset(item.items())
-                    if item_frozenset not in seen:
-                        new_item_val.append(item)
-                        seen.add(item_frozenset)
-                return json.dumps(new_item_val)
+                if isinstance(data_list, list):
+                    # Remove duplicate objects
+                    new_item_val = []
+                    seen = set()
+                    for item in data_list:
+                        item_frozenset = frozenset(item.items())
+                        if item_frozenset not in seen:
+                            new_item_val.append(item)
+                            seen.add(item_frozenset)
+                    return json.dumps(new_item_val)
             elif storage_val.get('type') == 'kvlist':
                 # Remove duplicate objects
                 new_item_val = json.loads(item_val)

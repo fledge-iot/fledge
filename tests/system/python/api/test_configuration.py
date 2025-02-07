@@ -438,12 +438,13 @@ class TestConfiguration:
         conf = {
             config_item1: {'type': 'boolean', 'description': 'A Boolean check', 'default': 'False', 'order': '1'},
             config_item2: {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
-                           'items': 'string', 'default': '["a", "b"]', 'displayName': 'ListName', 'order': '2'},
+                           'items': 'string', 'default': '{"items": ["a", "b"]}', 'displayName': 'ListName',
+                           'order': '2'},
             config_item3: {'type': 'list', 'description': 'A list of variables', 'items': 'string',
                            'default': '["foo", "bar"]', 'displayName': 'Simple List', 'order': '3'},
             config_item4: {'type': 'list', 'description': 'A list of datapoints to read PLC registers definitions',
                            'items': 'object', 'listName': 'map-items', 'displayName': 'PLC Map',
-                           'default': '[{"datapoint": "voltage", "register": "10", "type": "integer"}]',
+                           'default': '{"map-items": [{"datapoint": "voltage", "register": "10", "type": "integer"}]}',
                            'properties': {
                                'datapoint': {'description': 'The datapoint name to create', 'displayName': 'Datapoint',
                                              'type': 'string', 'default': ''},
@@ -461,16 +462,31 @@ class TestConfiguration:
         jdoc = json.loads(r)
         assert category == jdoc['key']
         # Verify default and value KV pair for a config item
-        assert (json.dumps({conf[config_item2]['listName']: json.loads(conf[config_item2]['default'])}) ==
-                jdoc['value'][config_item2]['default'])
-        assert (json.dumps({conf[config_item2]['listName']: json.loads(conf[config_item2]['default'])}) ==
-                jdoc['value'][config_item2]['value'])
+        assert conf[config_item2]['default'] == jdoc['value'][config_item2]['default']
+        assert conf[config_item2]['default'] == jdoc['value'][config_item2]['value']
+
         assert conf[config_item3]['default'] == jdoc['value'][config_item3]['default']
         assert conf[config_item3]['default'] == jdoc['value'][config_item3]['value']
-        assert (json.dumps({conf[config_item4]['listName']: json.loads(conf[config_item4]['default'])}) ==
-                jdoc['value'][config_item4]['default'])
-        assert (json.dumps({conf[config_item4]['listName']: json.loads(conf[config_item4]['default'])}) ==
-                jdoc['value'][config_item4]['value'])
+
+        assert conf[config_item4]['default'] == jdoc['value'][config_item4]['default']
+        assert conf[config_item4]['default'] == jdoc['value'][config_item4]['value']
+
+        # Merge category test scenario
+        payload.update({'value': conf})
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request('POST', '/fledge/category', body=json.dumps(payload))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert category == jdoc['key']
+        # Verify No change in default and value KV pair for a config item
+        assert conf[config_item2]['default'] == jdoc['value'][config_item2]['default']
+        assert conf[config_item2]['default'] == jdoc['value'][config_item2]['value']
+        assert conf[config_item3]['default'] == jdoc['value'][config_item3]['default']
+        assert conf[config_item3]['default'] == jdoc['value'][config_item3]['value']
+        assert conf[config_item4]['default'] == jdoc['value'][config_item4]['default']
+        assert conf[config_item4]['default'] == jdoc['value'][config_item4]['value']
 
         # Bulk update
         encoded_url = '/fledge/category/{}'.format(quote(category))
@@ -481,7 +497,8 @@ class TestConfiguration:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert json.dumps({conf[config_item2]['listName']: json.loads(new_value_for_config_item2)}) == jdoc[config_item2]['value']
+        assert json.dumps({conf[config_item2]['listName']: json.loads(new_value_for_config_item2)}
+                          ) == jdoc[config_item2]['value']
         # with multiple config items
         new_value_for_config_item4 = ('[{"datapoint": "voltage", "register": "10", "type": "integer"}, '
                                       '{"datapoint": "pressure", "register": "75.4", "type": "float"}]')

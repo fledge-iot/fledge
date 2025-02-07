@@ -260,6 +260,7 @@ fledge_start() {
                     echo
                     fledge_log "info" "Fledge started." "all" "pretty"
                     attempts=0
+                    break
                     ;;
 
                   "1")  # Starting
@@ -363,6 +364,12 @@ fledge_stop() {
         echo
         fledge_log "info" "Fledge stopped." "all" "pretty"
         attempts=0
+        break
+        ;;
+
+      * ) # Unknown status
+        fledge_log "err" "Unknown status, $new_attempt." "all"
+        exit 1
         ;;
 
     esac

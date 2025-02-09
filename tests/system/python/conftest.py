@@ -21,7 +21,6 @@ import time
 import pytest
 from helpers import utils
 
-
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
@@ -910,6 +909,29 @@ def disable_schedule():
     return _disable_sch
 
 
+@pytest.fixture(scope="function", autouse=True)
+def collect_support_bundle(request, fledge_url):
+    def _collect_support_bundle():
+        PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
+        
+        try:
+            jdoc = utils.post_request(fledge_url, "/fledge/support", None)
+            assert jdoc["bundle created"]
+            copy_to_cmd = f"mkdir -p {PROJECT_ROOT}/support/ && cp -r {jdoc['bundle created']} {PROJECT_ROOT}/support/"
+            subprocess.run([copy_to_cmd], shell=True, check=True)
+        except Exception as e:
+            print("\n Failed to get Support Bundle. \n {}".format(str(e)))
+            print("Copying syslog")
+            log_file = "/var/log/syslog"
+            if pytest.PKG_MGR == 'yum':
+                log_file = "/var/log/messages"  
+            ts = time.strftime("%Y_%m_%d_%H_%M_%S")
+            copy_to_cmd = f"mkdir -p {PROJECT_ROOT}/support/logs/ && grep -i 'fledge' {log_file} > {PROJECT_ROOT}/support/logs/syslog_{ts}"
+            subprocess.run([copy_to_cmd], shell=True, check=True)  
+    
+    request.addfinalizer(_collect_support_bundle)
+
+
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
@@ -1148,7 +1170,6 @@ def asset_name(request):
 @pytest.fixture
 def fledge_url(request):
     return request.config.getoption("--fledge-url")
-
 
 @pytest.fixture
 def wait_time(request):

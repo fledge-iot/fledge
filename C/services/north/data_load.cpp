@@ -118,6 +118,8 @@ bool DataLoad::setDataSource(const string& source)
 				source.c_str(), m_name.c_str());
 		return false;
 	}
+	m_lastFetched = getLastSentId();
+	m_streamSent = getLastSentId();
 	return true;
 }
 
@@ -349,7 +351,7 @@ unsigned long DataLoad::getLastSentId()
 		if (row)
 		{
 			// Get column value
-			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
+			ResultSet::ColumnValue* theVal = row->getColumn(getStatsColumnName());
 			// Set found id
 			unsigned long rval = (unsigned long)theVal->getInteger();
 			delete lastObjectId;
@@ -457,7 +459,7 @@ int streamId = 0;
 InsertValues streamValues;
 
 	streamValues.push_back(InsertValue("description",    m_name));
-	streamValues.push_back(InsertValue("last_object",    0));
+	streamValues.push_back(InsertValue(getStatsColumnName(),    0));
 
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
@@ -515,7 +517,7 @@ void DataLoad::flushLastSentId()
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
 
-	lastId.push_back(InsertValue("last_object", (long)m_streamSent));
+	lastId.push_back(InsertValue(getStatsColumnName(), (long)m_streamSent));
 	m_storage->updateTable("streams", lastId, where);
 }
 
@@ -723,4 +725,23 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 			m_pipeline->configChange(category, newConfig);
 		}
 	}
+}
+
+/**
+ * Get the stats column name to be used to fetch last reading sent with this current data source
+ */
+
+std::string	DataLoad::getStatsColumnName()
+{
+	std::string lastColName = "last_object";
+	switch(m_dataSource)
+	{
+		case SourceStatistics:
+			lastColName = "stats_last_object";
+			break;
+		case SourceAudit:
+			lastColName = "audit_last_object";
+			break;
+	}
+	return lastColName;
 }

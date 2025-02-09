@@ -1,5 +1,5 @@
 # Common - REST interface
-aiohttp==3.8.1
+aiohttp==3.8.5
 aiohttp_cors==0.7.0
 cchardet==2.1.4;python_version<"3.9"
 cchardet==2.1.7;python_version>="3.9"

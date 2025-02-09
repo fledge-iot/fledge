@@ -2060,10 +2060,20 @@ ostringstream convert;
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
 		 m_itemType == DoubleItem ||
-		 m_itemType == ScriptItem ||
 		 m_itemType == CodeItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
+	}
+	else if ( m_itemType == ScriptItem )
+	{
+		if (m_default == "\"\"" ) // Already escaped blank value, No need to escape twice
+		{
+			convert << ", \"default\" : " << m_default << " }";
+		}
+		else
+		{
+			convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
+		}
 	}
 	return convert.str();
 }

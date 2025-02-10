@@ -23,7 +23,18 @@
 
 #define	OMF_HINT	"OMFHint"
 
-#define MESSAGE_NO_CONNECTION				"Failed to send data: Operation canceled"
+#define PIWEBAPI_PIPOINTS_NOT_CREATED		"One or more PI Points could not be created."
+#define PIWEBAPI_CONTAINER_NOT_FOUND		"Container not found."
+#define PIWEBAPI_UPDATE_EXCEPTION			"An exception occurred while updating data."
+#define MESSAGE_PI_UNSTABLE					"HTTP Code %d: Processing cannot continue until data archive errors are corrected"
+#define MESSAGE_UNAUTHORIZED				"OMF endpoint reported we are not authorized, please check configuration of the authentication method and credentials"
+
+const char *const noConnectionErrorMessages[] =
+	{"Failed to send data: Operation canceled",		// PI Web API
+	 "Failed to send data: Connection refused",		// Edge Data Store
+	 "Failed to send data: Host not found",			// usually followed by "(authoritative)" or "(non-authoritative), try again later"
+	 "Failed to send data: Network is unreachable",
+	 ""};		// empty string marks the end of the array
 
 // The following will force the OMF version for EDS endpoints
 // Remove or comment out the line below to prevent the forcing
@@ -224,6 +235,9 @@ class OMF
 		// Check if plugin is connected to PI
 		bool isPIconnected() { return m_connected; };
 
+		// Set PI connection status
+		void setPIconnected(bool connectionStatus) { m_connected = connectionStatus; };
+
 		// Map object types found in input data
 		void setMapObjectTypes(const std::vector<Reading *>& data,
 					std::map<std::string, Reading*>& dataSuperSet);
@@ -317,6 +331,8 @@ private:
 		string errorMessageHandler(const string &msg);
 
 		void handleRESTException(const std::exception &e, const char *mainMessage);
+
+		void CheckHttpCode(const int httpCode, const std::string &errorMessage);
 
 		std::string getExceptionMessage(const std::exception &e, OMFError *error);
 
@@ -470,7 +486,6 @@ private:
 							    OMF_TYPE_UNSUPPORTED};
 		// HTTP Sender interface
 		HttpSender&		m_sender;
-		bool			m_lastError;
 		bool			m_changeTypeId;
 
 		// These errors are considered not blocking in the communication

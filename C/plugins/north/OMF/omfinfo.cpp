@@ -395,6 +395,8 @@ void OMFInformation::start(const string& storedData)
 		}
 		else
 		{
+			Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
+				m_hostAndPort.c_str(), httpCode);
 			m_connected = false;
 		}
 	}
@@ -555,6 +557,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		}
 	}
 	// Send the readings data to the PI Server
+	m_omf->setPIconnected(m_connected);
 	uint32_t ret = m_omf->sendToServer(readings, m_compression);
 	m_connected = m_omf->isPIconnected();
 

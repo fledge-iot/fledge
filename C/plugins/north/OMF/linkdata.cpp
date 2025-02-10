@@ -26,6 +26,8 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+using namespace std;
+
 /**
  * In order to cut down on the number of string copies made whilst building
  * the OMF message for a reading we reserve a number of bytes in a string and
@@ -34,7 +36,28 @@
  */
 #define RESERVE_INCREMENT	100
 
-using namespace std;
+/**
+ * Create a comma-separated string from a string set
+ *
+ * @param stringSet	Set of strings
+ * @return			Set members as a comma-separated string
+ */
+static std::string StringSetToCSVString(const std::set<std::string> &stringSet)
+{
+	std::string stringSetMembers;
+
+	for (std::string item : stringSet)
+	{
+		stringSetMembers.append(item).append(",");
+	}
+
+	if (stringSetMembers.size() > 0)
+	{
+		stringSetMembers.resize(stringSetMembers.size() - 1);	// remove trailing comma
+	}
+
+	return stringSetMembers;
+}
 
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
@@ -456,6 +479,7 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 		container += "} }";
 	}
 	container += "}";
+	m_containerNames.insert(linkName);
 
 	Logger::getLogger()->debug("Built container: %s", container.c_str());
 
@@ -496,45 +520,90 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 						   res,
 						   sender.getHostPort().c_str(),
 						   sender.getHTTPResponse().c_str());
+			if (!m_containerNames.empty())
+			{
+				Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+			}
 			return false;
+		}
+		else if (res == 201)
+		{
+			Logger::getLogger()->info("Containers created: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		else
+		{
+			Logger::getLogger()->info("Containers confirmed: %s", StringSetToCSVString(m_containerNames).c_str());
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
 		error.setFromHttpResponse(sender.getHTTPResponse());
-		if (error.hasErrors())
+		if (error.Log("The OMF endpoint reported a Bad Request when sending Containers") == false)
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-			}
+			Logger::getLogger()->error("HTTP 400: Bad Request when sending Containers. Exception: %s", e.what());
 		}
 
-		return error.hasErrors();
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		return false;
 	}
 	catch (const Conflict& e)
 	{
 		error.setFromHttpResponse(sender.getHTTPResponse());
-		error.Log("The OMF endpoint reported a Conflict when sending containers");
-		return error.hasErrors();
+		if (error.Log("The OMF endpoint reported a Conflict when sending Containers") == false)
+		{
+			Logger::getLogger()->error("HTTP 409: Conflict when sending Containers. Exception: %s", e.what());
+		}
+
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		return false;
 	}
-	catch (const std::exception& e)
+	catch (const std::exception &e)
 	{
 		error.setFromHttpResponse(sender.getHTTPResponse());
-		PIWebAPI piwebapi;
-		std::string errorMessage = piwebapi.errorMessageHandler(e.what());
-		Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
-									errorMessage.c_str(),
-									sender.getHostPort().c_str(),
-									path.c_str());
-
-		if (0 == strncmp(e.what(), MESSAGE_NO_CONNECTION, strlen(MESSAGE_NO_CONNECTION)))
+		if (error.hasMessages())
 		{
-			*isConnected = false;
+			error.Log("An exception occurred when sending container information to the OMF endpoint");
+			
+			if (error.getHttpCode() == 503)
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("HTTP 503: REST service unavailable");
+			}
+		}
+		else
+		{
+			PIWebAPI piwebapi;
+			std::string errorMessage = piwebapi.errorMessageHandler(e.what());
+			Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
+									   errorMessage.c_str(),
+									   sender.getHostPort().c_str(),
+									   path.c_str());
+		}
+
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		// Check for any error messages that indicate a loss of connection
+		int i = 0;
+		while (strlen(noConnectionErrorMessages[i]))
+		{
+			if (0 == strncmp(e.what(), noConnectionErrorMessages[i], strlen(noConnectionErrorMessages[i])))
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("Connection to the destination data archive has been lost");
+				break;
+			}
+			i++;
 		}
 
 		return false;

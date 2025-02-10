@@ -11,6 +11,7 @@
  */
 
 #include <map>
+#include <set>
 #include <reading.h>
 #include <OMFHint.h>
 #include <omfbuffer.h>
@@ -94,6 +95,7 @@ class OMFLinkedData
 		 * The set of containers to flush
 		 */
 		std::string				m_containers;
+		std::set<std::string>   m_containerNames;
 		std::string				m_doubleFormat;
 		std::string				m_integerFormat;
 

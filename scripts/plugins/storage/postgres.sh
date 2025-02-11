@@ -230,6 +230,11 @@ pg_reset() {
         fi
     fi
 
+    if [[ $2 != "immediate" && -d "${FLEDGE_DATA}/buckets" ]]; then
+        echo "Removed user data from ${FLEDGE_DATA}/buckets"
+        rm -rf ${FLEDGE_DATA}/buckets
+    fi
+
 }
 
 

@@ -114,6 +114,7 @@ class OMFInformation {
 		int		PIWebAPIGetVersion(bool logMessage = true);
 		int		EDSGetVersion();
 		void		SetOMFVersion();
+		void		CheckDataActionCode();
 		std::string	OCSRetrieveAuthToken();
 		OMF_ENDPOINT	identifyPIServerEndpoint();
 		std::string	saveSentDataTypes();
@@ -124,6 +125,7 @@ class OMFInformation {
 		void		AuthKerberosSetup(std::string& keytabEnv, std::string& keytabFileName);
 		double		GetElapsedTime(struct timeval *startTime);
 		bool		IsPIWebAPIConnected();
+        void handleOMFTracing();
 		
 	private:
 		Logger		*m_logger;
@@ -138,6 +140,7 @@ class OMFInformation {
 		unsigned int	m_timeout;	        // connect and operation timeout
 		string		m_path;		        // PI Server application path
 		string		m_delimiter;			// delimiter between Asset and Datapoint in PI data stream names
+		string		m_dataActionCode;		// Action code to use for OMF Data posts: update or create
 		long		m_typeId;		        // OMF protocol type-id prefix
 		string		m_producerToken;	        // PI Server connector token
 		string		m_formatNumber;	        // OMF protocol Number format
@@ -181,5 +184,6 @@ class OMFInformation {
 		bool		m_legacy;
 		string		m_name;
 		bool		m_connected;
+        bool        m_tracingEnabled;
 };
 #endif

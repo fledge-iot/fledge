@@ -125,7 +125,7 @@ async def login(request):
 
         try:
             await User.Objects.verify_certificate(data)
-            username = SSLVerifier.get_subject()['commonName']
+            username = SSLVerifier.get_subject()['commonName'].lower()
             uid, token, is_admin = await User.Objects.certificate_login(username, host)
             # set the user to request object
             request.user = await User.Objects.get(uid=uid)
@@ -319,6 +319,11 @@ async def get_user(request):
         user_name = request.query['username'].lower()
     if user_id or user_name:
         try:
+            if not request.is_auth_optional:
+                if int(request.user["role_id"]) not in [1, 5]:
+                    if ((user_id is not None and int(request.user["id"]) != user_id)
+                            or (user_name is not None and request.user["uname"] != user_name)):
+                        raise web.HTTPForbidden
             user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')

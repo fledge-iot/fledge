@@ -204,7 +204,8 @@ async def validate_requests(request):
     user_id = request.user['id']
     # Only URL's which are specific meant for Admin user
     if not request.user_is_admin and request.method == 'GET':
-        if str(request.rel_url) == '/fledge/user':
+        # Special case: Allowed GET user for Control user
+        if int(request.user["role_id"]) != 5 and str(request.rel_url) == '/fledge/user':
             raise web.HTTPForbidden
     # Normal/Editor user
     if int(request.user["role_id"]) == 2 and request.method != 'GET':

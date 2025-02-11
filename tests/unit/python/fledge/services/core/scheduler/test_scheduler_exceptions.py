@@ -16,8 +16,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "scheduler")
 class TestSchedulerExceptions:
     def test_NotReadyError(self):
         with pytest.raises(NotReadyError) as excinfo:
@@ -37,7 +35,7 @@ class TestSchedulerExceptions:
             raise TaskNotRunningError(task_id)
         assert excinfo.type is TaskNotRunningError
         assert issubclass(excinfo.type, RuntimeError)
-        assert str(excinfo).endswith("Task is not running: {}".format(str(task_id)))
+        assert "Task is not running: {}".format(task_id) in str(excinfo)
 
     def test_TaskNotFoundError(self):
         task_id = uuid.uuid4()
@@ -45,7 +43,7 @@ class TestSchedulerExceptions:
             raise TaskNotFoundError(task_id)
         assert excinfo.type is TaskNotFoundError
         assert issubclass(excinfo.type, ValueError)
-        assert str(excinfo).endswith("Task not found: {}".format(task_id))
+        assert "Task not found: {}".format(task_id) in str(excinfo)
 
     def test_ScheduleNotFoundError(self):
         schedule_id = uuid.uuid4()
@@ -53,7 +51,7 @@ class TestSchedulerExceptions:
             raise ScheduleNotFoundError(schedule_id)
         assert excinfo.type is ScheduleNotFoundError
         assert issubclass(excinfo.type, ValueError)
-        assert str(excinfo).endswith("Schedule not found: {}".format(schedule_id))
+        assert "Schedule not found: {}".format(schedule_id) in str(excinfo)
 
     def test_ScheduleProcessNameNotFound(self):
         with pytest.raises(ScheduleProcessNameNotFoundError) as excinfo:

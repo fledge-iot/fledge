@@ -237,7 +237,6 @@ void DataLoad::readBlock(unsigned int blockSize)
 			if (n_update_streamId > max_wait_count) {
 				// Update 'last_object_id' in 'streams' table when no readings to send
 				n_update_streamId = 0;
-				m_streamSent = getLastFetched();
 				flushLastSentId();
 			}
 		}
@@ -267,7 +266,7 @@ ReadingSet *DataLoad::fetchStatistics(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -301,7 +300,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));

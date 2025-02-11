@@ -81,7 +81,12 @@ These are the properties returned by the JSON document:
 
 .. note:: If you browse the Fledge code you may find old plugins with type *device*: this was the type used to indicate a South plugin and it is now deprecated.
 
-- **interface** - This property reports the version of the plugin API to which this plugin was written. It allows Fledge to support upgrades of the API whilst being able to recognise the version that a particular plugin is compliant with. Currently all interfaces are version 1.0.
+- **interface** - This property reports the version of the plugin API to which this plugin was written. It allows Fledge to support upgrades of the API whilst being able to recognise the version that a particular plugin is compliant with. Currently all interfaces are version 1.0.0 except for a number of south plugins that use interface version 2.0.0.
+
+.. note::
+
+   Interface versions from 2.0.0. onwards support a new plugin_poll entry point that can return a vector of readings from a single plugin_poll call as opposed to the single reading that can be returned from the 1.0.0 interface. The callback for asynchronous input is also updated in the 2.0.0 interface to expect a vector of readings rather than a single reading.
+
 - **configuration** - This allows the plugin to return a JSON document which contains the default configuration of the plugin.  This is in line with the extensible plugin mechanism of Fledge, each plugin will return a set of configuration items that it wishes to use, this will then be used to extend the set of Fledge configuration items. This structure, a JSON document, includes default values but no actual values for each configuration option. The first time Fledge’s configuration manager sees a category it will register the category and create values for each item using the default value in the configuration document. On subsequent calls the value already in the configuration manager will be used. |br| This mechanism allows the plugin to extend the set of configuration variables whilst giving the user the opportunity to modify the value of these configuration items. It also allow new versions of plugins to add new configuration items whilst retaining the values of previous items. And new items will automatically be assigned the default value for that item. |br| As an example, a plugin that wishes to maintain two configuration variables, say a GPIO pin to use and a polling interval, would return a configuration document that looks as follows:
 
 .. code-block:: console
@@ -549,6 +554,8 @@ An alternative might be to use a key/value pair list, *kvlist* type, where the k
         "default": "{\"speed\" : {\"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"}}",
         "order" : "3",
         "displayName" : "PLC Map",
+        "keyName": "Datapoints",
+        "keyDescription": "A list of datapoints to read",
         "properties" : {
                 "register" : {
                         "description" : "The register number to read",
@@ -589,6 +596,8 @@ The *value* and *default* properties for a list of objects is returned as a JSON
                         "type" : "float"
                 }
   }
+
+The *keyName* and *keyDescription* will be used by the GUI client to display a name and description associated with an entry in the key/value list.
 
 Properties
 ~~~~~~~~~~
@@ -636,6 +645,10 @@ Properties
      - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
    * - properties
      - A set of items that are used in list and kvlist type items to create a list of groups of configuration items.
+   * - keyName
+     - A display name to be used for entry and display of key in the key-value list type, with item being an object.
+   * - keyDescription
+     - A description of key value in the key-value list type, with item being an object.
    * - permissions
      - An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user. If the permissions property is included in a configuration item the array must have at least one entry.
 

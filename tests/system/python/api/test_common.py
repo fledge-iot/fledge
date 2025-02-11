@@ -23,7 +23,6 @@ __version__ = "${VERSION}"
 SEMANTIC_VERSIONING_REGEX = "^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 
 
-@pytest.fixture
 def get_machine_detail():
     host_name = socket.gethostname()
     # all addresses for the host

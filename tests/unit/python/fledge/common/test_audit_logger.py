@@ -16,8 +16,6 @@ __version__ = "${VERSION}"
 def mock_coro():
     return None
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "audit-logger")
 class TestAuditLogger():
 
     @pytest.mark.asyncio

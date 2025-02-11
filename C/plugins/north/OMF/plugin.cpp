@@ -169,6 +169,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "10",
 			"displayName": "Data Stream Name Delimiter"
 		},
+		"OMFDataActionCode": {
+			"description": "OMF Action Code to use when POSTing OMF Data messages",
+			"type": "enumeration",
+			"options":["update", "create"],
+			"default": "update",
+			"order": "11",
+			"displayName": "Action Code for Data Messages"
+		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",
@@ -246,19 +254,12 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "19" ,
 			"readonly": "true"
 		},
-		"streamId": {
-			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
-			"type": "integer",
-			"default": "0",
-			"order": "20" ,
-			"readonly": "true"
-		},
 		"PIWebAPIAuthenticationMethod": {
 			"description": "Defines the authentication method to be used with the PI Web API.",
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "21",
+			"order": "20",
 			"group": "Authentication",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
@@ -267,7 +268,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "22",
+			"order": "21",
 			"group": "Authentication",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
@@ -276,7 +277,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "23" ,
+			"order": "22" ,
 			"group": "Authentication",
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
@@ -285,7 +286,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "24" ,
+			"order": "23" ,
 			"group": "Authentication",
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
@@ -294,7 +295,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Specifies the namespace where the information are stored and it is used for the interaction with AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "name_space",
-			"order": "25",
+			"order": "24",
 			"group" : "Cloud",
 			"displayName" : "Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -303,7 +304,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Tenant id associated to the specific AVEVA Data Hub or OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
-			"order": "26",
+			"order": "25",
 			"group" : "Cloud",
 			"displayName" : "Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -312,7 +313,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client id associated to the specific account, it is used to authenticate when using the AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "ocs_client_id",
-			"order": "27",
+			"order": "26",
 			"group" : "Cloud",
 			"displayName" : "Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -321,7 +322,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client secret associated to the specific account, it is used to authenticate with AVEVA Data Hub or OCS",
 			"type" : "password",
 			"default": "ocs_client_secret",
-			"order": "28",
+			"order": "27",
 			"group" : "Cloud",
 			"displayName" : "Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
@@ -330,17 +331,24 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
-			"order": "29" ,
+			"order": "28" ,
 			"readonly": "true"
 		},
 		"Legacy": {
 			"description": "Force all data to be sent using complex OMF types",
 			"type": "boolean",
 			"default": "false",
-			"order": "30",
+			"order": "29",
 			"group": "Formats & Types",
 			"displayName": "Complex Types"
-		}
+		},
+        "EnableTracing" : {
+            "description" : "If enabled, a detailed tracing of OMF messages will be written to logs/debug-trace/omf.log file in Fledge data directory.",
+            "type" : "boolean",
+            "default" : "false",
+            "order" : "30",
+            "displayName" : "Enable Tracing"
+        }
 	}
 );
 

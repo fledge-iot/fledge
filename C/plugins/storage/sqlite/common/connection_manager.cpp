@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
 #include <connection_manager.h>
 #include <connection.h>
 #include <readings_catalogue.h>
@@ -19,6 +18,10 @@
 #include <disk_monitor.h>
 #include <utils.h>
 #include <sqlite_common.h>
+
+#define  PRAGMA_SMALL "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -2000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 2048000;"
+#define  PRAGMA_NORMAL "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+#define  PRAGMA_HISPEED "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -8000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 81920000; PRAGMA temp_store = MEMORY"
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -37,7 +40,8 @@ static void managerBackground(void *arg)
 ConnectionManager::ConnectionManager() : m_shutdown(false),
 					m_vacuumInterval(6 * 60 * 60),
 					m_attachedDatabases(0),
-					m_diskSpaceMonitor(0)
+					m_diskSpaceMonitor(0),
+					m_config(0)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -133,7 +137,7 @@ void ConnectionManager::growPool(unsigned int delta)
 	while (delta-- > 0)
 	{
 		try {
-			Connection *conn = new Connection();
+			Connection *conn = new Connection(this);
 			if (m_trace)
 				conn->setTrace(true);
 			idleLock.lock();
@@ -198,7 +202,7 @@ Connection *conn = 0;
 	if (idle.empty())
 	{
 		try {
-			conn = new Connection();
+			conn = new Connection(this);
 		} catch (...) {
 			conn = NULL;
 			Logger::getLogger()->error("Failed to create database connection to allocate");
@@ -583,4 +587,20 @@ void ConnectionManager::noConnectionsDiagnostic()
 	}
 	inUseLock.unlock();
 #endif
+}
+
+/**
+ * Return the pragma configuration for the database
+ */
+string ConnectionManager::getDBConfiguration()
+{
+	if (m_config && m_config->itemExists("deployment"))
+	{
+		string mode = m_config->getValue("deployment");
+		if (mode.compare("Small") == 0)
+			return PRAGMA_SMALL;
+		if (mode.compare("High Bandwidth") == 0)
+			return PRAGMA_HISPEED;
+	}
+	return PRAGMA_NORMAL;
 }

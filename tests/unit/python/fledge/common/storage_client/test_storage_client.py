@@ -159,8 +159,6 @@ class FakeFledgeStorageSrvr:
         })
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "storage_client")
 class TestStorageClientAsync:
 
     def test_init(self):
@@ -493,8 +491,6 @@ class TestStorageClientAsync:
         await fake_storage_srvr.stop()
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "storage_client")
 class TestReadingsStorageAsyncClient:
 
     def test_init(self):
@@ -763,6 +759,10 @@ class TestReadingsStorageAsyncClient:
         assert 1 == response["called"]
 
         kwargs = dict(age=None, sent_id=1, size=100, flag=PURGE)
+        response = await rsc.purge(**kwargs)
+        assert 1 == response["called"]
+
+        kwargs = dict(asset="sin #1")
         response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 

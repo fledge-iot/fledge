@@ -150,7 +150,7 @@ class TestStatistics:
         assert 1 == stats['READINGS']
 
         # Allow stats collector schedule to run i.e. by default 15s
-        time.sleep(wait_time * 2 + 1)
+        time.sleep(wait_time * 3)
 
         # check stats history
         conn.request("GET", '/fledge/statistics/history')

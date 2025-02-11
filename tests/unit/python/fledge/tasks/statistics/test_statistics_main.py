@@ -35,8 +35,6 @@ async def _stats_history_instance():
     return stats
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("tasks", "statistics")
 async def test_main(_stats_history_instance):
     async def mock_coro():
         return None

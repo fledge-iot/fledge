@@ -1694,8 +1694,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 */
 
 	// Create header for Readings data
-	std::string action = (this->m_OMFVersion.compare("1.2") == 0) ? "update" : "create";
-	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", action);
+	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", m_dataActionCode);
 	if (compression)
 		readingData.push_back(pair<string, string>("compression", "gzip"));
 
@@ -5274,9 +5273,7 @@ bool OMF::sendAFLinks(Reading &reading, OMFHints *hints)
 
 	try
 	{
-		std::string action = (this->m_OMFVersion.compare("1.2") == 0) ? "update" : "create";
-		vector<pair<string, string>> messageHeader = OMF::createMessageHeader("Data", action);
-
+		vector<pair<string, string>> messageHeader = OMF::createMessageHeader("Data", m_dataActionCode);
 		int res = m_sender.sendRequest("POST",
 									   m_path,
 									   messageHeader,

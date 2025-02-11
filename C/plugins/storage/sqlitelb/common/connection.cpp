@@ -1647,7 +1647,7 @@ vector<string>  asset_codes;
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
 					else if (itr->value.IsUint64())
-						sql.append(itr->value.GetUint64());
+						sql.append((unsigned long)itr->value.GetUint64());
 					else if (itr->value.IsInt64())
 						sql.append((long)itr->value.GetInt64());
 					else if (itr->value.IsObject())

@@ -465,7 +465,8 @@ async def delete_filter(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except ConflictException as ex:
-        raise web.HTTPConflict(reason=ex.message, body=json.dumps({"message": ex.message}))
+        msg = ex.message
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _LOGGER.error(ex, "Delete {} filter failed.".format(filter_name))

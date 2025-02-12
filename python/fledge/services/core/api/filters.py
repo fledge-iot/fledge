@@ -20,6 +20,7 @@ from fledge.common.storage_client.storage_client import StorageClientAsync
 
 from fledge.services.core import connect
 from fledge.services.core.api import utils as apiutils
+from fledge.services.core.api.exceptions import ConflictError
 from fledge.services.core.api.plugins import common
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
@@ -194,9 +195,12 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         filter_list = data.get('pipeline', None)
         user_name = request.match_info.get('user_name', None)
 
+        if filter_list is None:
+            raise KeyError("pipeline key-value pair is required in the payload.")
+
         # Empty list [] is allowed as it clears the pipeline
-        if filter_list is not None and not isinstance(filter_list, list):
-            raise TypeError('Pipeline must be a list of filters or an empty value')
+        if not isinstance(filter_list, list):
+            raise TypeError('pipeline must be either a list of filters or an empty list.')
 
         # We just need to update the value of config_item with the "pipeline" property. Check whether
         # we want to replace or update the list or we allow duplicate entries in the list.
@@ -286,7 +290,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     except ValueError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except TypeError as err:
+    except (KeyError, TypeError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as e:
@@ -424,8 +428,8 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            raise TypeError("Filter '{}' found in pipelines".format(filter_name))
-
+            msg = "The filter '{}' is currently being used within a pipeline. To delete the filter, you must first remove it from the pipeline.".format(filter_name)
+            raise ConflictError(msg)
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         await storage.delete_from_tbl("filters", payload)
@@ -457,9 +461,14 @@ async def delete_filter(request: web.Request) -> web.Response:
         _LOGGER.exception("Delete {} filter, caught storage exception: {}".format(filter_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
-        raise web.HTTPNotFound(reason=str(err))
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except TypeError as err:
-        raise web.HTTPBadRequest(reason=str(err))
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except ConflictError as ex:
+        msg = ex.message
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _LOGGER.error(ex, "Delete {} filter failed.".format(filter_name))

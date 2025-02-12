@@ -13,6 +13,7 @@
 #include <string>
 #include <cstring>
 #include <omf.h>
+#include <piwebapi.h>
 #include <OMFHint.h>
 #include <logger.h>
 #include "string_utils.h"
@@ -25,6 +26,8 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+using namespace std;
+
 /**
  * In order to cut down on the number of string copies made whilst building
  * the OMF message for a reading we reserve a number of bytes in a string and
@@ -33,40 +36,37 @@
  */
 #define RESERVE_INCREMENT	100
 
-using namespace std;
-
 /**
- * Create a comma-separated string of all Datapoint names in a Reading
+ * Create a comma-separated string from a string set
  *
- * @param reading	Reading
- * @return			Datapoint names in the Reading
+ * @param stringSet	Set of strings
+ * @return			Set members as a comma-separated string
  */
-static std::string DataPointNamesAsString(const Reading& reading)
+static std::string StringSetToCSVString(const std::set<std::string> &stringSet)
 {
-	std::string dataPointNames;
+	std::string stringSetMembers;
 
-	for (Datapoint *datapoint : reading.getReadingData())
+	for (std::string item : stringSet)
 	{
-		dataPointNames.append(datapoint->getName());
-		dataPointNames.append(",");
+		stringSetMembers.append(item).append(",");
 	}
 
-	if (dataPointNames.size() > 0)
+	if (stringSetMembers.size() > 0)
 	{
-		dataPointNames.resize(dataPointNames.size() - 1);	// remove trailing comma
+		stringSetMembers.resize(stringSetMembers.size() - 1);	// remove trailing comma
 	}
 
-	return dataPointNames;
+	return stringSetMembers;
 }
 
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
  * @param payload	    The buffer into which to populate the payload
+ * @param delim		    Add a delimiter before outputting anything
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
- * @param delim		    Add a delimiter before outputting anything
  *
  */
 bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
@@ -479,6 +479,7 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 		container += "} }";
 	}
 	container += "}";
+	m_containerNames.insert(linkName);
 
 	Logger::getLogger()->debug("Built container: %s", container.c_str());
 
@@ -490,9 +491,14 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 /**
  * Flush the container definitions that have been built up
  *
- * @return 	true if the containers were successfully flushed
+ * @param sender	HTTP client
+ * @param path		REST server URL
+ * @param header	REST call headers
+ * @param error		OMFError object with parsed PI Web API HTTP response
+ * @param isConnected Set to false if REST call shows loss of connection to PI
+ * @return			true if the containers were successfully flushed
  */
-bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header)
+bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header, OMFError& error, bool *isConnected)
 {
 	if (m_containers.empty())
 		return true;		// Nothing to flush
@@ -514,54 +520,92 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 						   res,
 						   sender.getHostPort().c_str(),
 						   sender.getHTTPResponse().c_str());
+			if (!m_containerNames.empty())
+			{
+				Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+			}
 			return false;
+		}
+		else if (res == 201)
+		{
+			Logger::getLogger()->info("Containers created: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		else
+		{
+			Logger::getLogger()->info("Containers confirmed: %s", StringSetToCSVString(m_containerNames).c_str());
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
-		OMFError error(sender.getHTTPResponse());
-		if (error.hasErrors())
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.Log("The OMF endpoint reported a Bad Request when sending Containers") == false)
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-			}
+			Logger::getLogger()->error("HTTP 400: Bad Request when sending Containers. Exception: %s", e.what());
 		}
 
-		return error.hasErrors();
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		return false;
 	}
 	catch (const Conflict& e)
 	{
-		OMFError error(sender.getHTTPResponse());
-		// The following is possibly too verbose
-		if (error.hasErrors())
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.Log("The OMF endpoint reported a Conflict when sending Containers") == false)
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				string severity = error.getEventSeverity(i);
-				if (severity.compare("Error") == 0)
-				{
-					Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-				}
-			}
+			Logger::getLogger()->error("HTTP 409: Conflict when sending Containers. Exception: %s", e.what());
 		}
 
-		return error.hasErrors();
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		return false;
 	}
-	catch (const std::exception& e)
+	catch (const std::exception &e)
 	{
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.hasMessages())
+		{
+			error.Log("An exception occurred when sending container information to the OMF endpoint");
+			
+			if (error.getHttpCode() == 503)
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("HTTP 503: REST service unavailable");
+			}
+		}
+		else
+		{
+			PIWebAPI piwebapi;
+			std::string errorMessage = piwebapi.errorMessageHandler(e.what());
+			Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
+									   errorMessage.c_str(),
+									   sender.getHostPort().c_str(),
+									   path.c_str());
+		}
 
-		Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
-									e.what(),
-									sender.getHostPort().c_str(),
-									path.c_str());
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		// Check for any error messages that indicate a loss of connection
+		int i = 0;
+		while (strlen(noConnectionErrorMessages[i]))
+		{
+			if (0 == strncmp(e.what(), noConnectionErrorMessages[i], strlen(noConnectionErrorMessages[i])))
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("Connection to the destination data archive has been lost");
+				break;
+			}
+			i++;
+		}
+
 		return false;
 	}
 	return true;

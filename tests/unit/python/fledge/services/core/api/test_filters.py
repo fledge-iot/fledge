@@ -563,12 +563,17 @@ class TestFilters:
             get_cat_info_patch.assert_called_once_with(
                 'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
-    async def test_add_filter_pipeline_type_error(self, client):
-        msg = "Pipeline must be a list of filters or an empty value"
-        resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(
-            {"pipeline": "AssetFilter"}))
+    @pytest.mark.parametrize("payload, message", [
+        ({"foo": "bar"}, "'pipeline key-value pair is required in the payload.'"),
+        ({"pipeline": "AssetFilter"}, "pipeline must be either a list of filters or an empty list."),
+    ])
+    async def test_bad_update_filter_pipeline(self, client, payload, message):
+        resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(payload))
         assert 400 == resp.status
-        assert msg == resp.reason
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
 
     @pytest.mark.parametrize("request_param, param, val", [
         ('?append_filter=T', 'append_filter', 't'),

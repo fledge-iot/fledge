@@ -195,9 +195,12 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         filter_list = data.get('pipeline', None)
         user_name = request.match_info.get('user_name', None)
 
+        if filter_list is None:
+            raise KeyError("pipeline key-value pair is required in the payload.")
+
         # Empty list [] is allowed as it clears the pipeline
-        if filter_list is not None and not isinstance(filter_list, list):
-            raise TypeError('Pipeline must be a list of filters or an empty value')
+        if not isinstance(filter_list, list):
+            raise TypeError('pipeline must be either a list of filters or an empty list.')
 
         # We just need to update the value of config_item with the "pipeline" property. Check whether
         # we want to replace or update the list or we allow duplicate entries in the list.
@@ -287,7 +290,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     except ValueError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except TypeError as err:
+    except (KeyError, TypeError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as e:

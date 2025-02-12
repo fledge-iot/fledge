@@ -564,8 +564,14 @@ class TestFilters:
                 'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
     @pytest.mark.parametrize("payload, message", [
+        ({}, "'pipeline key-value pair is required in the payload.'"),
         ({"foo": "bar"}, "'pipeline key-value pair is required in the payload.'"),
+        ({"Pipeline": []}, "'pipeline key-value pair is required in the payload.'"),
+        ({"pipeline": 1}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": False}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": ""}, "pipeline must be either a list of filters or an empty list."),
         ({"pipeline": "AssetFilter"}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": {}}, "pipeline must be either a list of filters or an empty list."),
     ])
     async def test_bad_update_filter_pipeline(self, client, payload, message):
         resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(payload))

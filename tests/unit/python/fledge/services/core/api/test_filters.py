@@ -527,8 +527,8 @@ class TestFilters:
     async def test_delete_filter_conflict_error(self, client):
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
-        message = ("The filter '{}' is currently in use within a pipeline. You cannot delete it while it's being used. "
-                   "To proceed, remove it from the pipeline first by updating the pipeline.").format(filter_name)
+        message = ("The filter '{}' is currently being used within a pipeline. "
+                   "To delete the filter, you must first remove it from the pipeline.").format(filter_name)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _se1 = await self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]})

@@ -20,7 +20,7 @@ from fledge.common.storage_client.storage_client import StorageClientAsync
 
 from fledge.services.core import connect
 from fledge.services.core.api import utils as apiutils
-from fledge.services.core.api.exceptions import ConflictException
+from fledge.services.core.api.exceptions import ConflictError
 from fledge.services.core.api.plugins import common
 
 __author__ = "Massimiliano Pinto, Amarendra K Sinha"
@@ -425,9 +425,8 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            msg = ("The filter '{}' is currently in use within a pipeline. You cannot delete it while it's being used. "
-                   "To proceed, remove it from the pipeline first by updating the pipeline.").format(filter_name)
-            raise ConflictException(msg)
+            msg = "The filter '{}' is currently being used within a pipeline. To delete the filter, you must first remove it from the pipeline.".format(filter_name)
+            raise ConflictError(msg)
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         await storage.delete_from_tbl("filters", payload)
@@ -464,7 +463,7 @@ async def delete_filter(request: web.Request) -> web.Response:
     except TypeError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-    except ConflictException as ex:
+    except ConflictError as ex:
         msg = ex.message
         raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:

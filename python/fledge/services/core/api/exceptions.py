@@ -11,7 +11,7 @@ __copyright__ = "Copyright (c) 2021, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-__all__ = ('AuthenticationIsOptional', 'VerificationFailed', 'ConflictException')
+__all__ = ('AuthenticationIsOptional', 'VerificationFailed', 'ConflictError')
 
 
 class AuthenticationIsOptional(web.HTTPPreconditionFailed):
@@ -20,7 +20,7 @@ class AuthenticationIsOptional(web.HTTPPreconditionFailed):
 class VerificationFailed(web.HTTPUnauthorized):
     pass
 
-class ConflictException(web.HTTPConflict):
+class ConflictError(web.HTTPConflict):
     def __init__(self, message):
         super().__init__(reason=message)
         self.message = message

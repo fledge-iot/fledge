@@ -344,7 +344,7 @@ At the top of the working canvas for the pipeline flow editor a small action bar
 
 From left to right in the action bar the operations support are:
 
-  - **Reload** - reloads the pipeline, discarding any part complete actions.
+  - **Reload** - reloads the pipeline, discarding any incomplete actions.
 
   - **Reset** - Resets the canvas to include the pipeline. This is useful if you have scrolled or zoomed the display and want to revert to seeing the entire pipeline.
 

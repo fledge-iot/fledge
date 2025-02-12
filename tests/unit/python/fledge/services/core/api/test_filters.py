@@ -572,6 +572,12 @@ class TestFilters:
         ({"pipeline": ""}, "pipeline must be either a list of filters or an empty list."),
         ({"pipeline": "AssetFilter"}, "pipeline must be either a list of filters or an empty list."),
         ({"pipeline": {}}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": ["F1", "F1"]}, "The filter name 'F1' cannot be duplicated in the pipeline."),
+        ({"pipeline": ["F1", "f1", "F2", "F2"]}, "The filter name 'F2' cannot be duplicated in the pipeline."),
+        ({"pipeline": ["F1", "f1", ["F2"], "F2"]}, "The filter name 'F2' cannot be duplicated in the pipeline."),
+        ({"pipeline": ["F1", ["f1"], ["f1", "F3"]]}, "The filter name 'f1' cannot be duplicated in the pipeline."),
+        ({"pipeline": [["F1", "f1"], ["f1", "F3"]]}, "The filter name 'f1' cannot be duplicated in the pipeline.")
+
     ])
     async def test_bad_update_filter_pipeline(self, client, payload, message):
         resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(payload))

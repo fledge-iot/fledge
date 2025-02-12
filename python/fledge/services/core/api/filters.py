@@ -190,6 +190,24 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     NOTE: the method also adds the filters category names under
     parent category {user_name}
     """
+
+    def find_duplicates(filters):
+        """ Validates the filter input data to ensure no duplicate elements """
+        seen = set()
+        for item in filters:
+            # Complex case
+            if isinstance(item, list):
+                for sub_item in item:
+                    if sub_item in seen:
+                        return True, sub_item
+                    seen.add(sub_item)
+            else:
+                # Linear case
+                if item in seen:
+                    return True, item
+                seen.add(item)
+        return False, "No duplicates found!"
+
     try:
         data = await request.json()
         filter_list = data.get('pipeline', None)
@@ -217,6 +235,11 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             if allow_duplicates not in ['true', 'false']:
                 raise ValueError("Only 'true' and 'false' are allowed for allow_duplicates. {} given.".format(
                     allow_duplicates))
+
+        # Find duplicates in filters list
+        has_duplicates, duplicate_element = find_duplicates(filter_list)
+        if has_duplicates:
+            raise TypeError("The filter name '{}' cannot be duplicated in the pipeline.".format(duplicate_element))
 
         storage = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage)

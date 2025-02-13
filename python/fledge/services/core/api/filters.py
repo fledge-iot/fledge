@@ -190,6 +190,24 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     NOTE: the method also adds the filters category names under
     parent category {user_name}
     """
+
+    def find_duplicates(filters):
+        """ Validates the filter input data to ensure no duplicate elements """
+        seen = set()
+        for item in filters:
+            # Complex case
+            if isinstance(item, list):
+                for sub_item in item:
+                    if sub_item in seen:
+                        return True, sub_item
+                    seen.add(sub_item)
+            else:
+                # Linear case
+                if item in seen:
+                    return True, item
+                seen.add(item)
+        return False, "No duplicates found!"
+
     try:
         data = await request.json()
         filter_list = data.get('pipeline', None)
@@ -218,6 +236,11 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                 raise ValueError("Only 'true' and 'false' are allowed for allow_duplicates. {} given.".format(
                     allow_duplicates))
 
+        # Find duplicates in filters list
+        has_duplicates, duplicate_element = find_duplicates(filter_list)
+        if has_duplicates:
+            raise TypeError("The filter name '{}' cannot be duplicated in the pipeline.".format(duplicate_element))
+
         storage = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage)
 
@@ -231,6 +254,13 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             f_result = await storage.query_tbl_with_payload("filters", payload)
             if len(f_result["rows"]) == 0:
                 raise ValueError("No such '{}' filter found in filters table.".format(f_name))
+            user_filters = await storage.query_tbl_with_payload("filter_users", payload)
+            if "rows" in user_filters and len(user_filters["rows"]) != 0:
+                instance_name = user_filters["rows"][0]['user']
+                if instance_name != user_name:
+                    error_msg = ("The filter '{}' is currently in use. To update the filter pipeline, "
+                           "you must first remove it from the '{}' instance.").format(f_name, instance_name)
+                    raise ConflictError(error_msg)
 
         # Check and validate if all filters in the list exists in filters table
         for _filter in filter_list:
@@ -287,6 +317,9 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                     await cf_mgr.create_child_category(user_name, f_c2)
             return web.json_response(
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
+    except ConflictError as ex:
+        msg = ex.message
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
@@ -428,7 +461,8 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            msg = "The filter '{}' is currently being used within a pipeline. To delete the filter, you must first remove it from the pipeline.".format(filter_name)
+            msg = ("The filter '{}' is currently being used within a pipeline. "
+                   "To delete the filter, you must first remove it from the pipeline.").format(filter_name)
             raise ConflictError(msg)
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()

@@ -487,24 +487,48 @@ class TestFilters:
                     'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
     async def test_delete_filter_value_error(self, client):
+        filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
+        message = "No such filter '{}' found".format(filter_name)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock({'count': 0, 'rows': []})
         else:
             _rv = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
         
-        filter_name = "AssetFilter"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.delete('/fledge/filter/{}'.format(filter_name))
                 assert 404 == resp.status
-                assert "No such filter '{}' found".format(filter_name) == resp.reason
+                assert message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert message == json_response['message']
 
     async def test_delete_filter_type_error(self, client):
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        message = 'string indices must be integers'
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            rv1 = await self.async_mock("blah")
+        else:
+            rv1 = asyncio.ensure_future(self.async_mock("blah"))
+
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1):
+                resp = await client.delete('/fledge/filter/{}'.format(filter_name))
+                assert 400 == resp.status
+                assert message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert message == json_response['message']
+
+    async def test_delete_filter_conflict_error(self, client):
+        filter_name = "AssetFilter"
+        storage_client_mock = MagicMock(StorageClientAsync)
+        message = ("The filter '{}' is currently being used within a pipeline. "
+                   "To delete the filter, you must first remove it from the pipeline.").format(filter_name)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _se1 = await self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]})
@@ -517,8 +541,11 @@ class TestFilters:
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se2]):
                 resp = await client.delete('/fledge/filter/{}'.format(filter_name))
-                assert 400 == resp.status
-                assert "Filter 'AssetFilter' found in pipelines".format(filter_name) == resp.reason
+                assert 409 == resp.status
+                assert message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert message == json_response['message']
 
     async def test_delete_filter_storage_error(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -536,12 +563,23 @@ class TestFilters:
             get_cat_info_patch.assert_called_once_with(
                 'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
-    async def test_add_filter_pipeline_type_error(self, client):
-        msg = "Pipeline must be a list of filters or an empty value"
-        resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(
-            {"pipeline": "AssetFilter"}))
+    @pytest.mark.parametrize("payload, message", [
+        ({}, "'pipeline key-value pair is required in the payload.'"),
+        ({"foo": "bar"}, "'pipeline key-value pair is required in the payload.'"),
+        ({"Pipeline": []}, "'pipeline key-value pair is required in the payload.'"),
+        ({"pipeline": 1}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": False}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": ""}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": "AssetFilter"}, "pipeline must be either a list of filters or an empty list."),
+        ({"pipeline": {}}, "pipeline must be either a list of filters or an empty list."),
+    ])
+    async def test_bad_update_filter_pipeline(self, client, payload, message):
+        resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(payload))
         assert 400 == resp.status
-        assert msg == resp.reason
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
 
     @pytest.mark.parametrize("request_param, param, val", [
         ('?append_filter=T', 'append_filter', 't'),

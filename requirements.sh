@@ -115,6 +115,24 @@ sqlite3_build_prepare(){
 }
 
 
+get_pip_break_system_flag() {
+    # Get Python version from python3 --version and parse it
+    PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+    PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+    PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+
+    # Default to empty flag
+    FLAG=""
+
+    # Set the FLAG only for Python versions 3.11 or higher
+    if [ "$PYTHON_MAJOR" -gt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 11 ]; }; then
+        FLAG="--break-system-packages"
+    fi
+
+    # Return the FLAG (via echo)
+    echo "$FLAG"
+}
+
 # Variables for curl upgrade, if needed
 curl_filename="curl-7.65.3"
 curl_url="https://github.com/curl/curl/releases/download/curl-7_65_3/${curl_filename}.zip"
@@ -222,8 +240,9 @@ if [[ $YUM_PLATFORM = true ]]; then
 		# To avoid to stop the execution for any internal error of scl_source
 		set +e
 		source scl_source enable rh-python36
-		python3 -m pip install --upgrade pip
-		python3 -m pip install numpy
+		BREAK_PKG_FLAG=$(get_pip_break_system_flag)
+		python3 -m pip install --upgrade pip ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
+		python3 -m pip install numpy ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
 		set -e
 	fi
 
@@ -255,7 +274,8 @@ elif apt --version 2>/dev/null; then
 	  PYTHON_DEV_PKG="python-dev-is-python3"
 	fi
 	apt install -y ${PYTHON_DEV_PKG} python3-dev python3-pip python3-numpy
-	python3 -m pip install --upgrade pip
+	BREAK_PKG_FLAG=$(get_pip_break_system_flag)
+	python3 -m pip install --upgrade pip ${BREAK_PKG_FLAG:+$BREAK_PKG_FLAG}
 
 	sqlite3_build_prepare
 	make

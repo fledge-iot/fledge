@@ -254,6 +254,13 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             f_result = await storage.query_tbl_with_payload("filters", payload)
             if len(f_result["rows"]) == 0:
                 raise ValueError("No such '{}' filter found in filters table.".format(f_name))
+            user_filters = await storage.query_tbl_with_payload("filter_users", payload)
+            if "rows" in user_filters and len(user_filters["rows"]) != 0:
+                instance_name = user_filters["rows"][0]['user']
+                if instance_name != user_name:
+                    error_msg = ("The filter '{}' is currently in use. To update the filter pipeline, "
+                           "you must first remove it from the '{}' instance.").format(f_name, instance_name)
+                    raise ConflictError(error_msg)
 
         # Check and validate if all filters in the list exists in filters table
         for _filter in filter_list:
@@ -310,6 +317,9 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                     await cf_mgr.create_child_category(user_name, f_c2)
             return web.json_response(
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
+    except ConflictError as ex:
+        msg = ex.message
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
@@ -451,7 +461,8 @@ async def delete_filter(request: web.Request) -> web.Response:
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
         result = await storage.query_tbl_with_payload("filter_users", payload)
         if len(result["rows"]) != 0:
-            msg = "The filter '{}' is currently being used within a pipeline. To delete the filter, you must first remove it from the pipeline.".format(filter_name)
+            msg = ("The filter '{}' is currently being used within a pipeline. "
+                   "To delete the filter, you must first remove it from the pipeline.").format(filter_name)
             raise ConflictError(msg)
         # Delete filter from filters table
         payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()

@@ -22,7 +22,7 @@ __version__="1.0"
 FLEDGE_DB_VERSION=$1
 NEW_VERSION=$2
 PG_SQL=$3
-#set -x
+
 echo "$@" | grep -q -- --verbose && VERBOSE="Y"
 
 # Include logging
@@ -98,8 +98,8 @@ db_upgrade()
                 eval "${SQL_COMMAND}"
 
                 if [ $? -ne 0 ]; then
-                    schema_update_log "err" "Error applying SQL file ${sql_file}. Stopping upgrade." "all" "pretty"
-                    exit 1
+                    schema_update_log "err" "Upgrade failed while applying the SQL file ${sql_file}. Stopping the upgrade." "all" "pretty"
+                    return 1
                 fi
 
                 # Update the DB version
@@ -108,8 +108,8 @@ db_upgrade()
                 eval "${SQL_COMMAND}"
 
                 if [ $? -ne 0 ]; then
-                    schema_update_log "err" "Error updating version to ${UPDATE_VER}. Stopping upgrade." "all" "pretty"
-                    exit 1
+                    schema_update_log "err" "Failed to update the version to ${UPDATE_VER}. Aborting/Stopping the upgrade." "all" "pretty"
+                    return 1
                 fi
 
                 # If "ver" in current filename is NEW_VERSION we are done
@@ -183,8 +183,8 @@ db_downgrade()
                 # Call DB script
                 eval "${SQL_COMMAND}"
                 if [ $? -ne 0 ]; then
-                    schema_update_log "err" "Error applying SQL file ${sql_file}. Stopping downgrade." "all" "pretty"
-                    exit 1
+                    schema_update_log "err" "Downgrade failed while applying the SQL file ${sql_file}. Stopping the downgrade." "all" "pretty"
+                    return 1
                 fi
 
                 # Update DB version
@@ -192,8 +192,8 @@ db_downgrade()
                 SQL_COMMAND="$PG_SQL -v ON_ERROR_STOP=1 -d fledge -q -c \"UPDATE fledge.version SET id = '${START_VER}'\""
                 eval "${SQL_COMMAND}"
                 if [ $? -ne 0 ]; then
-                    schema_update_log "err" "Error updating version to ${START_VER}. Stopping downgrade." "all" "pretty"
-                    exit 1
+                    schema_update_log "err" "Failed to update the version to ${START_VER}. Aborting/Stopping the downgrade." "all" "pretty"
+                    return 1
                 fi
 
                 # If "ver" in current filename is NEW_VERSION we are done

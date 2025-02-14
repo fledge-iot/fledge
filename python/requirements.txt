@@ -1,9 +1,11 @@
 # Common - REST interface
-aiohttp==3.8.1
+aiohttp==3.8.6
 aiohttp_cors==0.7.0
 cchardet==2.1.4;python_version<"3.9"
-cchardet==2.1.7;python_version>="3.9"
-yarl==1.7.2
+cchardet==2.1.7; python_version >= "3.9" and python_version < "3.11"
+cchardet==2.2.0a2; python_version >= "3.11"
+yarl==1.7.2;python_version<="3.10"
+yarl==1.9.4;python_version>="3.11"
 pyjwt==2.4.0
 
 # only required for Public Proxy multipart payload

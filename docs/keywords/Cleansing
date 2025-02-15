@@ -1,0 +1,5 @@
+Plugins that improve the data quality
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A set of plugins whose purpose is to help improve the data quality in a pipeline by removing or highlighting data of poor quality or in some way anomalous.
+

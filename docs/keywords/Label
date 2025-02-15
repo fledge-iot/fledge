@@ -1,0 +1,4 @@
+Plugins used to label data
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A set of plugins that offer the ability to conditional label the data in a pipeline to aid in training of machine learning or to merely improve the visibility of events that occur is the pipeline.

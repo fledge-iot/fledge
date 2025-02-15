@@ -1,0 +1,5 @@
+Data simulation plugins
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A set of plugins that create simulated data that may be used in testing of data pipelines, new filters or other plugins. These plugins are also useful as training aids when learning the features of Fledge.
+

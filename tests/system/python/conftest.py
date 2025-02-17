@@ -810,7 +810,6 @@ def read_data_from_pi_asset_server():
                             if el["Name"].endswith(f"{asset}.{_head}"):
                                 for itm in el["Items"]:
                                     _recoded_value_list.append(itm["Value"])
-                                    # pprint(_data_pi)
                                 _data_pi[_head] = _recoded_value_list
 
             return _data_pi
@@ -947,8 +946,11 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
-    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
-
+    parser.addoption("--num-assets", action="store", default=300, type=int, 
+                     help="Total No. of Assets to be created")
+    parser.addoption("--north-historian", action="store", default="EDdgeDataStore",
+                     help="Name of north Historian on which data will be sent")
+    
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
     parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
@@ -1162,6 +1164,9 @@ def wait_fix(request):
 def retries(request):
     return request.config.getoption("--retries")
 
+@pytest.fixture
+def north_historian(request):
+    return request.config.getoption("--north-historian")
 
 @pytest.fixture
 def pi_host(request):

@@ -47,7 +47,10 @@ def reset_fledge(wait_time):
     time.sleep(wait_time)
 
 @pytest.fixture
-def reset_eds():
+def reset_eds(north_historian):
+    if north_historian != "EdgeDataStore":
+        print("Skipping EDS reset check as north_historian is not EdgeDataStore")
+        return
     eds_reset_url = "/api/v1/Administration/Storage/Reset"
     con = http.client.HTTPConnection("localhost", 5590)
     con.request("POST", eds_reset_url, "")
@@ -58,7 +61,8 @@ def reset_eds():
 def check_eds_installed(north_historian):
     
     if north_historian != "EdgeDataStore":
-        pytest.skip("Skipping EDS installation check as north_historian is not EdgeDataStore")
+        print("Skipping EDS installation check as north_historian is not EdgeDataStore")
+        return
 
     dpkg_list = os.popen('dpkg --list osisoft.edgedatastore >/dev/null; echo $?')
     ls_output = dpkg_list.read()
@@ -112,7 +116,7 @@ def start_north(fledge_url, north_historian, start_north_omf_as_a_service, pi_ho
                 }
         post_url = "/fledge/service"
         utils.post_request(fledge_url, post_url, data)
-    elif north_historian == "EdgeDataStore":
+    else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false",
                                  service_name="OMF #1", default_af_location=AF_HIERARCHY_LEVEL)
         

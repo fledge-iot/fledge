@@ -948,7 +948,7 @@ def pytest_addoption(parser):
                      help="Name of asset")
     parser.addoption("--num-assets", action="store", default=300, type=int, 
                      help="Total No. of Assets to be created")
-    parser.addoption("--north-historian", action="store", default="EDdgeDataStore",
+    parser.addoption("--north-historian", action="store", default="EdgeDataStore",
                      help="Name of north Historian on which data will be sent")
     
     # Filter Args

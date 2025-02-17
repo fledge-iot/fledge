@@ -270,9 +270,6 @@ to extend the set of notification deliveries.
 EOF6
 table "$REPOSITORIES" "Fledge Notification Delivery Plugins" notify
 
-if [[ -d /tmp/keywords ]]; then
-	rm -rf /tmp/keywords
-fi
 cat >>$output << EOF7
 
 South Plugins Grouped by Category

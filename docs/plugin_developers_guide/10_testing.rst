@@ -413,42 +413,31 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 Memory Leaks and Corruptions
 ----------------------------
 
-The same approach can be used to make use of the *valgrind* command to find memory corruption and leak issues in your plugin
+Fledge has integrated supported that allows south and north services to be run using the *valgrind* tool.  This tool makes it easy to find memory corruption and leak issues in your plugin
 
   - Create the service that uses your plugin, say a south service and name that service as you normally would.
    
-  - Disable that service from being started by Fledge
+  - Shutdown Fledge
 
-  - Use the fledge status script to find the arguments to pass the service
+  - If using a south service to test your plugin set the environment variable VALGRIND_SOUTH to be the name of the service you just defined.
 
-    .. code-block:: console
+  - Start Fledge using the fledge script in the scripts directory.
 
-       $ scripts/fledge status
-       Fledge v1.8.2 running.
-       Fledge Uptime:  1451 seconds.
-       Fledge records: 200889 read, 200740 sent, 120962 purged.
-       Fledge does not require authentication.
-       === Fledge services:
-       fledge.services.core
-       fledge.services.storage --address=0.0.0.0 --port=39821
-       fledge.services.south --port=39821 --address=127.0.0.1 --name=AX8
-       fledge.services.south --port=39821 --address=127.0.0.1 --name=Sine
-       === Fledge tasks:
+  - Allow Fledge to run for some time, note that the service running under *valgrind* will run much more slowly that it does outside of *valgrind*. You may have to allow it to run for more time than expected.
 
-   - Note the *--port=* and *--address=* arguments
+  - Shutdown Fledge. Again this may take longer than normal.
 
-   - Run *valgrind* with the service adding the same set of arguments you used in gdb when running the service.
+You will see a file created in your home directory called south.*serviceName*.valgrind.out. This is a text file that contains the result of running *valgrind*. Refer to the standard *valgrind* documentation for information on how to interpret this file.
 
-     Add any arguments you wish to pass to *valgrind* itself before the service executable name, in this case we are passing *--leak-check=full*.
+If developing a plugin to run in a north service, then the variable VALGRIND_NORTH should be set.
 
-     .. code-block:: console
+Multiple services may be run under *valgrind* by setting the appropriate variable to be a coma separated list of service names.
 
-        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
+Compiling under debug mode, by setting *CFLAGS=-DDebug* will allow *valgrind* to pinpoint memory leaks and corruptions to particular lines of your source code.
 
-     Where *ServiceName* is the name you gave your service and startupToken is a one time use token obtained following the steps shown above.
+.. note::
 
-  - Once the service has run for a while shut it down to trigger *valgrind* to print a summary of memory leaks found during the execution.
-
+   Don't forget to clear the environment variable once you have completed your analysis otherwise you will degrade the performance of the service.
 
 Python Plugin Info
 ------------------

@@ -947,9 +947,9 @@ def pytest_addoption(parser):
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
     parser.addoption("--num-assets", action="store", default=300, type=int, 
-                     help="Total No. of Assets to be created")
+                     help="Total number of assets that need to be created")
     parser.addoption("--north-historian", action="store", default="EdgeDataStore",
-                     help="Name of north Historian on which data will be sent")
+                     help="Name of the North Historian to which the data will be sent")
     
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")

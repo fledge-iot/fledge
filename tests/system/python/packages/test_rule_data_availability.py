@@ -82,29 +82,23 @@ def start_south(add_south, fledge_url):
     add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package', config=config)
 
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
+def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
     retry_count = 0
     data_from_pi = None
-
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
-    type_id = 1
-    recorded_datapoint = asset_name
-    # Name of asset in the PI server
-    pi_asset_name = asset_name
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 pi_asset_name, '')
+                                                 SOUTH_ASSET_NAME, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 
     if data_from_pi is None or retry_count == retries:
-        assert False, "Failed to read data from PI"
+        assert False, "Unable to read data from PI"
 
 @pytest.fixture
-def start_north(fledge_url, north_historian, start_north_omf_as_a_service, pi_host, pi_port, 
-                pi_admin, pi_passwd, 
-                enabled=True):
+def start_north(fledge_url, north_historian, start_north_omf_as_a_service, 
+                pi_host, pi_port, pi_admin, pi_passwd, enabled=True):
     
     if north_historian == "EdgeDataStore":
         data = {"name": "EDS #1",
@@ -118,8 +112,7 @@ def start_north(fledge_url, north_historian, start_north_omf_as_a_service, pi_ho
         utils.post_request(fledge_url, post_url, data)
     else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false",
-                                 service_name="OMF #1", default_af_location=AF_HIERARCHY_LEVEL)
-        
+                                     service_name="OMF #1", default_af_location=AF_HIERARCHY_LEVEL)
 
 @pytest.fixture
 def start_notification(fledge_url, add_service, add_notification_instance,wait_time, retries):
@@ -308,9 +301,8 @@ class TestDataAvailabilityBasedNotificationRuleOnEgress:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         if north_historian == "EdgeDataStore":
             r = verify_eds_data()
-            assert SOUTH_DP_NAME in r, "Data in EDS not found!"
+            assert SOUTH_DP_NAME in r, "Data found in EDS!"
             ts = r.get("Time")
             assert ts.find(datetime.now().strftime("%Y-%m-%d")) != -1, "Latest data not found in EDS!"
         else:
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           SOUTH_ASSET_NAME)
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)

@@ -1348,6 +1348,33 @@ class TestConfigurationManager:
                                                           keep_original_items=True, category_name=CAT_NAME)
         assert expected_new_value == c_return_value
 
+    async def test__merge_category_vals_with_list_name(self, reset_singleton):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        test_config_new = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"E\", \"F\"]}"
+            }
+        }
+        test_config_storage = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"C\", \"D\"]}"
+            }
+        }
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage,
+                                                          keep_original_items=False, category_name=CAT_NAME)
+        assert test_config_storage == c_return_value
+
     async def test__merge_category_vals_no_mutual_items_ignore_original(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -2244,6 +2271,37 @@ class TestConfigurationManager:
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
 
+    async def test_set_category_item_value_entry_with_list_name(self, reset_singleton):
+
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'catname'
+        item_name = 'itemname'
+        new_value_entry = "[\"E\", \"F\"]"
+        storage_value_entry = {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
+                                        'items': 'string', 'default': '{"items": ["A", "B"]}',
+                                        'value': '{"items": ["C", "D"]}'}
+        modified_new_value_entry = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
+        c_mgr._cacheManager.update(category_name, "desc", {item_name: storage_value_entry})
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock(storage_value_entry)
+            _rv2 = await async_mock(None)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv2 = asyncio.ensure_future(async_mock(None))
+
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv1) as patch_read:
+            with patch.object(ConfigurationManager, '_update_value_val', return_value=_rv2) as patch_update:
+                with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as patch_callback:
+                    await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
+                patch_callback.assert_called_once_with(category_name)
+            patch_update.assert_called_once_with(category_name, item_name, modified_new_value_entry)
+        patch_read.assert_called_once_with(category_name, item_name)
+
     async def test_get_all_category_names_good(self, reset_singleton):
 
         async def async_mock(return_value):
@@ -2498,6 +2556,55 @@ class TestConfigurationManager:
                     pbinsertpatch.assert_called_once_with(display_name=category_name, description=category_description,
                                                           key=category_name, value=category_val_actual)
             auditinfopatch.assert_called_once_with('CONAD', {'category': category_val_actual, 'name': category_name})
+        storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
+
+    async def test_create_new_category_with_list_name(self, reset_singleton):
+        async def mock_coro():
+            return {'response': [{
+                'category_name': 'catname',
+                'category_val': 'catval',
+                'description': 'catdesc'
+            }]
+            }
+
+        async def async_mock(return_value):
+            return return_value
+
+        category_name = 'catname'
+        category_val = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"A\", \"B\"]}"
+            }
+        }
+        category_description = 'catdesc'
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock(None)
+            _attr = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(async_mock(None))
+            _attr = asyncio.ensure_future(mock_coro())
+
+        attrs = {"insert_into_tbl.return_value": _attr}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=_rv) as patch_audit_info:
+                with patch.object(PayloadBuilder, '__init__', return_value=None):
+                    with patch.object(PayloadBuilder, 'INSERT', return_value=PayloadBuilder) as patch_insert:
+                        with patch.object(PayloadBuilder, 'payload', return_value=None) as patch_payload:
+                            await c_mgr._create_new_category(category_name, category_val, category_description)
+                        patch_payload.assert_called_once_with()
+                    patch_insert.assert_called_once_with(display_name=category_name, description=category_description,
+                                                          key=category_name, value=category_val)
+            patch_audit_info.assert_called_once_with('CONAD', {'category': category_val,
+                                                               'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
 
     async def test__read_all_category_names_1_row(self, reset_singleton):
@@ -4055,6 +4162,55 @@ class TestConfigurationManager:
                 assert exc_type == exc_info.type
                 assert exc_msg == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk_with_list_name(self, category_name='Test'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info ={'list': {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
+                           'items': 'string', 'default': '{"items": ["A", "B"]}', 'value': '{"items": ["A", "B"]}'}}
+        config_item_list = {"list": "[\"C\", \"D\"]"}
+        update_result = {"response": "updated", "rows_affected": 1}
+        read_val = {'list': {'default': '{"items": ["A", "B"]}', 'description': 'A list of variables',
+                             'value': '{"items": ["C", "D"]}', 'type': 'list', 'items': 'string', 'listName': 'items'}}
+
+        payload = {'updates': [{'json_properties': [{'path': ['list', 'value'], 'column': 'value',
+                                                     'value': '{"items": ["C", "D"]}'}],
+                                'return': ['key', 'description', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts'},
+                                           'value'], 'where': {'value': 'Test', 'column': 'key', 'condition': '='}}]}
+        audit_details = {'items': {'list': {'oldValue': '{"items": ["A", "B"]}', 'newValue': '{"items": ["C", "D"]}'}},
+                         'category': category_name}
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock(cat_info)
+            _rv2 = await async_mock(update_result)
+            _rv3 = await async_mock(read_val)
+            _rv4 = await async_mock(None)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(async_mock(update_result))
+            _rv3 = asyncio.ensure_future(async_mock(read_val))
+            _rv4 = asyncio.ensure_future(async_mock(None))
+
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=_rv2) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=_rv3) as patch_read_val:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv4) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks',
+                                              return_value=_rv4) as patch_callback:
+                                await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                            patch_callback.assert_called_once_with(category_name)
+                        patch_audit.assert_called_once_with('CONCH', audit_details)
+                patch_read_val.assert_called_once_with(category_name)
+            args, kwargs = patch_update.call_args
+            assert 'configuration' == args[0]
+            assert payload == json.loads(args[1])
         patch_get_all_items.assert_called_once_with(category_name)
 
     async def test_set_optional_value_entry_good_update(self, reset_singleton):

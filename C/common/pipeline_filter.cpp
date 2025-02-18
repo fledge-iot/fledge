@@ -130,16 +130,21 @@ vector<string> children;
 
 	Logger::getLogger()->info("Load plugin categoryName %s for %s", m_categoryName.c_str(), m_name.c_str());
 	// Fetch up to date filter configuration
-	m_updatedCfg = mgmt->getCategory(m_categoryName);
+	try {
+		m_updatedCfg = mgmt->getCategory(m_categoryName);
 
-	// Pass Management client IP:Port to filter so that it may connect to bucket service
-	m_updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
+		// Pass Management client IP:Port to filter so that it may connect to bucket service
+		m_updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
 									"string", "127.0.0.1:0",
 									mgmt->getUrlbase());
 
-	// Add filter category name under service/process config name
-	children.push_back(m_categoryName);
-	mgmt->addChildCategories(m_serviceName, children);
+		// Add filter category name under service/process config name
+		children.push_back(m_categoryName);
+		mgmt->addChildCategories(m_serviceName, children);
+	} catch (...) {
+		Logger::getLogger()->error("Failed to fetch configuration %s for filter %s", m_categoryName.c_str(), m_name.c_str());
+		return false;
+	}
 		
 	ConfigHandler *configHandler = ConfigHandler::getInstance(mgmt);
 	configHandler->registerCategory((ServiceHandler *)ingest, m_categoryName);

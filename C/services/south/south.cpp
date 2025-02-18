@@ -259,7 +259,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_auditLogger(NULL),
 				m_perfMonitor(NULL),
 				m_suspendIngest(false),
-				m_steps(0)
+				m_steps(0),
+				m_provider(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -286,6 +287,7 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+	delete m_provider;
 
 	// We would like to shutdown the Python environment if it
 	// was running. However this causes a segmentation fault within Python
@@ -303,6 +305,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
+	m_provider = new SouthServiceProvider(this);
+	management.registerProvider(m_provider);
 	management.registerService(this);
 
 	// Listen for incomming managment requests

@@ -39,6 +39,7 @@ class ManagementApi {
 		void stop();
 		void stopServer();
 		void registerStats(JSONProvider *statsProvider);
+		void registerProvider(JSONProvider *provider);
 		void registerService(ServiceHandler *serviceHandler) {
 			m_serviceHandler = serviceHandler;
 		}
@@ -63,5 +64,7 @@ class ManagementApi {
 		std::thread	*m_thread;
 	private:
 		void            respond(std::shared_ptr<HttpServer::Response>, const std::string&);
+		std::vector<JSONProvider *>
+				m_providers;
 };
 #endif

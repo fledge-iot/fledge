@@ -152,6 +152,15 @@ void ManagementApi::registerStats(JSONProvider *statsProvider)
 }
 
 /**
+ * Register a generic provider. There can be multiple providers for
+ * a single serivce
+ */
+void ManagementApi::registerProvider(JSONProvider *provider)
+{
+	m_providers.emplace_back(provider);
+}
+
+/**
  * Received a ping request, construct a reply and return to caller
  */
 void ManagementApi::ping(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
@@ -162,6 +171,12 @@ string responsePayload;
 	(void)request;	// Unsused argument
 	convert << "{ \"uptime\" : " << time(0) - m_startTime << ",";
 	convert << "\"name\" : \"" << m_name << "\"";
+	for (auto& p : m_providers)
+	{
+		string data;
+		p->asJSON(data);
+		convert << ", " << data;
+	}
 	if (m_statsProvider)
 	{
 		string stats;

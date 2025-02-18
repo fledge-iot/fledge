@@ -32,6 +32,8 @@
 #define DEBUG_SUSPENDED		0x02
 #define DEBUG_ISOLATED		0x04
 
+class NorthServiceProvider;
+
 /**
  * The NorthService class. This class is the core
  * of the service that provides north side services
@@ -160,5 +162,26 @@ class NorthService : public ServiceAuthHandler {
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
 		unsigned int			m_debugState;
+		NorthServiceProvider		*m_provider;
+};
+
+
+/**
+ *
+ * A data provider class to return data in the north service ping response
+ */
+class NorthServiceProvider : public JSONProvider {
+	public:
+		NorthServiceProvider(NorthService *north) : m_north(north) {};
+		virtual ~NorthServiceProvider() {};
+		void 	asJSON(std::string &json) const
+			{
+				if (m_north)
+				{
+					json = "\"debug\" : " + m_north->debugState();
+				}
+			};
+	private:
+		NorthService	*m_north;
 };
 #endif

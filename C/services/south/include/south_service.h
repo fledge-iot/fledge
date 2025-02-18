@@ -46,6 +46,9 @@
 #define DEBUG_SUSPENDED		0x02
 #define DEBUG_ISOLATED		0x04
 
+
+class SouthServiceProvider;
+
 /**
  * The SouthService class. This class is the core
  * of the service that provides south side services
@@ -217,5 +220,25 @@ class SouthService : public ServiceAuthHandler {
 		unsigned int			m_steps;
 		std::mutex			m_suspendMutex;
 		unsigned int			m_debugState;
+		SouthServiceProvider		*m_provider;
+};
+
+/**
+ *
+ * A data provider class to return data in the south service ping response
+ */
+class SouthServiceProvider : public JSONProvider {
+	public:
+		SouthServiceProvider(SouthService *south) : m_south(south) {};
+		virtual ~SouthServiceProvider() {};
+		void 	asJSON(std::string &json) const
+			{
+				if (m_south)
+				{
+					json = "\"debug\" : " + m_south->debugState();
+				}
+			};
+	private:
+		SouthService	*m_south;
 };
 #endif

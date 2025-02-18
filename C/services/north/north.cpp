@@ -309,7 +309,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_requestRestart(),
 	m_auditLogger(NULL),
 	m_perfMonitor(NULL),
-	m_debugState(0)
+	m_debugState(0),
+	m_provider(NULL)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -339,6 +340,8 @@ NorthService::~NorthService()
 		delete m_auditLogger;
 	if (m_mgtClient)
 		delete m_mgtClient;
+	if (m_provider)
+		delete m_provider;
 	delete logger;
 }
 
@@ -350,6 +353,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting north service...");
+	NorthServiceProvider *provider = new NorthServiceProvider(this);
+	management.registerProvider(provider);
 	management.registerService(this);
 
 	// Listen for incomming managment requests

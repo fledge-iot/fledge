@@ -195,7 +195,7 @@ void PipelineFilter::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
 			// 1- call shutdownSaveData and get up-to-date plugin data.
 			string saveData = m_plugin->shutdownSaveData();
 			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(m_categoryName + m_plugin->getName());
+			string key(m_serviceName + m_plugin->getName());
 			if (!m_plugin->m_plugin_data->persistPluginData(key, saveData))
 			{
 				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",

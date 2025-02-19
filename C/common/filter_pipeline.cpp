@@ -185,12 +185,20 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 			// Get "plugin" item from filterCategoryName
 			string filterCategoryName = itr->GetString();
 			Logger::getLogger()->info("Creating pipeline filter %s", filterCategoryName.c_str());
-			ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+			try {
+				ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
 
-			PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
-			element->setServiceName(serviceName);
-			element->setStorage(&storage);
-			pipeline.emplace_back(element);
+				PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
+				element->setServiceName(serviceName);
+				element->setStorage(&storage);
+				pipeline.emplace_back(element);
+			} catch (exception& e) {
+				Logger::getLogger()->error("Failed to create filter %s: %s",
+						filterCategoryName.c_str(), e.what());
+			} catch (exception *e) {
+				Logger::getLogger()->error("Failed to create filter %s: %s",
+						filterCategoryName.c_str(), e->what());
+			}
 		}
 		else if (itr->IsArray())
 		{

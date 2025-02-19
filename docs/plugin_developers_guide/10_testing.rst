@@ -413,7 +413,7 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 Memory Leaks and Corruptions
 ----------------------------
 
-Fledge has integrated supported that allows south and north services to be run using the *valgrind* tool.  This tool makes it easy to find memory corruption and leak issues in your plugin
+Fledge has integrated support that allows south and north services to be run using the *valgrind* tool.  This tool makes it easy to find memory corruption and leak issues in your plugin
 
   - Create the service that uses your plugin, say a south service and name that service as you normally would.
    
@@ -421,17 +421,17 @@ Fledge has integrated supported that allows south and north services to be run u
 
   - If using a south service to test your plugin set the environment variable VALGRIND_SOUTH to be the name of the service you just defined.
 
-  - Start Fledge using the fledge script in the scripts directory.
+  - Start Fledge using the *fledge* script in the scripts directory.
 
-  - Allow Fledge to run for some time, note that the service running under *valgrind* will run much more slowly that it does outside of *valgrind*. You may have to allow it to run for more time than expected.
+  - Allow Fledge to run for some time. Note that the service running under *valgrind* will run much more slowly that it does outside of *valgrind*. You may have to allow it to run for more time than expected.
 
   - Shutdown Fledge. Again this may take longer than normal.
 
-You will see a file created in your home directory called south.*serviceName*.valgrind.out. This is a text file that contains the result of running *valgrind*. Refer to the standard *valgrind* documentation for information on how to interpret this file.
+You will see a file created in your home directory called *south.serviceName.valgrind.out*. This is a text file that contains the result of running *valgrind*. Refer to the standard *valgrind* documentation for information on how to interpret this file.
 
 If developing a plugin to run in a north service, then the variable VALGRIND_NORTH should be set.
 
-Multiple services may be run under *valgrind* by setting the appropriate variable to be a coma separated list of service names.
+Multiple services may be run under *valgrind* by setting the appropriate variable to be a comma separated list of service names.
 
 Compiling under debug mode, by setting *CFLAGS=-DDebug* will allow *valgrind* to pinpoint memory leaks and corruptions to particular lines of your source code.
 

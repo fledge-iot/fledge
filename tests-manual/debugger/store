@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 		Allow data to flow out of the pipeline into storage
+curl -s -X PUT -d'{"state":"store"}' http://localhost:${DEBUG_SERVICE}/fledge/south/debug/isolate|jq

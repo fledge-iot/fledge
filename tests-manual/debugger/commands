@@ -1,0 +1,4 @@
+#!/bin/bash
+#help 	List the commands that can be run
+cmds=`ls |grep -v debug |grep -v commands|grep -v README.md` 
+grep '#help' $cmds | sed -e 's/#help //'

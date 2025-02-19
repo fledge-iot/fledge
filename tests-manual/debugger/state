@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 		Return the state of the debugger
+curl -s http://localhost:${DEBUG_SERVICE}/fledge/south/debug/state|jq

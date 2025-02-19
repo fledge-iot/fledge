@@ -1,0 +1,15 @@
+#!/bin/bash
+if [ $# -gt 0 ]; then
+	service=$1
+else
+	echo You must pass a service name
+	exit 1
+fi
+export DEBUG_SERVICE=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+export PATH=.:$PATH
+export SERVICE=${service}
+if [ "$DEBUG_SERVICE" = "" ]; then
+	echo $service is not the name of a south or north service
+else
+	bash --rcfile .debugrc
+fi

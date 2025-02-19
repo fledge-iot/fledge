@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 		Detch the debugger from the pipeline
+curl -s -X PUT http://localhost:${DEBUG_SERVICE}/fledge/south/debug/detach|jq

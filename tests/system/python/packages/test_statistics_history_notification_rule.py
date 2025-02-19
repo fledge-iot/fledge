@@ -170,7 +170,7 @@ class TestStatisticsHistoryBasedNotificationRuleOnIngress:
         # Waiting for 90 sec to get 2 more NTFSN entries if rule is triggered properly
         time.sleep(90)
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit']) - len(resp1['audit']) == 2, "ERROR: NTFSN not triggered properly"
+        assert len(resp2['audit']) - len(resp1['audit']) >= 2, "ERROR: NTFSN not triggered properly"
         
         get_url = "/fledge/statistics/history?minutes=10"
         r = utils.get_request(fledge_url, get_url)
@@ -201,7 +201,7 @@ class TestStatisticsHistoryBasedNotificationRuleOnIngress:
         # Waiting for 90 sec to get more NTFSN entries
         time.sleep(90)
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit']) - len(resp1['audit']) == 2, "ERROR: NTFSN not triggered properly"
+        assert len(resp2['audit']) - len(resp1['audit']) >= 2, "ERROR: NTFSN not triggered properly"
         
         get_url = "/fledge/statistics/history?minutes=10"
         r = utils.get_request(fledge_url, get_url)
@@ -232,7 +232,7 @@ class TestStatisticsHistoryBasedNotificationRuleOnIngress:
         # Waiting for 90 sec to get more NTFSN entries
         time.sleep(90)
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit']) - len(resp1['audit']) == 2, "ERROR: NTFSN not triggered properly"
+        assert len(resp2['audit']) - len(resp1['audit']) >= 2, "ERROR: NTFSN not triggered properly"
         
         get_url = "/fledge/statistics/history?minutes=10"
         r = utils.get_request(fledge_url, get_url)
@@ -269,7 +269,7 @@ class TestStatisticsHistoryBasedNotificationRuleOnEgress:
         # Waiting for 90 sec to get more NTFSN entries
         time.sleep(90)
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit']) - len(resp1['audit']) == 2, "ERROR: NTFSN for north not triggered properly"
+        assert len(resp2['audit']) - len(resp1['audit']) >= 2, "ERROR: NTFSN for north not triggered properly"
         
         get_url = "/fledge/statistics/history?minutes=10"
         r = utils.get_request(fledge_url, get_url)

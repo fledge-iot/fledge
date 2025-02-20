@@ -42,6 +42,22 @@ INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailabi
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}
 
+# Clean out any old keywords left behind
+if [[ -d /tmp/keywords ]]; then
+	rm -rf /tmp/keywords
+fi
+
+function keywordheader {
+    keyfile="$1"
+    title=$2
+    echo ".. list-table:: ${title}" >> "$keyfile"
+    echo "    :widths: 20 50" >> "$keyfile"
+    echo "    :header-rows: 1" >> "$keyfile"
+    echo "" >> "$keyfile"
+    echo "    * - Name" >> "$keyfile"
+    echo "      - Description" >> "$keyfile"
+}
+
 function table {
     list="$1"
     title=$2
@@ -61,6 +77,20 @@ function table {
                 if [[ $repo == "fledge-north-OMF" ]]; then
                     echo "    * - \`omf <"plugins/fledge-north-OMF/index.html">\`__" >> "$output"
                     echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
+		    keyword=OMF
+		    if [[ ! -d "/tmp/keywords/{$type}" ]]; then
+			mkdir "/tmp/keywords/{$type}"
+		    fi
+		    keyfile="/tmp/keywords/{$type}/${keyword}"
+		    if [[ ! -f "${keyfile}" ]]; then
+			keywordheader "$keyfile" "$title"
+		    fi
+		    if [[ -f ${repo}/docs/index.rst ]]; then
+		        echo "    * - \`$name <"plugins/fledge-north-OMF/index.html">\`__" >> "$keyfile"
+		    else
+			echo "    * - ${name}" >> "${keyfile}"
+		    fi
+		    echo "      - ${description}" >> "${keyfile}"
                 elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
                     echo "    * - \`data-availability <"plugins/fledge-rule-DataAvailability/index.html">\`__" >> "$output"
                     echo "      - Triggers every time when it receives data that matches an asset code or audit code those given in the configuration" >> "$output"
@@ -89,76 +119,16 @@ function table {
                             echo "    * - ${name}" >> "$output"
                         fi
                         echo "      - ${description}" >> "$output"
-                    fi
-                    rm -rf ${repo}
-            fi
-        fi
-    done
-}
-
-function keywordheader {
-    keyfile="$1"
-    title=$2
-    echo ".. list-table:: ${title}" >> "$keyfile"
-    echo "    :widths: 20 50" >> "$keyfile"
-    echo "    :header-rows: 1" >> "$keyfile"
-    echo "" >> "$keyfile"
-    echo "    * - Name" >> "$keyfile"
-    echo "      - Description" >> "$keyfile"
-}
-
-function keywords {
-    list="$1"
-    title=$2
-    tableType=$3
-    if [[ -d /tmp/keywords ]]; then
-	rm -rf /tmp/keywords
-    fi
-    mkdir /tmp/keywords
-    for repo in ${list}
-    do
-        type=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/-.*//')
-        name=$(echo "${repo}" | sed -e 's/fledge-//' -e "s/${type}-//")
-        if [[ ${type} = "$tableType" ]]; then
-            if grep -q "$repo" <<< "$INBUILT_PLUGINS"; then
-                if [[ $repo == "fledge-north-OMF" ]]; then
-			keyword=OMF
-			keyfile="/tmp/keywords/${keyword}"
-			if [[ ! -f "${keyfile}" ]]; then
-			    keywordheader "$keyfile" "$title"
-			fi
-			    if [[ -f ${repo}/docs/index.rst ]]; then
-                                echo "    * - \`$name <"plugins/fledge-north-OMF/index.html">\`__" >> "$keyfile"
-			     else
-                                echo "    * - ${name}" >> "${keyfile}"
-			    fi
-                            echo "      - ${description}" >> "${keyfile}"
-                elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
-			echo TODO deal with inbuilt data availability plugin
-                elif [[ $repo == "fledge-rule-Threshold" ]]; then
-			echo TODO deal with inbuilt threshold plugin
-                fi
-                else
-                    rm -rf ${repo}
-                    git clone https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/fledge-iot/${repo}.git --branch ${DOCBRANCH} >/dev/null 2>&1
-                    is_branch_exists=$?
-                    if [[ ${is_branch_exists} -eq 0 ]]; then
-                        description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${repo}"'" ];print(fRepo[0]["description"])')
-                        if [[ "${description}" = "None" ]]; then description="A ${name} ${type} plugin"; fi
-                        # cloned directory replaced with installed directory name which is defined in Package file for each repo
-                        installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
-                        if [[ $installed_plugin_dir_name == "\${plugin_name}" ]]; then
-                            installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
-                        fi
-                        old_plugin_name=$(echo ${repo} | cut -d '-' -f3-)
-                        new_plugin_name=$(echo ${repo/$old_plugin_name/$installed_plugin_dir_name})
-                        # Only link when doc exists in plugins directory
+			# Now do the keywords
                         if [[ -d ${repo}/docs && -f ${repo}/docs/keywords ]]; then
+			    if [[ ! -d "/tmp/keywords/${type}" ]]; then
+			    	mkdir -p "/tmp/keywords/${type}"
+			    fi
 			    keywords=`sed -e 's/ /%20/g' -e 's/,/ /g' < ${repo}/docs/keywords`
 			    for word in $keywords
 			    do
 				    keyword=$(echo $word | sed -e 's/%20/ /g')
-				    keyfile="/tmp/keywords/${keyword}"
+				    keyfile="/tmp/keywords/${type}/${keyword}"
 				    if [[ ! -f "${keyfile}" ]]; then
 				    	keywordheader "$keyfile" "$title"
 				    fi
@@ -175,12 +145,17 @@ function keywords {
             fi
         fi
     done
-    find /tmp/keywords -type f -print0 | while IFS= read -r -d '' file; do
+}
+
+function addkeywords {
+    type="$1"
+    pluginType="$2"
+    find /tmp/keywords/${type} -type f -print0 | while IFS= read -r -d '' file; do
 	keyword=$(basename "$file")
 	if [[ -f "keywords/${keyword}" ]]; then
 	    cat "keywords/${keyword}" >> ${output}
 	else
-	    heading="${tableType^} Plugins for ${keyword}"
+	    heading="${pluginType} Plugins for ${keyword}"
 	    echo $heading >> $output
 	    echo $heading | sed -e 's/[A-Za-z0-9 ]/~/g' >> $output
 	fi
@@ -188,9 +163,6 @@ function keywords {
 	cat "${file}" >> $output
 	echo >> $output
     done
-    if [[ -d /tmp/keywords ]]; then
-	rm -rf /tmp/keywords
-    fi
 }
 
 cat >> $output << EOF1
@@ -278,7 +250,7 @@ South Plugins Grouped by Category
 The following tables group the south plugins into categories.
 
 EOF7
-keywords "$REPOSITORIES" "Fledge south plugin" south
+addkeywords south "South"
 
 cat >>$output << EOF8
 
@@ -288,7 +260,7 @@ North Plugins Grouped by Category
 The following tables group the north plugins into categories.
 
 EOF8
-keywords "$REPOSITORIES" "Fledge north plugin" north
+addkeywords north "North"
 
 cat >>$output << EOF9
 
@@ -298,4 +270,9 @@ Filter Plugins Grouped by Category
 The following tables group the filter plugins into categories.
 
 EOF9
-keywords "$REPOSITORIES" "Fledge filter plugin" filter
+addkeywords filter "Filter"
+
+# Clean out any old keywords left behind
+if [[ -d /tmp/keywords ]]; then
+	rm -rf /tmp/keywords
+fi

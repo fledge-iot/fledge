@@ -47,6 +47,7 @@ if [[ -d /tmp/keywords ]]; then
 	rm -rf /tmp/keywords
 fi
 
+# Crearte the list header for a new keyword file
 function keywordheader {
     keyfile="$1"
     title=$2
@@ -58,6 +59,8 @@ function keywordheader {
     echo "      - Description" >> "$keyfile"
 }
 
+# Create the table of plugins by type. Also generate a set of keyword grouped
+# tables in files stored in /tmp/keywords/{plugin type}
 function table {
     list="$1"
     title=$2
@@ -147,19 +150,24 @@ function table {
     done
 }
 
+# For a given plugin type collect the keyword files from the tmp
+# directory and create the section in the Plugins documentation page
 function addkeywords {
     type="$1"
     pluginType="$2"
     find /tmp/keywords/${type} -type f -print0 | while IFS= read -r -d '' file; do
 	keyword=$(basename "$file")
 	if [[ -f "keywords/${keyword}" ]]; then
+	    # Use the keyword overide header file
 	    cat "keywords/${keyword}" >> ${output}
 	else
+	    # No overide header for this keyword, create a default
 	    heading="${pluginType} Plugins for ${keyword}"
 	    echo $heading >> $output
 	    echo $heading | sed -e 's/[A-Za-z0-9 ]/~/g' >> $output
 	fi
 	echo >> $output
+	# Add in the table
 	cat "${file}" >> $output
 	echo >> $output
     done

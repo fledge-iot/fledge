@@ -1,5 +1,5 @@
 #!/bin/bash
-#help 	Set the number of reading to hold in each buffer, passed an integer argument
+#help 	Set the number of readings to hold in each buffer, passing an integer argument
 size=1
 if [ $# -gt 0 ]; then
 	size=$1

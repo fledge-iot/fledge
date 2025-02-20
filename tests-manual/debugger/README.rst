@@ -1,25 +1,25 @@
 Debugger Command Line Test Programs
 ===================================
 
-This directory contains a set of utilities used to manually test the pipeline debugger features. These tests should be run against a live system with the debugger facilities built into it.
+This directory contains a set of utilities used to manually test the pipeline debugger features. These tests should be run against a live system built from this branch.
 
 To start testing;
 
-  - Change directory to this directory
+  - Change directory to the debugger directory
 
   - Type the command
 
     .. code-block:: console
 
-       ./debug <ServiceName>
+        ./debug <ServiceName>
 
     Where *<ServiceName>* is the name of a south or north service. You will need to quote the name if it contains whitespace or wildcard characters that have meaning to the shell.
 
    - Attach the debugger to the pipeline by usign the attach command
 
-    .. code-block:: console
+     .. code-block:: console
 
-       attach
+         attach
 
 The debugger is now attached to the pipeline and collecting one reading at each point in the pipeline.
 

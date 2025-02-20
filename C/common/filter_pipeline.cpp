@@ -211,7 +211,7 @@ void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElemen
 		}
 	}
 
-	// End the pipeline with a writter element that sends data to the
+	// End the pipeline with a writer element that sends data to the
 	// ingest of the storage system
 	PipelineWriter *element = new PipelineWriter();
 	pipeline.emplace_back(element);
@@ -405,6 +405,8 @@ void FilterPipeline::completeBranch()
 
 /**
  * Attach the debugger to the pipeline elements
+ *
+ * @return bool	True if the pipeline was attached
  */
 bool FilterPipeline::attachDebugger()
 {
@@ -415,6 +417,9 @@ bool FilterPipeline::attachDebugger()
 
 /**
  * Attach the debugger to the pipeline elements
+ *
+ * @param pipeline	The pipeline (or branch) to attach the debugger
+ * @return bool		True if the debugger was attached
  */
 bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
 {
@@ -422,18 +427,30 @@ bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
 	for (auto& elem : pipeline)
 	{
 		if (!elem->attachDebugger())
+		{
 			ret = false;
+			break;
+		}
 		if (elem->isBranch())
 		{
 			PipelineBranch *branch = (PipelineBranch *)elem;
-			attachDebugger(branch->getBranchElements());
+			if (!attachDebugger(branch->getBranchElements()))
+			{
+				ret = false;
+				break;
+			}
 		}
+	}
+	if (!ret)
+	{
+		// Detach any partially attached pipeline
+		detachDebugger(pipeline);
 	}
 	return ret;
 }
 
 /**
- * Detach the debugger to the pipeline elements
+ * Detach the debugger from the pipeline elements
  */
 void FilterPipeline::detachDebugger()
 {
@@ -441,7 +458,9 @@ void FilterPipeline::detachDebugger()
 }
 
 /**
- * Detach the debugger to the pipeline elements
+ * Detach the debugger from the pipeline elements
+ *
+ * @param pipeline	The pipeline or branch to detach the debugger from
  */
 void FilterPipeline::detachDebugger(const vector<PipelineElement *>& pipeline)
 {
@@ -458,6 +477,8 @@ void FilterPipeline::detachDebugger(const vector<PipelineElement *>& pipeline)
 
 /**
  * Set the debugger buffer size to the pipeline elements
+ *
+ * @param size	The request number of readings to buffer
  */
 void FilterPipeline::setDebuggerBuffer(unsigned int size)
 {
@@ -466,6 +487,9 @@ void FilterPipeline::setDebuggerBuffer(unsigned int size)
 
 /**
  * Set the debugger buffer size to the pipeline elements
+ *
+ * @param pipeline	The pipeline or branch to set the buffer size for
+ * @param size		The desired number of readings to buffer
  */
 void FilterPipeline::setDebuggerBuffer(const vector<PipelineElement *>& pipeline, unsigned int size)
 {
@@ -498,6 +522,7 @@ string FilterPipeline::getDebuggerBuffer()
 /**
  * Get the debugger buffer contents for all the pipeline elements
  *
+ * @param pipeline	The pipeline to fetch the buffered data from
  * @return string	JSON document with all the buffer contents
  */
 string FilterPipeline::getDebuggerBuffer(const vector<PipelineElement *>& pipeline)

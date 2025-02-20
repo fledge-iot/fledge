@@ -162,7 +162,7 @@ NorthApi::NorthApi(NorthService *service) : m_service(service), m_thread(NULL)
 /**
  * Destroy the API.
  *
- * Stop the service and wait fo rthe thread to terminate.
+ * Stop the service and wait for the thread to terminate.
  */
 NorthApi::~NorthApi()
 {

@@ -1362,7 +1362,7 @@ void NorthService::clearFailures()
 /**
  * Return the state of the pipeline debugger
  *
- * @return string	JSON document reportign the state of the pipeline debugger
+ * @return string	JSON document reporting the state of the pipeline debugger
  */
 string NorthService::debugState()
 {

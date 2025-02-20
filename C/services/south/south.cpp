@@ -309,7 +309,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	management.registerProvider(m_provider);
 	management.registerService(this);
 
-	// Listen for incomming managment requests
+	// Listen for incoming managment requests
 	management.start();
 
 	// Create the south API
@@ -1797,7 +1797,7 @@ void SouthService::checkPendingReconfigure()
 /**
  * Return the state of the pipeline debugger
  *
- * @return string	JSON document reportign the state of the pipeline debugger
+ * @return string	JSON document reporting the state of the pipeline debugger
  */
 string SouthService::debugState()
 {

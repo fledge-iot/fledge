@@ -22,6 +22,9 @@ ManagementApi *ManagementApi::m_instance = 0;
 
 /**
  * Wrapper for ping method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void pingWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -31,6 +34,9 @@ void pingWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServe
 
 /**
  * Wrapper for shutdown method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void shutdownWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -40,6 +46,9 @@ void shutdownWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpS
 
 /**
  * Wrapper for config change method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -49,6 +58,9 @@ void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 
 /**
  * Wrapper for config child  create method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void configChildCreateWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -58,6 +70,9 @@ void configChildCreateWrapper(shared_ptr<HttpServer::Response> response, shared_
 
 /**
  * Wrapper for config child delete method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void configChildDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -67,6 +82,9 @@ void configChildDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_
 
 /**
  * Wrapper for security change method
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void securityChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -76,6 +94,9 @@ void securityChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr
 
 /**
  * Construct a microservices management API manager class
+ *
+ * @param name	The service name
+ * @param port	The management API port
  */
 ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_name(name)
 {
@@ -145,6 +166,8 @@ ManagementApi::~ManagementApi()
 
 /**
  * Register a statistics provider
+ *
+ * @param statsProvider	The statistics provider for the service
  */
 void ManagementApi::registerStats(JSONProvider *statsProvider)
 {
@@ -153,7 +176,9 @@ void ManagementApi::registerStats(JSONProvider *statsProvider)
 
 /**
  * Register a generic provider. There can be multiple providers for
- * a single serivce
+ * a single service
+ *
+ * @param provider	The JSON status provider to add
  */
 void ManagementApi::registerProvider(JSONProvider *provider)
 {
@@ -162,13 +187,16 @@ void ManagementApi::registerProvider(JSONProvider *provider)
 
 /**
  * Received a ping request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::ping(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 ostringstream convert;
 string responsePayload;
 
-	(void)request;	// Unsused argument
+	(void)request;	// Unused argument
 	convert << "{ \"uptime\" : " << time(0) - m_startTime << ",";
 	convert << "\"name\" : \"" << m_name << "\"";
 	for (auto& p : m_providers)
@@ -190,6 +218,9 @@ string responsePayload;
 
 /**
  * Received a shutdown request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::shutdown(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -205,6 +236,9 @@ string responsePayload;
 
 /**
  * Received a config change request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::configChange(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -235,6 +269,9 @@ string payload;
 
 /**
  * Received a children deletion request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::configChildDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -265,6 +302,9 @@ string	category, items, payload, parent_category;
 
 /**
  * Received a children creation request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::configChildCreate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
@@ -305,6 +345,9 @@ void ManagementApi::respond(shared_ptr<HttpServer::Response> response, const str
 
 /**
  * Received a security change request, construct a reply and return to caller
+ *
+ * @param response	The HTTP response
+ * @param request	The HTTP request
  */
 void ManagementApi::securityChange(shared_ptr<HttpServer::Response> response,
 				shared_ptr<HttpServer::Request> request)

@@ -14,7 +14,7 @@ using namespace std;
 /**
  * Create a circular buffer of readings
  *
- * @param size	The numebr of items to retain oin the circular buffer
+ * @param size	The number of items to retain oin the circular buffer
  */
 ReadingCircularBuffer::ReadingCircularBuffer(unsigned int size) : m_size(size),
        	m_insert(0), m_entries(0)
@@ -76,7 +76,7 @@ void ReadingCircularBuffer::insert(const vector<Reading *> *readings)
 /**
  * Return the buffered data into a supplied vector
  *
- * @param vec	The vector to populate witht he shared pointers
+ * @param vec	The vector to populate with the shared pointers
  * @return int	The number of readings placed in the vector
  */
 int ReadingCircularBuffer::extract(vector<shared_ptr<Reading>>& vec)

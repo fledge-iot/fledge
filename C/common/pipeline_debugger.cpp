@@ -28,7 +28,7 @@ PipelineDebugger::~PipelineDebugger()
 }
 
 /**
- * Proces a reading set as it flows through the pipeline.
+ * Process a reading set as it flows through the pipeline.
  * The main purpose here is to buffer the readings in the circular
  * buffer in order to allow later examination of the data.
  *

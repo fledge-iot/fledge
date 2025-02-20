@@ -107,10 +107,22 @@ void createDirectory(const std::string &directoryName)
 {
 	const char *path = directoryName.c_str();
 	struct stat sb;
-	if (stat(path, &sb) != 0)
+	if (stat(path, &sb) == 0)
+	{
+		if (sb.st_mode & S_IFDIR)
+		{
+			return; // Directory exists
+		}
+		else
+		{
+			std::string exceptionMessage = "Path exists but is not a directory: " + directoryName;
+			throw std::runtime_error(exceptionMessage.c_str());
+		}
+	}
+	else
 	{
 		int retcode;
-		if ((retcode = mkdir(path, S_IRWXU | S_IRWXG)) != 0)
+		if ((retcode = mkdir(path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) != 0)
 		{
 			std::string exceptionMessage = "Unable to create directory " + directoryName + ": error: " + std::to_string(retcode);
 			throw std::runtime_error(exceptionMessage.c_str());

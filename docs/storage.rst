@@ -153,7 +153,7 @@ Follow the steps below to set up PostgreSQL on a remote machine and enable remot
 
 1. Install PostgreSQL on the Remote Machine
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Refer to the section :ref:`postgres-installation` for detailed PostgreSQL installation instructions.
+Refer to the section *Installing A PostgreSQL server* for detailed PostgreSQL installation instructions.
 
 2. Configure PostgreSQL to Allow Remote Connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -267,7 +267,6 @@ This section explains how to set up the PostgreSQL client on the local machine (
    - `PGPASSWORD`: The password for the specified user.
 
 
-.. postgres-installation
 
 Installing A PostgreSQL server
 ==============================

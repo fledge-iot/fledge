@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 FLEDGE_ROOT="/usr/local/fledge"
+source ../../common/scripts/reset_user_authentication "$FLEDGE_ROOT"
 
 install_postgres() {
   sudo apt install -y postgresql

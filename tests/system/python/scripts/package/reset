@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ../../../common/scripts/reset_user_authentication "/usr/local/fledge"
+
 if [ "${FLEDGE_ENVIRONMENT}" == "docker" ]; then
     /usr/local/fledge/bin/fledge stop
     echo -e "YES\nYES" | /usr/local/fledge/bin/fledge reset || exit 1

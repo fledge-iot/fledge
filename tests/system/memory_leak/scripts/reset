@@ -3,6 +3,8 @@
 export FLEDGE_ROOT=$1
 echo "${FLEDGE_ROOT}"
 
+source ../../common/scripts/reset_user_authentication "$FLEDGE_ROOT"
+
 install_postgres() {
   sudo apt install -y postgresql
   sudo -u postgres createuser -d "$(whoami)"

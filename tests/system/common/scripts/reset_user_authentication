@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# Check if FLEDGE_ROOT (the first argument) is provided
+FLEDGE_ROOT="$1"
+if [ -z "$FLEDGE_ROOT" ]; then
+    # If $1 (FLEDGE_ROOT) is not provided, exit with status 1
+    echo "Error: FLEDGE_ROOT is required."
+    exit 1
+fi
+
+# Check if the second argument (authentication) is passed
+if [ -z "$2" ]; then
+    # If no second argument, set authentication to "optional"
+    authentication="optional"
+else
+    # If second argument is "authentication", set authentication to "mandatory"
+    if [ "$2" == "authentication" ]; then
+        authentication="mandatory"
+    else
+        # If the second argument is something else, set authentication to "optional"
+        authentication="optional"
+    fi
+fi
+
+# Use the authentication value
+echo "Authentication is set to: $authentication"
+
+if [ "$authentication" == "mandatory" ]; then
+    sed -i "s/'default': 'optional'/'default': 'mandatory'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
+else
+    sed -i "s/'default': 'mandatory'/'default': 'optional'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
+fi

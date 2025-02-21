@@ -26,7 +26,7 @@ fi
 echo "Authentication is set to: $authentication"
 
 if [ "$authentication" == "mandatory" ]; then
-    sed -i "s/'default': 'optional'/'default': 'mandatory'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
+    sudo sed -i "s/'default': 'optional'/'default': 'mandatory'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
 else
-    sed -i "s/'default': 'mandatory'/'default': 'optional'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
+    sudo sed -i "s/'default': 'mandatory'/'default': 'optional'/g" "$FLEDGE_ROOT/python/fledge/services/core/server.py"
 fi

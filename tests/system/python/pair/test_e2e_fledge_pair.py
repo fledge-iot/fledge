@@ -101,8 +101,8 @@ class TestE2eFogPairPi:
         # Authentication is optional
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
                         "'export FLEDGE_ROOT={};sed -i \"s/'default': 'mandatory'/'default': 'optional'/g\" "
-                        "$FLEDGE_ROOT/python/fledge/services/core/server.py".format(
-            key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
+                        "{}/python/fledge/services/core/server.py".format(
+            key_path, remote_user, remote_ip, remote_fledge_path, remote_fledge_path)], shell=True, check=True)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
                         "'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(
             key_path, remote_user, remote_ip, remote_fledge_path)], shell=True)

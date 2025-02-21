@@ -1011,6 +1011,13 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 			std::to_string(MIN_ASSET_TRACKER_UPDATE));
 	defaultConfig.setItemDisplayName("assetTrackerInterval",
 			"Asset Tracker Update");
+	// Create list of asset for defining a subset
+	defaultConfig.addItem("assets", "Subset of assets to send",
+			"list", "[]", "[]");
+	defaultConfig.setItemDisplayName("assets", "Asset Subset");
+	defaultConfig.setItemAttribute("assets",
+			ConfigCategory::ITEM_TYPE_ATTR, "string");
+
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			"boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");

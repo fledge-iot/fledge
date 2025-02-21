@@ -22,7 +22,7 @@ Thanks for taking a minute to file a bug report!
 
 Verify first that your issue is not already reported on https://github.com/fledge-iot/fledge/issues
 
-To save some time, please provide us following information, if possible:
+To help save time, please provide the following information, if possible:
 
 **Describe the bug** <br />
 A clear and concise description of what the bug is.
@@ -34,9 +34,9 @@ Information about the system or platform (e.g., OS, version, architecture).
 The specific version of fledge you are using.
 
 **Installation Method**<br />
-Whether the Fledge was installed from source code or via package-based installation or dockerize container.
+Whether the Fledge was installed from source code or via package-based installation or Docker container.
 
-**To Reproduce**<br />
+**Steps To Reproduce**<br />
 Steps to reproduce the behavior:
 
 **Expected behavior**<br />

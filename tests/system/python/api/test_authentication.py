@@ -23,29 +23,12 @@ TOKEN = None
 
 # TODO: Cover scenario when auth is optional and negative scenarios
 
-
 @pytest.fixture
-def change_to_auth_mandatory(reset_and_start_fledge, fledge_url, wait_time):
-    # Wait for fledge server to start
-    time.sleep(wait_time)
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/category/rest_api', json.dumps({"authentication": "mandatory"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "mandatory" == jdoc['authentication']['value']
-
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
-
+def authentication():
+    return "mandatory"
 
 class TestAuthenticationAPI:
-    def test_login_username_regular_user(self, change_to_auth_mandatory, fledge_url, wait_time):
+    def test_login_username_regular_user(self, fledge_url, wait_time,  authentication, reset_and_start_fledge):
         time.sleep(wait_time * 3)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))

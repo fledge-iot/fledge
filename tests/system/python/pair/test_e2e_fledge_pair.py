@@ -99,10 +99,12 @@ class TestE2eFogPairPi:
                         "'export FLEDGE_ROOT={};echo \"YES\nYES\" | $FLEDGE_ROOT/scripts/fledge reset'".format(
             key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
         # Authentication is optional
-        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
-                        "'export FLEDGE_ROOT={};sed -i \"s/'default': 'mandatory'/'default': 'optional'/g\" "
-                        "{}/python/fledge/services/core/server.py".format(
-            key_path, remote_user, remote_ip, remote_fledge_path, remote_fledge_path)], shell=True, check=True)
+        subprocess.run([
+            "ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-i", key_path,
+            "{}@{}".format(remote_user, remote_ip),
+            "sh -c 'export FLEDGE_ROOT={}; sed -i \"s/\'default\': \'mandatory\'/\'default\': \'optional\'/g\" "
+            "{}/python/fledge/services/core/server.py'".format(remote_fledge_path, remote_fledge_path)
+        ], shell=False, check=True)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
                         "'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(
             key_path, remote_user, remote_ip, remote_fledge_path)], shell=True)

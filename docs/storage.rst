@@ -232,7 +232,6 @@ For a production environment, replace `trust` with `md5` for password-based auth
 
 After making changes to the configuration files, you need to restart the PostgreSQL service to apply the updates.
 
-
 **Final Notes:**
 
 - Once the configuration is complete, ensure that the machine's firewall settings allow incoming connections to PostgreSQL's default port (5432).

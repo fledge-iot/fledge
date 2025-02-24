@@ -745,8 +745,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (southPlugin->persistData())
 			{
 				string data = southPlugin->shutdownSaveData();
-				Logger::getLogger()->debug("Persist plugin data, %s '%s'", m_dataKey, data.c_str());
-				m_pluginData->persistPluginData(m_dataKey, data);
+				Logger::getLogger()->debug("Persist plugin data, key: '%s' data: '%s' service name: '%s'", m_dataKey, data.c_str(), m_name.c_str());
+				m_pluginData->persistPluginData(m_dataKey, data, m_name);
 			}
 			else
 			{

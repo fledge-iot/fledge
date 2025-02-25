@@ -3,7 +3,7 @@
 export FLEDGE_ROOT=$1
 echo "${FLEDGE_ROOT}"
 
-source ../../common/scripts/reset_user_authentication "$FLEDGE_ROOT"
+source "${1}/tests/system/common/scripts/reset_user_authentication" "$FLEDGE_ROOT"
 
 install_postgres() {
   sudo apt install -y postgresql

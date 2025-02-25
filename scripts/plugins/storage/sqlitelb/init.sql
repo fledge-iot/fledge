@@ -582,6 +582,7 @@ CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
 CREATE TABLE fledge.plugin_data (
 	key     character varying(255)    NOT NULL,
 	data    JSON                      NOT NULL DEFAULT '{}',
+	service_name    character varying(255),
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Create packages table

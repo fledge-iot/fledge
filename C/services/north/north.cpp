@@ -581,8 +581,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				logger->debug("North service persist plugin data");
 				string saveData = northPlugin->shutdownSaveData();
 				string key = m_name + m_pluginName;
-				logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
-				if (!m_pluginData->persistPluginData(key, saveData))
+				logger->debug("Persist plugin data, key: '%s' data: '%s' service name: '%s'", key.c_str(), saveData.c_str(), m_name.c_str());
+				if (!m_pluginData->persistPluginData(key, saveData, m_name))
 				{
 					Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
 						m_pluginName.c_str(), saveData.c_str(), key.c_str());
@@ -930,8 +930,8 @@ void NorthService::restartPlugin()
 	{
 		string saveData = northPlugin->shutdownSaveData();
 		string key = m_name + m_pluginName;
-		logger->debug("Persist plugin data key %s is %s", key.c_str(), saveData.c_str());
-		if (!m_pluginData->persistPluginData(key, saveData))
+		logger->debug("Persist plugin data, key: '%s' data: '%s' service name: '%s'", key.c_str(), saveData.c_str(), m_name.c_str());
+		if (!m_pluginData->persistPluginData(key, saveData, m_name))
 		{
 			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
 				m_pluginName.c_str(), saveData.c_str(), key.c_str());

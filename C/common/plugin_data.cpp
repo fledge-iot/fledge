@@ -33,7 +33,7 @@ PluginData::PluginData(StorageClient* client) : m_storage(client), m_dataLoaded(
  */
 string PluginData::loadStoredData(const string& key)
 {
-	// Set empty JSON dcocument
+	// Set empty JSON document
 	string foundData("{}");
 	const Condition conditionId(Equals);
 	Where* wKey = new Where("key",
@@ -57,7 +57,7 @@ string PluginData::loadStoredData(const string& key)
 			if (type == JSON_COLUMN)
 			{
 				// Convert JSON object to string
-                        	const rapidjson::Value* val = theVal->getJSON();
+				const rapidjson::Value* val = theVal->getJSON();
 				rapidjson::StringBuffer strbuf;
 				rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 				val->Accept(writer);
@@ -85,30 +85,29 @@ string PluginData::loadStoredData(const string& key)
 /**
  * Store plugin data for a given key.
  *
- * @param    key	The given key
- * @param    data	The JSON data to save (as string)
- * @return		true on success, false otherwise. 
+ * @param      key             The given key
+ * @param      data            The JSON data to save (as string)
+ * @param      service_name    The name of service
+ * @return     true on success, false otherwise.
  */
-bool PluginData::persistPluginData(const string& key,
-				   const string& data)
+bool PluginData::persistPluginData(const string& key, const string& data, const string& service_name)
 {
 	Document JSONData;
 	JSONData.Parse(data.c_str());
 	if (JSONData.HasParseError())
 	{
-		Logger::getLogger()->warn("Failed to persist data for %s, parse error in JSON data", key.c_str());
+		Logger::getLogger()->warn("Failed to persist data for key: %s and service name: %s, parse error in JSON data", key.c_str(), service_name.c_str());
 		return false;
 	}	
 
 	bool ret = true;
 
-	// Prepare WHERE key = 
+	// Prepare WHERE key =
 	const Condition conditionUpdate(Equals);
-	Where wKey("key",
-		   conditionUpdate,
-		   key);
+	Where wKey("key", conditionUpdate, key);
 	InsertValues updateData;
 	updateData.push_back(InsertValue("data", JSONData));
+	updateData.push_back(InsertValue("service_name", service_name));
 
 	if (m_dataLoaded)
 	{
@@ -117,10 +116,11 @@ bool PluginData::persistPluginData(const string& key,
 					   updateData,
 					   wKey) == -1)
 		{
-			// Update filure: try insert
+			// Update failure: try insert
 			InsertValues insertData;
 			insertData.push_back(InsertValue("key", key));
 			insertData.push_back(InsertValue("data", JSONData));
+			insertData.push_back(InsertValue("service_name", service_name));
 
 			if (m_storage->insertTable("plugin_data",
 						   insertData) == -1)
@@ -130,10 +130,11 @@ bool PluginData::persistPluginData(const string& key,
 		}
 	}
 	else
-	{	// We didn't load the data so do an insert first
+	{       // We didn't load the data so do an insert first
 		InsertValues insertData;
 		insertData.push_back(InsertValue("key", key));
 		insertData.push_back(InsertValue("data", JSONData));
+		insertData.push_back(InsertValue("service_name", service_name));
 
 		if (m_storage->insertTable("plugin_data",
 					   insertData) == -1)
@@ -152,7 +153,7 @@ bool PluginData::persistPluginData(const string& key,
 
 	if (!ret)
 	{
-		Logger::getLogger()->warn("Failed to persist data for %s, unable to insert into storage", key.c_str());
+		Logger::getLogger()->warn("Failed to persist data for key: %s and service name: %s, unable to insert into storage", key.c_str(), service_name.c_str());
 	}
 	return ret;
 }

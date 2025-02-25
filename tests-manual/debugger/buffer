@@ -1,3 +1,3 @@
 #!/bin/bash
 #help 		Return the contents of the buffers at every pipeline element
-curl -s http://localhost:${DEBUG_SERVICE}/fledge/south/debug/buffer|jq
+curl -s http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/buffer|jq

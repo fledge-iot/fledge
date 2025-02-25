@@ -6,6 +6,15 @@ else
 	exit 1
 fi
 export DEBUG_SERVICE=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+type=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+if [ "$type" = "Southbound" ] ; then
+	export DEBUG_TYPE="south"
+elif [ "$type" = "Northbound" ]; then
+	export DEBUG_TYPE="north"
+else
+	echo Only South or North services are currently supported
+	exit 1
+fi
 export PATH=.:$PATH
 export SERVICE=${service}
 if [ "$DEBUG_SERVICE" = "" ]; then

@@ -5,4 +5,4 @@ if [ $# -gt 0 ]; then
 	size=$1
 fi
 payload='{"size":'$size'}'
-curl -s -X POST  -d$payload http://localhost:${DEBUG_SERVICE}/fledge/south/debug/buffer|jq
+curl -s -X POST  -d$payload http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/buffer|jq

@@ -99,10 +99,10 @@ class TestE2eFogPairPi:
                         "'export FLEDGE_ROOT={};echo \"YES\nYES\" | $FLEDGE_ROOT/scripts/fledge reset'".format(
             key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
         # Authentication is optional
-        command = (f"ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {key_path} "
-                   f"{remote_user}@{remote_ip} export FLEDGE_ROOT={remote_fledge_path}; "
-                   f"sed -i \"s/\'default\': \'mandatory\'/\'default\': \'optional\'/g\" "
-                   f"\"$FLEDGE_ROOT/python/fledge/services/core/server.py\"")
+        command = ('ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} '
+                   '"export FLEDGE_ROOT={} && sed -i \\"s/\'default\': \'mandatory\'/\'default\': \'optional\'/g\\" '
+                   '\\$FLEDGE_ROOT/python/fledge/services/core/server.py"').format(
+            key_path, remote_user, remote_ip, remote_fledge_path)
         subprocess.run(command, shell=True, check=True)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
                         "'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(

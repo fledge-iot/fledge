@@ -13,14 +13,14 @@
 #include <server_http.hpp>
 
 // Debugger URLs
-#define DEBUG_ATTACH		"^/fledge/south/debug/attach$"
-#define DEBUG_DETACH		"^/fledge/south/debug/detach$"
-#define DEBUG_BUFFER		"^/fledge/south/debug/buffer$"
-#define DEBUG_ISOLATE		"^/fledge/south/debug/isolate$"
-#define DEBUG_SUSPEND		"^/fledge/south/debug/suspend$"
-#define DEBUG_STEP		"^/fledge/south/debug/step$"
-#define DEBUG_REPLAY		"^/fledge/south/debug/replay$"
-#define DEBUG_STATE		"^/fledge/south/debug/state$"
+#define DEBUG_ATTACH		"^/fledge/north/debug/attach$"
+#define DEBUG_DETACH		"^/fledge/north/debug/detach$"
+#define DEBUG_BUFFER		"^/fledge/north/debug/buffer$"
+#define DEBUG_ISOLATE		"^/fledge/north/debug/isolate$"
+#define DEBUG_SUSPEND		"^/fledge/north/debug/suspend$"
+#define DEBUG_STEP		"^/fledge/north/debug/step$"
+#define DEBUG_REPLAY		"^/fledge/north/debug/replay$"
+#define DEBUG_STATE		"^/fledge/north/debug/state$"
 
 class NorthService;
 

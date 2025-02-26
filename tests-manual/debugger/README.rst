@@ -36,7 +36,7 @@ To see the list of commands available type the *commands* command
     resumeIngest:	Resume the flow of data into the pipeline
     setBuffer:	Set the number of readings to hold in each buffer, passing an integer argument
     state:		Return the state of the debugger
-    step:		Allow readings to flow into the pipeline. Pass an optonal number of readings to ingest; default to 1 if omitted
+    step:		Allow readings to flow into the pipeline. Pass an optional number of readings to ingest; default to 1 if omitted
     store:		Allow data to flow out of the pipeline into storage
     suspendIngest:	Suspend the ingestion of data into the pipeline
 

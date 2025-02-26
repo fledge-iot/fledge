@@ -785,9 +785,9 @@ Purge System
 
 The log purging is perhaps the simpler of the two purge process to discuss as it has the least impact on the performance of the system. The configuration of the process itself can be found under the *Configuration* menu option in the *Utilities::Purge System* category.
 
-+---------------+
-| |PurgeSystem| |
-+---------------+
++---------------------+
+| |PurgeSystemConfig| |
++---------------------+
 
 The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but that should should retain sufficient information to be able to examine enough history of the system.
 
@@ -848,6 +848,8 @@ The frequency of running the purge process is very important, since it as the sa
 | |PurgeCycles| |
 +---------------+
 
+The red line indicates the configured retention point for the readings. Each point where the blue line drops is an execution of the purge process.
+
 This assumes we started with a system with no readings, we read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retain readings to those less than 12 hours old. The initial run is in fact not likely find any data to remove, or at most a handful depending on how long it takes the purge process to start executing.
 
 The system now continues to ingest data and will accumulate another 12 hours of data before purge is run again and the data reduced to the newest 12 hours of data.
@@ -856,7 +858,7 @@ The system now continues to ingest data and will accumulate another 12 hours of 
 
    We are assuming that either unsent data is not retained or we are sending all data north immediately it is received.
 
-This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph, is that purge is not an instantaneous process. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. Reducing the time, and memory resources, that services have to buffer data in memory.
+This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph above, is that purge is **not an instantaneous process**. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. Reducing the time, and memory resources, that services have to buffer data in memory.
 
 .. note::
 

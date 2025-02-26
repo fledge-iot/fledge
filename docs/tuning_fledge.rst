@@ -789,7 +789,7 @@ The log purging is perhaps the simpler of the two purge process to discuss as it
 | |PurgeSystemConfig| |
 +---------------------+
 
-The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but that should should retain sufficient information to be able to examine enough history of the system.
+The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories; audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but that should retain sufficient information to be able to examine enough history of the system.
 
 The other dimension to consider is that performance is known to degrade as these tables become large, it is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
 
@@ -834,7 +834,7 @@ These are the candidates to be removed, but may not be removed depending upon th
 
 Candidate data that has already been sent to all the defined north destinations in the system will always be removed regardless of the *Retain Unsent Data* setting. Data that has not be marked as a candidate for removal will be retained event after it has been sent to all the north destinations.
 
-If the *Retain Unsent Data* setting is set to *retain unsent to any destination*, then candidate data will be removed if it has been sent to at least one north destination.
+If the *Retain Unsent Data* setting is set to *retain unsent to any destination*, then candidate data will be removed if it has been sent to at least one north destination. Data that has not be sent to any destination will be retained.
 
 As with the purge system process the purge process is also run by a schedule that is accessed via the *Schedules* menu item.
 

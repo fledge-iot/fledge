@@ -770,13 +770,13 @@ When collection is enabled the following counters will be collected for the stor
 Purge
 =====
 
-The purpose of the purge processes within Fledge is to control the usage of the storage system. Fledge has two different purge process that run, each of these purges a different aspect of the storage within the system;
+The purpose of the purge processes within Fledge is to control the usage of the storage system. Fledge has two different purge processes that run, each of which purges a different aspect of the storage within the system.
 
-  - **System Purge** - The system purge process is responsible for purging the logs held internally within the Fledge storage system. There are three types of log information held in the storage system; statistics, the audit trail and task execution history.
+  - **System Purge** - The system purge process is responsible for purging the logs held internally within the Fledge storage system. There are three types of log information held in the storage system: statistics, the audit trail, and task execution history.
 
     .. note::
 
-        The *System Logs*, or message logs, are not held within the Fledge storage system but are rather sent to the Linux system logging facility, *syslog*. This is configured within the Linux system itself to rotate, compress and ultimately remove logs using the system define log rotation settings.
+        The *System Logs*, or message logs, are not held within the Fledge storage system but are rather sent to the Linux system logging facility, *syslog*. This is configured within the Linux system itself to rotate, compress and ultimately remove logs using the system defined log rotation settings.
 
   - **Purge** - The purge process is responsible for purging the readings data from the system. 
 
@@ -791,9 +791,9 @@ The log purging is perhaps the simpler of the two purge process to discuss as it
 
 The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories; audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but that should retain sufficient information to be able to examine enough history of the system.
 
-The other dimension to consider is that performance is known to degrade as these tables become large, it is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
+The other dimension to consider is that performance is known to degrade as these tables become large. It is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
 
-Typically the statistics that are held will take the most space in the system, especially if you are collecting per asset ingest statistics and you collect data for many assets.  There are actually two forms of statistics kept, the absolute counters and the history snapshot of the statistics. The history snapshot records the statistics values every 15 seconds and create an entry in the statistics history table for each statistic every 15 seconds. It is these statistic history entries that are purged and not the absolute statistics counters. Hence the retention period for statistics, the statistics history, is generally lower.
+Typically the statistics that are held will take the most space in the system, especially if you are collecting per asset ingest statistics and you collect data for many assets.  There are actually two forms of statistics kept; the absolute counters and the history snapshot of the statistics. The history snapshot records the statistics values every 15 seconds and create an entry in the statistics history table for each statistic every 15 seconds. It is these statistic history entries that are purged and not the absolute statistics counters. Hence the retention period for statistics, the statistics history, is generally lower.
 
 .. note::
 
@@ -805,30 +805,30 @@ Similar decisions should be made for the task and the audit log data. In the cas
 
    The audit log is also used by the *FogLAMP Manage* product to determine if changes have been made locally to the instance. Therefore the retention period for audit log data must be greater that the frequency with which that product is collecting this data from the instance.
 
-The task log is used internally within Fledge to track the state of running tasks as well as to give the history of tasks that have run for support purposes, this data is included in the support bundles. Therefore the retention should be such that there is sufficient history to cover any period that might be needed to diagnose issues within Fledge. Also the period should not be so small that it risks the data for a running task being purged before the task has completed. As a guideline it must never be less than 1 day, it is recommended to keep at least 7 days to allow for some history to be available for diagnostic purposes.
+The task log is used internally within Fledge to track the state of running tasks as well as to give the history of tasks that have run for support purposes; this data is included in the support bundles. Therefore the retention should be such that there is sufficient history to cover any period that might be needed to diagnose issues within Fledge. Also the period should not be so small that it risks the data for a running task being purged before the task has completed. As a guideline it must never be less than 1 day. It is recommended to keep at least 7 days to allow for some history to be available for diagnostic purposes.
 
 As well as the configuration of the retention period for the various logs the other tuning that can be done is the frequency of the execution of the system purge process. This is done in the *Schedules* menu item and is the tasks named *purge_system*. The default is to run it every 23 hours and 50 minutes.
 
 .. note::
 
-   If you run the system purge every 24 hours and, you retain 7 days worth of data for the statistics, you will have 8 days of data stored at the peak of storage use. This is because when the process runs it will reduce the data down to 7 days, but as soon as it has completed new data will accumulate until it is next run a day later. The same is obviously also true for the task and audit data.
+   If you run the system purge every 24 hours and you retain 7 days worth of data for the statistics, you will have 8 days of data stored at the peak of storage use. This is because when the process runs it will reduce the data down to 7 days, but as soon as it has completed new data will accumulate until it is next run a day later. The same is obviously also true for the task and audit data.
 
 Purge Process
 -------------
 
-The purge process is probably the more important process to tune of the two, it manages the storage for the reading data that is the more dynamic and larger data set of the two controlled by purge processes. As with the purge system process above the configuration of how the purge process runs is available in the *Configuration* menu item in the category *Utilities::Purge*.
+The purge process is probably the more important process to tune of the two. It manages the storage for the reading data that is the more dynamic and larger data set of the two controlled by purge processes. As with the purge system process above, the configuration of how the purge process runs is available in the *Configuration* menu item in the category *Utilities::Purge*.
 
 +---------------+
 | |PurgeConfig| |
 +---------------+
 
-The details of each of the options are covered elsewhere in the documentation, but the salient points will be repeated here. The operation of the purge process reduces the number of readings that are retained in the readings storage subsystem using two parameters;
+The details of each of the options are covered elsewhere in the documentation, but the salient points will be repeated here. The operation of the purge process reduces the number of readings that are retained in the readings storage subsystem using two parameters:
 
    - the age of the reading
 
    - the number of readings
 
-The age is set in hours and any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the maximum rows to retain value.
+The age is set in hours. Any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the *Maxi rows of data to retain* value.
 
 These are the candidates to be removed, but may not be removed depending upon the sent status of the readings and the configuration item *Retain Unsent Data*.
 
@@ -842,7 +842,7 @@ As with the purge system process the purge process is also run by a schedule tha
 | |PurgeSchedules| |
 +------------------+
 
-The frequency of running the purge process is very important, since it as the same effect as described for the purge system execution, but the impact is much higher. Consider a system that wants to retain data for 12 hours, if the purge process is set to run every 12 hours the number of readings over time would be as shown in the graph below
+The frequency of running the purge process is very important, since it as the same effect as described for the purge system execution, but the impact is much higher. Consider a system that wants to retain data for 12 hours. If the purge process is set to run every 12 hours the number of readings over time would be as shown in the graph below
 
 +---------------+
 | |PurgeCycles| |
@@ -850,21 +850,21 @@ The frequency of running the purge process is very important, since it as the sa
 
 The red line indicates the configured retention point for the readings. Each point where the blue line drops is an execution of the purge process.
 
-This assumes we started with a system with no readings, we read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retain readings to those less than 12 hours old. The initial run is in fact not likely to find any data to remove, or at most a handful of readings, depending on how long it takes the purge process to start executing.
+This assumes we started with a system with no readings. We read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retained readings to those less than 12 hours old. The initial run is in fact not likely to find any data to remove, or at most a handful of readings, depending on how long it takes the purge process to start executing.
 
 The system now continues to ingest data and will accumulate another 12 hours of data before purge is run again and the data reduced to the newest 12 hours of data.
 
 .. note::
 
-   We are assuming that either unsent data is not retained or we are sending all data north immediately it is received.
+   We are assuming that either unsent data is not retained or we are sending all data north immediately as it is received.
 
-This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph above, is that purge is **not an instantaneous process**. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. Reducing the time, and memory resources, that services have to buffer data in memory.
+This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph above, is that purge is **not an instantaneous process**. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. This reduces the time, and memory resources, that services have to buffer data in memory.
 
 .. note::
 
-   Since all data must go via the storage system to go from south service to the north services and tasks, the period when services are buffering in memory because the purge process is running, will increase the latency for data to traverse from the south to the north.
+   Since all data must go via the storage system from south service to the north services and tasks, the period when services are buffering in memory because the purge process is running, will increase the latency for data to traverse from the south to the north.
 
-There are many advantages to running the purge process more frequently than the retention period, however running it too frequently can cause increase in latency for readings and also if one purge process does not complete before another starts issues can be seen whereby the purge process dominates the usage of the storage subsystem and readings build up in the service memory buffers, eventually causing issues with excessive memory usage. The execution interval for the purge process must be balanced to not create issues with memory and storage utilisation.
+There are many advantages to running the purge process more frequently than the retention period. Running it too frequently, however, can cause increase in latency for readings. In addition, if one purge process does not complete before another starts, issues can be seen whereby the purge process dominates the usage of the storage subsystem. If this happens, readings build up in the service memory buffers, eventually causing issues with excessive memory usage. The execution interval for the purge process must be balanced to not create issues with memory and storage utilisation.
 
 The *Logs::Tasks* menu item can be used to view the execution duration of the *purge* and other tasks and provides useful information for tuning the schedule of the purge process.
 

@@ -14,7 +14,7 @@ using namespace std;
 /**
  * Create a circular buffer of readings
  *
- * @param size	The number of items to retain oin the circular buffer
+ * @param size	The number of items to retain in the circular buffer
  */
 ReadingCircularBuffer::ReadingCircularBuffer(unsigned int size) : m_size(size),
        	m_insert(0), m_entries(0)

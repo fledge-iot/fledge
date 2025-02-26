@@ -15,7 +15,7 @@ To start testing;
 
     Where *<ServiceName>* is the name of a south or north service. You will need to quote the name if it contains whitespace or wildcard characters that have meaning to the shell.
 
-   - Attach the debugger to the pipeline by usign the attach command
+   - Attach the debugger to the pipeline by using the attach command
 
      .. code-block:: console
 
@@ -23,20 +23,20 @@ To start testing;
 
 The debugger is now attached to the pipeline and collecting one reading at each point in the pipeline.
 
-To see the list of command available type the commands command
+To see the list of commands available type the *commands* command
 
 .. code-block:: console
 
     % commands
     attach:		Attach the pipeline debugger
     buffer:		Return the contents of the buffers at every pipeline element
-    detach:		Detch the debugger from the pipeline
+    detach:		Detach the debugger from the pipeline
     isolate:	Isolate the pipeline from the destination
-    replay:		Replay the buffered data though the pipeline
+    replay:		Replay the buffered data through the pipeline
     resumeIngest:	Resume the flow of data into the pipeline
-    setBuffer:	Set the number of reading to hold in each buffer, passed an integer argument
+    setBuffer:	Set the number of readings to hold in each buffer, passing an integer argument
     state:		Return the state of the debugger
-    step:		Allow readings to flow into the pipeline. Passed an optonal number of readings to ingest, default to 1 if omitted
+    step:		Allow readings to flow into the pipeline. Pass an optonal number of readings to ingest; default to 1 if omitted
     store:		Allow data to flow out of the pipeline into storage
     suspendIngest:	Suspend the ingestion of data into the pipeline
 

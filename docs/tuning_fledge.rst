@@ -850,7 +850,7 @@ The frequency of running the purge process is very important, since it as the sa
 
 The red line indicates the configured retention point for the readings. Each point where the blue line drops is an execution of the purge process.
 
-This assumes we started with a system with no readings, we read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retain readings to those less than 12 hours old. The initial run is in fact not likely find any data to remove, or at most a handful depending on how long it takes the purge process to start executing.
+This assumes we started with a system with no readings, we read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retain readings to those less than 12 hours old. The initial run is in fact not likely to find any data to remove, or at most a handful of readings, depending on how long it takes the purge process to start executing.
 
 The system now continues to ingest data and will accumulate another 12 hours of data before purge is run again and the data reduced to the newest 12 hours of data.
 

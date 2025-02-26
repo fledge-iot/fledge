@@ -789,7 +789,7 @@ The log purging is perhaps the simpler of the two purge process to discuss as it
 | |PurgeSystemConfig| |
 +---------------------+
 
-The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories; audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but that should retain sufficient information to be able to examine enough history of the system.
+The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories: audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but should retain sufficient information to be able to examine enough history of the system.
 
 The other dimension to consider is that performance is known to degrade as these tables become large. It is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
 
@@ -828,7 +828,7 @@ The details of each of the options are covered elsewhere in the documentation, b
 
    - the number of readings
 
-The age is set in hours. Any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the *Maxi rows of data to retain* value.
+The age is set in hours. Any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the *Max rows of data to retain* value.
 
 These are the candidates to be removed, but may not be removed depending upon the sent status of the readings and the configuration item *Retain Unsent Data*.
 

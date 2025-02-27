@@ -235,7 +235,7 @@ EOFPLUGINS
                 for r in $result
                 do
                      # Add link and description to the plugin
-                     description=$(cat $(pwd)/fledge_plugins.rst | grep -A1 -w "plugins/$r/index.html" | grep -v "$r")
+                     description=$(cat $(pwd)/fledge_plugins.rst | grep -A1 -w "plugins/$r/index.html" | grep -v "$r" | head -n 1)
                      echo "    \`$r <../$r/index.html>\`_  $description" >> $plugins_path/$dir_name/index.rst
                      echo -e "\n" >> $plugins_path/$dir_name/index.rst
                 done

@@ -195,7 +195,7 @@ async def delete_streams(storage, svc):
 
 
 async def delete_plugin_data(storage, svc):
-    payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
+    payload = PayloadBuilder().WHERE(["service_name", "=", svc]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
 
 

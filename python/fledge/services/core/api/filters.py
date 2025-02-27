@@ -600,6 +600,14 @@ async def _delete_child_filters(storage: StorageClientAsync, cf_mgr: Configurati
         payload = PayloadBuilder().WHERE(['name', '=', cat_name]).AND_WHERE(['user', '=', user_name]).payload()
         await storage.delete_from_tbl("filter_users", payload)
 
+        # Delete plugin data of filters
+        payload = PayloadBuilder().WHERE(['name', '=', cat_name]).payload()
+        filters_res = await storage.query_tbl_with_payload("filters", payload)
+        if 'rows' in filters_res and len(filters_res['rows']) > 0:
+            key_name = "{}{}{}".format(user_name, cat_name, filters_res["rows"][0]['plugin'])
+            payload = PayloadBuilder().WHERE(['key', '=', key_name]).payload()
+            await storage.delete_from_tbl("plugin_data", payload)
+
     for child in delete_children:
         if isinstance(child, list):
             for c in child:

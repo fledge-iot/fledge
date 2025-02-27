@@ -1147,45 +1147,61 @@ class TestFilters:
         user_name_mock = 'random1'
         new_list_mock = ['scale2', 'python35b', 'meta2']
         old_list_mock = ['scale1', 'python35a', 'meta1']
-        mock_payload = {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}}
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr_mock = ConfigurationManager(storage_client_mock)
 
-        @asyncio.coroutine
-        def del_x():
-            return {}
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await self.async_mock(None)
+            _rv2 = await self.async_mock({'count': 0, 'rows': []})
+        else:
+            _rv = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
 
-        connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
-        delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category', return_value=(await self.async_mock(None)))
-        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_x())
+        mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
+        delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category',
+                                                         return_value=(await self.async_mock(None)))
+        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv)
         delete_configuration_category_mock = mocker.patch.object(filters, '_delete_configuration_category',
-                                                                 return_value=del_x())
+                                                                 return_value=_rv)
+
+        get_filters_mock = mocker.patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                               return_value=_rv2)
 
         # WHEN
-        await filters._delete_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock, old_list_mock)
+        await filters._delete_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock,
+                                            old_list_mock)
 
         # THEN
-        args, kwargs = delete_tbl_patch.call_args
-        assert 'filter_users' == args[0]
+        calls = get_filters_mock.call_args_list
+        args, kwargs = calls[0]
+        assert 'filters' == args[0]
         p = json.loads(args[1])
-        assert mock_payload == p
+        assert {"where": {"column": "name", "condition": "=", "value": "scale1"}} == p
+
+        calls = delete_configuration_category_mock.call_args_list
+        args, kwargs = calls[0]
+        assert 'random1_scale1' == args[1]
 
         calls = delete_tbl_patch.call_args_list
         args, kwargs = calls[0]
         assert 'filter_users' == args[0]
         p = json.loads(args[1])
-        assert {"where": {"column": "name", "condition": "=", "value": "scale1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+        assert {"where": {"column": "name", "condition": "=", "value": "scale1",
+                          "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
 
         args, kwargs = calls[1]
         assert 'filter_users' == args[0]
         p = json.loads(args[1])
-        assert {"where": {"column": "name", "condition": "=", "value": "python35a", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+        assert {"where": {"column": "name", "condition": "=", "value": "python35a",
+                          "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
 
         args, kwargs = calls[2]
         assert 'filter_users' == args[0]
         p = json.loads(args[1])
-        assert {"where": {"column": "name", "condition": "=", "value": "meta1", "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
+        assert {"where": {"column": "name", "condition": "=", "value": "meta1",
+                          "and": {"column": "user", "condition": "=", "value": "random1"}}} == p
 
         calls_child = [call('random1', 'random1_scale1'),
                        call('random1', 'random1_python35a'),

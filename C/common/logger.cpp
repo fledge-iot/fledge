@@ -98,6 +98,42 @@ void Logger::setMinLevel(const string& level)
 	}
 }
 
+bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* userData)
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	auto it =  m_interceptors.emplace(level, LogInterceptorNode{callback, userData});
+	if (it != m_interceptors.end())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	auto range = m_interceptors.equal_range(level);
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		if (it->second.callback == callback)
+		{
+			m_interceptors.erase(it);
+			return true; // Remove only one matching entry
+		}
+	}
+	return false;
+}
+
+void Logger::executeInterceptor(LogLevel level, const std::string& message)
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	auto range = m_interceptors.equal_range(level);
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		it->second.callback(level, message, it->second.userData);
+	}
+}
 void Logger::debug(const string& msg, ...)
 {
 	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
@@ -108,6 +144,7 @@ void Logger::debug(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_DEBUG, "DEBUG: %s", fmt->c_str());
+	executeInterceptor(LogLevel::DEBUG, fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -135,6 +172,7 @@ void Logger::info(const string& msg, ...)
 #else
 	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
 #endif
+	executeInterceptor(LogLevel::INFO, fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -145,6 +183,7 @@ void Logger::warn(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_WARNING, "WARNING: %s", fmt->c_str());
+	executeInterceptor(LogLevel::WARNING, fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -159,6 +198,7 @@ void Logger::error(const string& msg, ...)
 #else
 		syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
 #endif
+	executeInterceptor(LogLevel::ERROR, fmt->c_str());
 	delete fmt;
 	va_end(args);
 }
@@ -169,6 +209,7 @@ void Logger::fatal(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_CRIT, "FATAL: %s", fmt->c_str());
+	executeInterceptor(LogLevel::FATAL, fmt->c_str());
 	delete fmt;
 	va_end(args);
 }

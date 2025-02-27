@@ -9,6 +9,8 @@
 .. |img_008| image:: images/tshooting_pi_008.jpg
 .. |img_009| image:: images/tshooting_pi_009.jpg
 .. |img_010| image:: images/tshooting_pi_010.jpg
+.. |AFElement_Default| image:: images/tshooting_pi_011.jpg
+.. |AFAttribute_Default| image:: images/tshooting_pi_012.jpg
 .. |OMF_tabs| image:: images/OMF_tabs.png
 .. |OMF_Persisted| image:: images/OMF_Persisted.png
 .. |PersistedPlugins| image:: images/PersistedPlugins.png
@@ -19,9 +21,8 @@
 Troubleshooting the PI Server integration
 *****************************************
 
-
-This section describes how to troubleshoot issues with the PI Server integration
-using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
+This section describes how to troubleshoot issues with the PI Server integration using the OMF North plugin.
+You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
 
 - `Log files`_
 - `How to check the PI Web API is installed and running`_
@@ -64,6 +65,136 @@ Another sample message:
 
     North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 
+Information Messages
+--------------------
+
+If the minimum logging level is set to Information, the OMF North plugin will write messages that list the OMF Types, Containers and Links it creates.
+This can be aid in understanding the artifacts created in the PI AF Server and the PI Data Archive and can help with troubleshooting.
+For example, if the *Default Asset Framework Location* is left at its default of */fledge/data_piwebapi/default* and the target AF Database is new,
+the following informational messages will be written to the log:
+
+.. code-block:: bash
+
+    INFO: Created Type 16634532276179036866_fledge_typeid
+    INFO: Created Element fledge
+    INFO: Created Type 4258086130383245257_data_piwebapi_typeid
+    INFO: Created Element data_piwebapi
+    INFO: Created Link 16634532276179036866_fledge to 4258086130383245257_data_piwebapi
+    INFO: Created Type 13582600746897291705_default_typeid
+    INFO: Created Element default
+    INFO: Created Link 4258086130383245257_data_piwebapi to 13582600746897291705_default
+
+Types, Elements and Links
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+OMF Types always appear in the AF Database as AF Element Templates.
+Templates can be viewed by running the PI System Explorer and navigating to the *Library* tab and expanding *Element Templates*.
+When an AF Element is created by OMF, its defining AF Template is displayed in the *Template* field of the *General* tab.
+This is the PI System Explorer view of the *default* AF Element:
+
+|AFElement_Default|
+
+The *Created Link* messages show the creation of links between parent and child AF Elements thereby creating a hierarchy.
+The identifiers in the *Created Link* messages are the "index" values of the AF Elements.
+The index values can be viewed by clicking the *Attributes* tab for an AF Element in PI System Explorer.
+Look for the value of the Attribute "__id."
+This is a view of the *default* AF Element Attributes:
+
+|AFAttribute_Default|
+
+Containers
+~~~~~~~~~~
+
+The Information messages logged for a Linked Types configuration are different from messages logged for a Complex Types configuration.
+Each Datapoint in a Reading will become a PI Point mapped to an AF Attribute for both configuration types but how they are organized is different.
+
+Containers with Linked Types
+############################
+
+With Linked Types, Containers become PI Points mapped to AF Attributes.
+Containers defined by Datapoints in a single Reading are created at once but additional Containers can be added later without breaking the configuration.
+For example, if a Reading named "Calvin" with 3 Datapoints named "random1" through "random3" is received by the plugin,
+the following message will be logged when the Containers are created:
+
+.. code-block:: bash
+
+    INFO: Containers created: Calvin.random1,Calvin.random2,Calvin.random3
+
+If at a later time another Reading named "Calvin" is received but with 4 Datapoints, a new message will be logged:
+
+.. code-block:: bash
+
+    INFO: Containers confirmed: Calvin.random1,Calvin.random2,Calvin.random3,Calvin.random4
+
+Strictly speaking, this message is not completely accurate.
+The first three Containers already exist so their presence is confirmed.
+The last Container (Calvin.random4) will be new.
+
+The data type of the created PI Points and AF Attrbutes is not logged.
+You can check the data types by using the PI System Explorer to view the AF Attributes of the AF Element "Calvin" or by using PI System Management Tools to view the PI Points.
+
+Containers with Complex Types
+#############################
+
+With Complex Types, Containers are defined by an OMF Type which has one or more data streams in it.
+The Type will define the names and data types of the individual data streams.
+Types are created by the plugin to reflect a Reading and its Datapoints when the Reading is received by the plugin.
+When the Container is created, it is important to log its OMF Type as well:
+
+.. code-block:: bash
+
+    INFO: Created Container (Type: A_13582600746897291705_default_2_Calvin_typename_measurement) 2measurement_Calvin
+    INFO: Created Element Calvin-type2
+
+The data streams in this example will be Attributes of a new AF Element called "Calvin-type2."
+To find the names of the individual data streams, check the definition of the AF Element Template "A_13582600746897291705_default_2_Calvin_typename_measurement"
+using PI System Explorer.
+You will see this AF Template has 3 AF Attributes named "random1" through "random3."
+The names of the underlying PI Points will be the Container name from the logged message concatentated with the AF Attribute names separated by a dot (".").
+This means the PI Point names will be *2measurement_Calvin.random1*, *2measurement_Calvin.random2* and *2measurement_Calvin.random3*.
+
+If at a later time another Reading named "Calvin" is received but with 4 Datapoints, the situation is much more complicated than for Linked Types.
+Once created, an OMF Type cannot be redefined to allow for additional data streams.
+The plugin will attempt to match the new Reading to the existing Type but this will fail:
+
+.. code-block:: bash
+
+    ERROR: Error 409 creating Type A_13582600746897291705_default_2_Calvin_typename_sensor
+    ERROR: Error 409 creating Type A_13582600746897291705_default_2_Calvin_typename_measurement
+    ERROR: HTTP 409: Type conflict for Calvin (random1,random2,random3,random4). Creating a new Type: 2 messages
+    WARNING: Message 0 HTTP 200: Warning, The type with the supplied ID and version already exists.,
+    ERROR: Message 1 HTTP 409: Error, A type with the supplied ID and version already exists, but it does not match the supplied type.,
+
+This is not a fatal error.
+The plugin will search for an existing Type that matches the definition of the newest Reading.
+It it can't find one, it will create a new Type.
+The process should end with messages like these:
+
+.. code-block:: bash
+
+    INFO: Created Type A_13582600746897291705_default_3_Calvin_typename_sensor
+    INFO: Created Type A_13582600746897291705_default_3_Calvin_typename_measurement
+    INFO: Created Container (Type: A_13582600746897291705_default_3_Calvin_typename_measurement) 3measurement_Calvin
+    INFO: Created Element Calvin-type3
+
+This means the new PI Point names will be *3measurement_Calvin.random1*, *3measurement_Calvin.random2* and *3measurement_Calvin.random3*.
+Unfortunately, the previously-defined Containers with their underlying AF Attributes and PI Points cannot be reused.
+
+Created vs. Confirmed
+~~~~~~~~~~~~~~~~~~~~~
+
+You may see the terms *Created* and *Confirmed* in the Information messages.
+They have specific meanings:
+
+- *Created* means an item did not exist before in the PI Server and was created.
+- *Confirmed* means an item already exists and is correctly defined.
+
+.. note::
+
+    The plugin makes this distinction by evaluating the HTTP return code from OMF POST calls.
+    If an OMF POST call returns an HTTP return code of 200 (OK), it means an item already exists and is correctly defined.
+    If an OMF POST call returns an HTTP return code of 202 (Created), it means a new item has been created.
+    
 How to check the PI Web API is installed and running
 ====================================================
 

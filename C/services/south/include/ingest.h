@@ -131,6 +131,7 @@ private:
 	std::mutex			m_qMutex;
 	std::mutex			m_statsMutex;
 	std::mutex			m_pipelineMutex;
+	std::mutex			m_bufferMutex;
 	std::thread*			m_thread;
 	std::thread*			m_statsThread;
 	Logger*				m_logger;
@@ -165,6 +166,7 @@ private:
 	PerformanceMonitor		*m_performance;
 	std::mutex			m_useDataMutex;
 	IngestRate			*m_ingestRate;
+	bool				m_isBufferMemory;
 };
 
 #endif

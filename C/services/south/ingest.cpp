@@ -300,6 +300,7 @@ Ingest::Ingest(StorageClient& storage,
 	m_data = NULL;
 	m_discardedReadings = 0;
 	m_highLatency = false;
+	m_isBufferMemory = false;
 
 	// populate asset and storage asset tracking cache
 	AssetTracker *as = AssetTracker::getAssetTracker();
@@ -720,12 +721,30 @@ void Ingest::processQueue()
 					// Block of code to execute holding the mutex
 					lock_guard<mutex> guard(m_qMutex);
 					std::vector<Reading *> *newQ = new vector<Reading *>;
+					// Recover buffer memory generated to ingest data
+					{
+						lock_guard<mutex> guard_buffer(m_bufferMutex);
+						if (m_isBufferMemory && !m_data->empty())
+						{
+							m_data->clear();
+							m_isBufferMemory = false;
+						}
+					}
 					m_data = m_queue;
 					m_queue = newQ;
 				}
 			}
 			else
 			{
+				// Recover buffer memory generated to ingest data
+				{
+					lock_guard<mutex> guard_buffer(m_bufferMutex);
+					if (m_isBufferMemory && !m_data->empty())
+					{
+						m_data->clear();
+						m_isBufferMemory = false;
+					}
+				}
 				m_data = m_fullQueues.front();
 				m_fullQueues.pop();
 			}
@@ -1081,7 +1100,9 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 		// the m_data will not be explicitly deleted. However as we are shutting
 		// down this will note cause a problem as all memory is recovered at process
 		// exit time.
+		lock_guard<mutex> guard_buffer(ingest->m_bufferMutex);
 		ingest->m_data = new vector<Reading *>;
+		ingest->m_isBufferMemory = true;
 	}
 	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	

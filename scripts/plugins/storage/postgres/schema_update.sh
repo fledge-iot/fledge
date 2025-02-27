@@ -88,7 +88,7 @@ db_upgrade()
             # Perform Upgrade
             if [ "${START_UPGRADE}" ]; then
                 # Apply current update
-                SQL_COMMAND="$PG_SQL -d fledge -q -f ${sql_file} > /dev/null 2>&1"
+                SQL_COMMAND="$PG_SQL -v ON_ERROR_STOP=1 -d fledge -q -f ${sql_file} > /dev/null 2>&1"
                 if [ "${VERBOSE}" ]; then
                     schema_update_log "info" "Applying upgrade $(basename ${sql_file}) ..." "logonly" "pretty"
                     schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
@@ -97,10 +97,20 @@ db_upgrade()
                 # Call the DB script
                 eval "${SQL_COMMAND}"
 
+                if [ $? -ne 0 ]; then
+                    schema_update_log "err" "Upgrade failed while applying the SQL file ${sql_file}. Stopping the upgrade." "all" "pretty"
+                    return 1
+                fi
+
                 # Update the DB version
                 UPDATE_VER=`basename -s .sql ${sql_file}`
-                SQL_COMMAND="$PG_SQL -d fledge -q -c \"UPDATE fledge.version SET id = '${UPDATE_VER}'\""
+                SQL_COMMAND="$PG_SQL -v ON_ERROR_STOP=1 -d fledge -q -c \"UPDATE fledge.version SET id = '${UPDATE_VER}'\""
                 eval "${SQL_COMMAND}"
+
+                if [ $? -ne 0 ]; then
+                    schema_update_log "err" "Failed to update the version to ${UPDATE_VER}. Aborting/Stopping the upgrade." "all" "pretty"
+                    return 1
+                fi
 
                 # If "ver" in current filename is NEW_VERSION we are done
                 if [ "${START_VER}" == "${NEW_VERSION}" ]; then
@@ -118,7 +128,7 @@ db_upgrade()
         if [ "${START_UPGRADE}" ]; then
              schema_update_log "err" "Error: the Fledge DB schema has not been upgraded "\
 "to version [${NEW_VERSION}], this sql file is [$${sql_file}]" "all" "pretty"
-            return 0
+            return 1
         fi
 }
 
@@ -164,7 +174,7 @@ db_downgrade()
 
             # Perform Downgrade
             if [ "${START_DOWNGRADE}" ]; then
-                SQL_COMMAND="$PG_SQL -d fledge -q -f ${sql_file} > /dev/null 2>&1"
+                SQL_COMMAND="$PG_SQL -v ON_ERROR_STOP=1 -d fledge -q -f ${sql_file} > /dev/null 2>&1"
                 if [ "${VERBOSE}" ]; then
                     schema_update_log "info" "Applying downgrade $(basename ${sql_file}) ..." "logonly" "pretty"
                     schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
@@ -172,11 +182,19 @@ db_downgrade()
 
                 # Call DB script
                 eval "${SQL_COMMAND}"
+                if [ $? -ne 0 ]; then
+                    schema_update_log "err" "Downgrade failed while applying the SQL file ${sql_file}. Stopping the downgrade." "all" "pretty"
+                    return 1
+                fi
 
                 # Update DB version
                 UPDATE_VER=`basename -s .sql ${sql_file} | awk -F'-' '{print $3}'`
-                SQL_COMMAND="$PG_SQL -d fledge -q -c \"UPDATE fledge.version SET id = '${START_VER}'\""
+                SQL_COMMAND="$PG_SQL -v ON_ERROR_STOP=1 -d fledge -q -c \"UPDATE fledge.version SET id = '${START_VER}'\""
                 eval "${SQL_COMMAND}"
+                if [ $? -ne 0 ]; then
+                    schema_update_log "err" "Failed to update the version to ${START_VER}. Aborting/Stopping the downgrade." "all" "pretty"
+                    return 1
+                fi
 
                 # If "ver" in current filename is NEW_VERSION we are done
                 if [ "${START_VER}" == "${NEW_VERSION}" ]; then
@@ -194,7 +212,7 @@ db_downgrade()
         if [ "${START_DOWNGRADE}" ]; then
             schema_update_log "err" "Error: the Fledge DB schema has not been downgraded "\
 "to version [${NEW_VERSION}], this sql file is [${sql_file}]" "all" "pretty"
-            return 0
+            return 1
         fi
 }
 

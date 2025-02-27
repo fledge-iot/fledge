@@ -146,6 +146,127 @@ start to diminish.
 
   - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
 
+Using a Remote PostgreSQL Server
+--------------------------------
+
+Follow the steps below to set up PostgreSQL on a remote machine and enable remote connections securely.
+
+1. Install PostgreSQL on the Remote Machine
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Refer to the section *Installing A PostgreSQL server* for detailed PostgreSQL installation instructions.
+
+2. Configure PostgreSQL to Allow Remote Connections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default, PostgreSQL only listens for connections on the local machine. To allow remote access, you need to modify the PostgreSQL configuration file, `postgresql.conf`.
+
+**Steps:**
+
+1. Open the configuration file for editing:
+
+   .. code-block:: bash
+
+       sudo nano /etc/postgresql/<version>/main/postgresql.conf
+
+   Replace `<version>` with the installed PostgreSQL version (e.g., `12`, `14`, etc.).
+
+2. Locate the following line in the configuration file:
+
+   .. code-block:: ini
+
+       #listen_addresses = 'localhost'
+
+3. Update the line to:
+
+   .. code-block:: ini
+
+       listen_addresses = '*'
+
+   This setting tells PostgreSQL to listen for connections on all available network interfaces.
+
+**Important:**
+
+- For **production environments**, avoid using `'*'` unless absolutely necessary. Instead, restrict connections to specific IP addresses to enhance security.
+
+4. Save the file and exit the editor.
+
+
+3. Update Client Authentication Rules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PostgreSQL uses the `pg_hba.conf` file (Host-Based Authentication) to control how clients authenticate and connect to the database. To allow remote connections, you need to update the rules in this file.
+
+**Steps:**
+
+1. Open the `pg_hba.conf` file for editing:
+
+   .. code-block:: bash
+
+       sudo nano /etc/postgresql/<version>/main/pg_hba.conf
+
+2. Add the following entry at the end of the file:
+
+   .. code-block:: ini
+
+       host    all    all    0.0.0.0/0    trust
+
+**Explanation of the Parameters:**
+
+- **host**: This specifies that the rule applies to TCP/IP connections.
+- **all** (first occurrence): This applies the rule to all databases.
+- **all** (second occurrence): This applies the rule to all users.
+- **0.0.0.0/0**: This allows connections from all IPv4 addresses. You can replace this with a specific IP range for better security (e.g., `192.168.1.0/24`).
+- **trust**: This disables password authentication. While convenient for testing, it is **not recommended for production setups**. Use `md5` or `scram-sha-256` for secure authentication in production.
+
+**Example for Secure Setup:**
+For a production environment, replace `trust` with `md5` for password-based authentication:
+
+   .. code-block:: ini
+
+       host    all    all    0.0.0.0/0    md5
+
+3. Save the file and exit the editor.
+
+
+4. Restart the PostgreSQL Service
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After making changes to the configuration files, you need to restart the PostgreSQL service to apply the updates.
+
+**Final Notes:**
+
+- Once the configuration is complete, ensure that the machine's firewall settings allow incoming connections to PostgreSQL's default port (5432).
+- For increased security, consider enabling SSL connections to encrypt client-server communication.
+
+5. Setting Up PostgreSQL Client on the Local Machine
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This section explains how to set up the PostgreSQL client on the local machine (the machine where Fledge executes).
+
+1. **Install PostgreSQL Client**
+
+   The PostgreSQL client tools are required to allow Fledge to interact with a remote PostgreSQL server. Install the `postgresql-client` package using the package manager for your system.
+
+
+2. **Export PostgreSQL Environment Variables**
+
+   Configure environment variables to specify the connection details for the PostgreSQL server. These variables ensure that Fledge can communicate with the server seamlessly.
+
+   The environment variables include the host, user, and password for the PostgreSQL server. 
+
+   .. code-block:: bash
+
+       export PGHOST=<host_ip_address>
+       export PGUSER=<postgres_user_name>
+       export PGPASSWORD=<postgres_user_password>
+
+   **Explanation of Variables:**
+
+   - `PGHOST`: The IP address or hostname of the PostgreSQL server.
+   - `PGUSER`: The username for the PostgreSQL database (e.g., `postgres`).
+   - `PGPASSWORD`: The password for the specified user.
+
+
+
 Installing A PostgreSQL server
 ==============================
 

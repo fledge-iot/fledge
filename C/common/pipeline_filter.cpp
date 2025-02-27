@@ -168,7 +168,7 @@ bool PipelineFilter::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 		// Instantiate the PluginData class
 		m_plugin->m_plugin_data = new PluginData(m_storage);
 		// Load plugin data from storage layer
-		string pluginStoredData = m_plugin->m_plugin_data->loadStoredData(m_serviceName + m_name);
+		string pluginStoredData = m_plugin->m_plugin_data->loadStoredData(m_serviceName + m_name + m_pluginName);
 		//call 'plugin_start' with plugin data: startData()
 		m_plugin->startData(pluginStoredData);
 	}
@@ -194,14 +194,15 @@ void PipelineFilter::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
  	{
 			// 1- call shutdownSaveData and get up-to-date plugin data.
 			string saveData = m_plugin->shutdownSaveData();
-			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(m_serviceName + m_plugin->getName());
-			if (!m_plugin->m_plugin_data->persistPluginData(key, saveData))
+			// 2- store returned data: key is service/task categoryName + filter category name + pluginName
+			string key(m_serviceName + m_plugin->getName() + m_pluginName.c_str());
+			if (!m_plugin->m_plugin_data->persistPluginData(key, saveData, m_serviceName))
 			{
-				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
+				Logger::getLogger()->error("Filter %s has failed to save data [%s] for key %s and name %s",
 							   m_plugin->getName().c_str(),
 							   saveData.c_str(),
-							   key.c_str());
+							   key.c_str(),
+							   m_serviceName.c_str());
 			}
 		}
 		else

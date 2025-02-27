@@ -30,13 +30,38 @@ You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
 - `Error messages and causes`_
 - `Possible solutions to common problems`_
 
-Fledge 2.1.0 and later
-=======================
+Complex Types vs. Linked Types
+==============================
 
-In version 2.1 of Fledge a major change was introduced to the OMF plugin in the form of support for OMF version 1.2. This provides for a different method of adding data to the OMF end points that greatly improves the flexibility and removes the need to create complex types in OMF to map onto the Fledge reading structure.
-When upgrading from a version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the older, pre-OMF 1.2 method to add data. This ensures that data will continue to be written to the same tags within the PI Server or other OMF end points. New data, not previously sent to OMF will be written using the newer OMF 1.2 mechanism.
+This section describes the representation of Readings in the PI System using either Complex Types or Linked Types.
+**Linked Types are highly recommended for new OMF North configurations.**
 
-It is possible to force the OMF plugin to always send data in the pre-OMF 1.2 format, using complex OMF data types, by turning on the option *Complex Types* in the *Formats & Types* tab of the plugin configuration.
+Complex Types
+-------------
+
+When the OMF North operates, it accepts Readings from the Fledge storage and uses them to create OMF Types, Containers and Data messages.
+In the initial release of the OMF North plugin, all Types were Complex Types.
+This means the Type would include data streams that represent all Datapoints in the Reading.
+If a Reading arrived later with the same asset name but with additional Datapoints, OMF would be forced to create a new Type and new Containers.
+Previously defined Containers would be abandoned.
+
+Linked Types
+------------
+
+In Fledge 2.1.0, support for OMF version 1.2 was introduced to the OMF North plugin.
+OMF 1.2 includes support for Linked Types.
+Each Datapoint becomes an AF Attribute mapped to a PI Point.
+OMF then links the AF Attribute to a parent AF Element to create a complete representation of the Reading in AF.
+A major advantage of Linked Types is that new Readings with additional Datapoints will not break any OMF Types.
+OMF will simply create a new AF Attribute and PI Point and link it to the existing parent AF Element.
+
+Understanding Types when upgrading Fledge
+-----------------------------------------
+
+When upgrading from a Fledge version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the pre-OMF 1.2 Complex Types definitions to send data.
+This ensures that data will continue to be written to the same PI Points within the PI Server or other OMF end points. New OMF North instances will send data using the newer OMF 1.2 mechanism.
+It is possible to create a new OMF North plugin instance that sends data using Complex Types (that is, pre-OMF 1.2 format) by turning on the option *Complex Types* in the *Formats & Types* tab of the plugin configuration.
+**This is not recommended.**
 
 +---------------+
 | |OMF_Formats| |
@@ -133,6 +158,8 @@ The last Container (Calvin.random4) will be new.
 The data type of the created PI Points and AF Attrbutes is not logged.
 You can check the data types by using the PI System Explorer to view the AF Attributes of the AF Element "Calvin" or by using PI System Management Tools to view the PI Points.
 
+.. _Containers with Complex Types:
+
 Containers with Complex Types
 #############################
 
@@ -186,7 +213,7 @@ Created vs. Confirmed
 You may see the terms *Created* and *Confirmed* in the Information messages.
 They have specific meanings:
 
-- *Created* means an item did not exist before in the PI Server and was created.
+- *Created* means an item did not exist in the PI Server and was created.
 - *Confirmed* means an item already exists and is correctly defined.
 
 .. note::
@@ -267,6 +294,132 @@ Some error messages and causes:
       - Fledge is able to reach the machine in which PI Server is executing but the PI Web API is not running.
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
+
+Loss of Connection to the PI Web API Server
+-------------------------------------------
+
+If the OMF North plugin cannot communicate with the PI Web API server over the network, these messages will appear:
+
+.. code-block:: bash
+
+    ERROR: Error sending Data, Failed to send data: Operation canceled - piserver:443 /piwebapi/omf
+    WARNING: Connection to the destination data archive has been lost
+    ERROR: The PI Web API service piserver:443 is not available. HTTP Code: 503
+
+Whenever the message "*Connection to the destination data archive has been lost*" appears, OMF North will not attempt to send data again until connection is reestablished.
+OMF North will attempt to reach the PI Web API server every 60 seconds.
+When connection is reestablished, these messages will appear:
+
+.. code-block:: bash
+
+    WARNING: PI Web API 2023 SP1-1.19.0.621 reconnected to piserver:443 OMF Version: 1.2
+    INFO: The sending of data has resumed
+
+If the PI Web API server machine is running but PI Web API itself is not, the "*Operation canceled*" message will not appear.
+OMF North's attempt to send data to PI Web API will result in an HTTP return code 503 (Service Unavailable):
+
+.. code-block:: bash
+
+    ERROR: The PI Web API service piserver:443 is not available. HTTP Code: 503
+
+HTTP Code 409: Processing cannot continue until data archive errors are corrected
+---------------------------------------------------------------------------------
+
+The HTTP return code 409 means Conflict.
+If OMF North receives an HTTP return code 409, it means the message it sent has attempted to create an item that already exists but is defined differently.
+Neither OMF North nor PI Web API can resolve these conflicts automatically.
+OMF North will not attempt to send data again.
+You must shut down the OMF North instance and address the problem.
+
+Manual intervention by the system manager will be necessary.
+This usually means editing or deleting an item in the PI Asset Framework or the PI Data Archive.
+Some specific examples are listed in this section.
+
+HTTP Code 409: The supplied container overlaps with a different existing container
+----------------------------------------------------------------------------------
+
+This message means that OMF North is attempting to create a new PI Point but a point with the same name exists with a different configuration.
+There is a procedure for repairing the PI Points if this occurs.
+The context in which this message appears differs between configurations with Complex Types and Linked Types.
+In both cases, the list of messages ends with "*Processing cannot continue until data archive errors are corrected.*"
+This means OMF North must be shut down to correct the problem.
+
+Complex Types
+~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+    INFO: Created Type A_13582600746897291705_default_1_Calvin_typename_sensor
+    INFO: Created Type A_13582600746897291705_default_1_Calvin_typename_measurement
+    ERROR: Error 409 creating Container Calvin
+    ERROR: HTTP 409: A Conflict occurred sending the Container message for the asset Calvin (Type: A_13582600746897291705_default_1_Calvin_typename_measurement): 1 message
+    ERROR: Message 0 HTTP 409: Error, The supplied container overlaps with a different existing container., Data Archive requires PI Point names to be unique, and treats PI Point names as case-insensitive. The specified type and container were translated into PI Point names, but one or more resulting names were already being used.
+    WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
+
+Follow the description in the :ref:`Containers with Complex Types` section to find the names of the PI Points referenced by these messages.
+
+Linked Types
+~~~~~~~~~~~~
+
+.. code-block:: bash
+
+    ERROR: HTTP 409: The OMF endpoint reported a Conflict when sending Containers: 4 messages
+    WARNING: Message 0 HTTP 200: Warning, The specified container already exists in cache. If the associated points were manually modified or removed and need to be repaired, please restart PI Web API and send the message again.,
+    ERROR: Message 3 HTTP 409: Error, The supplied container overlaps with a different existing container., Data Archive requires PI Point names to be unique, and treats PI Point names as case-insensitive. The specified type and container were translated into PI Point names, but one or more resulting names were already being used.
+    WARNING: 2 duplicate messages skipped
+    WARNING: Containers attempted: Calvin.random1,Calvin.random2,Calvin.random3,Calvin.random4
+    WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
+
+Finding the problem PI Points in a Linked Types configuration is straightforward:
+the point names appear in the *Containers attempted* message.
+It is not possible to tell which of the PI Points has the problem.
+Applying the repair procedure to all points listed in the message is safe.
+
+Repair Procedure
+~~~~~~~~~~~~~~~~
+
+- Shut down your OMF North instance
+- Start PI System Management Tools as Administrator
+- Navigate to *Points* then *Point Builder*
+- Search for the problem PI Points
+- Click the *General* tab in the lower pane. For each PI Point you wish to repair:
+
+  - Change *Point Source* to "L"
+  - Clear the *Exdesc*
+- Click the *Save* icon at the top of the page, or press Control-S on your keyboard
+- Stop and restart PI Web API
+- Start your OMF North instance
+
+When your OMF North instance starts, you may see messages that Containers were created:
+
+.. code-block:: bash
+
+    INFO: Containers created: Calvin.random1,Calvin.random2,Calvin.random3,Calvin.random4
+
+This does not mean that new PI Points were created.
+It means the OMF processor in PI Web API overwrote the *Point Source* and *Exdesc* point attributes, thereby adopting the PI Point.
+OMF returns HTTP return code 201 (Created) when it does this which is why OMF North logs a *Containers created* message.
+If you are examining the *omf.log* trace file, you will see messages reading "*A PI Point was overwritten.*"
+
+HTTP Code 409:  One or more PI Points could not be created
+----------------------------------------------------------
+
+If OMF North cannot create a PI Point, the messages are these:
+
+.. code-block:: bash
+
+    ERROR: Error 409 creating Container Calvin
+    ERROR: HTTP 409: A Conflict occurred sending the Container message for the asset Calvin: 1 message
+    ERROR: Message 0 HTTP 409: Error, One or more PI Points could not be created.,
+    WARNING: HTTP Code 409: Processing cannot continue until PI Server errors are corrected
+
+The reason why PI Points cannot be created is not provided by PI Web API.
+It is possible that the user account configured for your OMF North instance does not have privileges to create or edit points.
+You can test this by starting PI System Management Tools under the same user account and trying to create a PI Point.
+
+It is possible that your PI License has expired or you have exceeded the licensed number of points.
+If this is the case, the messages are different.
+See the next section.
 
 OMF Plugin Data
 ===============

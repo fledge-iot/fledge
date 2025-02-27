@@ -84,17 +84,17 @@ def generate_json_for_fogbench(asset_name):
 
 @pytest.fixture
 def change_auth_method(fledge_url, wait_time):
-    def _change_auth_method(auth_method, is_admin, token, restart, enable_tls):
+    def _change_auth_method(auth_method, restart, enable_tls):
         conn = http.client.HTTPConnection(fledge_url)
-        if not is_admin:
-            conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
-            r = conn.getresponse()
-            assert 200 == r.status
-            r = r.read().decode()
-            jdoc = json.loads(r)
-            assert LOGIN_SUCCESS_MSG == jdoc['message']
-            assert jdoc['admin']
-            token = jdoc['token']
+        conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
+        assert jdoc['admin']
+        token = jdoc['token']
+
         payload = {"authMethod": auth_method}
         if enable_tls:
             payload["enableHttp"] = "false"
@@ -104,7 +104,6 @@ def change_auth_method(fledge_url, wait_time):
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "mandatory" == jdoc['authentication']['value']
         assert auth_method == jdoc['authMethod']['value']
         if restart:
             conn.request("PUT", '/fledge/restart', headers={"authorization": token}, body=json.dumps({}))
@@ -115,7 +114,7 @@ def change_auth_method(fledge_url, wait_time):
             assert "Fledge restart has been scheduled." == jdoc['message']
             # Wait for fledge server to start
             time.sleep(wait_time * 2)
-        if not restart and not is_admin:
+        if not restart:
             conn.request("PUT", '/fledge/logout', headers={"authorization": token})
             r = conn.getresponse()
             assert 200 == r.status
@@ -170,7 +169,7 @@ def remove_and_add_fledge_pkgs(package_build_version):
 
 
 class TestTLSDisabled:
-    def test_on_default_port(self, fledge_url, reset_fledge): # 1st...remove_and_add_fledge_pkgs
+    def test_on_default_port(self, remove_and_add_fledge_pkgs, fledge_url, reset_fledge):
         reset_fledge(authentication=False)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
@@ -245,7 +244,7 @@ class TestTLSDisabled:
 class TestAuthAnyWithoutTLS:
     def test_login_regular_user_using_password(self, fledge_url, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="any", is_admin=False, token=None, restart=False, enable_tls=False)
+        change_auth_method(auth_method="any", restart=False, enable_tls=False)
 
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
@@ -749,7 +748,7 @@ class TestAuthAnyWithoutTLS:
 class TestAuthPasswordWithoutTLS:
     def test_login_username_regular_user(self, fledge_url, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="password", is_admin=False, token=None, restart=True, enable_tls=False)
+        change_auth_method(auth_method="password", restart=True, enable_tls=False)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -1030,7 +1029,7 @@ class TestAuthPasswordWithoutTLS:
 class TestAuthCertificateWithoutTLS:
     def test_login_with_user_certificate(self, fledge_url, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="certificate", is_admin=False, token=None, restart=True, enable_tls=False)
+        change_auth_method(auth_method="certificate", restart=True, enable_tls=False)
         conn = http.client.HTTPConnection(fledge_url)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')
         with open(cert_file_path, 'r') as f:
@@ -1297,8 +1296,10 @@ class TestAuthCertificateWithoutTLS:
 
 
 class TestTLSEnabled:
-    def test_on_default_port(self, reset_fledge):
-        reset_fledge(authentication=True)
+    def test_on_default_port(self, reset_fledge, change_auth_method):
+        reset_fledge(authentication=False)
+        change_auth_method(auth_method="any", restart=True, enable_tls=True)
+
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
@@ -1339,7 +1340,7 @@ class TestTLSEnabled:
 class TestAuthAnyWithTLS:
     def test_login_regular_user_using_password(self, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="any", is_admin=False, token=None, restart=True, enable_tls=True)
+        change_auth_method(auth_method="any", restart=True, enable_tls=True)
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -1842,7 +1843,7 @@ class TestAuthAnyWithTLS:
 class TestAuthPasswordWithTLS:
     def test_login_username_regular_user(self, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="password", is_admin=False, token=None, restart=True, enable_tls=True)
+        change_auth_method(auth_method="password", restart=True, enable_tls=True)
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -2123,7 +2124,7 @@ class TestAuthPasswordWithTLS:
 class TestAuthCertificateWithTLS:
     def test_login_with_user_certificate(self, reset_fledge, change_auth_method):
         reset_fledge(authentication=True)
-        change_auth_method(auth_method="certificate", is_admin=False, token=None, restart=True, enable_tls=True)
+        change_auth_method(auth_method="certificate", restart=True, enable_tls=True)
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')

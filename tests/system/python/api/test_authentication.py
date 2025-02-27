@@ -23,9 +23,11 @@ TOKEN = None
 
 # TODO: Cover scenario when auth is optional and negative scenarios
 
+
 @pytest.fixture
 def authentication():
     return "mandatory"
+
 
 class TestAuthenticationAPI:
     def test_login_username_regular_user(self, fledge_url, wait_time,  authentication, reset_and_start_fledge):

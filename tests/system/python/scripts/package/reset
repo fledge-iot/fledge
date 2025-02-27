@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
-source ../../../common/scripts/reset_user_authentication "/usr/local/fledge"
+# Check if two arguments are passed
+if [ $# -eq 2 ]; then
+    # If exactly two arguments are passed
+    source ../../../common/scripts/reset_user_authentication "$1" "$2"
+else
+    # Default case
+    source ../../../common/scripts/reset_user_authentication "/usr/local/fledge"
+fi
 
 if [ "${FLEDGE_ENVIRONMENT}" == "docker" ]; then
     /usr/local/fledge/bin/fledge stop

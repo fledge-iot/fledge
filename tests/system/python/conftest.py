@@ -51,11 +51,12 @@ def clean_setup_fledge_packages(package_build_version):
 
 
 @pytest.fixture
-def reset_and_start_fledge(storage_plugin, readings_plugin):
+def reset_and_start_fledge(storage_plugin, readings_plugin, authentication):
     """Fixture that kills fledge, reset database and starts fledge again
-        storage_plugin: Fixture that defines the storage plugin to be used for tests
+        storage_plugin: A fixture that specifies the storage plugin to be used in the tests.
+        readings_plugin: A fixture that specifies the readings plugin to be used in the tests.
+        authentication: A fixture that defines the authentication method to be used for the tests. By default 'optional'
     """
-
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
@@ -69,6 +70,12 @@ def reset_and_start_fledge(storage_plugin, readings_plugin):
         ["echo $(jq -c --arg READINGS_PLUGIN_VAL \"{}\" '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
          "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(readings_plugin)],
         shell=True, check=True)
+    if authentication == 'optional':
+        subprocess.run(["sed -i \"s/'default': 'mandatory'/'default': 'optional'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
+    else:
+        subprocess.run(["sed -i \"s/'default': 'optional'/'default': 'mandatory'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
     subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
@@ -1151,6 +1158,9 @@ def asset_name(request):
 def fledge_url(request):
     return request.config.getoption("--fledge-url")
 
+@pytest.fixture
+def authentication(request):
+    return "optional"
 
 @pytest.fixture
 def wait_time(request):

@@ -38,13 +38,23 @@
 Securing Fledge
 *****************
 
-The default installation of a Fledge service comes with security features turned off, whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. There are several features in Fledge that can be used to add security to Fledge.  
+The default installation of Fledge in version 3.0 and after have authentication features enabled by default, using the username and password option. There are other security features that are not enabled by default that should be considered in order to enhance security and for compliance with any local security restrictions.
+
+.. note::
+
+   It is recommended that once installed the default password is changed at the earliest opportunity.
+
+Older installations have security disabled by default, whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. There are several features in Fledge that can be used to add security to Fledge. Version 3.0 of Fledge and onward can still be configured to be open by disabling the security features if desired, although this is not recommended.
 
   - The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used.
 
-  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system.
+  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. This is now the default for new installation from Fledge 3.0 onward.
    
-  - Authentication can be via username and password or by means of an authentication certificate.
+  - Authentication can be via username and password or by means of an authentication certificate. The default authentication in Fledge 3.0 and onward us to use username and password for authentication.
+
+    .. note::
+    
+       When using username and password authentication it is recommended that you disable support for unencrypted HTTP requests.
 
   - Fledge supports a number of different user types or roles, care should be taken to only give users access they require and in particular the administration user rights should be reserved.
 
@@ -56,8 +66,11 @@ The default installation of a Fledge service comes with security features turned
 
   - Fledge maintains full audit logs of all updates to the Fledge configuration, and other events. This allows for complete auditing of who made what changes to the Fledge configuration and when the changes were made.
 
+  - Fledge can have optional allow and deny lists configured that list those hosts that are either permitted to connect to the UI and REST API or are denied from access.
+
 .. note::
-  Although all these features add security to a Fledge installation it is still recommended to run Fledge within firewalls and limit those networks that have access to the Fledge API port when using for production purposes.
+
+   Although all these features add security to a Fledge installation it is still recommended to run Fledge within firewalls and limit those networks that have access to the Fledge API port when using for production purposes.
 
 Enabling HTTPS Encryption
 =========================
@@ -76,7 +89,7 @@ The first option you will see is a tick box labeled *Enable HTTP*, to select HTT
 
 When this is unticked two options become active on the page, *HTTPS Port* and *Certificate Name*. The HTTPS Port is the port that Fledge will listen on for HTTPS requests, the default for this is port 1995.
 
-The *Certificate Name* is the name of the certificate that will be used for encryption. The default s to use a self signed certificate called *fledge* that is created as part of the installation process. This certificate is unique per fledge installation but is not signed by a certificate authority. If you require the extra security of using a signed certificate you may use the Fledge :ref:`certificate_store` functionality to upload a certificate that has been created and signed by a certificate authority.
+The *Certificate Name* is the name of the certificate that will be used for encryption. The default is to use a self signed certificate called *fledge* that is created as part of the installation process. This certificate is unique per fledge installation but is not signed by a certificate authority. If you require the extra security of using a signed certificate you may use the Fledge :ref:`certificate_store` functionality to upload a certificate that has been created and signed by a certificate authority.
 
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 

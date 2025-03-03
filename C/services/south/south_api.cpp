@@ -115,7 +115,7 @@ unsigned short SouthApi::getListenerPort()
 
 /**
  * Implement the setPoint PUT request. Caues the write operation on
- * the south plugin to be called with eahc of the set point parameters
+ * the south plugin to be called with each of the set point parameters
  *
  * @param response	The HTTP response
  * @param request	The HTTP request
@@ -123,59 +123,67 @@ unsigned short SouthApi::getListenerPort()
 void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
 			shared_ptr<HttpServer::Request> request)
 {
-	string payload = request->content.string();
-	try {
-		Document doc;
-		ParseResult result = doc.Parse(payload.c_str());
-		if (result)
-		{
-			if (doc.HasMember("values") && doc["values"].IsObject())
+	if (m_service->allowControl())
+	{
+		string payload = request->content.string();
+		try {
+			Document doc;
+			ParseResult result = doc.Parse(payload.c_str());
+			if (result)
 			{
-				bool status = true;
-				Value& values = doc["values"];
-				for (Value::ConstMemberIterator itr = values.MemberBegin();
-						itr != values.MemberEnd(); ++itr)
+				if (doc.HasMember("values") && doc["values"].IsObject())
 				{
-					string name = itr->name.GetString();
-					if (itr->value.IsString())
+					bool status = true;
+					Value& values = doc["values"];
+					for (Value::ConstMemberIterator itr = values.MemberBegin();
+							itr != values.MemberEnd(); ++itr)
 					{
-						string value = itr->value.GetString();
-						if (!m_service->setPoint(name, value))
+						string name = itr->name.GetString();
+						if (itr->value.IsString())
 						{
-							status = false;
+							string value = itr->value.GetString();
+							if (!m_service->setPoint(name, value))
+							{
+								status = false;
+							}
 						}
 					}
-				}
-				if (status)
-				{
-					string responsePayload = QUOTE({ "status" : "ok" });
-					m_service->respond(response, responsePayload);
+					if (status)
+					{
+						string responsePayload = QUOTE({ "status" : "ok" });
+						m_service->respond(response, responsePayload);
+					}
+					else
+					{
+						string responsePayload = QUOTE({ "status" : "failed" });
+						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					}
+					return;
 				}
 				else
 				{
-					string responsePayload = QUOTE({ "status" : "failed" });
+					string responsePayload = QUOTE({ "message" : "Missing 'values' object in payload" });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					return;
 				}
-				return;
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "Missing 'values' object in payload" });
+				string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-				return;
 			}
-		}
-		else
-		{
-			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+			
+		} catch (exception &e) {
+			char buffer[80];
+			snprintf(buffer, sizeof(buffer), "\"Exception: %s\"", e.what());
+			string responsePayload = QUOTE({ "message" : buffer });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
-		
-	} catch (exception &e) {
-		char buffer[80];
-		snprintf(buffer, sizeof(buffer), "\"Exception: %s\"", e.what());
-		string responsePayload = QUOTE({ "message" : buffer });
-		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+	}
+	else
+	{
+		string responsePayload = QUOTE({ "status" : "Failed, control features are not allowed" });
+		m_service->respond(response, SimpleWeb::StatusCode::client_error_forbidden,responsePayload);
 	}
 }
 
@@ -188,74 +196,82 @@ void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
 void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 			shared_ptr<HttpServer::Request> request)
 {
-	string payload = request->content.string();
-	try {
-		Document doc;
-		ParseResult result = doc.Parse(payload.c_str());
-		if (result)
-		{
-			string operation;
-			if (doc.HasMember("operation") && doc["operation"].IsString())
+	if (m_service->allowControl())
+	{
+		string payload = request->content.string();
+		try {
+			Document doc;
+			ParseResult result = doc.Parse(payload.c_str());
+			if (result)
 			{
-				operation = doc["operation"].GetString();
-				vector<PLUGIN_PARAMETER *> parameters;
-
-				if (doc.HasMember("parameters") && doc["parameters"].IsObject())
+				string operation;
+				if (doc.HasMember("operation") && doc["operation"].IsString())
 				{
-					Value& values = doc["parameters"];
-					for (Value::ConstMemberIterator itr = values.MemberBegin();
-							itr != values.MemberEnd(); ++itr)
+					operation = doc["operation"].GetString();
+					vector<PLUGIN_PARAMETER *> parameters;
+
+					if (doc.HasMember("parameters") && doc["parameters"].IsObject())
 					{
-						string name = itr->name.GetString();
-						if (itr->value.IsString())
+						Value& values = doc["parameters"];
+						for (Value::ConstMemberIterator itr = values.MemberBegin();
+								itr != values.MemberEnd(); ++itr)
 						{
-							string value = itr->value.GetString();
-							PLUGIN_PARAMETER *param = new PLUGIN_PARAMETER;
-							param->name = name;
-							param->value = value;
-							parameters.push_back(param);
+							string name = itr->name.GetString();
+							if (itr->value.IsString())
+							{
+								string value = itr->value.GetString();
+								PLUGIN_PARAMETER *param = new PLUGIN_PARAMETER;
+								param->name = name;
+								param->value = value;
+								parameters.push_back(param);
+							}
 						}
 					}
-				}
-				else if (doc.HasMember("parameters"))
-				{
-					string responsePayload = QUOTE({ "message" : "If present, parameters of an operation must be a JSON object" });
-					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					else if (doc.HasMember("parameters"))
+					{
+						string responsePayload = QUOTE({ "message" : "If present, parameters of an operation must be a JSON object" });
+						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+						return;
+					}
+
+					bool status = m_service->operation(operation, parameters);
+
+					for (auto param : parameters)
+						delete param;
+					if (status)
+					{
+						string responsePayload = QUOTE({ "status" : "ok" });
+						m_service->respond(response, responsePayload);
+					}
+					else
+					{
+						string responsePayload = QUOTE({ "status" : "plugin returned failed status for operation" });
+						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					}
 					return;
-				}
-
-				bool status = m_service->operation(operation, parameters);
-
-				for (auto param : parameters)
-					delete param;
-				if (status)
-				{
-					string responsePayload = QUOTE({ "status" : "ok" });
-					m_service->respond(response, responsePayload);
+					
 				}
 				else
 				{
-					string responsePayload = QUOTE({ "status" : "plugin returned failed status for operation" });
+					string responsePayload = QUOTE({ "message" : "Missing 'operation' in payload" });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					return;
 				}
-				return;
-				
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "Missing 'operation' in payload" });
+				string responsePayload = QUOTE({ "status" : "failed to parse operation payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				return;
 			}
+		} catch (exception &e) {
 		}
-		else
-		{
-			string responsePayload = QUOTE({ "status" : "failed to parse operation payload" });
-			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-			return;
-		}
-	} catch (exception &e) {
+		string responsePayload = QUOTE({ "status" : "failed" });
+		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
-	string responsePayload = QUOTE({ "status" : "failed" });
-	m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+	else
+	{
+		string responsePayload = QUOTE({ "status" : "Failed, control features are not allowed" });
+		m_service->respond(response, SimpleWeb::StatusCode::client_error_forbidden,responsePayload);
+	}
 }

@@ -65,6 +65,14 @@ class SouthService : public ServiceAuthHandler {
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 		void				setDryRun() { m_dryRun = true; };
 		void				handlePendingReconf();
+		bool				allowControl()
+						{
+							return m_controlEnabled;
+						};
+		bool				allowDebugger()
+						{
+							return m_debuggerEnabled;
+						};
 		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
@@ -79,6 +87,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
 		void				checkPendingReconfigure();
+		void				updateFeatures(const ConfigCategory& cateogry);
 	private:
 		std::thread			*m_reconfThread;
 		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
@@ -123,5 +132,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_doPoll;
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
+		bool				m_controlEnabled;
+		bool				m_debuggerEnabled;
 };
 #endif

@@ -410,10 +410,17 @@ void SouthApi::attachDebugger(Response response, Request /*request*/)
  */
 void SouthApi::detachDebugger(Response response, Request /*request*/)
 {
+	string responsePayload;
+	if (m_service->debuggerAttached())
+	{
+		m_service->detachDebugger();
 
-	m_service->detachDebugger();
-
-	string responsePayload = QUOTE({ "status" : "ok" });
+		responsePayload = QUOTE({ "status" : "ok" });
+	}
+	else
+	{
+		responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
+	}
 	m_service->respond(response, responsePayload);
 }
 
@@ -426,36 +433,44 @@ void SouthApi::detachDebugger(Response response, Request /*request*/)
 void SouthApi::setDebuggerBuffer(Response response, Request request)
 {
 
-	string payload = request->content.string();
-	Document doc;
-	ParseResult result = doc.Parse(payload.c_str());
-	if (result)
+	if (m_service->debuggerAttached())
 	{
-		if (doc.HasMember("size"))
+		string payload = request->content.string();
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
 		{
-		       	if (doc["size"].IsUint())
+			if (doc.HasMember("size"))
 			{
-				unsigned int size = doc["size"].GetUint();
-				m_service->setDebuggerBuffer(size);
+				if (doc["size"].IsUint())
+				{
+					unsigned int size = doc["size"].GetUint();
+					m_service->setDebuggerBuffer(size);
 
-				string responsePayload = QUOTE({ "status" : "ok" });
-				m_service->respond(response, responsePayload);
+					string responsePayload = QUOTE({ "status" : "ok" });
+					m_service->respond(response, responsePayload);
+				}
+				else
+				{
+					string responsePayload = QUOTE({ "message" : "The value of 'size' should be an unsigned integer" });
+					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				}
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "The value of 'size' should be an unsigned integer" });
+				string responsePayload = QUOTE({ "message" : "Missing 'size' item in payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 			}
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "message" : "Missing 'size' item in payload" });
+			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}
 	else
 	{
-		string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+		string responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
 		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
 }
@@ -469,7 +484,15 @@ void SouthApi::setDebuggerBuffer(Response response, Request request)
 void SouthApi::getDebuggerBuffer(Response response, Request /*request*/)
 {
 
-	string result = m_service->getDebuggerBuffer();
+	string result;
+	if (m_service->debuggerAttached())
+	{
+		string result = m_service->getDebuggerBuffer();
+	}
+	else
+	{
+		result = QUOTE({"status" : "Debugger is not attached to the service" });
+	}
 	m_service->respond(response, result);
 }
 
@@ -481,46 +504,53 @@ void SouthApi::getDebuggerBuffer(Response response, Request /*request*/)
  */
 void SouthApi::isolateDebugger(Response response, Request request)
 {
-
-	string payload = request->content.string();
-	Document doc;
-	ParseResult result = doc.Parse(payload.c_str());
-	if (result)
+	if (m_service->debuggerAttached())
 	{
-		if (doc.HasMember("state"))
+		string payload = request->content.string();
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
 		{
-		       	if (doc["state"].IsString())
+			if (doc.HasMember("state"))
 			{
-				string state = doc["state"].GetString();
-				if (state.compare("discard") == 0)
-					m_service->isolateDebugger(true);
-				else if (state.compare("store") == 0)
-					m_service->isolateDebugger(false);
+				if (doc["state"].IsString())
+				{
+					string state = doc["state"].GetString();
+					if (state.compare("discard") == 0)
+						m_service->isolateDebugger(true);
+					else if (state.compare("store") == 0)
+						m_service->isolateDebugger(false);
+					else
+					{
+						string responsePayload = QUOTE({ "message" : "The value of 'state' should be one of 'discard' or 'store'" });
+						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+						return;
+					}
+
+					string responsePayload = QUOTE({ "status" : "ok" });
+					m_service->respond(response, responsePayload);
+				}
 				else
 				{
-					string responsePayload = QUOTE({ "message" : "The value of 'state' should be one of 'discard' or 'store'" });
+					string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'discard' or 'store'." });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-					return;
 				}
-
-				string responsePayload = QUOTE({ "status" : "ok" });
-				m_service->respond(response, responsePayload);
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'discard' or 'store'." });
+				string responsePayload = QUOTE({ "message" : "Missing 'state' item in payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 			}
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "message" : "Missing 'state' item in payload" });
+			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}
 	else
 	{
-		string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+		string responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
 		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
 }
@@ -533,46 +563,53 @@ void SouthApi::isolateDebugger(Response response, Request request)
  */
 void SouthApi::suspendDebugger(Response response, Request request)
 {
-
-	string payload = request->content.string();
-	Document doc;
-	ParseResult result = doc.Parse(payload.c_str());
-	if (result)
+	if (m_service->debuggerAttached())
 	{
-		if (doc.HasMember("state"))
+		string payload = request->content.string();
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
 		{
-		       	if (doc["state"].IsString())
+			if (doc.HasMember("state"))
 			{
-				string state = doc["state"].GetString();
-				if (state.compare("suspend") == 0)
-					m_service->suspendDebugger(true);
-				else if (state.compare("resume") == 0)
-					m_service->suspendDebugger(false);
+				if (doc["state"].IsString())
+				{
+					string state = doc["state"].GetString();
+					if (state.compare("suspend") == 0)
+						m_service->suspendDebugger(true);
+					else if (state.compare("resume") == 0)
+						m_service->suspendDebugger(false);
+					else
+					{
+						string responsePayload = QUOTE({ "message" : "The value of 'state' should be one of 'suspend' or 'resume'" });
+						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+						return;
+					}
+
+					string responsePayload = QUOTE({ "status" : "ok" });
+					m_service->respond(response, responsePayload);
+				}
 				else
 				{
-					string responsePayload = QUOTE({ "message" : "The value of 'state' should be one of 'suspend' or 'resume'" });
+					string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'suspend' or 'resume'." });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-					return;
 				}
-
-				string responsePayload = QUOTE({ "status" : "ok" });
-				m_service->respond(response, responsePayload);
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'suspend' or 'resume'." });
+				string responsePayload = QUOTE({ "message" : "Missing 'state' item in payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 			}
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "message" : "Missing 'state' item in payload" });
+			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}
 	else
 	{
-		string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+		string responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
 		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
 }
@@ -586,36 +623,44 @@ void SouthApi::suspendDebugger(Response response, Request request)
 void SouthApi::stepDebugger(Response response, Request request)
 {
 
-	string payload = request->content.string();
-	Document doc;
-	ParseResult result = doc.Parse(payload.c_str());
-	if (result)
+	if (m_service->debuggerAttached())
 	{
-		if (doc.HasMember("steps"))
+		string payload = request->content.string();
+		Document doc;
+		ParseResult result = doc.Parse(payload.c_str());
+		if (result)
 		{
-		       	if (doc["steps"].IsUint())
+			if (doc.HasMember("steps"))
 			{
-				unsigned int steps = doc["steps"].GetUint();
-				m_service->stepDebugger(steps);
+				if (doc["steps"].IsUint())
+				{
+					unsigned int steps = doc["steps"].GetUint();
+					m_service->stepDebugger(steps);
 
-				string responsePayload = QUOTE({ "status" : "ok" });
-				m_service->respond(response, responsePayload);
+					string responsePayload = QUOTE({ "status" : "ok" });
+					m_service->respond(response, responsePayload);
+				}
+				else
+				{
+					string responsePayload = QUOTE({ "message" : "The value of 'steps' should be an unsigned integer" });
+					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				}
 			}
 			else
 			{
-				string responsePayload = QUOTE({ "message" : "The value of 'steps' should be an unsigned integer" });
+				string responsePayload = QUOTE({ "message" : "Missing 'steps' item in payload" });
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 			}
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "message" : "Missing 'steps' item in payload" });
+			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}
 	else
 	{
-		string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
+		string responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
 		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
 }
@@ -629,9 +674,16 @@ void SouthApi::stepDebugger(Response response, Request request)
 void SouthApi::replayDebugger(Response response, Request /*request*/)
 {
 	// TODO Handle pre-requisites
-	m_service->replayDebugger();
-
-	string responsePayload = QUOTE({ "status" : "ok" });
+	string responsePayload;
+	if (m_service->debuggerAttached())
+	{
+		m_service->replayDebugger();
+		responsePayload = QUOTE({ "status" : "ok" });
+	}
+	else
+	{
+		responsePayload = QUOTE({"status" : "Debugger is not attached to the service" });
+	}
 	m_service->respond(response, responsePayload);
 }
 

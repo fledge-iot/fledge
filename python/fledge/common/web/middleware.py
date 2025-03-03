@@ -214,11 +214,15 @@ async def validate_requests(request):
                 '/fledge/control/request'):
             raise web.HTTPForbidden
     # Viewer user
-    elif int(request.user["role_id"]) == 3 and request.method != 'GET':
-        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
-                               '/fledge/extension/bucket/match']
-        if not str(request.rel_url).endswith(tuple(supported_endpoints)):
-            raise web.HTTPForbidden
+    elif int(request.user["role_id"]) == 3:
+        if request.method != 'GET':
+            supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
+                                   '/fledge/extension/bucket/match']
+            if not str(request.rel_url).endswith(tuple(supported_endpoints)):
+                raise web.HTTPForbidden
+        else:
+            if '/debug?action=' in str(request.rel_url):
+                raise web.HTTPForbidden
     # Data Viewer user
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':

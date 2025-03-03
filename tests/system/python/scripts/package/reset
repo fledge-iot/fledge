@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# Check if two arguments are passed
+if [ $# -eq 2 ]; then
+    # If exactly two arguments are passed
+    source ../../../common/scripts/reset_user_authentication "$1" "$2"
+else
+    # Default case
+    source ../../../common/scripts/reset_user_authentication "/usr/local/fledge"
+fi
+
 if [ "${FLEDGE_ENVIRONMENT}" == "docker" ]; then
     /usr/local/fledge/bin/fledge stop
     echo -e "YES\nYES" | /usr/local/fledge/bin/fledge reset || exit 1
@@ -9,11 +18,14 @@ if [ "${FLEDGE_ENVIRONMENT}" == "docker" ]; then
     /usr/local/fledge/bin/fledge status
 else
     echo "Stopping Fledge using systemctl ..."
-    sudo systemctl stop fledge
+    # FIXME: FOGL-1499 After the issue is resolved, remove the explicit 'kill' command and use 'systemctl stop' instead
+    # sudo systemctl stop fledge
+    /usr/local/fledge/bin/fledge kill
     echo -e "YES\nYES" | /usr/local/fledge/bin/fledge reset || exit 1
     echo
     echo "Starting Fledge using systemctl ..."
-    sudo systemctl start fledge
+    # FIXME: FOGL-1499 Once the issue is resolved, replace 'restart' with 'start
+    sudo systemctl restart fledge
     echo "Fledge Status"
     sudo systemctl status fledge | grep "Active"
 fi

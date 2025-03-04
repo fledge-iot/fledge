@@ -33,6 +33,7 @@
 .. |control_api_8| image:: images/control/control_api_8.jpg
 .. |control_api_9| image:: images/control/control_api_9.jpg
 .. |control_api_10| image:: images/control/control_api_10.jpg
+.. |features| image:: images/fetures.jpg
 
 .. Links
 .. |ExpressionFilter| raw:: html
@@ -48,6 +49,14 @@ Fledge Control Features
 ************************
 
 Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window. This does not mean however that they can not be used for non-critical closed loop control, however we would not advise the use of this functionality in safety critical situations.
+
+.. note::
+
+   The control features within Fledge may be disabled globally. This is done via the *Configuration* menu item, select the *Advanced::Features* configuration category. The *Control* toggle enables and disables access to control features. This may only be modified by users with administration rights within the system.
+
+   +-------------+
+   | |features | |
+   +-------------+
 
 Control Functions
 =================

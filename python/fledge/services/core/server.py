@@ -171,7 +171,8 @@ class Server:
             'default': 'true',
             'displayName': 'Control',
             'order': '1',
-            'mandatory': "true"
+            'mandatory': "true",
+            'permissions': ['admin']
         },
         'debugging': {
             'description': 'Allow the use of pipeline debugging features within the Fledge instance',
@@ -179,7 +180,8 @@ class Server:
             'default': 'true',
             'displayName': 'Pipeline Debugging',
             'order': '1',
-            'mandatory': "true"
+            'mandatory': "true",
+            'permissions': ['admin']
         }
     }
 

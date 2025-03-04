@@ -19,6 +19,7 @@
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
 .. |firewall| image:: images/firewall.jpg
+.. |features| image:: images/features.jpg
 
 
 .. Links
@@ -371,3 +372,20 @@ c) Now you can login with the newly created user **test**, with the following cU
     $ curl -T $FLEDGE_DATA/etc/certs/test.cert -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login
 
 Or use GUI |Require User Login|
+
+Managing Features
+-----------------
+
+Fledge provides  mechanism whereby the administration user can disable access to features that may not be desirable in a production system or my not be required for a particular installation.
+
+The controls to enable and disable these features can be found in the *Configuration* menu item under the configuration category *Advanced::Features*.
+
++------------+
+| |features| |
++------------+
+
+Currently there are two features that can be disabled on an instance wide basis; *Control* and *Pipeline Debugging*.
+
+The *Control* toggle button can be used to disable all write and operations calls from south plugins back to devices. To disable control features global untick the *Control* toggle button.
+
+The *Pipeline Debugger* toggle button will disable the ability to perform pipeline debugging in any north or south services within Fledge. If there are any pipeline debugger sessions in progress when the toggle is unset, they will be terminated.

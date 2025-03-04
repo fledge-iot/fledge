@@ -224,7 +224,7 @@ They have specific meanings:
 Tracing File
 ------------
 
-It is possible a generate detailed trace of all OMF messages POSTed to the AVEVA web server for troubleshooting purposes.
+It is possible to generate a detailed trace of all OMF messages POSTed to the AVEVA web server for troubleshooting purposes.
 This applies to all AVEVA OMF web server types: PI Web API, AVEVA CONNECT and Edge Data Store.
 To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic tab <../plugins/fledge-north-OMF/index.html#basic>`_.
 
@@ -455,9 +455,9 @@ If OMF North cannot create a PI Point, the messages are these:
     ERROR: Message 0 HTTP 409: Error, One or more PI Points could not be created.,
     WARNING: HTTP Code 409: Processing cannot continue until PI Server errors are corrected
 
-The reason why PI Points cannot be created is not provided by PI Web API.
+The reason why a PI Point cannot be created is not provided by PI Web API.
 It is possible that the user account configured for your OMF North instance does not have privileges to create or edit points.
-You can test this by starting PI System Management Tools under the same user account and trying to create a PI Point.
+You can test this by starting PI System Management Tools under the same user account and trying to create or edit a PI Point.
 
 It is possible that your PI License has expired or you have exceeded the licensed number of points.
 If this is the case, the messages are different.
@@ -478,10 +478,10 @@ PI Web API responds with an exception which is logged by OMF North:
     WARNING: Containers attempted: Calvin.random8
     WARNING: HTTP Code 500: Processing cannot continue until data archive errors are corrected
 
-OMF Plugin Data
-===============
+OMF Plugin Persisted Data
+=========================
 
-The OMF north plugin must create type information within the OMF subsystem of the PI Server before any data can be sent. This type information is persisted within the PI Server between sessions and must also be persisted within Fledge for each connection to a PI Server. This is done using the plugin data persistence features of the Fledge north plugin.
+The OMF North plugin must create type information within the OMF subsystem of the PI Server before any data can be sent. This type information is persisted within the PI Server between sessions and must also be persisted within Fledge for each connection to a PI Server. This is done using the plugin data persistence features of the OMF North plugin.
 
 This results in an important connection between a north service or task and a PI Server, which does add extra constraints as to what may be done at each end. It is very important this data is kept synchronized between the two ends. In normal circumstances this is not a problem, but there are some actions that can cause problems and require action on both ends.
 
@@ -501,7 +501,8 @@ Taking an existing Fledge north task or service and moving it to a new PI Server
 Managing Plugin Persisted Data
 ------------------------------
 
-This is not a feature that users would ordinarily need to be concerned with, however it is possible to enable *Developer Features* in the Fledge User Interface that will provide a mechanism to manage this data.
+This is not a feature that users would ordinarily need to be concerned with.
+It is possible to enable *Developer Features* in the Fledge User Interface that will provide a mechanism to manage this data.
 
 Enable Developer Features
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -525,7 +526,8 @@ Persisted data is only written when a plugin is shutdown, therefore in order to 
 | |OMF_Persisted| |
 +-----------------+
 
-It is possible for more than one plugin within a pipeline to persist data, in order to select between the plugins that have persisted data a menu is provided in the top left which will list all those plugins for which data can be viewed.
+It is possible for more than one plugin within a pipeline to persist data.
+In order to select between the plugins that have persisted data, a menu is provided in the top left which will list all those plugins for which data can be viewed.
 
 +--------------------+
 | |PersistedPlugins| |
@@ -544,7 +546,25 @@ As well as viewing the persisted data it is also possible to perform other actio
 Understanding The OMF Persisted Data
 ------------------------------------
 
-The persisted data takes the form of a JSON document, the following is an example for a Fledge instance configured with just the Sinusoid plugin.
+The persisted data takes the form of a JSON document.
+The format of the persisted data differs between *Linked Type* and *Complex Type* configurations.
+
+Linked Type Persisted Data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Persisted data for Linked Type configurations does not change.
+It is always:
+
+.. code-block:: json
+
+    {
+        "type-id":1
+    }
+
+Complex Type Persisted Data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following is an example of an OMF North instance configured for Complex Types with just the Sinusoid plugin:
 
 .. code-block:: json
 
@@ -600,64 +620,88 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 Possible solutions to common problems
 =====================================
 
-**Recreate a single or a sets of PI Server objects and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
-    procedure:
-        - disable the 1st north instance
-        - delete the objects in the PI Server, AF + Data archive, that are to be recreated or were partially sent.
-        - create a new **DISABLED** north instance using a new, unique name and having the same AF hierarchy as the 1st north instance
-        - install *fledge-filter-asset* on the new north instance
-        - configure *fledge-filter-asset* with a rule like the following one
+Recreate PI Server objects and resend data to the same AF Hierarchy
+-------------------------------------------------------------------
 
-          .. code-block:: JSON
+Recreate a single PI Server object or a set of PI Server objects.
+Resend all the data for them to the PI Server on the Asset Framework hierarchy level.
+This procedure applies to *Complex Type* configurations only.
+    
+Procedure:
+    - Disable the first OMF North instance
+    - Delete the AF Elements in the AF Database that are to be recreated or were partially sent
+    - Create a new **DISABLED** OMF North instance using a new, unique name and having the same AF hierarchy as the first OMF North instance
+    - Install *fledge-filter-asset* on the new OMF North instance
+    - Configure *fledge-filter-asset* with a rule like this:
 
-              {
-                "rules": [
-                  {
-                    "asset_name": "asset_4",
-                    "action": "include"
-                  }
-                ],
-                "defaultAction": "exclude"
-              }
+    .. code-block:: JSON
 
-        - enable the 2nd north instance
-        - let the  2nd north instance send the desired amount of data and then disable it
-        - enable the 1st north instance
+	{
+	   "rules":[
+	      {
+	         "asset_name":"asset_4",
+	         "action":"include"
+	      }
+	   ],
+	   "defaultAction":"exclude"
+	}
 
-    note:
-        - the 2nd north instance will be used only to recreate the objects and resend the data
-        - the 2nd north instance will resend all the data available for the specified *included* assets
-        - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
+    - Enable the second OMF North instance
+    - Let the second OMF North instance send the desired amount of data and then disable it
+    - Enable the first OMF North instance
 
+.. note::
 
-**Recreate all the PI Server objects and resend all the data to the PI Server on a different Asset Framework hierarchy level**
-    procedure:
-        - disable the 1st north instance
-        - create a new north instance using a new, unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
+    - The second OMF North instance will be used only to recreate the objects and resend the data
+    - The second OMF North instance will resend all the data available for the specified *included* assets
+    - There will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
-    note:
-        - this solution will create a set of new objects unrelated to the previous ones
-        - all the data stored in Fledge will be sent
+Recreate PI Server objects and resend data to the same AF Hierarchy
+-------------------------------------------------------------------
 
-**Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
-    procedure:
-        - disable the 1st north instance
-        - delete properly the objects on the PI Server, AF + Data archive, that were eventually partially deleted
-        - stop / start PI Web API
-        - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
+This is similar to the previous procedure except that the destination AF hierarchy will be different from the original.
 
-    note:
-        - all the types will be recreated on the PI Server. If the structure of each asset, number and types of the properties, does not change the data will be accepted and laced into the PI Server without any error. PI Web API 2019 SP1 1.13.0.6518 will accept the data.
-        - Using PI Web API 2019 SP1 1.13.0.6518 the PI Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
+Procedure:
+    - Disable the first OMF North instance
+    - Create a new OMF North instance using a new, unique name and having a new AF hierarchy.
+      The location in the AF hierarchy is set on the *Asset Framework* tab, *Default Asset Framework Location* field.
 
+.. note::
 
-**Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
-    procedure:
-        - disable the 1st north instance
-        - delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance
-        - stop / start PI Web API
-        - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
+    - This solution will create a set of new objects unrelated to the previous ones
+    - All the data stored in Fledge will be sent
 
-    note:
-        - all the data stored in Fledge will be sent
+Resend Data with Data Duplication
+---------------------------------
 
+Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the first OMF North instance WITH data duplication.
+
+Procedure:
+    - Disable the first OMF North instance
+    - Delete the AF Elements and AF Element Templates in the AF Database that were partially deleted
+    - Stop and restart PI Web API
+    - Create a new OMF North instance using the same AF hierarchy.
+      The location in the AF hierarchy is set on the *Asset Framework* tab, *Default Asset Framework Location* field.
+
+.. note::
+
+    - All the Types will be recreated on the PI Server.
+      If the structure of each asset, number and types of the properties do not change, the data will be accepted and laced into the PI Server without any error.
+      PI Web API 2019 SP1 (1.13.0.6518) (and later) will accept the data.
+    - Using PI Web API 2019 SP1 1.13.0.6518, the PI Data Archive creates objects with the compression feature disabled.
+      This will cause any data that was previously loaded and is still present in the PI Data Archive to be duplicated.
+
+Resend Data without Data Duplication
+------------------------------------
+
+Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the first OMF North instance WITHOUT data duplication.
+
+Procedure:
+    - Disable the first OMF North instance
+    - Delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the first OMF North instance
+    - Stop and restart PI Web API
+    - Create a new OMF North instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
+
+.. note::
+
+    - All the data stored in Fledge will be sent

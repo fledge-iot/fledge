@@ -60,6 +60,7 @@ Understanding Types when upgrading Fledge
 
 When upgrading from a Fledge version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the pre-OMF 1.2 Complex Types definitions to send data.
 This ensures that data will continue to be written to the same PI Points within the PI Server or other OMF end points. New OMF North instances will send data using the newer OMF 1.2 mechanism.
+
 It is possible to create a new OMF North plugin instance that sends data using Complex Types (that is, pre-OMF 1.2 format) by turning on the option *Complex Types* in the *Formats & Types* tab of the plugin configuration.
 **This is not recommended.**
 
@@ -155,10 +156,8 @@ Strictly speaking, this message is not completely accurate.
 The first three Containers already exist so their presence is confirmed.
 The last Container (Calvin.random4) will be new.
 
-The data type of the created PI Points and AF Attrbutes is not logged.
+The data type of the created PI Points and AF Attributes is not logged.
 You can check the data types by using the PI System Explorer to view the AF Attributes of the AF Element "Calvin" or by using PI System Management Tools to view the PI Points.
-
-.. _Containers with Complex Types:
 
 Containers with Complex Types
 #############################
@@ -177,7 +176,7 @@ The data streams in this example will be Attributes of a new AF Element called "
 To find the names of the individual data streams, check the definition of the AF Element Template "A_13582600746897291705_default_2_Calvin_typename_measurement"
 using PI System Explorer.
 You will see this AF Template has 3 AF Attributes named "random1" through "random3."
-The names of the underlying PI Points will be the Container name from the logged message concatentated with the AF Attribute names separated by a dot (".").
+The names of the underlying PI Points will be the Container name from the logged message concatenated with the AF Attribute names separated by a dot (".").
 This means the PI Point names will be *2measurement_Calvin.random1*, *2measurement_Calvin.random2* and *2measurement_Calvin.random3*.
 
 If at a later time another Reading named "Calvin" is received but with 4 Datapoints, the situation is much more complicated than for Linked Types.
@@ -220,8 +219,51 @@ They have specific meanings:
 
     The plugin makes this distinction by evaluating the HTTP return code from OMF POST calls.
     If an OMF POST call returns an HTTP return code of 200 (OK), it means an item already exists and is correctly defined.
-    If an OMF POST call returns an HTTP return code of 202 (Created), it means a new item has been created.
+    If an OMF POST call returns an HTTP return code of 201 (Created), it means a new item has been created.
     
+Tracing File
+------------
+
+It is possible a generate detailed trace of all OMF messages POSTed to the AVEVA web server for troubleshooting purposes.
+This applies to all AVEVA OMF web server types: PI Web API, AVEVA CONNECT and Edge Data Store.
+To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic tab <../plugins/fledge-north-OMF/index.html#basic>`_.
+
+The web server's response to the POSTing of an OMF message is almost always a JSON document which is included in the *omf.log* trace file.
+You can temporarily configure PI Web API to include additional information for debugging purposes.
+To do this, see the *DebugMode* setting on the `Other security settings <https://docs.aveva.com/bundle/pi-web-api/page/1023034.html>`_ page on the AVEVA documentation website.
+Debug information for OMF messages appears as a new *Parameters* array in an *EventInfo* object.
+For example, this JSON snippet includes the identifier of the OMF Container and the name of the underlying PI Point:
+
+.. code-block:: json
+
+       "Parameters":[
+          {
+             "Name":"Container.Id",
+             "Value":"sinusoid.sinusoid"
+          },
+          {
+             "Name":"Container.TypeId",
+             "Value":"Double64"
+          },
+          {
+             "Name":"Container.TypeVersion",
+             "Value":"1.0.0.0"
+          },
+          {
+             "Name":"Property",
+             "Value":"Double64"
+          },
+          {
+             "Name":"PIPoint.Name",
+             "Value":"sinusoid.sinusoid"
+          }
+       ]
+
+.. note::
+
+    AVEVA notes that *DebugMode* should be used for troubleshooting only and should be disabled when you are done.
+    In a production environment, the *DebugMode* attribute should be set to false to reduce vulnerability to cross-site scripting (XSS).
+
 How to check the PI Web API is installed and running
 ====================================================
 
@@ -244,7 +286,7 @@ Select the item *System* to verify the installed version:
 
 |img_010|
 
-Commands to check the PI WEB API
+Commands to check the PI Web API
 ================================
 
 Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
@@ -420,6 +462,21 @@ You can test this by starting PI System Management Tools under the same user acc
 It is possible that your PI License has expired or you have exceeded the licensed number of points.
 If this is the case, the messages are different.
 See the next section.
+
+PI License Expired or Exceeded
+------------------------------
+
+Processing of OMF Container messages may require creation of one or more PI Points.
+If the PI Data Archive license has expired or the limit on the number of PI Points has been exceeded, PI Point creation will fail.
+PI Web API responds with an exception which is logged by OMF North:
+
+.. code-block:: bash
+
+    ERROR: HTTP 500: An exception occurred when sending container information to the OMF endpoint: 1 message
+    ERROR: Message 0 HTTP 500: Error, One or more PI Points could not be created.,
+    ERROR: Message 0 Exception: [-12216] Maximum licensed aggregate Point /Module Count exceeded. Parameter name: FatalError (System.ArgumentException)
+    WARNING: Containers attempted: Calvin.random8
+    WARNING: HTTP Code 500: Processing cannot continue until data archive errors are corrected
 
 OMF Plugin Data
 ===============

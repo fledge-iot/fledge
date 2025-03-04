@@ -31,10 +31,10 @@ To see the list of commands available type the *commands* command
     attach:		Attach the pipeline debugger
     buffer:		Return the contents of the buffers at every pipeline element
     detach:		Detach the debugger from the pipeline
-    isolate:	Isolate the pipeline from the destination
+    isolate:	        Isolate the pipeline from the destination
     replay:		Replay the buffered data through the pipeline
     resumeIngest:	Resume the flow of data into the pipeline
-    setBuffer:	Set the number of readings to hold in each buffer, passing an integer argument
+    setBuffer:	        Set the number of readings to hold in each buffer, passing an integer argument
     state:		Return the state of the debugger
     step:		Allow readings to flow into the pipeline. Pass an optional number of readings to ingest; default to 1 if omitted
     store:		Allow data to flow out of the pipeline into storage

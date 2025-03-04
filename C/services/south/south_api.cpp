@@ -487,7 +487,7 @@ void SouthApi::getDebuggerBuffer(Response response, Request /*request*/)
 	string result;
 	if (m_service->debuggerAttached())
 	{
-		string result = m_service->getDebuggerBuffer();
+		result = m_service->getDebuggerBuffer();
 	}
 	else
 	{

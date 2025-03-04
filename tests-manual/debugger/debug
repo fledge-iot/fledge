@@ -5,8 +5,48 @@ else
 	echo You must pass a service name
 	exit 1
 fi
-export DEBUG_SERVICE=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
-type=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+
+
+fledge_authenticate() {
+
+    if [[ -f ~/.fledge_token ]]; then
+	cat ~/.fledge_token
+	exit 0
+    fi
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+	    read -p "Username: " USERNAME
+	    read -s -p "Password: " PASSWORD
+	    /bin/echo >/dev/tty
+    fi
+
+    # Get/Updates the rest API URL
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s http://localhost:8081/fledge/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.fledge_token
+	echo $token
+    fi
+}
+
+result=`curl -k -s http://localhost:8081/fledge/service || true`
+if [[ "${result}" == "401"* ]]; then
+	token=`fledge_authenticate`
+	if [[ "${token}" =~ "failed" ]]; then
+		echo "Authentication failed."
+		exit -1
+	fi
+	result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/fledge/ping || true`
+	export DEBUG_SERVICE=`curl -H "authorization: $token" -k -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+	type=`curl -H "authorization: $token" -k -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+else
+	export DEBUG_SERVICE=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+	type=`curl -s http://localhost:8081/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+fi
 if [ "$type" = "Southbound" ] ; then
 	export DEBUG_TYPE="south"
 elif [ "$type" = "Northbound" ]; then

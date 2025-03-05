@@ -25,10 +25,9 @@ This section describes how to troubleshoot issues with the PI Server integration
 You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
 
 - `Log files`_
-- `How to check the PI Web API is installed and running`_
-- `Commands to check the PI Web API`_
-- `Error messages and causes`_
-- `Possible solutions to common problems`_
+- `How to confirm that PI Web API is installed and running`_
+- `Error Messages and Causes`_
+- `Possible Solutions to Common Problems`_
 
 Complex Types vs. Linked Types
 ==============================
@@ -39,7 +38,7 @@ This section describes the representation of Readings in the PI System using eit
 Complex Types
 -------------
 
-When the OMF North operates, it accepts Readings from the Fledge storage and uses them to create OMF Types, Containers and Data messages.
+When the OMF North plugin operates, it accepts Readings from the Fledge storage and uses them to create OMF Types, Containers and Data messages.
 In the initial release of the OMF North plugin, all Types were Complex Types.
 This means the Type would include data streams that represent all Datapoints in the Reading.
 If a Reading arrived later with the same asset name but with additional Datapoints, OMF would be forced to create a new Type and new Containers.
@@ -83,19 +82,11 @@ screenshot from the Fledge GUI
 
     $ sudo cat /var/log/syslog | grep North_Readings_to_PI
 
-Sample message:
-
-    user.info, 6,1,Mar 15 08:29:57,localhost,Fledge, North_Readings_to_PI[15506]: INFO: SendingProcess is starting
-
-Another sample message:
-
-    North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
-
 Information Messages
 --------------------
 
 If the minimum logging level is set to Information, the OMF North plugin will write messages that list the OMF Types, Containers and Links it creates.
-This can be aid in understanding the artifacts created in the PI AF Server and the PI Data Archive and can help with troubleshooting.
+These messages can aid in understanding the artifacts created in the PI AF Server and the PI Data Archive and can help with troubleshooting.
 For example, if the *Default Asset Framework Location* is left at its default of */fledge/data_piwebapi/default* and the target AF Database is new,
 the following informational messages will be written to the log:
 
@@ -113,7 +104,7 @@ the following informational messages will be written to the log:
 Types, Elements and Links
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-OMF Types always appear in the AF Database as AF Element Templates.
+OMF Types appear in the AF Database as AF Element Templates.
 Templates can be viewed by running the PI System Explorer and navigating to the *Library* tab and expanding *Element Templates*.
 When an AF Element is created by OMF, its defining AF Template is displayed in the *Template* field of the *General* tab.
 This is the PI System Explorer view of the *default* AF Element:
@@ -124,7 +115,7 @@ The *Created Link* messages show the creation of links between parent and child 
 The identifiers in the *Created Link* messages are the "index" values of the AF Elements.
 The index values can be viewed by clicking the *Attributes* tab for an AF Element in PI System Explorer.
 Look for the value of the Attribute "__id."
-This is a view of the *default* AF Element Attributes:
+This is a view of the Attributes of the *default* AF Element:
 
 |AFAttribute_Default|
 
@@ -139,7 +130,7 @@ Containers with Linked Types
 
 With Linked Types, Containers become PI Points mapped to AF Attributes.
 Containers defined by Datapoints in a single Reading are created at once but additional Containers can be added later without breaking the configuration.
-For example, if a Reading named "Calvin" with 3 Datapoints named "random1" through "random3" is received by the plugin,
+For example, if a Reading with an asset named "Calvin" and 3 Datapoints named "random1" through "random3" is received by the plugin,
 the following message will be logged when the Containers are created:
 
 .. code-block:: bash
@@ -162,7 +153,7 @@ You can check the data types by using the PI System Explorer to view the AF Attr
 Containers with Complex Types
 #############################
 
-With Complex Types, Containers are defined by an OMF Type which has one or more data streams in it.
+With Complex Types, Containers are defined by an OMF Type which will have one or more data streams in it.
 The Type will define the names and data types of the individual data streams.
 Types are created by the plugin to reflect a Reading and its Datapoints when the Reading is received by the plugin.
 When the Container is created, it is important to log its OMF Type as well:
@@ -173,7 +164,7 @@ When the Container is created, it is important to log its OMF Type as well:
     INFO: Created Element Calvin-type2
 
 The data streams in this example will be Attributes of a new AF Element called "Calvin-type2."
-To find the names of the individual data streams, check the definition of the AF Element Template "A_13582600746897291705_default_2_Calvin_typename_measurement"
+To find the names of the individual data streams, check the definition of the AF Element Template "*A_13582600746897291705_default_2_Calvin_typename_measurement*"
 using PI System Explorer.
 You will see this AF Template has 3 AF Attributes named "random1" through "random3."
 The names of the underlying PI Points will be the Container name from the logged message concatenated with the AF Attribute names separated by a dot (".").
@@ -230,9 +221,11 @@ To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic ta
 
 The web server's response to the POSTing of an OMF message is almost always a JSON document which is included in the *omf.log* trace file.
 You can temporarily configure PI Web API to include additional information for debugging purposes.
-To do this, see the *DebugMode* setting on the `Other security settings <https://docs.aveva.com/bundle/pi-web-api/page/1023034.html>`_ page on the AVEVA documentation website.
+To include debugging information, set the *DebugMode* boolean attribute to *true* in the PI Web API System Configuration.
+See the `Configuration at runtime <https://docs.aveva.com/bundle/pi-web-api/page/1023022.html>`_
+and `Other security settings <https://docs.aveva.com/bundle/pi-web-api/page/1023034.html>`_ webpages on the AVEVA documentation website for instructions on how to do this.
 Debug information for OMF messages appears as a new *Parameters* array in an *EventInfo* object.
-For example, this JSON snippet includes the identifier of the OMF Container and the name of the underlying PI Point:
+For example, this JSON response snippet includes the identifier of the OMF Container and the name of the underlying PI Point:
 
 .. code-block:: json
 
@@ -262,14 +255,14 @@ For example, this JSON snippet includes the identifier of the OMF Container and 
 .. note::
 
     AVEVA notes that *DebugMode* should be used for troubleshooting only and should be disabled when you are done.
-    In a production environment, the *DebugMode* attribute should be set to false to reduce vulnerability to cross-site scripting (XSS).
+    In a production environment, the *DebugMode* attribute should be set to *false* to reduce vulnerability to cross-site scripting (XSS).
 
-How to check the PI Web API is installed and running
-====================================================
+How to confirm that PI Web API is installed and running
+=======================================================
 
-Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server, to
-verify the reachability and proper installation of PI Web API.
-If PI Web API is configured for Basic authentication a prompt, similar to the one shown below, requesting entry of the user name and password will be displayed
+Open the URL *https://piserver_1/piwebapi* in the browser (substituting *piserver_1* with the name and address of your PI Server) to
+confirm that your server is reachable and that PI Web API is properly installed.
+If PI Web API is configured for Basic authentication, a prompt similar to the example shown below requesting entry of the user name and password will be displayed:
 
 |img_002|
 
@@ -286,8 +279,8 @@ Select the item *System* to verify the installed version:
 
 |img_010|
 
-Commands to check the PI Web API
-================================
+Commands to check PI Web API
+----------------------------
 
 Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
 
@@ -319,23 +312,10 @@ Following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 Proceed with the drill down operation up to the desired level/asset.
 
-Error messages and causes
+Error Messages and Causes
 =========================
 
-Some error messages and causes:
-
-.. list-table::
-    :widths: 50 50
-    :header-rows: 1
-
-    * - Message
-      - Cause
-    * - North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The **PI Web API server is not reachable**, verify the network reachability
-      - Fledge is not able to reach the machine in which PI Server is running due to a network problem or a firewall restriction.
-    * - North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, **503 Service Unavailable**
-      - Fledge is able to reach the machine in which PI Server is executing but the PI Web API is not running.
-    * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
-      - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
+This section documents some of the OMF North error messages that can appear in the Linux system log file */var/log/syslog*.
 
 Loss of Connection to the PI Web API Server
 -------------------------------------------
@@ -380,7 +360,7 @@ Some specific examples are listed in this section.
 HTTP Code 409: The supplied container overlaps with a different existing container
 ----------------------------------------------------------------------------------
 
-This message means that OMF North is attempting to create a new PI Point but a point with the same name exists with a different configuration.
+This message means that OMF North is attempting to create a new PI Point but a point with the same name already exists with a different configuration.
 There is a procedure for repairing the PI Points if this occurs.
 The context in which this message appears differs between configurations with Complex Types and Linked Types.
 In both cases, the list of messages ends with "*Processing cannot continue until data archive errors are corrected.*"
@@ -398,7 +378,7 @@ Complex Types
     ERROR: Message 0 HTTP 409: Error, The supplied container overlaps with a different existing container., Data Archive requires PI Point names to be unique, and treats PI Point names as case-insensitive. The specified type and container were translated into PI Point names, but one or more resulting names were already being used.
     WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
 
-Follow the description in the :ref:`Containers with Complex Types` section to find the names of the PI Points referenced by these messages.
+Follow the description in the `Containers with Complex Types`_ section to find the names of the PI Points referenced by these messages.
 
 Linked Types
 ~~~~~~~~~~~~
@@ -415,7 +395,7 @@ Linked Types
 Finding the problem PI Points in a Linked Types configuration is straightforward:
 the point names appear in the *Containers attempted* message.
 It is not possible to tell which of the PI Points has the problem.
-Applying the repair procedure to all points listed in the message is safe.
+Applying the repair procedure to all PI Points listed in the message is safe.
 
 Repair Procedure
 ~~~~~~~~~~~~~~~~
@@ -463,8 +443,8 @@ It is possible that your PI License has expired or you have exceeded the license
 If this is the case, the messages are different.
 See the next section.
 
-PI License Expired or Exceeded
-------------------------------
+PI License Expired or Limit Exceeded
+------------------------------------
 
 Processing of OMF Container messages may require creation of one or more PI Points.
 If the PI Data Archive license has expired or the limit on the number of PI Points has been exceeded, PI Point creation will fail.
@@ -475,7 +455,7 @@ PI Web API responds with an exception which is logged by OMF North:
     ERROR: HTTP 500: An exception occurred when sending container information to the OMF endpoint: 1 message
     ERROR: Message 0 HTTP 500: Error, One or more PI Points could not be created.,
     ERROR: Message 0 Exception: [-12216] Maximum licensed aggregate Point /Module Count exceeded. Parameter name: FatalError (System.ArgumentException)
-    WARNING: Containers attempted: Calvin.random8
+    WARNING: Containers attempted: Calvin.random4
     WARNING: HTTP Code 500: Processing cannot continue until data archive errors are corrected
 
 OMF Plugin Persisted Data
@@ -617,15 +597,16 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 |                 | exact type definition sent to the PI Web API endpoint.                                    |
 +-----------------+-------------------------------------------------------------------------------------------+
 
-Possible solutions to common problems
+Possible Solutions to Common Problems
 =====================================
+
+The solutions in this section apply to *Complex Type* configurations only.
 
 Recreate PI Server objects and resend data to the same AF Hierarchy
 -------------------------------------------------------------------
 
 Recreate a single PI Server object or a set of PI Server objects.
 Resend all the data for them to the PI Server on the Asset Framework hierarchy level.
-This procedure applies to *Complex Type* configurations only.
     
 Procedure:
     - Disable the first OMF North instance
@@ -698,9 +679,10 @@ Recreate all the PI Server objects and resend all the data to the PI Server on t
 
 Procedure:
     - Disable the first OMF North instance
-    - Delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the first OMF North instance
+    - Delete all the AF Elements and AF Element Templates in the AF Database and PI Points in the PI Data Archive that were sent by the first OMF North instance
     - Stop and restart PI Web API
-    - Create a new OMF North instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
+    - Create a new OMF North instance using the same AF hierarchy.
+      The location in the AF hierarchy is set on the *Asset Framework* tab, *Default Asset Framework Location* field.
 
 .. note::
 

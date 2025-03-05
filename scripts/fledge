@@ -450,6 +450,7 @@ fledge_authenticate() {
 	fi
         if [ -z ${PASSWORD+x} ]; then
 	    read -s -p "Password: " PASSWORD
+	    /bin/echo > /dev/tty
 	fi
     fi
 

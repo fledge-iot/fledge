@@ -38,23 +38,23 @@
 Securing Fledge
 *****************
 
-The default installation of Fledge in version 3.0 and after have authentication features enabled by default, using the username and password option. There are other security features that are not enabled by default that should be considered in order to enhance security and for compliance with any local security restrictions.
+The default installation of Fledge in version 3.0 and after have authentication features enabled by default, using the username and password option. Two users are created, one with administrator privileges and another as an edit user. There are other security features that are not enabled by default that should be considered in order to enhance security and for compliance with any local security restrictions.
 
 .. note::
 
-   It is recommended that once installed the default password is changed at the earliest opportunity.
+   It is strongly recommended that once installation is complete the default passwords are changed at the earliest opportunity.
 
-Older installations have security disabled by default, whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. There are several features in Fledge that can be used to add security to Fledge. Version 3.0 of Fledge and onward can still be configured to be open by disabling the security features if desired, although this is not recommended.
+In installations of Fledge prior to version 3.0 authentication is disabled by default. Whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. Fledge offers several features that can enhance security. Versions of Fledge from 3.0 and onward can still be configured to be open by disabling the security features if desired, although this is not recommended.
 
-  - The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used.
+  - The REST API by default supports unencrypted HTTP requests, it can be switched to require HTTPS to be used.
 
-  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. This is now the default for new installation from Fledge 3.0 onward.
+  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. This has now become the default in version 3.0 and later.
    
-  - Authentication can be via username and password or by means of an authentication certificate. The default authentication in Fledge 3.0 and onward us to use username and password for authentication.
+  - Authentication can be via username and password or by means of an authentication certificate. The default authentication in Fledge 3.0 and onward is to use username and password for authentication.
 
     .. note::
     
-       When using username and password authentication it is recommended that you disable support for unencrypted HTTP requests.
+       When using username and password authentication it is recommended to disable support for unencrypted HTTP requests.
 
   - Fledge supports a number of different user types or roles, care should be taken to only give users access they require and in particular the administration user rights should be reserved.
 
@@ -66,11 +66,11 @@ Older installations have security disabled by default, whilst this is acceptable
 
   - Fledge maintains full audit logs of all updates to the Fledge configuration, and other events. This allows for complete auditing of who made what changes to the Fledge configuration and when the changes were made.
 
-  - Fledge can have optional allow and deny lists configured that list those hosts that are either permitted to connect to the UI and REST API or are denied from access.
+  - Fledge can have optional allow and deny lists configured that list those hosts that are either permitted to connect to the UI and REST API or are denied access.
 
 .. note::
 
-   Although all these features add security to a Fledge installation it is still recommended to run Fledge within firewalls and limit those networks that have access to the Fledge API port when using for production purposes.
+   It is recommended to run Fledge behind firewalls and restrict access to the Fledge API port to trusted networks when using it in production environments.
 
 Enabling HTTPS Encryption
 =========================

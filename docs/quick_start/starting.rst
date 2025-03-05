@@ -16,7 +16,15 @@ For example, to start the Fledge system, open a session to the Fledge device and
 
 /usr/local/fledge/bin/fledge start
 
-If authentication is enabled, which is the default mode for Fledge version 3.0 onward, then the commands can be passed a username, using the -u flag and will prompt for a password for that user.
+If authentication is enabled, which is the default mode for Fledge version 3.0 onward, then a number of the  commands require authentication. Authentication can be accomplished by several means;
+
+  - Set the environment variable *USERNAME* to be the user name.
+    
+  - Pass the *-u* flag flag to the command to specify a user name.
+
+  - If neither of the above are done the user will be prompted to enter a user name.
+
+In both cases the user will be prompted to enter a password. It is possible, but not recommended, to set an environment variable *PASSWORD* with the plain text version of the password.
 
 .. code-block:: console
 
@@ -27,4 +35,6 @@ If authentication is enabled, which is the default mode for Fledge version 3.0 o
 
 .. note::
 
-   The *start* and *status* commands do not require authentication.
+   The *start*, *status* and *help* commands do not require authentication.
+
+Following a successful authentication attempt a time based token is issued that allows the user to run further commands, for a limited time, without the need to authenticate again.

@@ -14,15 +14,15 @@ Fledge offers an easy-to-use, browser-based GUI.  To access the GUI, open your b
 
 .. note::
 
-   As of version 3.0 of Fledge and onward the user must login in order to access Fledge. Two default usernames; *admin* and *user* are created on installation. The password for both of these is set to *fledge*. It is recommended that both these passwords be changed at the earliest opportunity.
+   As of version 3.0 of Fledge and onward the user must login in order to access Fledge. Two default usernames; *admin* and *user* are created on installation. The password for both of these is set to *fledge*. It is strongly recommended to change both passwords at the earliest opportunity.
 
 +---------+
 | |login| |
 +---------+
 
-Enter a username and password to authenticate, unless already changed these are the username *admin* and the password *fledge*.
+Enter a username and password to authenticate, unless changed, the username to use is *admin* with a password of *fledge*.
 
-The link, *Setup Instance* can be used to configure the URL of the Fledge instance if you have installed the Fledge GUI on a different host from Fledge itself.
+The *Setup Instance* link can be used to configure the URL of the Fledge instance if you have installed the Fledge GUI on a different host from Fledge itself.
 
 To understand more relating to the Fledge security features please see the |secure| section of the documentation.
 

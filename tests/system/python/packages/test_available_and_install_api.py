@@ -15,6 +15,8 @@ import pytest
 import py
 import uuid
 import time
+from pathlib import Path
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -29,10 +31,14 @@ errors = []
 """ Hold all the Package discovery errors in list """
 
 
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
+SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package".format(PROJECT_ROOT)
+
+
 @pytest.fixture
 def reset_packages():
     try:
-        subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/package/remove"], shell=True, check=True)
+        subprocess.run(["cd {} && ./remove".format(SCRIPTS_DIR_ROOT)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "remove package script failed"
 
@@ -40,10 +46,21 @@ def reset_packages():
 @pytest.fixture
 def setup_package(package_build_version):
     try:
-        subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
+        subprocess.run(["cd {} && ./setup {}".format(SCRIPTS_DIR_ROOT, package_build_version)],
                        shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "setup package script failed"
+
+
+@pytest.fixture
+def reset_fledge(wait_time):
+    try:
+        subprocess.run(["cd {} && ./reset".format(SCRIPTS_DIR_ROOT)], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "reset package script failed!"
+
+    # Wait for fledge server to start
+    time.sleep(wait_time)
 
 
 def load_data_from_json():
@@ -56,7 +73,7 @@ def load_data_from_json():
 
 class TestPackages:
 
-    def test_reset_and_setup(self, reset_packages, setup_package):
+    def test_reset_and_setup(self, reset_packages, setup_package, reset_fledge):
         # TODO: Remove this workaround
         #  Use better setup & teardown methods
         pass

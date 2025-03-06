@@ -39,9 +39,9 @@ READ_KEY = "temperature"
 SENSOR_VALUE = 21
 
 # scale(set) factor
-SCALE = 9/5
-OFFSET = 32
-OUTPUT = (SENSOR_VALUE * SCALE) + OFFSET
+SCALE = "9/5"
+OFFSET = "32"
+OUTPUT = (SENSOR_VALUE * eval(SCALE)) + int(OFFSET)
 
 
 class TestE2ePiEgressWithScalesetFilter:
@@ -63,7 +63,6 @@ class TestE2ePiEgressWithScalesetFilter:
         r = r.read().decode()
         jdoc = json.loads(r)
         return utils.serialize_stats_map(jdoc)
-
 
     @pytest.fixture
     def start_south_north_with_filter(self, reset_and_start_fledge, add_south, south_branch,
@@ -104,15 +103,14 @@ class TestE2ePiEgressWithScalesetFilter:
                                         taskname=TASK_NAME, start_task=False)
 
         filter_cfg = {"enable": "true",
-                      "factors": {"factors": [
+                      "factors": json.dumps([
                           {
                               "asset": "{}{}".format(ASSET_PREFIX, ASSET_NAME),
                               "datapoint": READ_KEY,
                               "scale": SCALE,
                               "offset": OFFSET
-                          }]}
+                          }])
                       }
-
         add_filter(FILTER_PLUGIN, filter_branch, EGRESS_FILTER_NAME, filter_cfg, fledge_url, TASK_NAME)
         enable_schedule(fledge_url, TASK_NAME)
 

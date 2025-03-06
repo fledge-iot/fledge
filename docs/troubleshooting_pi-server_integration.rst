@@ -219,6 +219,11 @@ It is possible to generate a detailed trace of all OMF messages POSTed to the AV
 This applies to all AVEVA OMF web server types: PI Web API, AVEVA CONNECT and Edge Data Store.
 To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic tab <../plugins/fledge-north-OMF/index.html#basic>`_.
 
+.. note::
+
+    The *Enable Tracing* feature should be disabled in production environments.
+    The *omf.log* file can grow to be quite large if the feature is left enabled.
+
 The web server's response to the POSTing of an OMF message is almost always a JSON document which is included in the *omf.log* trace file.
 You can temporarily configure PI Web API to include additional information for debugging purposes.
 To include debugging information, set the *DebugMode* boolean attribute to *true* in the PI Web API System Configuration.

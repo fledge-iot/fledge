@@ -157,7 +157,7 @@ PostgreSQL may be installed locally, on the same Linux host as Fledge. Or it may
 
     There is some state that may be held outside the database, such as scripts, which will also need to be handled to obtain a truly stateless Fledge installation in all cases.
 
-.. InstallingPostgreSQL:
+.. _InstallingPostgreSQL:
 
 Installing A PostgreSQL Server
 ------------------------------
@@ -309,6 +309,7 @@ Follow the steps below to set up PostgreSQL on a remote machine and enable secur
          Each entry in the file consists of five fields, these fields are described below:
 
             .. list-table::
+               :widths: 25 55 20
                :header-rows: 1
 
                * - Field

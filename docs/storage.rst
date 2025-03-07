@@ -177,8 +177,8 @@ There are a number of configuration items that can be used to tune the performan
 
 .. _PostgreSQL:
 
-PostgreSQL as a storage system
-==============================
+PostgreSQL Installation
+=======================
 
 PostgreSQL may be installed locally on the same Linux host as Fledge or remotely on a separate host. This option to install PostgreSQL on a separate host makes it an ideal choice for containerised environments, where a stateless Fledge installation is a common goal. This allows all configuration state and buffered readings can held outside of the Fledge container, in a separate PostgreSQL container.
 

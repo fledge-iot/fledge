@@ -569,6 +569,12 @@ bool DataLoad::loadFilters(const string& categoryName)
 	if (rval)
 	{
 		m_pipeline = filterPipeline;
+		// If we previously had a debugger attached then attach to the new pipeline
+		if (m_debuggerAttached)
+		{
+			attachDebugger();
+			setDebuggerBuffer(m_debuggerBufferSize);
+		}
 	}
 	else
 	{

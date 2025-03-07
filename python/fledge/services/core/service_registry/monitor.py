@@ -104,6 +104,11 @@ class Monitor(object):
                             res = json.loads(text)
                             if res["uptime"] is None:
                                 raise ValueError('res.uptime is None')
+                            # Set the 'debug' status for non-empty values, applicable only to
+                            # Southbound and Northbound services
+                            if (service_record._type in ('Southbound', 'Northbound') and
+                                    res.get("debug") not in [None, {}, '']):
+                                service_record._debug = res["debug"]
                 except (asyncio.TimeoutError, aiohttp.client_exceptions.ServerTimeoutError) as ex:
                     service_record._status = ServiceRecord.Status.Unresponsive
                     check_count[service_record._id] += 1

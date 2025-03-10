@@ -244,7 +244,7 @@ class Server:
             'description': 'API Call Authentication',
             'type': 'enumeration',
             'options': ['mandatory', 'optional'],
-            'default': 'optional',
+            'default': 'mandatory',
             'displayName': 'Authentication',
             'order': '5',
             'permissions': ['admin']

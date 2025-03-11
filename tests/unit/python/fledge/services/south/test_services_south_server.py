@@ -87,12 +87,7 @@ plugin_attrs = {
 }
 
 
-@asyncio.coroutine
-def mock_coro():
-    yield from false_coro()
-
-
-async def false_coro():
+async def mock_coro():
     return True
 
 

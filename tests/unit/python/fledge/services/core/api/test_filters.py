@@ -94,8 +94,7 @@ class TestFilters:
             query_tbl_patch.assert_called_once_with('filters')
 
     async def test_get_filter_by_name(self, client):
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -436,8 +435,7 @@ class TestFilters:
             assert 2 == get_cat_info_patch.call_count
 
     async def test_delete_filter(self, client):
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -1224,8 +1222,7 @@ class TestFilters:
             },
         }
 
-        @asyncio.coroutine
-        def get_cat(category_name):
+        async def get_cat(category_name):
             category = category_name
             if category == "random1_scale1":
                 return mock_cat
@@ -1234,12 +1231,10 @@ class TestFilters:
             if category == 'meta2':
                 return mock_cat
 
-        @asyncio.coroutine
-        def create_cat():
+        async def create_cat():
             return {}
 
-        @asyncio.coroutine
-        def create_child_cat():
+        async def create_child_cat():
             return {}
 
         storage_client_mock = MagicMock(StorageClientAsync)

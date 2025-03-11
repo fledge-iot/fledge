@@ -702,8 +702,7 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_new(self, mocker):
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return ""
 
         # GIVEN
@@ -747,8 +746,7 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_new_with_enable_modified(self, mocker):
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return ""
 
         # GIVEN
@@ -796,8 +794,7 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_update(self, mocker):
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return ""
 
         # GIVEN
@@ -842,8 +839,7 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_update_with_enable_modified(self, mocker):
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return ""
 
         # GIVEN

@@ -2599,7 +2599,7 @@ class TestConfigurationManager:
         (False, [('service', 'Fledge service', 'SERV'), ('rest_api', 'User REST API', 'API')])
     ])
     async def test__read_all_groups(self, reset_singleton, value, expected_result):
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = json.loads(args[1])
             if table == "configuration":
@@ -2810,14 +2810,13 @@ class TestConfigurationManager:
         category_name = 'catname'
         category_description = 'catdesc'
         category_val = 'catval'
-        def mock_coro2():
-            return category_val
-
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await self.async_mock(response)
+            _rv1 = await self.async_mock(category_val)
         else:
             _attr = asyncio.ensure_future(self.async_mock(response))
+            _rv1 = asyncio.ensure_future(self.async_mock(category_val))
 
         attrs = {"update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2827,7 +2826,7 @@ class TestConfigurationManager:
             with patch.object(PayloadBuilder, 'SET', return_value=PayloadBuilder) as pbsetpatch:
                 with patch.object(PayloadBuilder, 'WHERE', return_value=PayloadBuilder) as pbwherepatch:
                     with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                        with patch.object(c_mgr, '_read_category_val', return_value=mock_coro2()) as readpatch:
+                        with patch.object(c_mgr, '_read_category_val', return_value=_rv1()) as readpatch:
                             await c_mgr._update_category(category_name, category_val, category_description)
                         readpatch.assert_called_once_with(category_name)
                     pbpayloadpatch.assert_called_once_with()
@@ -3227,7 +3226,7 @@ class TestConfigurationManager:
         patch_read_cat_val.assert_called_once_with("south")
 
     async def test_delete_category_and_children_recursively(self, mocker, reset_singleton):
-        def mock_coro(a, b):
+        async def mock_coro(a, b):
             return expected_result
 
         async def mock_read_all_child_category_names(cat):
@@ -3368,10 +3367,10 @@ class TestConfigurationManager:
             audit_info.has_calls(audit_calls, any_order=True)
 
     async def test_delete_category_and_children_recursively_exception(self, mocker, reset_singleton):
-        def mock_coro(a, b):
+        async def mock_coro(a, b):
             return expected_result
 
-        def mock_read_all_child_category_names(cat):
+        async def mock_read_all_child_category_names(cat):
             """
             Mimics 
                      G      I

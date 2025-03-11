@@ -2826,7 +2826,7 @@ class TestConfigurationManager:
             with patch.object(PayloadBuilder, 'SET', return_value=PayloadBuilder) as pbsetpatch:
                 with patch.object(PayloadBuilder, 'WHERE', return_value=PayloadBuilder) as pbwherepatch:
                     with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
-                        with patch.object(c_mgr, '_read_category_val', return_value=_rv1()) as readpatch:
+                        with patch.object(c_mgr, '_read_category_val', return_value=_rv1) as readpatch:
                             await c_mgr._update_category(category_name, category_val, category_description)
                         readpatch.assert_called_once_with(category_name)
                     pbpayloadpatch.assert_called_once_with()

@@ -20,13 +20,13 @@ from fledge.services.core.scheduler.entities import *
 from fledge.services.core.scheduler.exceptions import *
 from fledge.common.storage_client.storage_client import StorageClientAsync
 
-__author__ = "Amarendra K Sinha"
+__author__ = "Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-async def mock_task():
+async def mock():
     return ""
 
 
@@ -54,7 +54,7 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_paused', False)
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")
-        mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=asyncio.ensure_future(mock()))
         mocker.patch.object(scheduler, '_terminate_child_processes')
         mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=_rv)
 
@@ -195,7 +195,7 @@ class TestScheduler:
             _rv = asyncio.ensure_future(mock_process())
 
         mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=_rv)
-        mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock()))
         mocker.patch.object(scheduler, '_resume_check_schedules')
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")
         mocker.patch.object(scheduler, '_wait_for_task_completion')
@@ -242,7 +242,7 @@ class TestScheduler:
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.multiple(scheduler, _purge_tasks_task=None,
                               _last_task_purge_time=None)
-        mocker.patch.object(scheduler, 'purge_tasks', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, 'purge_tasks', return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         scheduler._check_purge_tasks()
@@ -264,7 +264,7 @@ class TestScheduler:
         mocker.patch.multiple(scheduler, _max_running_tasks=10,
                               _start_time=current_time)
         await scheduler._get_schedules()
-        mocker.patch.object(scheduler, '_start_task', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_start_task', return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         earliest_start_time = await scheduler._check_schedules()
@@ -522,7 +522,7 @@ class TestScheduler:
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
-        cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock_task()))
+        cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock()))
         get_cat = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=_rv)
 
         # WHEN
@@ -548,13 +548,13 @@ class TestScheduler:
 
         current_time = time.time()
         mocker.patch.object(scheduler, '_schedule_first_task')
-        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock()))
         mocker.patch.multiple(scheduler, _core_management_port=9999,
                               _core_management_host="0.0.0.0",
                               current_time=current_time - 3600)
 
         # TODO: Remove after implementation of above test test__read_config()
-        mocker.patch.object(scheduler, '_read_config', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_read_config', return_value=asyncio.ensure_future(mock()))
 
         assert scheduler._ready is False
 
@@ -582,8 +582,8 @@ class TestScheduler:
         log_info = mocker.patch.object(scheduler._logger, "info")
         log_exception = mocker.patch.object(scheduler._logger, "exception")
 
-        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock_task()))
-        mocker.patch.object(scheduler, '_resume_check_schedules', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, '_scheduler_loop', return_value=asyncio.ensure_future(mock()))
+        mocker.patch.object(scheduler, '_resume_check_schedules', return_value=asyncio.ensure_future(mock()))
         mocker.patch.object(scheduler, '_purge_tasks_task', return_value=asyncio.ensure_future(asyncio.sleep(.1)))
         mocker.patch.object(scheduler, '_scheduler_loop_task', return_value=asyncio.ensure_future(asyncio.sleep(.1)))
         current_time = time.time()
@@ -702,18 +702,17 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_new(self, mocker):
-        async def mock_coro():
-            return ""
-
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         log_info = mocker.patch.object(scheduler._logger, "info")
 
-        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule",
+                                              return_value=asyncio.ensure_future(mock()))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
+                                               return_value=asyncio.ensure_future(mock()))
 
         schedule_id = uuid.uuid4()
         schedule_row = scheduler._ScheduleRow(
@@ -746,17 +745,16 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_new_with_enable_modified(self, mocker):
-        async def mock_coro():
-            return ""
-
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
 
-        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule",
+                                              return_value=asyncio.ensure_future(mock()))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
+                                               return_value=asyncio.ensure_future(mock()))
 
         schedule_id = uuid.uuid4()
         schedule_row = scheduler._ScheduleRow(
@@ -794,12 +792,9 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_update(self, mocker):
-        async def mock_coro():
-            return ""
-
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         schedule_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
@@ -816,8 +811,10 @@ class TestScheduler:
             process_name='TestProcess')
         schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
 
-        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule",
+                                              return_value=asyncio.ensure_future(mock()))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
+                                               return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         await scheduler.save_schedule(schedule)
@@ -839,12 +836,9 @@ class TestScheduler:
 
     @pytest.mark.asyncio
     async def test_save_schedule_update_with_enable_modified(self, mocker):
-        async def mock_coro():
-            return ""
-
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
         schedule_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
@@ -861,8 +855,10 @@ class TestScheduler:
             process_name='TestProcess')
         schedule = scheduler._schedule_row_to_schedule(schedule_id, schedule_row)
 
-        enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
+        enable_schedule = mocker.patch.object(scheduler, "enable_schedule",
+                                              return_value=asyncio.ensure_future(mock()))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule",
+                                               return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         await scheduler.save_schedule(schedule, is_enabled_modified=True)
@@ -963,7 +959,7 @@ class TestScheduler:
         await scheduler._get_schedules()
         mocker.patch.object(scheduler, '_ready', True)
         mocker.patch.object(scheduler, '_task_processes')
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
         log_info = mocker.patch.object(scheduler._logger, "info")
         sch_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
 
@@ -1039,8 +1035,8 @@ class TestScheduler:
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         sch_id = uuid.UUID("d1631422-9ec6-11e7-abc4-cec278b6b50a")  # backup
-        queue_task = mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock_task()))
-        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
+        queue_task = mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock()))
+        audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         status, message = await scheduler.enable_schedule(sch_id)
@@ -1066,7 +1062,7 @@ class TestScheduler:
         # GIVEN
         scheduler, schedule, log_info, log_exception, log_error, log_debug = await self.scheduler_fixture(mocker)
         sch_id = uuid.UUID("ada12840-68d3-11e7-907b-a6006ad3dba0")  #Coap
-        mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock_task()))
+        mocker.patch.object(scheduler, 'queue_task', return_value=asyncio.ensure_future(mock()))
 
         # WHEN
         status, message = await scheduler.enable_schedule(sch_id)

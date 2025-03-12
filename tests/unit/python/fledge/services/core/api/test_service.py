@@ -71,9 +71,20 @@ class TestService:
             ServiceRegistry.register('name6', 'Northbound', 'address6', 6, 6, 'http')
             ServiceRegistry.register('name7', 'Dispatcher', 'address7', 7, 7, 'http')
             ServiceRegistry.register('name8', 'BucketStorage', 'address8', 8, 8, 'http')
+            ServiceRegistry.register('name9', 'Northbound', 'address9', 9, 9, 'http')
             ServiceRegistry.unregister(s_id_3)
             ServiceRegistry.mark_as_failed(s_id_4)
-
+            default_debugger = {"debugger": "Detached"}
+            svc_3_debugger = {"debugger": "Attached", "ingress": "Suspended", "egress": "Storage"}
+            svc_9_debugger = {"debugger": "Attached", "ingress": "Running", "egress": "Storage"}
+            for service_record in ServiceRegistry.all():
+                if service_record._type in ('Southbound', 'Northbound'):
+                    if service_record._name == 'name3':
+                        service_record._debug = svc_3_debugger
+                    elif service_record._name == 'name9':
+                        service_record._debug = svc_9_debugger
+                    else:
+                        service_record._debug = default_debugger
             resp = await client.get('/fledge/service')
             assert 200 == resp.status
             result = await resp.text()
@@ -96,7 +107,8 @@ class TestService:
                         'protocol': 'protocol2',
                         'status': 'running',
                         'name': 'name2',
-                        'management_port': 2
+                        'management_port': 2,
+                        'debug': default_debugger
                     },
                     {
                         'type': 'Southbound',
@@ -105,7 +117,8 @@ class TestService:
                         'protocol': 'protocol3',
                         'status': 'shutdown',
                         'name': 'name3',
-                        'management_port': 3
+                        'management_port': 3,
+                        'debug': svc_3_debugger
                     },
                     {
                         'type': 'Notification',
@@ -132,7 +145,8 @@ class TestService:
                         'protocol': 'http',
                         'status': 'running',
                         'name': 'name6',
-                        'management_port': 6
+                        'management_port': 6,
+                        'debug': default_debugger
                     },
                     {
                         'type': 'Dispatcher',
@@ -151,10 +165,20 @@ class TestService:
                         'status': 'running',
                         'name': 'name8',
                         'management_port': 8
+                    },
+                    {
+                        'type': 'Northbound',
+                        'service_port': 9,
+                        'address': 'address9',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name9',
+                        'management_port': 9,
+                        'debug': svc_9_debugger
                     }
                 ]
             }
-        assert 10 == log_patch_info.call_count
+        assert 11 == log_patch_info.call_count
 
     @pytest.mark.parametrize("_type", ["blah", 1, "storage"])
     async def test_bad_get_service_with_type(self, client, _type):

@@ -222,6 +222,16 @@ Fledge provides a mechanism to limit the age of passwords in use within the syst
 
 Whenever a user logs into Fledge the age of their password is checked against the maximum allowed password age. If their password has reached that age then the user is not logged in, but is instead forced to enter a new password. They must then login with that new password. In addition the system maintains a history of the last three passwords the user has used and prevents them being reused.
 
+Fledge Management Script Login
+------------------------------
+
+Fledge supports a number of mechanisms that for user login process when using the *fledge* script to manage Fledge startup, shutdown and other operations.
+
+  - If no action is taken the user name and password prompts will be presented to the user  when running the *fledge* script.
+
+  - The user name set one or both of the FLEDGE_USER and FLEDGE_PASSWORD environment variables to automate the entry of the username or password.
+
+  - The user name create an authentication file that contains the username and password
 
 User Management
 ===============

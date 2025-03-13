@@ -445,8 +445,8 @@ fledge_authenticate() {
     fd=0
     if [[ -t "$fd" ]]; then
 	# We have an interactive shell
-        if [ -z ${USERNAME+x} ]; then
-	    read -p "Username: " USERNAME
+        if [ -z ${FLUSERNAME+x} ]; then
+	    read -p "Username: " FLUSERNAME
 	fi
         if [ -z ${PASSWORD+x} ]; then
 	    read -s -p "Password: " PASSWORD
@@ -456,7 +456,7 @@ fledge_authenticate() {
 
     # Get/Updates the rest API URL
     get_rest_api_url
-    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    payload='{ "username" : "'${FLUSERNAME}'", "password" : "'${PASSWORD}'" }'
     result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
     if [[ ! "$result" =~ "Logged in successfully" ]]; then
 	echo "failed"
@@ -808,7 +808,7 @@ get_rest_api_url
 while getopts "u:p:" option; do
     case "$option" in
     u)
-        USERNAME=${OPTARG}
+        FLUSERNAME=${OPTARG}
         ;;
     p)
         PASSWORD=${OPTARG}
@@ -817,10 +817,10 @@ while getopts "u:p:" option; do
 done
 shift $((OPTIND-1))
 
-if [ -z ${USERNAME+x} ]; then
+if [ -z ${FLUSERNAME+x} ]; then
 	# If username is not set on the command line use environment variable if set
 	if [ ! -z ${FLEDGE_USER+x} ]; then
-		USERNAME=$FLEDGE_USER
+		FLUSERNAME=$FLEDGE_USER
 	fi
 fi
 
@@ -836,11 +836,27 @@ if [ -f ~/.fledge ] ; then
 	# from it if they are not already set
 	perm=`stat -c %A ~/.fledge`
 	if [ "$perm" == "-rw-------" ]; then
-		if [ -z ${USERNAME+x} ]; then
-			USERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge | cut -d"=" -f2`
+		if [ -z ${FLUSERNAME+x} ]; then
+			FLUSERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge | cut -d"=" -f2`
 		fi
 		if [ -z ${PASSWORD+x} ]; then
 			PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge | cut -d"=" -f2`
+		fi
+	fi
+fi
+
+if [ -d ~/.fledge ] ; then
+	if [ -f ~/.fledge/auth ]; then
+		# if ~/.fledge is mode 0600 then fetch username and password
+		# from it if they are not already set
+		perm=`stat -c %A ~/.fledge/auth`
+		if [ "$perm" == "-rw-------" ]; then
+			if [ -z ${FLUSERNAME+x} ]; then
+				FLUSERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge/auth | cut -d"=" -f2`
+			fi
+			if [ -z ${PASSWORD+x} ]; then
+				PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge/auth | cut -d"=" -f2`
+			fi
 		fi
 	fi
 fi

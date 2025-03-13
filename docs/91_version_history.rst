@@ -21,6 +21,189 @@
 Version History
 ***************
 
+Fledge v3
+==========
+
+v3.0.0
+-------
+
+Release Date: 2025-03-13
+
+- **Fledge Core**
+
+    - New Features:
+
+       - The documentation has been updated to improve the discussion on tuning to encompass low through data ingestion.
+       - The SQLite storage plugin has been updated to allow the user to give an indication of the workload the plugin is expected to be used for. This is then used to inform tuning decisions within the SQLite plugin.
+       - 
+       - 
+       - 
+       - The documentation on making Fledge secure has been updated to include the different type of user that have been introduced.
+       - The maximum send latency configuration option for south plugings has had an upper bound imposed upon it to prevent large values being accidentically set as doing so makes it appear as if the south service has broken.
+       - 
+       - 
+       - This is solely for use by the UI to be able to render a better form to fill in a JSON configuration item.\r\n\r\nWe will add the JSON schema in the configuration category in the same way we do with the defaults for JSON configuration items.
+       - 
+       - 
+       - 
+       - Documentation has been added to the plugin developers section of the documentation that describes how to persist data between restart of services or the entire system.
+       - 
+       - 
+       - In an attempt to make it easier to find plugins, new subsections have been added to the documentation section that lists the available plugins.  It now includes a number of sections that categorise the plugins into those with related functionality. 
+       - 
+       - The documentation section for plugin developers writers has been updated with the latest mechanisms to run Fledge services under memory analysis tool, valgrind.
+       - A new section has been added to the tuning section of the documentation that discusses tuning the purge processes within Fledge.
+       - The Fledge documentation has been updated to reflect the new security defaults in the 3.0 release and to include a lengthier discussion of other optional security features.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - Monitoring of the ingest rate has now been added to the south service. If the ingest rate is seen to suddenly fall an alert will be raised to the user. If the rate returns to previous levels then the alert will be cleared. This monitoring may not be suitable for services using asynchronous south plugins or that only forward changes of values and can be disabled in the advanced configuration options of the south service.
+
+
+    - Bug Fix:
+
+       - 
+       - An issue with macro substitution incorrectly handling default values has been resolved.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - An issue that could cause persisted data from plugins not to be written on the second and subsequent restarts of a service has been resolved.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - An issue in the PostgreSQL storage plugin that could cause a failure of the storage engine when purging has been resolved.
+       - 
+       - An issue that prevented complex pipelines with multiple branches, one of which is a simple batch that contained no filters, from operating correctly has been resolved.
+       - 
+       - 
+
+
+- **GUI**
+
+    - New Features:
+
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+
+
+    - Bug Fix:
+
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+
+
+- **Plugins**
+
+    - New Features:
+
+       - An issue in the SKF Observer south plugin that incorrectly excluded measurements if sub-machines had been defined in machine builder has been resolved.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - The S2OPCUA plugin's debug trace output is now available within the support bundles created by Fledge.\r\n
+       - 
+       - fledge-south-s2opcua: currently, all supported Asset Naming Scheme options rely on the Browse Name of the subscribed OPC UA Variables to name Datapoints. A new Datapoint Name configuration has been added that allows you to choose either the Browse Name (default) or Node Id as the name for the Datapoint. This new feature applies only to the naming of Datapoints. In some Asset Naming Scheme options, the name of the parent OPC UA Object is used to construct an Asset name. The Asset name derived from the parent Object is still Browse Name and is not configurable.
+       - 
+       - 
+       - 
+       - The documentation for the simple expression rule plugin has been enhanced to include examples of multiple datapoint expressions.
+       - 
+       - 
+       - Documentation has been added to illustrate how the standard HTTP-C plugin can be used to send data to Inductive Automations Ignition product.
+       - 
+       - 
+       - An example of ingesting data from Inductive Automation's Ignition product using the WebDev module in that product has been added to the Simple Rest south plugin documentation.
+       - A problem with the way the Sigma-Cleanse filter persisted state between service executions wen assets had multiple datapoints within them has been resolved.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - The HTTP-C North plugin has been updated to support optional HTTP Basic authentication.
+       - A number of south PLC plugins, namely the S7, EtherIP and S2OPCUA plugins, have been updated to improve the interaction with the PLC maps. Instead of requiring the user to create JSON structures they now use structured lists for defining the maps. This also allows the maps to be imported from external files in the case of the EtherIP and S7 south plugins.
+       - The documentation for the S7 south plugin has been updated to reflect the new way of interacting with the PLC Map and also to correct a bug in one of the examples reading a database block block from the PLC.
+       - 
+       - 
+       - The Scale-Set filter has been updated to use an improved user interface to define the set of scale factors and offset to apply.
+       - The Boon Amber filter has been updated to return more of the model execution metrics to the output data.
+       - OMF North plugin: a number of improvements and fixes have been completed including:\r\n\t\r\n* Add logging of OMF Types and Containers created or confirmed as Information log messages,\r\n* Improve error checking and logging including the PI exception that indicates the expiration of the PI Server license.\r\n* Improve detection of connection loss to the PI Web API server so that no OMF REST calls are attempted while disconnected,\r\n* Warn when the destination data archive is unstable and stop processing. This is detected by OMF North as an HTTP 409 (Conflict) returned by any OMF REST call. The name (or index) of the entity affected is logged. Conflicts must be addressed by the PI system manager,\r\n* The Troubleshooting the PI Server integration web page has been updated to reflect the changes in messages.
+       - 
+       - 
+       - A new option has been added to the SKF Observer south plugin that can bypass the verification of SSL certificates with the certificate authority. This is for use when using self signed certificates or certificates that have not been signed by a recognised certificate authority.
+       - 
+       - 
+       - 
+       - The asset filter has been enhanced to have a new option that allows the selection of which datapoints to be sent onwards in the pipeline.
+       - The meta data filter has been updated to support substitution of datapoint values and the asset name not the new meta data values created.
+
+
+    - Bug Fix:
+
+       - 
+       - 
+       - The error handling for the rules configuration of the asset filter has been improved.
+       - 
+       - fledge-south-s2opcua: for the _Asset Naming Scheme_ selection of _Single Datapoint_ or _Single Asset_, Browse Names of Variables must be unique among all OPC UA Subscriptions. If there are duplicate Browse Names, the plugin should disambiguate the names by concatenating the Variable’s Node Id to the end of the Browse Name. If there are more than 2 duplicate Browse Names, the plugin would concatenate the Node Id too many times. This has been fixed.
+       - 
+       - 
+       - 
+       - 
+       - Add support for the Suez Water south plugin on Ubuntu 22.
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - 
+       - A problem that could result in excessive memory use when the delta filter is used.
+       - 
+       - 
+       - 
+       - 
+       - An issue with the dynamic reconfiguration of the observer plugin which altered the measurement filtering criteria has been resolved. Previously the new filtering rules did not immediately have an impact and a restart ofthe service was the only reliable means to ensure the new rules were fully implemented.
+       - Release Notes are in [FOGL-8895|https://scaledb.atlassian.net/browse/FOGL-8895]
+       - Release Notes are in [FOGL-8895|https://scaledb.atlassian.net/browse/FOGL-8895]
+       - The plugin developers guide has been updated to include more information on the 2.0.0 version of the south plugin interface.
+       - 
+       - Do not include in the release notes. The fix for this problem is documented in the Sanitized Description of FOGL-9181.
+       - OMF North plugin: sending OMF Data messages to the Edge Data Store 2020 resulted in the HTTP error code 400 with the message \_One or more errors occurred. (The action 'Update' is not supported for OMF messages.)_.\ The same problem occurs when sending OMF Data messages to the AVEVA Connector Relay. This has been fixed. This problem does not occur in EDS 2023, EDS 2023 Patch 1 and EDS 2024.
+       - 
+       - 
+       - 
+       - An issue that would occasionally cause the addition of the Observer south plugin to a disabled service to crash has been resolved.
+
+
 Fledge v2
 ==========
 

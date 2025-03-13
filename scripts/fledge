@@ -443,21 +443,27 @@ fledge_authenticate() {
 	exit 0
     fi
     fd=0
-    if [[ -t "$fd" ]]; then
-	# We have an interactive shell
-        if [ -z ${USERNAME+x} ]; then
-	    read -p "Username: " USERNAME
-	fi
-        if [ -z ${PASSWORD+x} ]; then
-	    read -s -p "Password: " PASSWORD
-	    /bin/echo > /dev/tty
+    if [[ -z ${CERT+x} ]]; then
+	if [[ -t "$fd" ]]; then
+	    # We have an interactive shell
+	    if [ -z ${USERNAME+x} ]; then
+		read -p "Username: " USERNAME
+	    fi
+	    if [ -z ${PASSWORD+x} ]; then
+		read -s -p "Password: " PASSWORD
+		/bin/echo > /dev/tty
+	    fi
 	fi
     fi
 
     # Get/Updates the rest API URL
     get_rest_api_url
-    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
-    result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
+    if [[ -f ${CERT} ]]; then
+    	result=`curl -T ${CERT} -X POST -k -s ${REST_API_URL}/fledge/login --insecure`
+    else
+    	payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    	result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
+    fi
     if [[ ! "$result" =~ "Logged in successfully" ]]; then
 	echo "failed"
     else
@@ -805,13 +811,16 @@ get_fledge_version
 get_rest_api_url
 
 # Call getopt to get any command line options for username and password
-while getopts "u:p:" option; do
+while getopts "u:p:c:" option; do
     case "$option" in
     u)
         USERNAME=${OPTARG}
         ;;
     p)
         PASSWORD=${OPTARG}
+        ;;
+    c)
+        CERT=${OPTARG}
         ;;
     esac
 done

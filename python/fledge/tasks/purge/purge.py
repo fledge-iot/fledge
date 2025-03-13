@@ -133,8 +133,8 @@ class Purge(FledgeProcess):
         unsent_retained = 0
         duration = 0
         method = None
-        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
-
+        start_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+        end_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
         if config['retainUnsent']['value'].lower() == "purge unsent":
             flag = "purge"
             operation_type = "min"
@@ -210,6 +210,8 @@ class Purge(FledgeProcess):
                     unsent_rows_removed = result['unsentPurged']
                     unsent_retained = result['unsentRetained']
                     duration = result['duration']
+                    start_time = result['start_time']
+                    end_time = result['end_time']
                     if method is None:
                         method = result['method']
                     else:
@@ -232,6 +234,8 @@ class Purge(FledgeProcess):
                     unsent_retained = result['unsentRetained']
                     duration += result['duration']
                     method = result['method']
+                    start_time = result['start_time']
+                    end_time = result['end_time']
         except ValueError:
             self._logger.error("purge_data - Configuration item age {} should be integer!".format(
                 config['age']['value']))
@@ -239,8 +243,6 @@ class Purge(FledgeProcess):
             # skip logging as its already done in details for this operation in case of error
             # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
-        end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
-
         if total_rows_removed > 0:
             """ Only write an audit log entry when rows are removed """
             await self._audit.information('PURGE', {"start_time": start_time,

@@ -17,6 +17,7 @@ import http.client
 import json
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
@@ -542,7 +543,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?age=24&sent=2&flags=PURGE"
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
-
+        start_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
         valid_flags = ['retainany', 'retainall', 'purge']
 
         if flag and flag.lower() not in valid_flags:
@@ -600,4 +601,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
                 except Exception as ex:
                     jdoc = None
                     _LOGGER.error(ex, "Purge readings is failed.")
+        end_time = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+        jdoc['start_time'] = start_time
+        jdoc['end_time'] = end_time
         return jdoc

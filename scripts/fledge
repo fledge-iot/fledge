@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for fledge
 #
-USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|healthcheck|help|version}"
+USAGE="Usage: `basename ${0}` <-h> <-u username> <-p password> <-c certificate> {start|start --safe-mode|stop|status|reset|purge|kill|healthcheck|help|version}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -627,6 +627,11 @@ fledge_help() {
     echo "${USAGE}
 Fledge v${FLEDGE_VERSION} admin script
 The script is used to start Fledge
+Flags:
+ -u username       - The username to use for authentication
+ -p password       - The password to use for authentication
+ -c certificate    - The certificate file to use for authenticaton
+ -h                - Print this help text
 Arguments:
  start             - Start Fledge core (core will start other services)
  start --safe-mode - Start in safe mode (only core and storage services will be started)
@@ -811,7 +816,7 @@ get_fledge_version
 get_rest_api_url
 
 # Call getopt to get any command line options for username and password
-while getopts "u:p:c:" option; do
+while getopts "u:p:c:h" option; do
     case "$option" in
     u)
         USERNAME=${OPTARG}
@@ -822,6 +827,14 @@ while getopts "u:p:c:" option; do
     c)
         CERT=${OPTARG}
         ;;
+    h)
+	fledge_help
+	exit 0
+	;;
+    ?)
+        echo Invalid option -${OPTARG}
+	exit 1
+	;;
     esac
 done
 shift $((OPTIND-1))

@@ -75,10 +75,37 @@ fledge_start() {
 }
  
 fledge_stop() {
+    # Default credentials
+    FLUSERNAME="admin"
+    PASSWORD="fledge"
+
+    # Check if ~/.fledge file exists
+    if [ -f ~/.fledge ]; then
+        # If ~/.fledge has mode 0600, fetch username and password from it if they are not already set
+        perm=$(stat -c %A ~/.fledge)
+        if [ "$perm" == "-rw-------" ]; then
+            # Fetch FLUSERNAME from the file if not already set
+            if [ -z ${FLUSERNAME+x} ]; then
+                FLUSERNAME=$(awk -F: 'NR==1 {print $1}' < ~/.fledge | cut -d"=" -f2)
+            fi
+
+            # Fetch PASSWORD from the file if not already set
+            if [ -z ${PASSWORD+x} ]; then
+                PASSWORD=$(awk -F: 'NR==2 {print $1}' < ~/.fledge | cut -d"=" -f2)
+            fi
+
+            # Ensure both FLUSERNAME and PASSWORD are non-empty, otherwise raise an error
+            if [ -z "$FLUSERNAME" ] || [ -z "$PASSWORD" ]; then
+                echo "Error: Both FLUSERNAME and PASSWORD must be present and non-empty in ~/.fledge."
+                exit 1
+            fi
+        fi
+    fi
+
     if [ "$IS_RHEL" = "" ]; then
-        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" -u "$FLUSERNAME" -p "$PASSWORD" stop > /dev/null
     else
-        "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+        "${FLEDGE_ROOT}/bin/fledge" -u "$FLUSERNAME" -p "$PASSWORD" stop > /dev/null
     fi
 }
  

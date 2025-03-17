@@ -231,15 +231,17 @@ Fledge supports a number of mechanisms for user authentication when using the *f
 
   - The user may set one or both of the FLEDGE_USER and FLEDGE_PASSWORD environment variables to automate the entry of the username or password.
 
-  - The user name pass either or both of the *-u* and *-p* flags to set the username and password on the command line.
+  - The user may pass either or both of the *-u* and *-p* flags to set the username and password on the command line.
 
-  - The user name pass the *-c* flag and a path to a certificate file that is used to authenticate the user.
+  - The user may pass the *-c* flag and a path to a certificate file that is used to authenticate the user.
 
   - The user creates an authentication file that contains the username and password
 
 .. note::
 
-   In all the the cases where a password is stored or passed to the script this is done in plain text. Care should be taken to protect these plain text password. In the case of the authentication file, the file permissions must be such that only the Linux user is able to read the file.
+   In all cases where a password is stored or passed to the script this is done in plain text. Care should be taken to protect these plain text password. In the case of the authentication file, the file permissions must be such that only the Linux user is able to read the file.
+
+   Using a certificate to authenticate rather than username and password, alleviates the need to have plain text passwords stored on the system. However access to the certificate must be protected. The ability to access the certificate provides the ability to authenticate wit the Fledge instance without need for any further information.
 
 
 User Management

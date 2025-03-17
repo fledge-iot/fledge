@@ -777,6 +777,25 @@ fledge_healthcheck() {
 	echo Healthcheck completed
 }
 
+extract_credentials() {
+	file = $1
+	# if $file is mode 0600 then fetch username and password
+	# from it if they are not already set
+	perm=`stat -c %A "$file"`
+	if [ "$perm" == "-rw-------" ]; then
+		. "$file"
+		if [ ! -z ${FLEDGE_USER+x} ]; then
+			FLUSERNAME=$FLEDGE_USER
+		fi
+		if [ ! -z ${FLEDGE_PASSWORD+x} ]; then
+			PASSWORD=$FLEDGE_PASSWORD
+		fi
+		if [ ! -z ${FLEDGE_CERT+x} ]; then
+			CERT=$FLEDGE_CERT
+		fi
+	fi
+}
+
 ### Main Logic ###
 
 # Set FLEDGE_DATA if it does not exist
@@ -830,35 +849,19 @@ if [ -z ${PASSWORD+x} ]; then
 		PASSWORD=$FLEDGE_PASSWORD
 	fi
 fi
-
-if [ -f ~/.fledge ] ; then
-	# if ~/.fledge is mode 0600 then fetch username and password
-	# from it if they are not already set
-	perm=`stat -c %A ~/.fledge`
-	if [ "$perm" == "-rw-------" ]; then
-		if [ -z ${FLUSERNAME+x} ]; then
-			FLUSERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge | cut -d"=" -f2`
-		fi
-		if [ -z ${PASSWORD+x} ]; then
-			PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge | cut -d"=" -f2`
-		fi
+if [ -z ${CERT+x} ]; then
+	# If certificate is not set on the command line use environment variable if set
+	if [ ! -z ${FLEDGE_CERT+x} ]; then
+		CERT=$FLEDGE_CERT
 	fi
 fi
 
-if [ -d ~/.fledge ] ; then
-	if [ -f ~/.fledge/auth ]; then
-		# if ~/.fledge is mode 0600 then fetch username and password
-		# from it if they are not already set
-		perm=`stat -c %A ~/.fledge/auth`
-		if [ "$perm" == "-rw-------" ]; then
-			if [ -z ${FLUSERNAME+x} ]; then
-				FLUSERNAME=`awk -F: 'NR==1{ print $1 }' < ~/.fledge/auth | cut -d"=" -f2`
-			fi
-			if [ -z ${PASSWORD+x} ]; then
-				PASSWORD=`awk -F: 'NR==2{ print $1 }' < ~/.fledge/auth | cut -d"=" -f2`
-			fi
-		fi
-	fi
+if [ -f ~/.fledge ] ; then
+	extract_credentials "~/.fledge"
+fi
+
+if [ -d ~/.fledge ] && [ -f ~/.fledge/auth ] ; then
+	extract_credentials "~/.fledge/auth"
 fi
 
 SAFE_MODE=''

@@ -57,3 +57,11 @@ The *auth* file will only be read if the permissions on that file are set such t
 .. note::
 
    In older versions of Fledge the *auth* file was simply called *~/.fledge*. If the older *.fledge* file exists it will still be used.
+
+An example *auth* file, using the default username and password would be as follows
+
+.. code-block:: console
+
+   admin
+   fledge
+

@@ -88,7 +88,7 @@ void ReadingSetCircularBuffer::appendReadingSet(const std::vector<Reading *>& re
 	}
 	// Insert ReadingSet into buffer
 	m_circularBuffer.push_back(std::make_shared<ReadingSet>(newReadings));
-	
+	delete newReadings;
 }
 
 /**

@@ -48,13 +48,13 @@ The prompting for username and password when using the *fledge* script can be by
 
 The file created should be called *auth* and contains two lines, the first line is the username to use to login, the second line is the password for that user.
 
-The *auth* file will only be read if the permissions on that file are set such that only the owner can read the file.
-
-.. code-block:: console
-
-   $ chmod 600 ~/.fledge/auth
-
 .. note::
+
+   The *auth* file will only be read if the permissions on that file are set such that only the owner can read the file.
+
+   .. code-block:: console
+
+       $ chmod 600 ~/.fledge/auth
 
    In older versions of Fledge the *auth* file was simply called *~/.fledge*. If the older *.fledge* file exists it will still be used.
 
@@ -62,6 +62,6 @@ An example *auth* file, using the default username and password would be as foll
 
 .. code-block:: console
 
-   admin
-   fledge
+   FLEDGE_USER=admin
+   FLEDGE_PASSWORD=fledge
 

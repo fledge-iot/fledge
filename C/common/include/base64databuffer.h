@@ -13,6 +13,7 @@
 #include <string>
 #include <stdexcept>
 #include <base64.h>
+#include <stdint.h>
 
 /**
  * The Base64DataBuffer class provide functionality on top of the

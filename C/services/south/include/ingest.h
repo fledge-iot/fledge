@@ -105,6 +105,56 @@ public:
 			};
 	void		configureRateMonitor(long interval, long factor);
 
+	// Debugger entry points
+	bool		attachDebugger()
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerAttached = true;
+					return m_filterPipeline->attachDebugger();
+				}
+				return false;
+			};
+	void		detachDebugger()
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerAttached = false;
+					m_debuggerBufferSize = 1;
+					m_filterPipeline->detachDebugger();
+				}
+			};
+	void		setDebuggerBuffer(unsigned int size)
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerBufferSize = size;
+					m_filterPipeline->setDebuggerBuffer(size);
+				}
+			};
+	std::string	getDebuggerBuffer()
+			{
+				std::string rval;
+				if (m_filterPipeline)
+					rval = m_filterPipeline->getDebuggerBuffer();
+				return rval;
+			};
+	void		isolate(bool isolate)
+			{
+				std::lock_guard<std::mutex> guard(m_isolateMutex);
+				m_isolate = isolate;
+			};
+	bool		isolated()
+			{
+				std::lock_guard<std::mutex> guard(m_isolateMutex);
+				return m_isolate;
+			};
+	void		replayDebugger()
+			{
+				if (m_filterPipeline)
+					m_filterPipeline->replayDebugger();
+			};
+
 private:
 	void				signalStatsUpdate() {
 						// Signal stats thread to update stats
@@ -165,6 +215,10 @@ private:
 	PerformanceMonitor		*m_performance;
 	std::mutex			m_useDataMutex;
 	IngestRate			*m_ingestRate;
+	std::mutex			m_isolateMutex;
+	bool				m_isolate;
+	bool				m_debuggerAttached;
+	unsigned int 			m_debuggerBufferSize;
 };
 
 #endif

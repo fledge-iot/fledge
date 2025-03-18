@@ -12,6 +12,7 @@ from fledge.services.core.api import configuration as api_configuration
 from fledge.services.core.api import scheduler as api_scheduler
 from fledge.services.core.api import statistics as api_statistics
 from fledge.services.core.api.control_service import script_management, acl_management, pipeline, entrypoint
+from fledge.services.core.api import pipeline_debugger
 from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
@@ -270,6 +271,9 @@ def setup(app):
 
     # Alerts
     alerts.setup(app)
+
+    # Pipeline Debuger
+    pipeline_debugger.setup(app)
 
     # enable cors support
     enable_cors(app)

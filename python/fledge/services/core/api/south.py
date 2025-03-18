@@ -66,18 +66,21 @@ async def _services_with_assets(storage_client, cf_mgr, south_services):
                 sched_enable = await _get_schedule_status(storage_client, s_record._name)
             except:
                 pass
-            sr_list.append(
-                {
-                    'name': s_record._name,
-                    'address': s_record._address,
-                    'management_port': s_record._management_port,
-                    'service_port': s_record._port,
-                    'protocol': s_record._protocol,
-                    'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
-                    'assets': assets,
-                    'plugin': {'name': plugin, 'version': plugin_version},
-                    'schedule_enabled': sched_enable
-                })
+            service_data = {
+                'name': s_record._name,
+                'address': s_record._address,
+                'management_port': s_record._management_port,
+                'service_port': s_record._port,
+                'protocol': s_record._protocol,
+                'status': ServiceRecord.Status(int(s_record._status)).name.lower(),
+                'assets': assets,
+                'plugin': {'name': plugin, 'version': plugin_version},
+                'schedule_enabled': sched_enable
+            }
+            # Add the 'debug' key only if it's non-empty
+            if s_record._debug:
+                service_data['debug'] = s_record._debug
+            sr_list.append(service_data)
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
             if not south_svc:

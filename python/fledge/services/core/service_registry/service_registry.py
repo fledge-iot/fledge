@@ -133,6 +133,9 @@ class ServiceRegistry:
         services = cls.get(idx=service_id)
         service_name = services[0]._name
         services[0]._status = service_status
+        # Clear debug information for service record
+        services[0]._debug = {}
+
         cls._remove_from_scheduler_records(service_name)
 
         cls._bearerTokens.pop(service_name, None)

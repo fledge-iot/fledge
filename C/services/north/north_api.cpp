@@ -1,46 +1,20 @@
 /**
- * Fledge south service API
+ * Fledge north service API
  *
- * Copyright (c) 2021 Dianomic Systems
+ * Copyright (c) 2025 Dianomic Systems
  *
- * Author: Mark Riddoch, Massimiliano Pinto
+ * Author: Mark Riddoch
  */
 
-#include <south_api.h>
-#include <south_service.h>
+#include <north_api.h>
+#include <north_service.h>
 #include <rapidjson/document.h>
 
 using namespace std;
 using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
-static SouthApi *api = NULL;
-
-/**
- * Wrapper for the PUT setPoint API call
- *
- * @param response	The HTTP Response to send
- * @param request	The HTTP Request
- */
-static void setPointWrapper(shared_ptr<HttpServer::Response> response,
-		shared_ptr<HttpServer::Request> request)
-{
-	if (api)
-		api->setPoint(response, request);
-}
-
-/**
- * Wrapper for the PUT operation API call
- *
- * @param response	The HTTP Response to send
- * @param request	The HTTP Request
- */
-static void operationWrapper(shared_ptr<HttpServer::Response> response,
-		shared_ptr<HttpServer::Request> request)
-{
-	if (api)
-		api->operation(response, request);
-}
+static NorthApi *api = NULL;
 
 /**
  * Wrapper for the PUT attach debugger API call
@@ -159,26 +133,16 @@ static void startService()
 }
 
 /**
- * South API class constructor
+ * North API class constructor
  *
- * @param service	The SouthService class this is the API for
+ * @param service	The NorthService class this is the API for
  */
-SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
+NorthApi::NorthApi(NorthService *service) : m_service(service), m_thread(NULL)
 {
 	m_logger = Logger::getLogger();
 	m_server = new HttpServer();
 	m_server->config.port = 0;
 	m_server->config.thread_pool_size = 1;
-
-	// AuthenticationMiddleware for PUT regexp paths: use lambda funcion, passing the class object
-	m_server->resource[SETPOINT]["PUT"] = [this](shared_ptr<HttpServer::Response> response,
-                                                        shared_ptr<HttpServer::Request> request) {
-				m_service->AuthenticationMiddlewarePUT(response, request, setPointWrapper);
-	};
-	m_server->resource[OPERATION]["PUT"] = [this](shared_ptr<HttpServer::Response> response,
-                                                        shared_ptr<HttpServer::Request> request) {
-				m_service->AuthenticationMiddlewarePUT(response, request, operationWrapper);
-	};
 
 	// Add the debugger entry points
 	m_server->resource[DEBUG_ATTACH]["PUT"] = attachDebuggerWrapper;
@@ -198,9 +162,9 @@ SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
 /**
  * Destroy the API.
  *
- * Stop the service and wait fo rthe thread to terminate.
+ * Stop the service and wait for the thread to terminate.
  */
-SouthApi::~SouthApi()
+NorthApi::~NorthApi()
 {
 	if (m_thread)
 	{
@@ -215,7 +179,7 @@ SouthApi::~SouthApi()
 /**
  * Called on the API service thread. Start the listener for HTTP requests
  */
-void SouthApi::startServer()
+void NorthApi::startServer()
 {
 	m_server->start();
 }
@@ -223,7 +187,7 @@ void SouthApi::startServer()
 /**
  * Return the port the service is listening on
  */
-unsigned short SouthApi::getListenerPort()
+unsigned short NorthApi::getListenerPort()
 {
 	int max_wait = 10;
 	// Need to make sure the server thread has started
@@ -233,159 +197,12 @@ unsigned short SouthApi::getListenerPort()
 }
 
 /**
- * Implement the setPoint PUT request. Caues the write operation on
- * the south plugin to be called with eahc of the set point parameters
- *
- * @param response	The HTTP response
- * @param request	The HTTP request
- */
-void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
-			shared_ptr<HttpServer::Request> request)
-{
-	string payload = request->content.string();
-	try {
-		Document doc;
-		ParseResult result = doc.Parse(payload.c_str());
-		if (result)
-		{
-			if (doc.HasMember("values") && doc["values"].IsObject())
-			{
-				bool status = true;
-				Value& values = doc["values"];
-				for (Value::ConstMemberIterator itr = values.MemberBegin();
-						itr != values.MemberEnd(); ++itr)
-				{
-					string name = itr->name.GetString();
-					if (itr->value.IsString())
-					{
-						string value = itr->value.GetString();
-						if (!m_service->setPoint(name, value))
-						{
-							status = false;
-						}
-					}
-				}
-				if (status)
-				{
-					string responsePayload = QUOTE({ "status" : "ok" });
-					m_service->respond(response, responsePayload);
-				}
-				else
-				{
-					string responsePayload = QUOTE({ "status" : "failed" });
-					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-				}
-				return;
-			}
-			else
-			{
-				string responsePayload = QUOTE({ "message" : "Missing 'values' object in payload" });
-				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-				return;
-			}
-		}
-		else
-		{
-			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
-			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-		}
-		
-	} catch (exception &e) {
-		char buffer[80];
-		snprintf(buffer, sizeof(buffer), "\"Exception: %s\"", e.what());
-		string responsePayload = QUOTE({ "message" : buffer });
-		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-	}
-}
-
-/**
- * Invoke an operation on the south plugin
- *
- * @param response	The HTTP response
- * @param request	The HTTP request
- */
-void SouthApi::operation(shared_ptr<HttpServer::Response> response,
-			shared_ptr<HttpServer::Request> request)
-{
-	string payload = request->content.string();
-	try {
-		Document doc;
-		ParseResult result = doc.Parse(payload.c_str());
-		if (result)
-		{
-			string operation;
-			if (doc.HasMember("operation") && doc["operation"].IsString())
-			{
-				operation = doc["operation"].GetString();
-				vector<PLUGIN_PARAMETER *> parameters;
-
-				if (doc.HasMember("parameters") && doc["parameters"].IsObject())
-				{
-					Value& values = doc["parameters"];
-					for (Value::ConstMemberIterator itr = values.MemberBegin();
-							itr != values.MemberEnd(); ++itr)
-					{
-						string name = itr->name.GetString();
-						if (itr->value.IsString())
-						{
-							string value = itr->value.GetString();
-							PLUGIN_PARAMETER *param = new PLUGIN_PARAMETER;
-							param->name = name;
-							param->value = value;
-							parameters.push_back(param);
-						}
-					}
-				}
-				else if (doc.HasMember("parameters"))
-				{
-					string responsePayload = QUOTE({ "message" : "If present, parameters of an operation must be a JSON object" });
-					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-					return;
-				}
-
-				bool status = m_service->operation(operation, parameters);
-
-				for (auto param : parameters)
-					delete param;
-				if (status)
-				{
-					string responsePayload = QUOTE({ "status" : "ok" });
-					m_service->respond(response, responsePayload);
-				}
-				else
-				{
-					string responsePayload = QUOTE({ "status" : "plugin returned failed status for operation" });
-					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-				}
-				return;
-				
-			}
-			else
-			{
-				string responsePayload = QUOTE({ "message" : "Missing 'operation' in payload" });
-				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-				return;
-			}
-		}
-		else
-		{
-			string responsePayload = QUOTE({ "status" : "failed to parse operation payload" });
-			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-			return;
-		}
-	} catch (exception &e) {
-	}
-	string responsePayload = QUOTE({ "status" : "failed" });
-	m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-}
-
-/**
- * Invoke debugger attach on the south plugin
+ * Invoke debugger attach on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request - unused
  */
-void SouthApi::attachDebugger(Response response, Request /*request*/)
+void NorthApi::attachDebugger(Response response, Request /*request*/)
 {
 
 	bool status = m_service->attachDebugger();
@@ -403,18 +220,18 @@ void SouthApi::attachDebugger(Response response, Request /*request*/)
 }
 
 /**
- * Invoke debugger detach on the south plugin
+ * Invoke debugger detach on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request - unused
  */
-void SouthApi::detachDebugger(Response response, Request /*request*/)
+void NorthApi::detachDebugger(Response response, Request /*request*/)
 {
+
 	string responsePayload;
 	if (m_service->debuggerAttached())
 	{
 		m_service->detachDebugger();
-
 		responsePayload = QUOTE({ "status" : "ok" });
 	}
 	else
@@ -425,12 +242,12 @@ void SouthApi::detachDebugger(Response response, Request /*request*/)
 }
 
 /**
- * Invoke set debugger buffer size on the south plugin
+ * Invoke set debugger buffer size on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request
  */
-void SouthApi::setDebuggerBuffer(Response response, Request request)
+void NorthApi::setDebuggerBuffer(Response response, Request request)
 {
 
 	if (m_service->debuggerAttached())
@@ -476,12 +293,12 @@ void SouthApi::setDebuggerBuffer(Response response, Request request)
 }
 
 /**
- * Invoke get debugger buffer size on the south plugin
+ * Invoke get debugger buffer size on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request - unused
  */
-void SouthApi::getDebuggerBuffer(Response response, Request /*request*/)
+void NorthApi::getDebuggerBuffer(Response response, Request /*request*/)
 {
 
 	string result;
@@ -497,12 +314,12 @@ void SouthApi::getDebuggerBuffer(Response response, Request /*request*/)
 }
 
 /**
- * Invoke isolate debugger handler on the south plugin
+ * Invoke isolate debugger handler on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request
  */
-void SouthApi::isolateDebugger(Response response, Request request)
+void NorthApi::isolateDebugger(Response response, Request request)
 {
 	if (m_service->debuggerAttached())
 	{
@@ -556,13 +373,14 @@ void SouthApi::isolateDebugger(Response response, Request request)
 }
 
 /**
- * Invoke suspend debugger handler on the south plugin
+ * Invoke suspend debugger handler on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request
  */
-void SouthApi::suspendDebugger(Response response, Request request)
+void NorthApi::suspendDebugger(Response response, Request request)
 {
+
 	if (m_service->debuggerAttached())
 	{
 		string payload = request->content.string();
@@ -615,12 +433,12 @@ void SouthApi::suspendDebugger(Response response, Request request)
 }
 
 /**
- * Invoke set debugger step command on the south plugin
+ * Invoke set debugger step command on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request
  */
-void SouthApi::stepDebugger(Response response, Request request)
+void NorthApi::stepDebugger(Response response, Request request)
 {
 
 	if (m_service->debuggerAttached())
@@ -666,18 +484,19 @@ void SouthApi::stepDebugger(Response response, Request request)
 }
 
 /**
- * Invoke debugger replay on the south plugin
+ * Invoke debugger replay on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request - unused
  */
-void SouthApi::replayDebugger(Response response, Request /*request*/)
+void NorthApi::replayDebugger(Response response, Request /*request*/)
 {
-	// TODO Handle pre-requisites
 	string responsePayload;
 	if (m_service->debuggerAttached())
 	{
+		// TODO Handle pre-requisites
 		m_service->replayDebugger();
+
 		responsePayload = QUOTE({ "status" : "ok" });
 	}
 	else
@@ -688,12 +507,12 @@ void SouthApi::replayDebugger(Response response, Request /*request*/)
 }
 
 /**
- * Invoke debugger state on the south plugin
+ * Invoke debugger state on the north plugin
  *
  * @param response	The HTTP response
  * @param request	The HTTP request - unused
  */
-void SouthApi::stateDebugger(Response response, Request /*request*/)
+void NorthApi::stateDebugger(Response response, Request /*request*/)
 {
 	string payload = m_service->debugState();
 	m_service->respond(response, payload);

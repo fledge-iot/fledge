@@ -58,17 +58,29 @@ public:
 	void		awaitCompletion();
 	void		startBranch();
 	void		completeBranch();
+	// The filter pipeline debugger entry points
+	bool		attachDebugger();
+	void		detachDebugger();
+	void		setDebuggerBuffer(unsigned int size);
+	std::string	getDebuggerBuffer();
+	std::string	getDebuggerBuffer(const std::string& name);
+	void		replayDebugger();
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
 	void		loadPipeline(const rapidjson::Value& filters, std::vector<PipelineElement *>& pipeline);
+	bool		attachDebugger(const std::vector<PipelineElement *>& pipeline);
+	void		detachDebugger(const std::vector<PipelineElement *>& pipeline);
+	void		setDebuggerBuffer(const std::vector<PipelineElement *>& pipeline, unsigned int size);
+	std::string	getDebuggerBuffer(const std::vector<PipelineElement *>& pipeline);
+	std::string	readingsToJSON(std::vector<std::shared_ptr<Reading>> readings);
 
 protected:
 	ManagementClient*	mgtClient;
 	StorageClient&		storage;
 	std::string		serviceName;
 	std::vector<PipelineElement *>
-				m_filters;
+				m_filters;	// Elements in the "trunk" pipeline
 	std::map<std::string, PipelineElement *>
 				m_filterCategories;
 	std::string		m_pipeline;

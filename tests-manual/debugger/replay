@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 		Replay the buffered data through the pipeline
+curl -s -X PUT http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/replay|jq

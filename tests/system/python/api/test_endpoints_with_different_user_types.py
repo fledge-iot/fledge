@@ -234,7 +234,12 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 403),
         ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
-        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 403),
+        ("GET", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/{name}/debug?action=attach", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -395,7 +400,12 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 403), ("DELETE", "/fledge/monitors", 403),
         ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
-        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
+        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 403),
+        ("GET", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=attach", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -562,7 +572,12 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 200),
         ("DELETE", "/fledge/monitors/SVC", 200), ("DELETE", "/fledge/monitors/Svc/Counter", 200),
         # alerts
-        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404)
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 404),
+        ("GET", "/fledge/service/name/debug?action=buffer", 404),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 404),
+        ("PUT", "/fledge/service/{name}/debug?action=attach", 404)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)

@@ -257,7 +257,10 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_dryRun(false),
 				m_requestRestart(false),
 				m_auditLogger(NULL),
-				m_perfMonitor(NULL)
+				m_perfMonitor(NULL),
+				m_suspendIngest(false),
+				m_steps(0),
+				m_provider(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -284,6 +287,7 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+	delete m_provider;
 
 	// We would like to shutdown the Python environment if it
 	// was running. However this causes a segmentation fault within Python
@@ -301,9 +305,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
+	m_provider = new SouthServiceProvider(this);
+	management.registerProvider(m_provider);
 	management.registerService(this);
 
-	// Listen for incomming managment requests
+	// Listen for incoming managment requests
 	management.start();
 
 	// Create the south API
@@ -624,7 +630,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					for (uint64_t i=0; i<exp; i++)
 #endif
 					{
-						if (!pollInterfaceV2) // v1 poll method
+						bool doPoll = true;
+						if (isSuspended())
+						{
+							doPoll = false;
+							if (willStep())
+							{
+								doPoll = true;
+							}
+						}
+						if (doPoll && (!pollInterfaceV2)) // v1 poll method
 						{
 						
 							Reading reading = southPlugin->poll();
@@ -634,7 +649,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							}
 							++pollCount;
 						}
-						else // V2 poll method
+						else if (doPoll)// V2 poll method
 						{
 							checkPendingReconfigure();
 							ReadingSet *set = southPlugin->pollV2();
@@ -653,6 +668,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 								delete set;
 							}
+						}
+						else
+						{
+							checkPendingReconfigure();
 						}
 						throttlePoll();
 					}
@@ -1759,4 +1778,36 @@ void SouthService::checkPendingReconfigure()
 		else
 			return;
 	}
+}
+
+/**
+ * Return the state of the pipeline debugger
+ *
+ * @return string	JSON document reporting the state of the pipeline debugger
+ */
+string SouthService::debugState()
+{
+	string rval;
+	rval = "{ ";
+	rval += "\"debugger\" : ";
+	if (m_debugState & DEBUG_ATTACHED)
+	{
+		rval += "\"Attached\",";
+		rval += "\"ingress\" : ";
+		if (m_debugState & DEBUG_SUSPENDED)
+			rval += "\"Suspended\", ";
+		else
+			rval += "\"Running\", ";
+		rval += "\"egress\" : ";
+		if (m_debugState & DEBUG_ISOLATED)
+			rval += "\"Isolated\"";
+		else
+			rval += "\"Storage\"";
+	}
+	else
+	{
+		rval += "\"Detached\"";
+	}
+	rval += "}";
+	return rval;
 }

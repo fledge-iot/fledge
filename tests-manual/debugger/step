@@ -1,0 +1,8 @@
+#!/bin/bash
+#help 		Allow readings to flow into the pipeline. Passed an optional number of readings to ingest; default to 1 if omitted
+steps=1
+if [ $# -gt 0 ]; then
+	steps=$1
+fi
+payload='{"steps":'$steps'}'
+curl -s -X PUT  -d$payload http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/step|jq

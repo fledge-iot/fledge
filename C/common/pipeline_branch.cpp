@@ -171,6 +171,20 @@ bool PipelineBranch::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
  */
 void PipelineBranch::ingest(READINGSET *readingSet)
 {
+	if (m_debugger)
+	{
+		PipelineDebugger::DebuggerActions action = m_debugger->process(readingSet);
+
+		switch (action)
+		{
+		case PipelineDebugger::Block:
+			delete readingSet;
+			return;
+		case PipelineDebugger::NoAction:
+			break;
+		}
+
+	}
 	m_pipeline->startBranch();
 	READINGSET *copy = new ReadingSet();
 	copy->copy(*readingSet);

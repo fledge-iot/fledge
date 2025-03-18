@@ -599,6 +599,7 @@ TEST_F(PythonReadingTest, ImageRoundTrip)
 		EXPECT_EQ(image2->getDepth(), image->getDepth());
 	}
 	PyGILState_Release(state);
+	free(data);
 }
 
 TEST_F(PythonReadingTest, UpdateAssetCode)
@@ -642,11 +643,14 @@ TEST_F(PythonReadingTest, Double2DArray)
 		vector<double> *row = new vector<double>;
 		row->push_back(1.4 + i);
 		row->push_back(3.7 + i);
-		array.push_back(row);
+		array.emplace_back(row);
 	}
 
 	DatapointValue value(array);
 	Reading reading("test2d", new Datapoint("array", value));
+
+	for (auto& row : array)
+		delete row;
 	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("array");

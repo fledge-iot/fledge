@@ -206,5 +206,6 @@ TEST_F(PythonReadingNumpyTest, ImageFloat)
 			}
 		}
 	}
+	free(data);
 }
 }

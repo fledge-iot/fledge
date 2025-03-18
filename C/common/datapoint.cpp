@@ -172,6 +172,12 @@ void DatapointValue::deleteNestedDPV()
 	}
 	else if (m_type == T_2D_FLOAT_ARRAY)
 	{
+		for (auto it = m_value.a2d->begin();
+				 it != m_value.a2d->end();
+				 ++it)
+		{
+			delete(*it);
+		}
 		delete m_value.a2d;
 		m_value.a2d = NULL;
 	}

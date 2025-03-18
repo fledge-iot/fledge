@@ -41,6 +41,7 @@ TEST(ImageEncodingTest, ImageRoundTrip64)
 			ptr++;
 			ptr2++;
 		}
+	free(data);
 }
 
 TEST(ImageEncodingTest, ImageRoundTrip65)
@@ -75,6 +76,7 @@ TEST(ImageEncodingTest, ImageRoundTrip65)
 			ptr++;
 			ptr2++;
 		}
+	free(data);
 }
 
 TEST(ImageEncodingTest, ImageRoundTrip66)
@@ -109,4 +111,5 @@ TEST(ImageEncodingTest, ImageRoundTrip66)
 			ptr++;
 			ptr2++;
 		}
+	free(data);
 }

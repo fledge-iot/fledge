@@ -63,8 +63,7 @@ class TestTask:
     async def test_insert_scheduled_process_exception_add_task(self, client):
         data = {"name": "north bound", "type": "north", "schedule_type": 3, "plugin": "omf", "schedule_repeat": 30}
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
@@ -118,8 +117,7 @@ class TestTask:
 
     async def test_dupe_category_name_add_task(self, client):
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
 
             if table == 'tasks':
@@ -158,8 +156,7 @@ class TestTask:
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_task(self, client):
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
@@ -307,9 +304,7 @@ class TestTask:
         (10, 400, '400: Unable to reuse name north bound, already used by a previous task.')
     ])
     async def test_add_task_twice(self, client, expected_count, expected_http_code, expected_message):
-
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
 
             if table == 'tasks':

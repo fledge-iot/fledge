@@ -292,8 +292,7 @@ class TestACLManagement:
                                                "and": {"column": "name", "condition": "=", "value": "{}".format(
                                                    acl_name)}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'acl_usage':
                 assert acl_query_payload_service == json.loads(args[1])
@@ -376,8 +375,7 @@ class TestACLManagement:
                                                                           "condition": "=",
                                                                           "value": "{}".format(acl_name)}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'acl_usage':
                 if acl_query_payload_service == json.loads(args[1]):
@@ -458,8 +456,7 @@ class TestACLManagement:
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         message = "ACL with name {} is not found.".format(acl_name)
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])
@@ -491,8 +488,7 @@ class TestACLManagement:
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         message = "Service {} already has an ACL object.".format(svc_name, acl_name)
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])
@@ -541,8 +537,8 @@ class TestACLManagement:
         message = "ACL with name {} attached to {} service successfully.".format(acl_name, svc_name)
 
         acl_dict = {'ACL': acl_name}
-        @asyncio.coroutine
-        def q_result(*args):
+
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])

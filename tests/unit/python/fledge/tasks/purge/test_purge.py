@@ -24,8 +24,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@asyncio.coroutine
-def q_result(*args):
+async def q_result(*args):
     table = args[0]
     if table == 'streams':
         rows = {"rows": [{"min_last_object": 0}], "count": 1}
@@ -129,18 +128,22 @@ class TestPurge:
         """Test that purge_data calls Storage's purge with defined configuration"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-        mock_stream_result = q_result('streams')
         payload = {"aggregate": {"operation": "min", "column": "last_object"}}
         if expected_calls["flag"] == "retainany":
-            mock_stream_result = q_result('streams', 'any')
             payload = {"aggregate": {"operation": "max", "column": "last_object"}}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_stream_result
+            if expected_calls["flag"] == "retainany":
+                _rv1 = await q_result('streams', 'any')
+            else:
+                _rv1 = await q_result('streams')
             _rv2 = await mock_value("")
             _rv3 = await self.store_purge()
         else:
-            _rv1 = asyncio.ensure_future(mock_stream_result)
+            if expected_calls["flag"] == "retainany":
+                _rv1 = asyncio.ensure_future(q_result('streams', 'any'))
+            else:
+                _rv1 = asyncio.ensure_future(q_result('streams'))
             _rv2 = asyncio.ensure_future(mock_value(""))
             _rv3 = asyncio.ensure_future(self.store_purge())
 
@@ -178,15 +181,14 @@ class TestPurge:
     async def test_data_with_age_and_size(self, conf, expected_return, expected_calls):
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-        mock_stream_result = q_result('streams')
         payload = {"aggregate": {"operation": "min", "column": "last_object"}}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_stream_result
+            _rv1 = await q_result('streams')
             _rv2 = await mock_value("")
             _rv3 = await self.store_purge()
         else:
-            _rv1 = asyncio.ensure_future(mock_stream_result)
+            _rv1 = asyncio.ensure_future(q_result('streams'))
             _rv2 = asyncio.ensure_future(mock_value(""))
             _rv3 = asyncio.ensure_future(self.store_purge())
 
@@ -244,6 +246,7 @@ class TestPurge:
                 p._logger = FLCoreLogger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
+                p._logger.debug = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit

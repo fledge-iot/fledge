@@ -73,14 +73,11 @@ Release Date: 2025-03-13
     - New Features:
 
        - The ability to import list content from CSV and JSON files has been added for all configuration items that have lists of items. This impacts the fledge-south-s2opcua.
-       - A confirmation dialog has been added to the disable flow for services to prevent accidental disabling of the services.
-       - The appearance of the add filter user interface in the flow based editor has been improved.
+       - Flow Editor: The default UI for new installations now uses the flow-based editor instead of the tabular pipeline view, with an option to switch via Settings.  Added a confirmation dialog to prevent accidental service disabling. Improved the appearance of the add filter interface. Additionally, plugin configuration performance within the flow editor has been optimized.
        - The look and feel of the south and north menu items has been improved with more intuitive icons.
-       - The default user interface for new installations has been changed to be the flow based editor rather than the tabular view of data pipelines. The user can still chooses either view via the Settings menu option.
        - The configuration tab has been improved to include navigation buttons to easily move between tabs.
        - Added support for an optional schema property in JSON configuration. This schema defines the expected structure of the JSON object, enabling validation of its values. Additionally, it allows the user interface to retrieve the schema for rendering an improved form for JSON input. The schema will be stored in the configuration category similarly to how default values are managed for JSON configuration items.
        - The layout of the south service in the tabular view has been improved.
-       - Performance improvements have been made to the plugin configuration user interface within the flow editor.
 
 
     - Bug Fix:
@@ -99,9 +96,7 @@ Release Date: 2025-03-13
 
        - fledge-south-mqtt-sparkplug: Added an option to attach the topic as a datapoint, enabling its use in later filters for applications like passing placement hints to north plugins. Additionally, the plugin now supports long integer and double values.
        - The fledge-south-benchmark plugin has been enhanced to allow support for multiple datapoints per asset.
-       - The fledge-south-s2opcua plugin's debug trace output is now available within the support bundles created by Fledge.
-       - Improvements have been made to the way subscriptions are configured in the fledge-south-s2opcua plugin.
-       - fledge-south-s2opcua: Added a new Datapoint Name configuration, allowing users to choose between Browse Name (default) or Node Id for naming datapoints. This applies only to datapoint naming, while asset names derived from parent OPC UA objects remain based on Browse Name. Additionally, the plugin now supports control operations flowing from Fledge to OPC UA devices.
+       - foglamp-south-s2opcua: Added a new Datapoint Name configuration, allowing users to choose between Browse Name (default) or Node Id for naming datapoints, while asset names derived from parent OPC UA objects remain based on Browse Name. The plugin now supports control operations flowing from FogLAMP to OPC UA devices. Additionally, improvements have been made to subscription configuration, and debug trace output is now included in FogLAMP support bundles.
        - Logging in the fledge-south-opcua plugin has been improved to include more data on the low level OPC UA protocol connections.
        - foglamp-filter-asset: Added a new option to select which datapoints are sent onwards in the pipeline and improved error handling for rules configuration.
        - The fledge-filter-scale-set has been updated to use an improved user interface to define the set of scale factors and offset to apply.

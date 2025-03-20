@@ -258,6 +258,7 @@ generate_selfcertificate:
 	scripts/auth_certificates ca $(AUTH_NAME) $(SSL_DAYS)
 	scripts/auth_certificates user user $(SSL_DAYS)
 	scripts/auth_certificates user admin $(SSL_DAYS)
+	scripts/auth_certificates user systemctl $(SSL_DAYS)
 
 ###############################################################################
 ############################ C BUILD/INSTALL TARGETS ##########################

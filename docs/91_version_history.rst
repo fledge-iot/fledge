@@ -96,9 +96,9 @@ Release Date: 2025-03-13
 
        - fledge-south-mqtt-sparkplug: Added an option to attach the topic as a datapoint, enabling its use in later filters for applications like passing placement hints to north plugins. Additionally, the plugin now supports long integer and double values.
        - The fledge-south-benchmark plugin has been enhanced to allow support for multiple datapoints per asset.
-       - foglamp-south-s2opcua: Added a new Datapoint Name configuration, allowing users to choose between Browse Name (default) or Node Id for naming datapoints, while asset names derived from parent OPC UA objects remain based on Browse Name. The plugin now supports control operations flowing from FogLAMP to OPC UA devices. Additionally, improvements have been made to subscription configuration, and debug trace output is now included in FogLAMP support bundles.
+       - fledge-south-s2opcua: Added a new Datapoint Name configuration, allowing users to choose between Browse Name (default) or Node Id for naming datapoints, while asset names derived from parent OPC UA objects remain based on Browse Name. The plugin now supports control operations flowing from Fledge to OPC UA devices. Additionally, improvements have been made to subscription configuration, and debug trace output is now included in Fledge support bundles.
        - Logging in the fledge-south-opcua plugin has been improved to include more data on the low level OPC UA protocol connections.
-       - foglamp-filter-asset: Added a new option to select which datapoints are sent onwards in the pipeline and improved error handling for rules configuration.
+       - fledge-filter-asset: Added a new option to select which datapoints are sent onwards in the pipeline and improved error handling for rules configuration.
        - The fledge-filter-scale-set has been updated to use an improved user interface to define the set of scale factors and offset to apply.
        - The fledge-filter-metadata plugin has been updated to support substitution of datapoint values and the asset name, not the new meta data values created.
        - The fledge-north-http-c plugin has been updated to support optional HTTP Basic authentication.
@@ -114,7 +114,7 @@ Release Date: 2025-03-13
        - An issue with the dynamic reconfiguration of the fledge-south-randomwalk plugin has been resolved. The service no longer requires a restart after reconfiguration.
        - fledge-south-opcua: Resolved issues causing failures when the service is restarted without an available OPC UA server connection and when the plugin is reconfigured.
        - A problem with the fledge-south-mqtt plugin that would cause it to not re-establish the connection to the MQTT broker if connectivity was lost has been resolved.
-       - foglamp-filter-asset: Fixed issues with rule execution order, ensuring proper sequencing. Resolved a problem where multiple rules might not remove all datapoints from an asset. Additionally, improved stability by preventing non-graceful exits when an incomplete configuration is provided.
+       - fledge-filter-asset: Fixed issues with rule execution order, ensuring proper sequencing. Resolved a problem where multiple rules might not remove all datapoints from an asset. Additionally, improved stability by preventing non-graceful exits when an incomplete configuration is provided.
        - fledge-filter-metadata: Resolved an issue causing the plugin to terminate a south service due to excessively late integer values and added support for defining nested values.
        - A problem that could result in excessive memory use when the fledge-filter-delta plugin is used.
        - fledge-north-opcuaclient: Resolved an issue where the plugin attempted to write data to non-existent OPC UA nodes and fixed a problem causing statistics to increase even when no data was being sent.

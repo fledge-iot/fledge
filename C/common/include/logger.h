@@ -11,6 +11,11 @@
  */
 
 #include <string>
+#include <map>
+#include <unordered_map>
+#include <mutex>
+#include <vector>
+#include <functional>
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
@@ -25,6 +30,15 @@
  */
 class Logger {
 	public:
+		enum class LogLevel
+		{
+			ERROR,
+			WARNING,
+			INFO,
+			DEBUG,
+			FATAL
+		};
+
 		Logger(const std::string& application);
 		~Logger();
 		static Logger *getLogger();
@@ -36,11 +50,30 @@ class Logger {
 		void fatal(const std::string& msg, ...);
 		void setMinLevel(const std::string& level);
 		std::string& getMinLevel() { return levelString; }
+
+		// LogInterceptor callback function signature
+		typedef void (*LogInterceptor)(LogLevel, const std::string&, void*);
+
+		// Register an interceptor
+		bool registerInterceptor(LogLevel level, LogInterceptor callback, void* userData);
+
+		// Unregister an interceptor
+		bool unregisterInterceptor(LogLevel level, LogInterceptor callback);
+
 	private:
+		struct LogInterceptorNode
+		{
+			LogInterceptor callback;
+			void* userData;
+		};
+		void executeInterceptor(LogLevel level, const std::string& message);
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
 		std::string     levelString;
 		int		m_level;
+		std::mutex m_mutex;
+		std::unordered_multimap<LogLevel, LogInterceptorNode> m_interceptors;
+
 };
 
 #endif

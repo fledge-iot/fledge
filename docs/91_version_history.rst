@@ -76,7 +76,6 @@ Release Date: 2025-03-13
        - Flow Editor: The default UI for new installations now uses the flow-based editor instead of the tabular pipeline view, with an option to switch via Settings.  Added a confirmation dialog to prevent accidental service disabling. Improved the appearance of the add filter interface. Additionally, plugin configuration performance within the flow editor has been optimized.
        - The look and feel of the south and north menu items has been improved with more intuitive icons.
        - The configuration tab has been improved to include navigation buttons to easily move between tabs.
-       - Added support for an optional schema property in JSON configuration. This schema defines the expected structure of the JSON object, enabling validation of its values. Additionally, it allows the user interface to retrieve the schema for rendering an improved form for JSON input. The schema will be stored in the configuration category similarly to how default values are managed for JSON configuration items.
        - The layout of the south service in the tabular view has been improved.
 
 

@@ -23,8 +23,6 @@ CAT_NAME = 'test'
 ITEM_NAME = "test_item_name"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "configuration_manager")
 class TestConfigurationManager:
     @pytest.fixture()
     def reset_singleton(self):
@@ -870,6 +868,30 @@ class TestConfigurationManager:
             "object", "properties": {"width": {"description": "", "default": ""}}}}, ValueError,
          "For {} category, width properties must have type, description, default keys for item name {}".format(
              CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName": 1,
+                      "properties": {"width": {"description": "Width", "default": "1", "type": "integer"}}}},
+         TypeError, "For {} category, keyName type must be a string for item name {}; got <class 'int'>".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object",
+                      "keyDescription": False, "properties": {"width": {"description": "Width", "default": "1", "type":
+                "integer"}}}}, TypeError, "For {} category, keyDescription type must be a string for item name {}; "
+                                          "got <class 'bool'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "DP", "keyDescription": False, "properties": {"width": {"description": "Width", "default": "1", "type":
+                "integer"}}}}, TypeError, "For {} category, keyDescription type must be a string for item name {}; "
+                                          "got <class 'bool'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            4.5, "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, TypeError, "For {} category, keyName type must be a string for item name {}; "
+                                      "got <class 'float'>".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "", "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, ValueError, "For {} category, keyName cannot be empty for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{}", "items": "object", "keyName":
+            "DP", "keyDescription": "", "properties": {"width": {"description": "Width", "default": "1", "type":
+            "integer"}}}}, ValueError, "For {} category, keyDescription cannot be empty for item name {}".format(
+            CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key1\": \"integer\"}",
                       "items": "enumeration"}}, KeyError,
          "'For {} category, options required for item name {}'".format(CAT_NAME, ITEM_NAME)),
@@ -979,6 +1001,7 @@ class TestConfigurationManager:
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "float",
                      "default": "{}", "order": "1", "displayName": "labels", "listSize": "3"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "object",
+                     "keyName": "Register", "keyDescription": "Register to read",
                      "default": "{\"register\": {\"width\": \"2\"}}", "order": "1", "displayName": "labels",
                      "properties": {"width": {"description": "Number of registers to read", "displayName": "Width",
                                               "type": "integer", "maximum": "4", "default": "1"}}}},
@@ -995,6 +1018,76 @@ class TestConfigurationManager:
                                                  set_value_val_from_default_val=True)
         assert config['include']['default'] == res['include']['default']
         assert config['include']['default'] == res['include']['value']
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        ({ITEM_NAME: {"description": "Test JSON", "type": "json", "default": "A"}}, ValueError,
+         'For {} category, invalid entry value for entry name "type" for item name {}. valid type strings are: {}'
+         ''.format(CAT_NAME, ITEM_NAME, _valid_type_strings)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "A"}}, ValueError,
+         'For {} category, missing entry name value for item name {}'.format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": ""}}, TypeError,
+         "For {} category, {} item name and schema entry value must be an object; got <class 'str'>".format(
+             CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}}, "info": {
+            "description": "test description val", "type": "string", "default": "test default val"}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME)),
+        ({"bool": {"description": "Test boolean", "type": "boolean", "default": "false", "value": "true"},
+          ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}", "schema": {}},
+          "str": {"description": "Test simple string", "type": "string", "default": "test default val"}}, ValueError,
+         'For {} category, {} item name and schema entry value can not be empty.'.format(CAT_NAME, ITEM_NAME))
+    ])
+    async def test__validate_category_val_JSON_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
+    @pytest.mark.parametrize("config", [
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": "{}"}}),
+        ({ITEM_NAME: {"description": "Test JSON", "type": "JSON", "default": {}}}),
+        # Object Schema
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                      "schema": {"type": "object", "properties": {"name": {"type": "string"}}}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                      "schema": {"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "integer"}
+                                                                  }}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ", "age": 35},
+                      "schema": {"type": "object", "properties": {
+                          "name": {"type": "string"}, "age": {"type": "integer"}}, "required": ["name"]}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": {"name": "AJ"},
+                      "schema": {"type": "object", "properties": {
+                          "name": {"type": "string"}, "age": {"type": "integer"}}, "required": ["name"]}}}),
+        # Array Schema
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10]",
+                      "schema": {"type": "array", "items": {"type": "integer"}}}}),
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[10, 20, 30]",
+                      "schema": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 5}}}),
+        # Nested Objects with Array of Objects
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON",
+                      "default": {"project_name": "New Project", "tasks": [{"task_id": 1, "completed": True},
+                                                                           {"task_id": 10, "completed": False}]},
+                      "schema": {"type": "object", "properties": {
+                          "project_name": {"type": "string"}, "tasks": {
+                              "type": "array", "items": {"type": "object", "properties": {
+                                  "task_id": {"type": "integer"}, "completed": {"type": "boolean"}},
+                                "required": ["task_id", "completed"]}
+                            }},
+                                 "required": ["project_name", "tasks"]}}}),
+        # Array of Arrays
+        ({ITEM_NAME: {"description": "Test JSON schema", "type": "JSON", "default": "[[10, 20, 30], [300], [0, 1]]",
+                      "schema": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}}}})
+    ])
+    async def test__validate_category_val_JSON_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        c_return_value = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                            set_value_val_from_default_val=True)
+        assert isinstance(c_return_value, dict)
 
     @pytest.mark.parametrize("_type, value, from_default_val", [
         ("integer", " ", False),
@@ -1254,6 +1347,33 @@ class TestConfigurationManager:
         c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage,
                                                           keep_original_items=True, category_name=CAT_NAME)
         assert expected_new_value == c_return_value
+
+    async def test__merge_category_vals_with_list_name(self, reset_singleton):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        test_config_new = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"E\", \"F\"]}"
+            }
+        }
+        test_config_storage = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"C\", \"D\"]}"
+            }
+        }
+        c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage,
+                                                          keep_original_items=False, category_name=CAT_NAME)
+        assert test_config_storage == c_return_value
 
     async def test__merge_category_vals_no_mutual_items_ignore_original(self, reset_singleton):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -2151,6 +2271,37 @@ class TestConfigurationManager:
             readpatch.assert_called_once_with(category_name, item_name)
         assert 1 == log_exc.call_count
 
+    async def test_set_category_item_value_entry_with_list_name(self, reset_singleton):
+
+        async def async_mock(return_value):
+            return return_value
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'catname'
+        item_name = 'itemname'
+        new_value_entry = "[\"E\", \"F\"]"
+        storage_value_entry = {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
+                                        'items': 'string', 'default': '{"items": ["A", "B"]}',
+                                        'value': '{"items": ["C", "D"]}'}
+        modified_new_value_entry = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
+        c_mgr._cacheManager.update(category_name, "desc", {item_name: storage_value_entry})
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock(storage_value_entry)
+            _rv2 = await async_mock(None)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv2 = asyncio.ensure_future(async_mock(None))
+
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv1) as patch_read:
+            with patch.object(ConfigurationManager, '_update_value_val', return_value=_rv2) as patch_update:
+                with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as patch_callback:
+                    await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
+                patch_callback.assert_called_once_with(category_name)
+            patch_update.assert_called_once_with(category_name, item_name, modified_new_value_entry)
+        patch_read.assert_called_once_with(category_name, item_name)
+
     async def test_get_all_category_names_good(self, reset_singleton):
 
         async def async_mock(return_value):
@@ -2405,6 +2556,55 @@ class TestConfigurationManager:
                     pbinsertpatch.assert_called_once_with(display_name=category_name, description=category_description,
                                                           key=category_name, value=category_val_actual)
             auditinfopatch.assert_called_once_with('CONAD', {'category': category_val_actual, 'name': category_name})
+        storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
+
+    async def test_create_new_category_with_list_name(self, reset_singleton):
+        async def mock_coro():
+            return {'response': [{
+                'category_name': 'catname',
+                'category_val': 'catval',
+                'description': 'catdesc'
+            }]
+            }
+
+        async def async_mock(return_value):
+            return return_value
+
+        category_name = 'catname'
+        category_val = {
+            "config_item": {
+                "description": "A list of variables",
+                "type": "list",
+                "items": "string",
+                "listName": "items",
+                "default": "{\"items\": [\"A\", \"B\"]}",
+                "value": "{\"items\": [\"A\", \"B\"]}"
+            }
+        }
+        category_description = 'catdesc'
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock(None)
+            _attr = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(async_mock(None))
+            _attr = asyncio.ensure_future(mock_coro())
+
+        attrs = {"insert_into_tbl.return_value": _attr}
+        storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=_rv) as patch_audit_info:
+                with patch.object(PayloadBuilder, '__init__', return_value=None):
+                    with patch.object(PayloadBuilder, 'INSERT', return_value=PayloadBuilder) as patch_insert:
+                        with patch.object(PayloadBuilder, 'payload', return_value=None) as patch_payload:
+                            await c_mgr._create_new_category(category_name, category_val, category_description)
+                        patch_payload.assert_called_once_with()
+                    patch_insert.assert_called_once_with(display_name=category_name, description=category_description,
+                                                          key=category_name, value=category_val)
+            patch_audit_info.assert_called_once_with('CONAD', {'category': category_val,
+                                                               'name': category_name})
         storage_client_mock.insert_into_tbl.assert_called_once_with('configuration', None)
 
     async def test__read_all_category_names_1_row(self, reset_singleton):
@@ -3573,10 +3773,28 @@ class TestConfigurationManager:
             assert str(msg) == str(excinfo.value)
 
     @pytest.mark.parametrize("item_type, item_val, result", [
-        ("boolean", "True", "true"),
-        ("boolean", "true", "true"),
-        ("boolean", "false", "false"),
-        ("boolean", "False", "false")
+        ('boolean', "True", "true"),
+        ('string', "Plugin", "Plugin"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "True", "true"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'true'}, "true", "true"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'false'}, "false", "false"),
+        ({'description': 'Test', 'type': 'boolean', 'default': 'false'}, "False", "false"),
+        ({'description': 'Datapoint', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "sin"}]'},
+         '[{"datapoint": "sin"}]', '[{"datapoint": "sin"}]'),
+        ({'description': 'Datapoints', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "dp"}]'},
+         '[{"datapoint": "dp"}, {"datapoint": "dp"}]', '[{"datapoint": "dp"}]'),
+        ({'description': 'Datapoints', 'type': 'list', 'items': 'object', 'default': '[{"datapoint": "dp"}]'},
+         '[{"datapoint": "dp"}, {"datapoint": "dp2"}, {"datapoint": "dp"}]',
+         '[{"datapoint": "dp"}, {"datapoint": "dp2"}]'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}}' , '{"plc": {"register": "0"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc": {"register": "0"}}', '{"plc": {"register": "0"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc": {"type": "integer"}}', '{"plc": {"type": "integer"}}'),
+        ({'description': 'Datapoints', 'type': 'kvlist', 'items': 'object', 'default': '{"plc": {"register": "0"}}'},
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}',
+         '{"plc": {"register": "0"}, "plc-2": {"type": "integer"}}')
     ])
     async def test__clean(self, item_type, item_val, result):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -3944,6 +4162,55 @@ class TestConfigurationManager:
                 assert exc_type == exc_info.type
                 assert exc_msg == str(exc_info.value)
             assert 1 == patch_log_exc.call_count
+        patch_get_all_items.assert_called_once_with(category_name)
+
+    async def test_update_configuration_item_bulk_with_list_name(self, category_name='Test'):
+        async def async_mock(return_value):
+            return return_value
+
+        cat_info ={'list': {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
+                           'items': 'string', 'default': '{"items": ["A", "B"]}', 'value': '{"items": ["A", "B"]}'}}
+        config_item_list = {"list": "[\"C\", \"D\"]"}
+        update_result = {"response": "updated", "rows_affected": 1}
+        read_val = {'list': {'default': '{"items": ["A", "B"]}', 'description': 'A list of variables',
+                             'value': '{"items": ["C", "D"]}', 'type': 'list', 'items': 'string', 'listName': 'items'}}
+
+        payload = {'updates': [{'json_properties': [{'path': ['list', 'value'], 'column': 'value',
+                                                     'value': '{"items": ["C", "D"]}'}],
+                                'return': ['key', 'description', {'format': 'YYYY-MM-DD HH24:MI:SS.MS', 'column': 'ts'},
+                                           'value'], 'where': {'value': 'Test', 'column': 'key', 'condition': '='}}]}
+        audit_details = {'items': {'list': {'oldValue': '{"items": ["A", "B"]}', 'newValue': '{"items": ["C", "D"]}'}},
+                         'category': category_name}
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock(cat_info)
+            _rv2 = await async_mock(update_result)
+            _rv3 = await async_mock(read_val)
+            _rv4 = await async_mock(None)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(async_mock(update_result))
+            _rv3 = asyncio.ensure_future(async_mock(read_val))
+            _rv4 = asyncio.ensure_future(async_mock(None))
+
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=_rv2) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=_rv3) as patch_read_val:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv4) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks',
+                                              return_value=_rv4) as patch_callback:
+                                await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                            patch_callback.assert_called_once_with(category_name)
+                        patch_audit.assert_called_once_with('CONCH', audit_details)
+                patch_read_val.assert_called_once_with(category_name)
+            args, kwargs = patch_update.call_args
+            assert 'configuration' == args[0]
+            assert payload == json.loads(args[1])
         patch_get_all_items.assert_called_once_with(category_name)
 
     async def test_set_optional_value_entry_good_update(self, reset_singleton):

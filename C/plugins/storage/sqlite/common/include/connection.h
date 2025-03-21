@@ -21,6 +21,8 @@
 #include <vector>
 #include <atomic>
 
+class ConnectionManager;
+
 #define TRACK_CONNECTION_USER		0 // Set to 1 to get dianositcs about connection pool use
 
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
@@ -101,7 +103,7 @@ bool applyDateFormat(const std::string& inFormat, std::string& outFormat);
 
 class Connection {
 	public:
-		Connection();
+		Connection(ConnectionManager *manager);
 		~Connection();
 #ifndef SQLITE_SPLIT_READINGS
 		bool		createSchema(const std::string& schema);
@@ -208,6 +210,8 @@ class Connection {
 #if TRACK_CONNECTION_USER
 		std::string	m_usage;
 #endif
+		ConnectionManager
+				*m_manager;
 };
 
 #endif

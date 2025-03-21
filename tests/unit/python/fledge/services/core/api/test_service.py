@@ -33,8 +33,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "service")
 class TestService:
     def setup_method(self):
         ServiceRegistry._registry = list()
@@ -750,16 +748,18 @@ class TestService:
 
         delete_result = {'response': 'deleted', 'rows_affected': 1}
         update_result = {'rows_affected': 1, "response": "updated"}
-
+        query_result = [{'rows': [{'name': 'Delta #123'}], 'count': 1}]
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_result()
             _rv3 = await self.async_mock(delete_result)
             _rv4 = await self.async_mock(update_result)
+            _rv5 = await self.async_mock(query_result)
         else:
             _rv1 = asyncio.ensure_future(mock_result())
             _rv3 = asyncio.ensure_future(self.async_mock(delete_result))
             _rv4 = asyncio.ensure_future(self.async_mock(update_result))
+            _rv5 = asyncio.ensure_future(self.async_mock(query_result))
         _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
         mocker.patch.object(connect, 'get_storage_async')
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv1)
@@ -772,6 +772,7 @@ class TestService:
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
         delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv3)
         delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv3)
+        delete_filters = mocker.patch.object(service, "delete_filters", return_value=_rv5)
         update_deprecated_ts_in_asset_tracker = mocker.patch.object(service, "update_deprecated_ts_in_asset_tracker",
                                                                     return_value=_rv4)
 
@@ -811,6 +812,10 @@ class TestService:
         assert sch_name in args
 
         assert 1 == delete_plugin_data.call_count
+        args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_filters.call_count
         args, kwargs = delete_plugin_data.call_args_list[0]
         assert sch_name in args
 

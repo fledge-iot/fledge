@@ -46,7 +46,7 @@ const char *default_config = QUOTE({
                         "order" : "1"
                         },
                 "maxReadingRows" : {
-                        "description" : "The maximum numebnr of readings to insert in a single statement",
+                        "description" : "The maximum number of readings to insert in a single statement",
                         "type" : "integer",
                         "default" : "5000",
                         "displayName" : "Max. Insert Rows",

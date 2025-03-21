@@ -1,5 +1,6 @@
 .. Images
 .. |south_advanced| image:: images/south_advanced.jpg
+.. |south_alert| image:: images/south_alert.jpg
 .. |stats_options| image:: images/stats_options.jpg
 .. |north_advanced| image:: images/north_advanced.jpg
 .. |service_monitor| image:: images/service_monitor.jpg
@@ -12,6 +13,11 @@
 .. |poll_type| image:: images/poll_type.png
 .. |config_cache| image:: images/config_cache.jpg
 .. |core_log_level| image:: images/core_log_level.jpg
+.. |PurgeConfig| image:: images/PurgeConfig.png
+.. |PurgeSystemConfig| image:: images/PurgeSystemConfig.png
+.. |PurgeCycles| image:: images/PurgeCycles.png
+.. |PurgeSchedules| image:: images/PurgeSchedules.png
+.. |TaskLog| image:: images/TaskLog.png
 
 ***************
 Tuning Fledge
@@ -129,6 +135,10 @@ The south services within Fledge each have a set of advanced configuration optio
 
   - *Performance Counters* - This option allows for the collection of performance counters that can be used to help tune the south service.
 
+  - *Monitoring Period* - This defines a period in minutes over which the service collects ingest counts to determine the flow rate of the service. This is averaged over a number of samples to build the average rate and standard deviation from that rate in order to detect anomalous changes in the rate. The user is warned when the rate does not appear consistent with the learnt average and standard deviation. Setting this value to 0 will disable the ingest rate monitoring.
+
+  - *Monitoring Sensitivity* -  This defines the sensitivity of the rate monitoring reports. It is expressed as a factor and is used to determine how many standard deviations from the mean ingest rate is considered as an anomalous ingest rate. The high this number the less sensitive the monitoring process is.
+
 Performance Counters
 --------------------
 
@@ -182,6 +192,32 @@ When collection is enabled the following counters will be collected for the sout
       - A count of the readings that have been removed after too many attempts to save them in the storage layer.
       - This should normally be zero or close to zero. Any significant values here are a pointer to a critical error with either the south plugin data that is being created or the operation of the storage layer.
 
+Ingest Rate Monitoring
+----------------------
+
+The ingest rate monitoring in the south service is designed to warn the user when the observed ingest rate of the service falls outside of the expected range observed previously for the service. The mechanism does not rely an option the user provides defining an expected rate, but rather uses observed data to determine an expected range of rates that can be considered normal. The user has options to configure the period over which the rate is observed for reporting purposes and also the sensitivity of the monitoring. This has the advantage over simply defining an upper and lower acceptable ingest rate that it does not need to be adjusted each time the poll rate is adjusted and it can be used with asynchronous data sources where the rate may be unknown, provided those sources are relatively consistent with the rate they supply data.
+
+The monitoring period may be adjusted to suit the consistency of the incoming data rate and tune the frequency with which reports are made. A report can be made at most once per every two monitoring periods,  therefore setting a long monitoring period will reduce the responsive of the alerts to failures. However too short a monitoring period, with rates that fluctuate can result in false positives because the average rate over the given period in not stable even to provide consistent results.
+
+In cases where the data rate is so inconsistent that the monitoring is giving too many false alerts it may be disabled by setting a monitoring period of 0.
+
+The algorithm uses the well known outlier detection mechanism which states that the distribution of data usually falls within a bell curve, with the likelihood of data being higher closer to the average of the data set. It uses standard deviation and mean calculation to determine this and the sensitivity setting defines the number of standard deviation plus or minus of the computed mean that are considered to be good ingest rates.
+
+The monitoring process will collect a number of samples, to create an initial mean and standard deviation before it will start to actively monitor the flow rate. Should the collection rate configuration of the service be altered, the algorithm will discard the learnt mean and standard deviation and restart the collection of the initial sample. The initial sample size is set to be 10 monitoring periods.
+
+Once the monitoring algorithm has completed the initial sample collection and switched to active monitoring, it will continue to refine the current mean value and standard deviation. This allows the monitoring to adjust to small, natural variations in collection rates over time.
+
+When two consecutive  monitoring periods are detected that sent either more than or fewer than the number of readings defined by the current mean, standard deviation and sensitivity factory an alert will be displayed in the Fledge status bar and a warning will be written to the error log. 
+
++---------------+
+| |south_alert| |
++---------------+
+
+The algorithm requires two consecutive out of range ingest rates to prevent the alert trigger for an isolated peak or trough in data collection caused by a one off action occurring on the host platform, or within Fledge. If in a subsequent monitoring period the flow rate returns to acceptable limits, the alert in the status bar will be cleared.
+
+.. note::
+
+   This ingest rate monitoring is designed to be applicable in as many situations as possible. There are however some cases in which this monitoring will create false reports of issues. This may be able to be reduced or eliminated by using the tuning options, but this may not be true in all cases. In particular an asynchronous south plugin that reports data at unpredictable time intervals will most likely not be suitable for this type of monitoring and the monitoring should be disabled by setting a value of 0 for the monitoring interval.
 
 Fixed Time Polling
 ------------------
@@ -213,7 +249,30 @@ The tuning of the south service allows the way the buffering is used within the 
 
 Setting the *Maximum buffers Readings* value allows the user to place a cap on the amount of memory used to buffer within the south service, since when this value is reach, regardless of the age of the data and the setting of the latency parameter, the data will be sent to the storage service. Setting this to a smaller value allows tighter control on the memory footprint at the cost of less efficient use of the communication and storage service.
 
-Tuning between performance, latency and memory usage is always a balancing act, there are situations where the performance requirements mean that a high latency will need to be incurred in order to make the most efficient use of the communications between the micro services and the transnational performance of the storage engine. Likewise the memory resources available for buffering may restrict the performance obtainable.
+Tuning between performance, latency and memory usage is always a balancing act, there are situations where the performance requirements mean that a high latency will need to be incurred in order to make the most efficient use of the communications between the micro services and the transactional performance of the storage engine. Likewise the memory resources available for buffering may restrict the performance obtainable.
+
+Reading Latency
+---------------
+
+Closely related to buffer usage is reading latency in the south service. This is a measure of the delay between the south service receiving a new reading and that reading appearing in the storage subsystem. We deliberately delay the forwarding of readings from the south service to storage in order to create blocks of multiple readings to send per call to the storage layer. This increases the overall throughput of the south to storage interface at the cost of increasing the latency. There are two settings that come into play when defining this, the maximum latency we will accept and the maximum number of readings we will buffer.
+
+.. note::
+
+   The maximum reading latency may be set to any value between 0 and 600000 milliseconds. A value of zero will disable the buffering. See below for a discussion of the impact of large values of maximum reading latency.
+
+In situations where readings are arriving in the south service relatively frequently these can be set to values to allow data to build up reasonable size blocks of readings to send and hence be more efficient in sending the data to the storage layer. However if data does not arrive frequently or is not predictable in the way it arrives then these settings may cause unexpected latency and delays within the system.
+
+The buffering subsystem within the south service will buffer readings in the south as they arrive. It checks the time difference between the oldest buffered reading and the current time to see if the maximum latency setting is about to be exceeded. If it is it will send the buffered data. If latency check does not result in the data queue being sent to the storage subsystems, the south service will check the number of readings buffered. If the count of buffered readings is about to exceed the maximum allowed number of buffered readings, the south service will then send all the buffered readings to the storage service. No further checks are done until the next reading arrives.
+
+Therefore, if readings do not arrive very frequently, or the south plugin is asynchronous and data arrives sporadically, then it may not check the buffer status for more than the maximum configured latency period. The requirement for more data to arrive before more checks are made, may result in that maximum latency being exceeded. When this occurs a warning message will be logged in the system logs.
+
+In these circumstances, it is recommended to disable or severely limit the buffering in the south service. This will result in less efficient interactions with the storage system, but these will be infrequent due to the infrequent nature of data arrival.
+
+.. note::
+
+   Data arrives at the buffering subsystem **after** it has passed through the processing pipeline in the south service. Therefore if the pipeline does data compression, for example using the delta filter, this may reduce the arrival rate of data at the buffering subsystem and convert high bandwidth data from the plugin to low bandwidth data to send to the storage subsystem.
+
+The system imposes an upper limit of 600000 milliseconds (10 minutes) on the maximum send latency to prevent it being set so high that it appears that the south service is no longer functioning. This is really only an issue in situations where the south service does not receive high rates of data and the send latency is set very high. In these cases the data may reside in the south service for a long period, during which it is not accessible to other services within the system. There is also a risk, in these circumstances, that data for a long period of time might be lost if there was a failure that caused the south service to terminate before sending the data to the storage service.
 
 North Advanced Configuration
 ============================
@@ -542,6 +601,14 @@ The storage plugin configuration can be found in the *Advanced* section of the *
 | |sqlite_config| |
 +-----------------+
 
+- **Deployment**: This option controls a number of settings within the SQLite storage layer. Three options are available;
+
+  - **Small** Used when Fledge is installed with minimal resources. This reduces the disk and memory footprint of the storage layer. It is only recommended when the data flowing through the Fledge instance is of limited quantity and frequency.
+
+  - **Normal** This is the most commonly used setting and provides a compromise of memory and disk footprint for the storage system. This is the setting that is recommended in most circumstances and should be sufficient in must cases.
+
+  - **High Bandwidth** This setting is best when the Fledge instance is being used to process very high traffic loads. It increases both the disk and memory footprint of the storage layer in order to provide for high throughput of data in the storage layer.
+
 - **Pool Size**: The storage service uses a connection pool to communicate with the underlying database, it is this pool size that determines how many parallel operations can be invoked on the database.
 
   This pool size is only the initial size, the storage service will grow the pool if required, however setting a realistic initial pool size will improve the ramp up performance of Fledge.
@@ -699,6 +766,113 @@ When collection is enabled the following counters will be collected for the stor
     * - delete Payload Size <table>
       - The size of the JSON payload in the delete calls to the storage layer for the given table.
       - There is little an end user can influence regarding the payload size, however it gives an indication of bandwidth usage for the storage API.
+
+Purge
+=====
+
+The purpose of the purge processes within Fledge is to control the usage of the storage system. Fledge has two different purge processes that run, each of which purges a different aspect of the storage within the system.
+
+  - **System Purge** - The system purge process is responsible for purging the logs held internally within the Fledge storage system. There are three types of log information held in the storage system: statistics, the audit trail, and task execution history.
+
+    .. note::
+
+        The *System Logs*, or message logs, are not held within the Fledge storage system but are rather sent to the Linux system logging facility, *syslog*. This is configured within the Linux system itself to rotate, compress and ultimately remove logs using the system defined log rotation settings.
+
+  - **Purge** - The purge process is responsible for purging the readings data from the system. 
+
+Purge System
+------------
+
+The log purging is perhaps the simpler of the two purge process to discuss as it has the least impact on the performance of the system. The configuration of the process itself can be found under the *Configuration* menu option in the *Utilities::Purge System* category.
+
++---------------------+
+| |PurgeSystemConfig| |
++---------------------+
+
+The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories: audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but should retain sufficient information to be able to examine enough history of the system.
+
+The other dimension to consider is that performance is known to degrade as these tables become large. It is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
+
+Typically the statistics that are held will take the most space in the system, especially if you are collecting per asset ingest statistics and you collect data for many assets.  There are actually two forms of statistics kept; the absolute counters and the history snapshot of the statistics. The history snapshot records the statistics values every 15 seconds and create an entry in the statistics history table for each statistic every 15 seconds. It is these statistic history entries that are purged and not the absolute statistics counters. Hence the retention period for statistics, the statistics history, is generally lower.
+
+.. note::
+
+   The 15 second statistics history update can itself be tuned by changing the frequency with which the statistics history task is run. This is done via the *Schedules* menu item by changing the interval for the *stats collection* task. Changing this will impact the dashboard seen in the Fledge as this shows values from the statistics history table. The values shown are the deltas in the statistics between each run of the stats collection task. Therefore by default the rates shown in the dashboard are per 15 second intervals.
+
+Similar decisions should be made for the task and the audit log data. In the case of the audit log you should consider what use is being made of that data and how frequently it is updated. Typically systems do not undergo much reconfiguration after the initial setup period. Therefore most of the audit data is likely to be around significant events that occur, such as a restart or failure. If you are making heavy use of the notification or control features of Fledge then these will increase the growth rate of the audit log as these are auditable events.
+
+.. note::
+
+   The audit log is also used by the *FogLAMP Manage* product to determine if changes have been made locally to the instance. Therefore the retention period for audit log data must be greater that the frequency with which that product is collecting this data from the instance.
+
+The task log is used internally within Fledge to track the state of running tasks as well as to give the history of tasks that have run for support purposes; this data is included in the support bundles. Therefore the retention should be such that there is sufficient history to cover any period that might be needed to diagnose issues within Fledge. Also the period should not be so small that it risks the data for a running task being purged before the task has completed. As a guideline it must never be less than 1 day. It is recommended to keep at least 7 days to allow for some history to be available for diagnostic purposes.
+
+As well as the configuration of the retention period for the various logs the other tuning that can be done is the frequency of the execution of the system purge process. This is done in the *Schedules* menu item and is the tasks named *purge_system*. The default is to run it every 23 hours and 50 minutes.
+
+.. note::
+
+   If you run the system purge every 24 hours and you retain 7 days worth of data for the statistics, you will have 8 days of data stored at the peak of storage use. This is because when the process runs it will reduce the data down to 7 days, but as soon as it has completed new data will accumulate until it is next run a day later. The same is obviously also true for the task and audit data.
+
+Purge Process
+-------------
+
+The purge process is probably the more important process to tune of the two. It manages the storage for the reading data that is the more dynamic and larger data set of the two controlled by purge processes. As with the purge system process above, the configuration of how the purge process runs is available in the *Configuration* menu item in the category *Utilities::Purge*.
+
++---------------+
+| |PurgeConfig| |
++---------------+
+
+The details of each of the options are covered elsewhere in the documentation, but the salient points will be repeated here. The operation of the purge process reduces the number of readings that are retained in the readings storage subsystem using two parameters:
+
+   - the age of the reading
+
+   - the number of readings
+
+The age is set in hours. Any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the *Max rows of data to retain* value.
+
+These are the candidates to be removed, but may not be removed depending upon the sent status of the readings and the configuration item *Retain Unsent Data*.
+
+Candidate data that has already been sent to all the defined north destinations in the system will always be removed regardless of the *Retain Unsent Data* setting. Data that has not be marked as a candidate for removal will be retained event after it has been sent to all the north destinations.
+
+If the *Retain Unsent Data* setting is set to *retain unsent to any destination*, then candidate data will be removed if it has been sent to at least one north destination. Data that has not be sent to any destination will be retained.
+
+As with the purge system process the purge process is also run by a schedule that is accessed via the *Schedules* menu item.
+
++------------------+
+| |PurgeSchedules| |
++------------------+
+
+The frequency of running the purge process is very important, since it as the same effect as described for the purge system execution, but the impact is much higher. Consider a system that wants to retain data for 12 hours. If the purge process is set to run every 12 hours the number of readings over time would be as shown in the graph below
+
++---------------+
+| |PurgeCycles| |
++---------------+
+
+The red line indicates the configured retention point for the readings. Each point where the blue line drops is an execution of the purge process.
+
+This assumes we started with a system with no readings. We read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retained readings to those less than 12 hours old. The initial run is in fact not likely to find any data to remove, or at most a handful of readings, depending on how long it takes the purge process to start executing.
+
+The system now continues to ingest data and will accumulate another 12 hours of data before purge is run again and the data reduced to the newest 12 hours of data.
+
+.. note::
+
+   We are assuming that either unsent data is not retained or we are sending all data north immediately as it is received.
+
+This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph above, is that purge is **not an instantaneous process**. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. This reduces the time, and memory resources, that services have to buffer data in memory.
+
+.. note::
+
+   Since all data must go via the storage system from south service to the north services and tasks, the period when services are buffering in memory because the purge process is running, will increase the latency for data to traverse from the south to the north.
+
+There are many advantages to running the purge process more frequently than the retention period. Running it too frequently, however, can cause increase in latency for readings. In addition, if one purge process does not complete before another starts, issues can be seen whereby the purge process dominates the usage of the storage subsystem. If this happens, readings build up in the service memory buffers, eventually causing issues with excessive memory usage. The execution interval for the purge process must be balanced to not create issues with memory and storage utilisation.
+
+The *Logs::Tasks* menu item can be used to view the execution duration of the *purge* and other tasks and provides useful information for tuning the schedule of the purge process.
+
++-----------+
+| |TaskLog| |
++-----------+
+
+It is recommended that the interval between running the purge task should be no lower than 10 times the duration of the purge task itself.
 
 Using Performance Counters
 ==========================

@@ -130,16 +130,21 @@ vector<string> children;
 
 	Logger::getLogger()->info("Load plugin categoryName %s for %s", m_categoryName.c_str(), m_name.c_str());
 	// Fetch up to date filter configuration
-	m_updatedCfg = mgmt->getCategory(m_categoryName);
+	try {
+		m_updatedCfg = mgmt->getCategory(m_categoryName);
 
-	// Pass Management client IP:Port to filter so that it may connect to bucket service
-	m_updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
+		// Pass Management client IP:Port to filter so that it may connect to bucket service
+		m_updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
 									"string", "127.0.0.1:0",
 									mgmt->getUrlbase());
 
-	// Add filter category name under service/process config name
-	children.push_back(m_categoryName);
-	mgmt->addChildCategories(m_serviceName, children);
+		// Add filter category name under service/process config name
+		children.push_back(m_categoryName);
+		mgmt->addChildCategories(m_serviceName, children);
+	} catch (...) {
+		Logger::getLogger()->error("Failed to fetch configuration %s for filter %s", m_categoryName.c_str(), m_name.c_str());
+		return false;
+	}
 		
 	ConfigHandler *configHandler = ConfigHandler::getInstance(mgmt);
 	configHandler->registerCategory((ServiceHandler *)ingest, m_categoryName);
@@ -163,7 +168,7 @@ bool PipelineFilter::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 		// Instantiate the PluginData class
 		m_plugin->m_plugin_data = new PluginData(m_storage);
 		// Load plugin data from storage layer
-		string pluginStoredData = m_plugin->m_plugin_data->loadStoredData(m_serviceName + m_name);
+		string pluginStoredData = m_plugin->m_plugin_data->loadStoredData(m_serviceName + m_name + m_pluginName);
 		//call 'plugin_start' with plugin data: startData()
 		m_plugin->startData(pluginStoredData);
 	}
@@ -189,14 +194,15 @@ void PipelineFilter::shutdown(ServiceHandler *serviceHandler, ConfigHandler *con
  	{
 			// 1- call shutdownSaveData and get up-to-date plugin data.
 			string saveData = m_plugin->shutdownSaveData();
-			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(m_categoryName + m_plugin->getName());
-			if (!m_plugin->m_plugin_data->persistPluginData(key, saveData))
+			// 2- store returned data: key is service/task categoryName + filter category name + pluginName
+			string key(m_serviceName + m_plugin->getName() + m_pluginName.c_str());
+			if (!m_plugin->m_plugin_data->persistPluginData(key, saveData, m_serviceName))
 			{
-				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
+				Logger::getLogger()->error("Filter %s has failed to save data [%s] for key %s and name %s",
 							   m_plugin->getName().c_str(),
 							   saveData.c_str(),
-							   key.c_str());
+							   key.c_str(),
+							   m_serviceName.c_str());
 			}
 		}
 		else

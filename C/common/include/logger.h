@@ -16,6 +16,11 @@
 #include <mutex>
 #include <vector>
 #include <functional>
+#include <algorithm>
+#include <thread>
+#include <memory>
+#include <atomic>
+#include <chrono>
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
@@ -67,13 +72,17 @@ class Logger {
 			void* userData;
 		};
 		void executeInterceptor(LogLevel level, const std::string& message);
+		void cleanupThreads();
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
 		std::string     levelString;
 		int		m_level;
 		std::mutex m_mutex;
 		std::unordered_multimap<LogLevel, LogInterceptorNode> m_interceptors;
-
+		std::vector<std::thread> m_threads; // Threads for async tasks
+		std::atomic<int> m_threadsCreatedSinceLastCleanup; // Counter for periodic cleanup
+		const int CLEANUP_THRESHOLD = 10; // Cleanup after every 10 threads
 };
 
 #endif
+

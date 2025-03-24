@@ -47,7 +47,9 @@ static char ident[80];
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 	m_level = LOG_WARNING;
+	m_threadsCreatedSinceLastCleanup = 0;
 }
+
 
 Logger::~Logger()
 {
@@ -55,6 +57,7 @@ Logger::~Logger()
 	// Stop the getLogger() call returning a deleted instance
 	if (instance == this)
 		instance = NULL;
+
 }
 
 Logger *Logger::getLogger()
@@ -65,11 +68,6 @@ Logger *Logger::getLogger()
 	return instance;
 }
 
-/**
- *  Set the minimum logging level to report for this process.
- *
- *  @param level	Sring representing level
- */
 void Logger::setMinLevel(const string& level)
 {
 	if (level.compare("info") == 0)
@@ -127,13 +125,54 @@ bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 
 void Logger::executeInterceptor(LogLevel level, const std::string& message)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-	auto range = m_interceptors.equal_range(level);
-	for (auto it = range.first; it != range.second; ++it)
+	// No interceptor is registered
+	if (m_interceptors.empty())
 	{
-		it->second.callback(level, message, it->second.userData);
+		return;
+	}
+
+	std::vector<LogInterceptorNode> interceptors;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		auto range = m_interceptors.equal_range(level);
+		for (auto it = range.first; it != range.second; ++it)
+		{
+			interceptors.push_back(it->second);
+		}
+	}
+
+	// Execute interceptors asynchronously using threads
+	for (auto& interceptor : interceptors)
+	{
+		m_threads.emplace_back([interceptor, level, message]() {
+			interceptor.callback(level, message, interceptor.userData);
+		});
+		m_threadsCreatedSinceLastCleanup++;
+	}
+
+	// Perform cleanup if the threshold is reached
+	if (m_threadsCreatedSinceLastCleanup >= 0)
+	{
+		cleanupThreads();
+		m_threadsCreatedSinceLastCleanup = 0;
 	}
 }
+
+void Logger::cleanupThreads()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	// Remove any threads that have finished execution
+	m_threads.erase(std::remove_if(m_threads.begin(), m_threads.end(), [](std::thread& t) {
+		if (t.joinable())
+		{
+			// Detach the thread if it has finished
+			t.detach();
+			return true; // Remove this thread
+		}
+		return false;
+	}), m_threads.end());
+}
+
 void Logger::debug(const string& msg, ...)
 {
 	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
@@ -221,3 +260,4 @@ char	buf[1000];
 	  vsnprintf(buf, sizeof(buf), format.c_str(), args);
 	  return new string(buf);
 }
+

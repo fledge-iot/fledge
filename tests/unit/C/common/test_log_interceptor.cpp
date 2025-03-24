@@ -53,7 +53,8 @@ TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
     
     EXPECT_TRUE(log1.registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1.debug("Testing REGISTR_UNREGISTER"); 
+    log1.debug("Testing REGISTR_UNREGISTER");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : Testing REGISTR_UNREGISTER");
     
     EXPECT_TRUE(log1.unregisterInterceptor(level1, debugInterceptor_1));
@@ -65,11 +66,13 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
     // Logger #1
     Logger log1("LogInterceptor1");
     log1.setMinLevel("debug");
+    usleep(500);
     Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
     
     EXPECT_TRUE(log1.registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1.debug("Register Debug Logger"); 
+    log1.debug("Register Debug Logger");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : Register Debug Logger");
     
     EXPECT_TRUE(log1.unregisterInterceptor(level1, debugInterceptor_1));
@@ -84,6 +87,7 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
     EXPECT_TRUE(log2.registerInterceptor(level2, debugInterceptor_2, nullptr));
     
     log2.debug("Register Debug Logger");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #2 : Register Debug Logger");
     
     EXPECT_TRUE(log2.unregisterInterceptor(level2, debugInterceptor_2));
@@ -100,13 +104,15 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_UNREGISTER)
     
     EXPECT_TRUE(log1.registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1.debug("Testing First UNREGISTER"); 
+    log1.debug("Testing First UNREGISTER");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : Testing First UNREGISTER");
     
     EXPECT_TRUE(log1.unregisterInterceptor(level1, debugInterceptor_1));
     EXPECT_FALSE(log1.unregisterInterceptor(level1, debugInterceptor_1)); // return false because interceptor already unregistered
     
-    log1.debug("Testing Second UNREGISTER"); 
+    log1.debug("Testing Second UNREGISTER");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : Testing First UNREGISTER"); // No new message is intercepted after unregister
 }
 
@@ -120,7 +126,8 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     
     EXPECT_TRUE(log1.registerInterceptor(level1, errorInterceptor, nullptr));
     
-    log1.error("Testing error interceptor"); 
+    log1.error("Testing error interceptor");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED ERROR : Testing error interceptor");
     
     EXPECT_TRUE(log1.unregisterInterceptor(level1, errorInterceptor));
@@ -132,7 +139,8 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     
     EXPECT_TRUE(log2.registerInterceptor(level2, warningInterceptor, nullptr));
     
-    log2.warn("Testing warning interceptor"); 
+    log2.warn("Testing warning interceptor");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED WARNING : Testing warning interceptor");
     
     EXPECT_TRUE(log2.unregisterInterceptor(level2, warningInterceptor));
@@ -144,7 +152,8 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     
     EXPECT_TRUE(log3.registerInterceptor(level3, infoInterceptor, nullptr));
     
-    log3.info("Testing info interceptor"); 
+    log3.info("Testing info interceptor");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED INFO : Testing info interceptor");
     
     EXPECT_TRUE(log3.unregisterInterceptor(level3, infoInterceptor));
@@ -156,7 +165,8 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     
     EXPECT_TRUE(log4.registerInterceptor(level4, debugInterceptor_1, nullptr));
     
-    log4.debug("Testing debug interceptor"); 
+    log4.debug("Testing debug interceptor");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : Testing debug interceptor");
     
     EXPECT_TRUE(log4.unregisterInterceptor(level4, debugInterceptor_1));
@@ -168,7 +178,8 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     
     EXPECT_TRUE(log5.registerInterceptor(level5, fatalInterceptor, nullptr));
     
-    log5.fatal("Testing fatal interceptor"); 
+    log5.fatal("Testing fatal interceptor");
+    usleep(500);
     ASSERT_EQ(intercepted_message, "INTERCEPTED FATAL : Testing fatal interceptor");
     
     EXPECT_TRUE(log5.unregisterInterceptor(level5, fatalInterceptor));

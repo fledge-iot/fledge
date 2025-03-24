@@ -81,7 +81,6 @@ class Logger {
 		std::unordered_multimap<LogLevel, LogInterceptorNode> m_interceptors;
 		std::vector<std::thread> m_threads; // Threads for async tasks
 		std::atomic<int> m_threadsCreatedSinceLastCleanup; // Counter for periodic cleanup
-		const int CLEANUP_THRESHOLD = 10; // Cleanup after every 10 threads
 };
 
 #endif

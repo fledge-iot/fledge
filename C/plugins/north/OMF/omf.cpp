@@ -131,6 +131,33 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 );
 
 /**
+ * Determine whether OMFHints includes an AFLocation hint
+ *
+ * @param hints	Collection of OMFHints
+ * @return		True if OMFHints includes an AFLocation hint
+ */
+static bool hasAFLocationHint(const OMFHints *hints)
+{
+	bool hasAFLocation = false;
+
+	if (hints == NULL)
+	{
+		return hasAFLocation;
+	}
+
+	for (OMFHint *hint : hints->getHints())
+	{
+		if (typeid(*hint) == typeid(OMFAFLocationHint))
+		{
+			hasAFLocation = true;
+			break;
+		}
+	}
+
+	return hasAFLocation;
+}
+
+/**
  * Parse "index" and "containerid" values from JSON containing link "source" and "target"
  *
  * @param json    JSON text
@@ -1429,6 +1456,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 		OMFHints *hints = NULL;
 		bool usingTagHint = false;
+		bool hasAFLocationHint = false;
 		long typeId = 0;
 		if (hintsdp)
 		{
@@ -1446,6 +1474,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				{
 					OMFHintAFHierarchyTmp = (*it)->getHint();
 					OMFHintAFHierarchy = variableValueHandle(*reading, OMFHintAFHierarchyTmp);
+					hasAFLocationHint = true;
 
 					Logger::getLogger()->debug("%s - OMF AFHierarchy original value :%s: new :%s:"
 						,__FUNCTION__
@@ -1875,10 +1904,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				// If the hierarchy has not already been sent then send it
 				if (!AFHierarchySent)
 				{
-					if (!handleAFHierarchy())
+					if (!hasAFLocationHint(hints))
 					{
-						delete hints;
-						return 0;
+						if (!handleAFHierarchy())
+						{
+							delete hints;
+							return 0;
+						}
 					}
 					AFHierarchySent = true;
 				}
@@ -3327,6 +3359,7 @@ bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 	}
 
 	// If no rules matched the AF default location
+
 	if ( ! ruleMatched )
 	{
 		string prefix;

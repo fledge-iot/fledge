@@ -151,7 +151,7 @@ void Logger::executeInterceptor(LogLevel level, const std::string& message)
 	}
 
 	// Perform cleanup if the threshold is reached
-	if (m_threadsCreatedSinceLastCleanup >= 0)
+	if (m_threadsCreatedSinceLastCleanup >= 10)
 	{
 		cleanupThreads();
 		m_threadsCreatedSinceLastCleanup = 0;
@@ -161,11 +161,10 @@ void Logger::executeInterceptor(LogLevel level, const std::string& message)
 void Logger::cleanupThreads()
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	// Remove any threads that have finished execution
+	// Detach the threads
 	m_threads.erase(std::remove_if(m_threads.begin(), m_threads.end(), [](std::thread& t) {
 		if (t.joinable())
 		{
-			// Detach the thread if it has finished
 			t.detach();
 			return true; // Remove this thread
 		}

@@ -834,8 +834,7 @@ class TestConfiguration:
             assert 1 == patch_logger.call_count
 
     async def test_get_child_category(self, client):
-        @asyncio.coroutine
-        def async_mock():
+        async def async_mock():
             return []
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -860,8 +859,7 @@ class TestConfiguration:
         data = {"children": ["coap", "http", "sinusoid"]}
         result = {"children": data["children"]}
 
-        @asyncio.coroutine
-        def async_mock():
+        async def async_mock():
             return result
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -883,8 +881,7 @@ class TestConfiguration:
             patch_create_child_cat.assert_called_once_with('south', data['children'])
 
     async def test_delete_child_category(self, client):
-        @asyncio.coroutine
-        def async_mock():
+        async def async_mock():
             return ["http", "sinusoid"]
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -906,8 +903,7 @@ class TestConfiguration:
             patch_delete_child_cat.assert_called_once_with('south', 'coap')
 
     async def test_delete_parent_category(self, client):
-        @asyncio.coroutine
-        def async_mock():
+        async def async_mock():
             return None
 
         storage_client_mock = MagicMock(StorageClientAsync)

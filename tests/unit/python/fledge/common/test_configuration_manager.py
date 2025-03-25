@@ -1781,9 +1781,8 @@ class TestConfigurationManager:
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_has_calls([call('catname', 'catvalue', True), call('catname', {}, False)])
         assert 1 == log_exc.call_count
-        calls = [call('category_value for category_name %s from storage is corrupted; using category_value without merge', 'catname'),
-                 call('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc')]
-        assert log_exc.has_calls(calls, any_order=True)
+        calls = [call('category_value for category_name %s from storage is corrupted; using category_value without merge', 'catname')]
+        log_exc.assert_has_calls(calls, any_order=True)
 
     # (merged_value)
     async def test_create_category_good_newval_good_storageval_nochange(self, reset_singleton):
@@ -3359,12 +3358,9 @@ class TestConfigurationManager:
                        call('CONCH', {'categoryDeleted': 'J'}),
                        call('CONCH', {'categoryDeleted': 'A'})]
         
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            await patch_delete_from_tbl.has_calls(calls, any_order=True)
-            await audit_info.has_calls(audit_calls, any_order=True)
-        else:
-            patch_delete_from_tbl.has_calls(calls, any_order=True)
-            audit_info.has_calls(audit_calls, any_order=True)
+        patch_delete_from_tbl.assert_has_calls(calls, any_order=True)
+        audit_info.assert_has_calls(audit_calls, any_order=True)
+
 
     async def test_delete_category_and_children_recursively_exception(self, mocker, reset_singleton):
         async def mock_coro(a, b):

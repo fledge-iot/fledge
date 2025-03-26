@@ -25,8 +25,8 @@ __version__ = "${VERSION}"
 
 pytestmark = pytest.mark.asyncio
 
-@asyncio.coroutine
-def mock_coro(*args, **kwargs):
+
+async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 

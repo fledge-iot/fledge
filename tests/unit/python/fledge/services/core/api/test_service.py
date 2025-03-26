@@ -236,8 +236,7 @@ class TestService:
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             return {'count': 0, 'rows': []}
 
         mock_plugin_info = {
@@ -318,8 +317,7 @@ class TestService:
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_service(self, client):
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
@@ -379,8 +377,7 @@ class TestService:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
             if table == 'scheduled_processes':
@@ -493,8 +490,7 @@ class TestService:
             schedule.schedule_id = sch_id
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             if table == 'schedules':
@@ -566,8 +562,7 @@ class TestService:
     async def test_dupe_external_service_schedule(self, client, payload, svc_type):
         data = json.loads(payload)
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             sch_ps = svc_type if svc_type != "bucketstorage" else "bucket_storage"
@@ -634,8 +629,7 @@ class TestService:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
             if table == 'scheduled_processes':
@@ -1173,8 +1167,7 @@ class TestService:
         payload = '{"name": "FL Agent", "type": "management"}'
         data = json.loads(payload)
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             if table == 'schedules':

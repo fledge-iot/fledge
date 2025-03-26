@@ -187,8 +187,7 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
@@ -250,8 +249,7 @@ async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_
         {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
@@ -301,8 +299,7 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -371,8 +368,7 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
         {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -435,8 +431,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
@@ -502,8 +497,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
 
 
 async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         result = {"rows": [
             {"value": 1, "key": "PURGED", "description": "blah6"},
             {"value": 2, "key": "READINGS", "description": "blah1"},

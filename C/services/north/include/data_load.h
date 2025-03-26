@@ -61,6 +61,80 @@ class DataLoad : public ServiceHandler {
 						m_prefetchLimit = limit;
 					};
 
+		// Debugger entry points
+		bool			attachDebugger()
+					{
+						if (m_pipeline)
+						{
+							m_debuggerAttached = true;
+							return m_pipeline->attachDebugger();
+						}
+						return false;
+					};
+		void			detachDebugger()
+					{
+						if (m_pipeline)
+						{
+							m_debuggerAttached = false;
+							m_debuggerBufferSize = 1;
+							m_pipeline->detachDebugger();
+						}
+					};
+		void			setDebuggerBuffer(unsigned int size)
+					{
+						if (m_pipeline)
+						{
+							m_debuggerBufferSize = size;
+							m_pipeline->setDebuggerBuffer(size);
+						}
+					};
+		std::string		getDebuggerBuffer()
+					{
+						std::string rval;
+						if (m_pipeline)
+							rval = m_pipeline->getDebuggerBuffer();
+						return rval;
+					};
+		void			isolate(bool isolate)
+					{
+						std::lock_guard<std::mutex> guard(m_isolateMutex);
+						m_isolate = isolate;
+					};
+		bool			isolated()
+					{
+						std::lock_guard<std::mutex> guard(m_isolateMutex);
+						return m_isolate;
+					};
+		void			replayDebugger()
+					{
+						if (m_pipeline)
+							m_pipeline->replayDebugger();
+					};
+		void			suspendIngest(bool suspend)
+					{
+						std::lock_guard<std::mutex> guard(m_suspendMutex);
+						m_suspendIngest = suspend;
+						m_steps = 0;
+					};
+		bool			isSuspended()
+					{
+						std::lock_guard<std::mutex> guard(m_suspendMutex);
+						return m_suspendIngest;
+					};
+		void			stepDebugger(unsigned int steps)
+					{
+						std::lock_guard<std::mutex> guard(m_suspendMutex);
+						m_steps = steps;
+					};
+		bool			willStep()
+					{
+						std::lock_guard<std::mutex> guard(m_suspendMutex);
+						if (m_suspendIngest && m_steps > 0)
+						{
+							return true;
+						}
+						return false;
+					};
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();
@@ -96,5 +170,12 @@ class DataLoad : public ServiceHandler {
 		int			m_nextStreamUpdate;
 		unsigned int		m_prefetchLimit;
 		bool			m_flushRequired;
+		std::mutex		m_isolateMutex;
+		bool			m_isolate;
+		bool			m_debuggerAttached;
+		unsigned int 		m_debuggerBufferSize;
+		bool			m_suspendIngest;
+		unsigned int		m_steps;
+		std::mutex		m_suspendMutex;
 };
 #endif

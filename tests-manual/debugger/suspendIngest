@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 	Suspend the ingestion of data into the pipeline
+curl -s -X PUT -d'{"state":"suspend"}' http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/suspend|jq

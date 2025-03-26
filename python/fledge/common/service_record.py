@@ -48,7 +48,7 @@ class ServiceRecord(object):
         # TODO: tell allowed service status?
         pass
 
-    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
+    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status', '_debug']
 
     def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
@@ -61,6 +61,7 @@ class ServiceRecord(object):
             self._port = int(s_port)
         self._management_port = int(m_port)
         self._status = ServiceRecord.Status.Running
+        self._debug = {}
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \

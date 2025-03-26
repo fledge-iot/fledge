@@ -239,7 +239,7 @@ Fledge supports a number of mechanisms for user authentication when using the *f
 
 .. note::
 
-   In all cases where a password is stored or passed to the script this is done in plain text. Care should be taken to protect these plain text password. In the case of the authentication file, the file permissions must be such that only the Linux user is able to read the file.
+   In all cases where a password is stored or passed to the script this is done in plain text. Care should be taken to protect these plain text passwords. In the case of the authentication file, the file permissions must be such that only the Linux user is able to read the file.
 
    Using a certificate to authenticate rather than username and password, alleviates the need to have plain text passwords stored on the system. However access to the certificate must be protected. The ability to access the certificate provides the ability to authenticate wit the Fledge instance without need for any further information.
 
@@ -370,7 +370,7 @@ A default certificate authority (CA) certificate is available inside $FLEDGE_DAT
 
 .. note::
 
-   The systemctl.cert certificate is used by the Linux systemctl scripts to start, stop and monitor the state of the Fledge instance and should not be removed.
+   The systemctl.cert certificate is used by the Linux systemctl scripts to start, stop and monitor the state of the Fledge instance, using the status command, and should not be removed.
 
 Below are the steps to create custom certificates along with existing Fledge based CA signed for authentication certificates.
 

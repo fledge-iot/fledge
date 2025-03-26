@@ -15,6 +15,8 @@
 #include <memory>
 #include <string.h>
 #include <sys/time.h>
+#include <future>
+#include <algorithm>
 
 using namespace std;
 
@@ -34,7 +36,7 @@ Logger::Logger(const string& application)
 {
 static char ident[80];
 
-	/* Prepend "Fledge " in all casaes other than Fledge itelf and Fledge Storage..
+	/* Prepend "Fledge " in all cases other than Fledge itself and Fledge Storage.
 	 */
 	if (application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
 	{
@@ -47,9 +49,8 @@ static char ident[80];
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 	m_level = LOG_WARNING;
-	m_threadsCreatedSinceLastCleanup = 0;
+	m_interceptors = std::make_shared<InterceptorMap>(); // Initialize with empty map
 }
-
 
 Logger::~Logger()
 {
@@ -58,6 +59,11 @@ Logger::~Logger()
 	if (instance == this)
 		instance = NULL;
 
+	// Clean up finished futures
+	while (!m_futures.empty())
+	{
+		cleanupFutures();
+	}
 }
 
 Logger *Logger::getLogger()
@@ -98,25 +104,28 @@ void Logger::setMinLevel(const string& level)
 
 bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* userData)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-	auto it =  m_interceptors.emplace(level, LogInterceptorNode{callback, userData});
-	if (it != m_interceptors.end())
+	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+	auto newMap = std::make_shared<InterceptorMap>(*m_interceptors); // Copy current map
+	auto it = newMap->emplace(level, LogInterceptorNode{callback, userData}); // Add new interceptor
+	if (it != newMap->end())
 	{
+		m_interceptors = newMap; // Update the shared_ptr
 		return true;
 	}
-
 	return false;
 }
 
 bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-	auto range = m_interceptors.equal_range(level);
+	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+	auto newMap = std::make_shared<InterceptorMap>(*m_interceptors); // Copy current map
+	auto range = newMap->equal_range(level);
 	for (auto it = range.first; it != range.second; ++it)
 	{
 		if (it->second.callback == callback)
 		{
-			m_interceptors.erase(it);
+			newMap->erase(it); // Remove the interceptor
+			m_interceptors = newMap; // Update the shared_ptr
 			return true; // Remove only one matching entry
 		}
 	}
@@ -125,51 +134,39 @@ bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 
 void Logger::executeInterceptor(LogLevel level, const std::string& message)
 {
-	// No interceptor is registered
-	if (m_interceptors.empty())
+	std::shared_ptr<InterceptorMap> interceptors;
 	{
-		return;
+		std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+		interceptors = m_interceptors; // Get a consistent snapshot of the interceptor map
 	}
 
-	std::vector<LogInterceptorNode> interceptors;
+	auto range = interceptors->equal_range(level);
+	for (auto it = range.first; it != range.second; ++it)
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		auto range = m_interceptors.equal_range(level);
-		for (auto it = range.first; it != range.second; ++it)
-		{
-			interceptors.push_back(it->second);
-		}
+		// Offload the callback execution to a separate thread using std::async
+		m_futures.emplace_back(std::async(std::launch::async, [it, level, message]() {
+			it->second.callback(level, message, it->second.userData);
+		}));
 	}
 
-	// Execute interceptors asynchronously using threads
-	for (auto& interceptor : interceptors)
+	// Clean up finished futures
+	if (m_futures.size() >= m_futuresCountLimit)
 	{
-		m_threads.emplace_back([interceptor, level, message]() {
-			interceptor.callback(level, message, interceptor.userData);
-		});
-		m_threadsCreatedSinceLastCleanup++;
-	}
-
-	// Perform cleanup if the threshold is reached
-	if (m_threadsCreatedSinceLastCleanup >= 10)
-	{
-		cleanupThreads();
-		m_threadsCreatedSinceLastCleanup = 0;
+		cleanupFutures();
 	}
 }
 
-void Logger::cleanupThreads()
+void Logger::cleanupFutures()
 {
-	std::lock_guard<std::mutex> lock(m_mutex);
-	// Detach the threads
-	m_threads.erase(std::remove_if(m_threads.begin(), m_threads.end(), [](std::thread& t) {
-		if (t.joinable())
+	// Remove any futures that have completed
+	m_futures.erase(std::remove_if(m_futures.begin(), m_futures.end(), [](std::future<void>& f) {
+		if (f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
 		{
-			t.detach();
-			return true; // Remove this thread
+			f.get(); // Ensure the task is properly cleaned up
+			return true; // Remove this future
 		}
 		return false;
-	}), m_threads.end());
+	}), m_futures.end());
 }
 
 void Logger::debug(const string& msg, ...)

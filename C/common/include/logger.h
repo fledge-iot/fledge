@@ -11,16 +11,12 @@
  */
 
 #include <string>
-#include <map>
 #include <unordered_map>
-#include <mutex>
-#include <vector>
-#include <functional>
-#include <algorithm>
-#include <thread>
 #include <memory>
-#include <atomic>
-#include <chrono>
+#include <mutex>
+#include <functional>
+#include <vector>
+#include <future> // For std::async
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
@@ -71,16 +67,19 @@ class Logger {
 			LogInterceptor callback;
 			void* userData;
 		};
+
+		using InterceptorMap = std::unordered_multimap<LogLevel, LogInterceptorNode>;
+
 		void executeInterceptor(LogLevel level, const std::string& message);
-		void cleanupThreads();
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
 		std::string     levelString;
 		int		m_level;
-		std::mutex m_mutex;
-		std::unordered_multimap<LogLevel, LogInterceptorNode> m_interceptors;
-		std::vector<std::thread> m_threads; // Threads for async tasks
-		std::atomic<int> m_threadsCreatedSinceLastCleanup; // Counter for periodic cleanup
+		std::mutex m_interceptorMapMutex; // Mutex to protect the interceptor map
+		std::shared_ptr<InterceptorMap> m_interceptors; // Shared pointer to interceptor map
+		std::vector<std::future<void>> m_futures; // Futures for async tasks
+		const  int m_futuresCountLimit = 10;
+		void cleanupFutures(); // Clean up finished futures
 };
 
 #endif

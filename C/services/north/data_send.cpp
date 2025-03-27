@@ -177,7 +177,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 	if (to_send > 0 && sent == 0)
 	{
 		m_repeatedFailure++;
-		// We had readings to send but sent known. This coudl be as a result
+		// We had readings to send but sent known. This could be as a result
 		// of a failed connection north or a bad configuration, we have no way
 		// to tell. If we take no action we will continue to use lots of CPU
 		// and load the system. We instigate a backoff strategy here to try

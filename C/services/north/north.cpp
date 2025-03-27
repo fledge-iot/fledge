@@ -1413,9 +1413,9 @@ string NorthService::debugState()
  */
 void NorthService::updateFeatures(const ConfigCategory& category)
 {
-	if (category.itemExists("debugger"))
+	if (category.itemExists("debugging"))
 	{
-		string s = category.getValue("debugger");
+		string s = category.getValue("debugging");
 		m_allowDebugger = s.compare("true") == 0 ? true : false;
 		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_allowDebugger == false)
 		{

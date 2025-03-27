@@ -1804,9 +1804,9 @@ void SouthService::updateFeatures(const ConfigCategory& category)
 		string s = category.getValue("control");
 		m_controlEnabled = s.compare("true") == 0 ? true : false;
 	}
-	if (category.itemExists("debugger"))
+	if (category.itemExists("debugging"))
 	{
-		string s = category.getValue("debugger");
+		string s = category.getValue("debugging");
 		m_debuggerEnabled = s.compare("true") == 0 ? true : false;
 		if (m_debugState & DEBUG_ATTACHED != 0 && m_debuggerEnabled == false)
 		{

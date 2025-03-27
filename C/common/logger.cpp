@@ -15,8 +15,7 @@
 #include <memory>
 #include <string.h>
 #include <sys/time.h>
-#include <future>
-#include <algorithm>
+#include <exception>
 
 using namespace std;
 
@@ -32,7 +31,7 @@ inline long getCurrTimeUsec()
 
 Logger *Logger::instance = 0;
 
-Logger::Logger(const string& application)
+Logger::Logger(const string& application) : m_running(true)
 {
 static char ident[80];
 
@@ -49,21 +48,25 @@ static char ident[80];
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 	m_level = LOG_WARNING;
-	m_interceptors = std::make_shared<InterceptorMap>(); // Initialize with empty map
+	m_workerThread = std::thread(&Logger::workerThread, this);
 }
 
 Logger::~Logger()
 {
+	{
+		std::lock_guard<std::mutex> lock(m_queueMutex);
+		m_running = false;
+	}
+	m_condition.notify_one();
+	if (m_workerThread.joinable())
+	{
+		m_workerThread.join();
+	}
+
 	closelog();
 	// Stop the getLogger() call returning a deleted instance
 	if (instance == this)
 		instance = NULL;
-
-	// Clean up finished futures
-	while (!m_futures.empty())
-	{
-		cleanupFutures();
-	}
 }
 
 Logger *Logger::getLogger()
@@ -104,12 +107,16 @@ void Logger::setMinLevel(const string& level)
 
 bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* userData)
 {
-	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
-	auto newMap = std::make_shared<InterceptorMap>(*m_interceptors); // Copy current map
-	auto it = newMap->emplace(level, LogInterceptorNode{callback, userData}); // Add new interceptor
-	if (it != newMap->end())
+	// Do not register the interceptor if callback function is null
+	if (callback == nullptr)
 	{
-		m_interceptors = newMap; // Update the shared_ptr
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+	auto it = m_interceptors.emplace(level, InterceptorData{callback, userData});
+	if (it != m_interceptors.end())
+	{
 		return true;
 	}
 	return false;
@@ -117,16 +124,14 @@ bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* 
 
 bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 {
-	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
-	auto newMap = std::make_shared<InterceptorMap>(*m_interceptors); // Copy current map
-	auto range = newMap->equal_range(level);
+	std::lock_guard<mutex> lock(m_interceptorMapMutex);
+	auto range = m_interceptors.equal_range(level);
 	for (auto it = range.first; it != range.second; ++it)
 	{
 		if (it->second.callback == callback)
 		{
-			newMap->erase(it); // Remove the interceptor
-			m_interceptors = newMap; // Update the shared_ptr
-			return true; // Remove only one matching entry
+			m_interceptors.erase(it);
+			return true;
 		}
 	}
 	return false;
@@ -134,40 +139,39 @@ bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 
 void Logger::executeInterceptor(LogLevel level, const std::string& message)
 {
-	std::shared_ptr<InterceptorMap> interceptors;
-	{
-		std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
-		interceptors = m_interceptors; // Get a consistent snapshot of the interceptor map
-	}
-
-	auto range = interceptors->equal_range(level);
+	std::lock_guard<mutex> lock(m_interceptorMapMutex);
+	auto range = m_interceptors.equal_range(level);
 	for (auto it = range.first; it != range.second; ++it)
 	{
-		// Offload the callback execution to a separate thread using std::async
-		m_futures.emplace_back(std::async(std::launch::async, [it, level, message]() {
-			it->second.callback(level, message, it->second.userData);
-		}));
+		std::lock_guard<mutex> lock(m_queueMutex);
+		m_taskQueue.push({level, message, it->second.callback, it->second.userData});
 	}
-
-	// Clean up finished futures
-	if (m_futures.size() >= m_futuresCountLimit)
-	{
-		cleanupFutures();
-	}
+	m_condition.notify_one();
 }
 
-void Logger::cleanupFutures()
+void Logger::workerThread()
 {
-	// Remove any futures that have completed
-	m_futures.erase(std::remove_if(m_futures.begin(), m_futures.end(), [](std::future<void>& f) {
-		if (f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+	while (m_running)
+	{
+		std::unique_lock<mutex> lock(m_queueMutex);
+		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_running; });
+
+		while (!m_taskQueue.empty())
 		{
-			f.get(); // Ensure the task is properly cleaned up
-			return true; // Remove this future
+			LogTask task = m_taskQueue.front();
+			m_taskQueue.pop();
+			lock.unlock();
+
+			if (task.callback)
+			{
+				task.callback(task.level, task.message, task.userData);
+			}
+
+			lock.lock();
 		}
-		return false;
-	}), m_futures.end());
+	}
 }
+
 
 void Logger::debug(const string& msg, ...)
 {
@@ -179,7 +183,10 @@ void Logger::debug(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_DEBUG, "DEBUG: %s", fmt->c_str());
-	executeInterceptor(LogLevel::DEBUG, fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::DEBUG, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -207,7 +214,10 @@ void Logger::info(const string& msg, ...)
 #else
 	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
 #endif
-	executeInterceptor(LogLevel::INFO, fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::INFO, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -218,7 +228,10 @@ void Logger::warn(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_WARNING, "WARNING: %s", fmt->c_str());
-	executeInterceptor(LogLevel::WARNING, fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::WARNING, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -233,7 +246,10 @@ void Logger::error(const string& msg, ...)
 #else
 		syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
 #endif
-	executeInterceptor(LogLevel::ERROR, fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::ERROR, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -244,7 +260,10 @@ void Logger::fatal(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_CRIT, "FATAL: %s", fmt->c_str());
-	executeInterceptor(LogLevel::FATAL, fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::FATAL, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }

@@ -11,12 +11,13 @@
  */
 
 #include <string>
-#include <unordered_map>
-#include <memory>
-#include <mutex>
 #include <functional>
-#include <vector>
-#include <future> // For std::async
+#include <map>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
 
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
@@ -62,24 +63,34 @@ class Logger {
 		bool unregisterInterceptor(LogLevel level, LogInterceptor callback);
 
 	private:
-		struct LogInterceptorNode
-		{
-			LogInterceptor callback;
-			void* userData;
-		};
-
-		using InterceptorMap = std::unordered_multimap<LogLevel, LogInterceptorNode>;
-
-		void executeInterceptor(LogLevel level, const std::string& message);
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
 		std::string     levelString;
 		int		m_level;
-		std::mutex m_interceptorMapMutex; // Mutex to protect the interceptor map
-		std::shared_ptr<InterceptorMap> m_interceptors; // Shared pointer to interceptor map
-		std::vector<std::future<void>> m_futures; // Futures for async tasks
-		const  int m_futuresCountLimit = 10;
-		void cleanupFutures(); // Clean up finished futures
+
+		struct InterceptorData {
+			LogInterceptor callback;
+			void* userData;
+		};
+
+		std::multimap<LogLevel, InterceptorData> m_interceptors;
+		std::mutex m_interceptorMapMutex;
+
+		struct LogTask {
+			LogLevel level;
+			std::string message;
+			LogInterceptor callback;
+			void* userData;
+		};
+
+		std::queue<LogTask> m_taskQueue;
+		std::mutex m_queueMutex;
+		std::condition_variable m_condition;
+		std::atomic<bool> m_running;
+		std::thread m_workerThread;
+
+		void executeInterceptor(LogLevel level, const std::string& message);
+		void workerThread();
 };
 
 #endif

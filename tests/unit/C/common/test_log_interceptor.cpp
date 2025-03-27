@@ -60,6 +60,48 @@ TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
     EXPECT_TRUE(log1.unregisterInterceptor(level1, debugInterceptor_1));
 }
 
+
+// Test Case : Check registration with null callback
+TEST(TEST_LOG_INTERCEPTOR, REGISTER_NULL_CALLBACK)
+{
+    // Logger #1
+    Logger log1("LogInterceptor1");
+    log1.setMinLevel("debug");
+    Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
+    log1.debug("Register NULL Callback");
+    EXPECT_FALSE(log1.registerInterceptor(level1, nullptr, nullptr)); // Interceptor is not registered with null callback
+}
+
+// Test Case: Unregister Non-Registered Interceptor
+TEST(TEST_LOG_INTERCEPTOR, UNREGISTER_NON_REGISTERED)
+{
+    Logger log1("LogInterceptor1");
+    log1.setMinLevel("debug");
+
+    Logger::LogLevel level = Logger::LogLevel::DEBUG; 
+    EXPECT_FALSE(log1.unregisterInterceptor(level, debugInterceptor_1));  // Trying to unregister before it's registered
+}
+
+// Test Case: Multiple Interceptors for the Same Log Level
+TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_INTERCEPTORS_SAME_LEVEL)
+{
+    Logger log1("LogInterceptor1");
+    log1.setMinLevel("debug");
+
+    Logger::LogLevel level = Logger::LogLevel::DEBUG; 
+    EXPECT_TRUE(log1.registerInterceptor(level, debugInterceptor_1, nullptr));
+    EXPECT_TRUE(log1.registerInterceptor(level, debugInterceptor_2, nullptr));
+    
+    log1.debug("Multiple interceptors test");
+    usleep(500);
+
+    ASSERT_TRUE(intercepted_message.find("INTERCEPTED DEBUG #1 : Multiple interceptors test") != std::string::npos || 
+                intercepted_message.find("INTERCEPTED DEBUG #2 : Multiple interceptors test") != std::string::npos);
+
+    EXPECT_TRUE(log1.unregisterInterceptor(level, debugInterceptor_1));
+    EXPECT_TRUE(log1.unregisterInterceptor(level, debugInterceptor_2));
+}
+
 // Test Case : Check multiple registration for same log level
 TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
 {
@@ -185,4 +227,5 @@ TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
     EXPECT_TRUE(log5.unregisterInterceptor(level5, fatalInterceptor));
 
 }
+
 

@@ -60,16 +60,19 @@ def get_service_records(_type=None):
     sr_list = list()
     svc_records = ServiceRegistry.all() if _type is None else ServiceRegistry.get(s_type=_type)
     for service_record in svc_records:
-        sr_list.append(
-            {
-                'name': service_record._name,
-                'type': service_record._type,
-                'address': service_record._address,
-                'management_port': service_record._management_port,
-                'service_port': service_record._port,
-                'protocol': service_record._protocol,
-                'status': ServiceRecord.Status(int(service_record._status)).name.lower()
-            })
+        service_data = {
+            'name': service_record._name,
+            'type': service_record._type,
+            'address': service_record._address,
+            'management_port': service_record._management_port,
+            'service_port': service_record._port,
+            'protocol': service_record._protocol,
+            'status': ServiceRecord.Status(int(service_record._status)).name.lower()
+        }
+        # Add the 'debug' key only if it's non-empty
+        if service_record._debug:
+            service_data['debug'] = service_record._debug
+        sr_list.append(service_data)
     recs = {'services': sr_list}
     return recs
 

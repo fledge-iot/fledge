@@ -17,10 +17,33 @@
 using namespace std;
 
 /**
+ * Constructor for the pipeline writer, the element that sits
+ * at the end of every pipeline and branch
+ */
+PipelineWriter::PipelineWriter()
+{
+}
+
+/**
  * Ingest into a pipeline writer
  */
 void PipelineWriter::ingest(READINGSET *readingSet)
 {
+	if (m_debugger)
+	{
+		PipelineDebugger::DebuggerActions action = m_debugger->process(readingSet);
+
+		switch (action)
+		{
+		case PipelineDebugger::Block:
+			delete readingSet;
+			return;
+		case PipelineDebugger::NoAction:
+			break;
+		}
+
+	}
+	(*m_useData)(m_ingest, readingSet);
 }
 
 /**
@@ -36,6 +59,8 @@ bool PipelineWriter::setup(ManagementClient *mgmt, void *ingest, std::map<std::s
  */
 bool PipelineWriter::init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output)
 {
+	m_useData = output;
+	m_ingest = outHandle;
 	return true;
 }
 

@@ -424,13 +424,153 @@ bool Ingest::isStopping()
 }
 
 /**
+ * @brief Discard the oldest (first) reading from the queue.
+ * 
+ * This method removes the oldest reading from the queue when the resource limit 
+ * is exceeded. It ensures that the queue length stays within the configured limit.
+ * Thread safety is maintained using a mutex lock.
+ */
+void Ingest::discardOldest() 
+{
+    // Lock the queue mutex to ensure thread-safe access to the queue
+    std::lock_guard<std::mutex> guard(m_qMutex);
+
+    // Check if the queue is not empty
+    if (!m_queue->empty()) 
+    {
+        // Delete the oldest (front) reading from the queue
+        delete m_queue->front();
+
+        // Remove the oldest reading from the queue
+        m_queue->erase(m_queue->begin());
+
+        // Log that a reading was discarded for statistics purposes
+        logDiscardedStat();
+    }
+}
+
+/**
+ * @brief Discard the newest (last) reading from the queue.
+ * 
+ * This method removes the newest reading from the queue when the resource limit 
+ * is exceeded. It ensures that the queue length stays within the configured limit.
+ * Thread safety is maintained using a mutex lock.
+ * 
+ */
+void Ingest::discardNewest()
+{
+    // Lock the queue mutex to ensure thread-safe access to the queue
+    std::lock_guard<std::mutex> guard(m_qMutex);
+
+    // Check if the queue is not empty
+    if (!m_queue->empty()) 
+    {
+        // Delete the newest (back) reading from the queue
+        delete m_queue->back();
+
+        // Remove the newest reading from the queue
+        m_queue->pop_back();
+
+        // Log that a reading was discarded for statistics purposes
+        logDiscardedStat();
+    }
+}
+
+/**
+ * @brief Reduce the fidelity of the queue by discarding every second reading.
+ * 
+ * This method reduces the fidelity of the data in the queue by keeping only 
+ * readings at even indices and discarding readings at odd indices. It is applied 
+ * when the resource limit is exceeded and ensures the queue length stays within 
+ * the configured limit.
+ * Thread safety is maintained using a mutex lock.
+ */
+void Ingest::reduceFidelity() 
+{
+    // Lock the queue mutex to ensure thread-safe access to the queue
+    std::lock_guard<std::mutex> guard(m_qMutex);
+
+    // Check if the queue is not empty
+    if (!m_queue->empty()) 
+    {
+        // Create a new temporary queue to store reduced-fidelity data
+        std::vector<Reading*> newQueue;
+
+        // Iterate through the queue, keeping only every second reading
+        for (size_t i = 0; i < m_queue->size(); i++) 
+        {
+            if (i % 2 == 0) 
+            {
+                // Keep readings at even indices
+                newQueue.push_back(m_queue->at(i));
+            } 
+            else 
+            {
+                // Delete readings at odd indices and log the discarded reading
+                delete m_queue->at(i);
+                logDiscardedStat();
+            }
+        }
+
+        // Replace the original queue with the reduced-fidelity queue
+        m_queue->swap(newQueue);
+    }
+}
+
+/**
+ * @brief Enforce resource limits on the queue.
+ * 
+ * This method ensures that the queue length stays within the configured limits 
+ * when the buffering policy is set to "Limited." It applies the configured discard 
+ * policy (e.g., Discard Oldest, Discard Newest, Reduce Fidelity) when the queue 
+ * length exceeds the specified limit. Logging is performed when the resource 
+ * governor activates or deactivates.
+ */
+void Ingest::enforceResourceLimits() 
+{
+    // Continue to enforce limits while the queue length exceeds the configured limit
+    while (queueLength() > m_serviceBufferSize) 
+    {
+        // Activate the resource governor if not already active
+        if (!m_resourceGovernorActive) 
+        {
+            Logger::getLogger()->warn("Resource governor activated: enforcing resource limits.");
+            m_resourceGovernorActive = true;
+        }
+
+        // Apply the configured discard policy
+        switch (m_discardPolicy) 
+        {
+            case DiscardPolicy::DISCARD_OLDEST:
+                discardOldest();
+                break;
+
+            case DiscardPolicy::DISCARD_NEWEST:
+                discardNewest();
+                break;
+
+            case DiscardPolicy::REDUCE_FIDELITY:
+                reduceFidelity();
+                break;
+        }
+    }
+
+    // Deactivate the resource governor if the queue length drops below half the limit
+    if (queueLength() <= m_serviceBufferSize / 2 && m_resourceGovernorActive) 
+    {
+        Logger::getLogger()->info("Resource governor deactivated: normal flow resumed.");
+        m_resourceGovernorActive = false;
+    }
+}
+
+/**
  * Add a reading to the reading queue
  *
  * @param reading	The single reading to ingest
  */
 void Ingest::ingest(const Reading& reading)
 {
-vector<Reading *> *fullQueue = 0;
+	vector<Reading *> *fullQueue = 0;
 
 	if (m_ingestRate)
 		m_ingestRate->ingest(1);
@@ -438,6 +578,13 @@ vector<Reading *> *fullQueue = 0;
 	{
 		lock_guard<mutex> guard(m_qMutex);
 		m_queue->emplace_back(new Reading(reading));
+
+		// Enforce resource limits
+		if (m_serviceBufferingType == ServiceBufferingType::LIMITED) 
+		{
+			enforceResourceLimits();
+		}
+
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;
@@ -461,9 +608,9 @@ vector<Reading *> *fullQueue = 0;
  */
 void Ingest::ingest(const vector<Reading *> *vec)
 {
-vector<Reading *> *fullQueue = 0;
-size_t qSize;
-unsigned int nFullQueues = 0;
+	vector<Reading *> *fullQueue = 0;
+	size_t qSize;
+	unsigned int nFullQueues = 0;
 
 	if (m_ingestRate)
 		m_ingestRate->ingest(vec->size());
@@ -476,6 +623,13 @@ unsigned int nFullQueues = 0;
 		{
 			m_queue->emplace_back(rdng);
 		}
+
+		// Enforce resource limits
+		if (m_serviceBufferingType == ServiceBufferingType::LIMITED) 
+		{
+			enforceResourceLimits();
+		}
+
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;

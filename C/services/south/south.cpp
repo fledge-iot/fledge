@@ -343,6 +343,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
+		m_configResourceLimit = m_mgtClient->getCategory(RESOURCE_LIMIT_CATEGORY);
 		if (!loadPlugin())
 		{
 			logger->fatal("Failed to load south plugin %s, exiting...", m_name.c_str());
@@ -370,6 +371,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, RESOURCE_LIMIT_CATEGORY);
 		}
 
 		// Get a handle on the storage layer
@@ -482,6 +484,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			ingest.configureRateMonitor(interval, factor);
 
 		}
+
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
 
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
@@ -753,6 +758,83 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	}
 	management.stop();
 	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
+}
+
+void SouthService::getResourceLimit()
+{
+	// Update the resource limit configuration
+	try 
+	{
+		// Parse the service buffering type
+		std::string serviceBuffering = m_configResourceLimit.getValue("serviceBuffering");
+		if (serviceBuffering == "Unlimited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::UNLIMITED;
+		} 
+		else if (serviceBuffering == "Limited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::LIMITED;
+		} 
+		else
+		{
+			Logger::getLogger()->error("Invalid serviceBuffering value: %s. Using default: UNLIMITED.", serviceBuffering.c_str());
+			m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT; // Default value
+		}
+
+		// Parse and validate the service buffer size
+		try 
+		{
+			std::string bufferSizeStr = m_configResourceLimit.getValue("serviceBufferSize");
+			m_serviceBufferSize = std::stoi(bufferSizeStr); // Convert to integer
+
+			if (m_serviceBufferSize <= 0)
+			{
+				Logger::getLogger()->error("Invalid serviceBufferSize value: %s. Must be greater than zero. Using default: 1000.", bufferSizeStr.c_str());
+				m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+			}
+		} 
+		catch (const std::exception& e)
+		{
+			// Handle conversion errors and out-of-range values
+			Logger::getLogger()->error("Error parsing serviceBufferSize: %s. Using default value: 1000.", e.what());
+			m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+		}
+
+		// Parse the discard policy
+		std::string discardPolicy = m_configResourceLimit.getValue("discardPolicy");
+		if (discardPolicy == "DiscardOldest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_OLDEST;
+		} 
+		else if (discardPolicy == "DiscardNewest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_NEWEST;
+		} 
+		else if (discardPolicy == "ReduceFidelity") 
+		{
+			m_discardPolicy = DiscardPolicy::REDUCE_FIDELITY;
+		} 
+		else 
+		{
+			Logger::getLogger()->error("Invalid m_discardPolicy value: %s. Using default: REDUCE_FIDELITY.", discardPolicy.c_str());
+			m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT; // Default value
+		}
+	} 
+	catch (const std::exception& e) 
+	{
+		// Catch any other exceptions and log the error
+		Logger::getLogger()->error("Error updating resource limit configuration: %s. Using default values.", e.what());
+
+		// Set default values to ensure the system can continue running
+		m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT;
+		m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT;
+		m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT;
+
+		Logger::getLogger()->info("Using default configuration: "
+								"serviceBufferingType=UNLIMITED, "
+								"serviceBufferSize=1000, "
+								"discardPolicy=REDUCE_FIDELITY.");
+	}
 }
 
 /**
@@ -1074,6 +1156,13 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+
+	if(categoryName.compare(RESOURCE_LIMIT_CATEGORY) == 0)
+	{
+		m_configResourceLimit = ConfigCategory(RESOURCE_LIMIT_CATEGORY, category);
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
 	}
 }
 

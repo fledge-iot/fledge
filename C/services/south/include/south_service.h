@@ -79,6 +79,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
 		void				checkPendingReconfigure();
+		void 				getResourceLimit();
 	private:
 		std::thread			*m_reconfThread;
 		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
@@ -91,6 +92,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_shutdown;
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;
+		ConfigCategory			m_configResourceLimit;
 		unsigned long			m_readingsPerSec;	// May not be per second, new rate defines time units
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
@@ -123,5 +125,8 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_doPoll;
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
+		ServiceBufferingType			m_serviceBufferingType;
+		unsigned int			m_serviceBufferSize;
+		DiscardPolicy			m_discardPolicy;
 };
 #endif

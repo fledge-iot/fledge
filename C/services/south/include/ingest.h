@@ -47,6 +47,22 @@
 
 class IngestRate;
 
+// Enum for service buffering type
+enum class ServiceBufferingType {
+	UNLIMITED,
+	LIMITED
+};
+
+// Enum for discard policy
+enum class DiscardPolicy {
+	DISCARD_OLDEST,
+	REDUCE_FIDELITY,
+	DISCARD_NEWEST
+};
+
+#define SERVICE_BUFFER_BUFFER_TYPE_DEFAULT 	ServiceBufferingType::UNLIMITED
+#define SERVICE_BUFFER_DISCARD_POLICY_DEFAULT 	DiscardPolicy::REDUCE_FIDELITY
+#define SERVICE_BUFFER_SIZE_DEFAULT		1000
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -98,6 +114,12 @@ public:
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
+	void		setResourceLimit(ServiceBufferingType serviceBufferingType, unsigned long serviceBufferSize, DiscardPolicy discardPolicy)
+			{
+				m_serviceBufferingType = serviceBufferingType;
+				m_serviceBufferSize = serviceBufferSize;
+				m_discardPolicy = discardPolicy;
+			};
 	void		flowControl();
 	void		setPerfMon(PerformanceMonitor *mon)
 			{
@@ -117,6 +139,10 @@ private:
 					};
 	long				calculateWaitTime();
 	int 				createServiceStatsDbEntry();
+	void				discardOldest();
+	void				discardNewest();
+	void				reduceFidelity();
+	void				enforceResourceLimits();
 
 	StorageClient&			m_storage;
 	long				m_timeout;
@@ -165,6 +191,11 @@ private:
 	PerformanceMonitor		*m_performance;
 	std::mutex			m_useDataMutex;
 	IngestRate			*m_ingestRate;
+	std::atomic<ServiceBufferingType>			m_serviceBufferingType;
+	std::atomic<unsigned int>			m_serviceBufferSize;
+	std::atomic<DiscardPolicy>			m_discardPolicy;
+	bool m_resourceGovernorActive{false}; // Tracks if the resource governor is active
+	time_t m_lastFidelityReductionTimestamp{0}; // Used for "Reduce Fidelity"
 };
 
 #endif

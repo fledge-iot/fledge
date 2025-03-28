@@ -36,7 +36,7 @@
 #include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
-
+#define RESOURCE_LIMIT_CATEGORY "RESOURCE_LIMIT"
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -804,7 +804,7 @@ void SouthService::getResourceLimit()
 		try 
 		{
 			std::string bufferSizeStr = m_configResourceLimit.getValue("serviceBufferSize");
-			m_serviceBufferSize = std::stoi(bufferSizeStr); // Convert to integer
+			m_serviceBufferSize = (unsigned int)std::stoi(bufferSizeStr); // Convert to integer
 
 			if (m_serviceBufferSize <= 0)
 			{

@@ -349,23 +349,20 @@ Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as c
 
 Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
 
-a) Create a new certificate for username. Let say **test**
+a) To create a user with the name **test** (case sensitive), please note that only an admin has the permission to do so. The cURL commands are provided below.
 
 .. code-block:: console
 
-    $ cd $FLEDGE_ROOT
-    $ ./scripts/auth_certificates user test 365
+    $ AUTH_TOKEN=$(curl -d '{"username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
+    $ USER_ID=$(curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}' | jq '.user.userId')
 
-    Here script arguments are: $1=user $2=FLEDGE_USERNAME $3=SSL_DAYS_EXPIRATION
-
-And now you can find **test** cert inside $FLEDGE_DATA/etc/certs/
-
-b) Now, it's time to create user with name **test** (case sensitive). Also only admin can create user. Below are the cURL Commands
+b) It is now time to generate a new certificate for the **test** username that was created earlier.
 
 .. code-block:: console
 
-    $ AUTH_TOKEN=$(curl -d '{"username": "admin", "password": "fledge"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
-    $ curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}'
+    $ curl -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
+
+You can now locate the **test** certificate within the $FLEDGE_DATA/etc/certs/, which will be used for login. It is advisable to relocate this certificate to a different location to prevent it from being shared with others.
 
 .. note::
 

@@ -349,20 +349,32 @@ Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as c
 
 Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
 
-a) To create a user with the name **test** (case sensitive), please note that only an admin has the permission to do so. The cURL commands are provided below.
+**Using cURL**
+
+- To create a user with a unique name and case-insensitive. The cURL commands are provided below.
+
+.. note::
+
+    You need administrator privileges to perform this action.
+
+For example, Add a username with the name **test**
 
 .. code-block:: console
 
     $ AUTH_TOKEN=$(curl -d '{"username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
     $ USER_ID=$(curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}' | jq '.user.userId')
 
-b) It is now time to generate a new certificate for the **test** username that was created earlier.
+- It is now time to generate a new certificate for the **test** username that was created earlier.
 
 .. code-block:: console
 
     $ curl -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
 
-You can now locate the **test** certificate within the $FLEDGE_DATA/etc/certs/, which will be used for login. It is advisable to relocate this certificate to a different location to prevent it from being shared with others.
+You can now locate the **test** certificate within the $FLEDGE_DATA/etc/certs/ and can be used for login.
+
+.. warning::
+
+    For security concerns, it is highly recommended to download or copy the certificate and delete it from the certificate store. Relocate it to a secure, private location to prevent unauthorized access and sharing, using encrypted storage or password protection.
 
 .. note::
 

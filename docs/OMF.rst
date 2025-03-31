@@ -355,7 +355,7 @@ one for name-based rules and the other for metadata based rules.
 			    "nonexist" :
 				    {
 					    "unit"          : "Uncalibrated"
-				    }
+				    },
 			    "equal" :
 				    {
 					    "room"          :
@@ -363,7 +363,7 @@ one for name-based rules and the other for metadata based rules.
 							    "4" : "ElecticalLab",
 							    "6" : "FluidLab"
 						    }
-				    }
+				    },
 			    "notequal" :
 				    {
 					    "building"      :
@@ -465,7 +465,7 @@ use our original location */BuildingA/${room}* and we have the reading
 .. code-block:: console
 
   "reading" : {
-       "temperature" : 22.8,
+       "temperature" : 22.8
        }
 
 this reading would be stored in */BuildingA*.
@@ -475,11 +475,14 @@ OMF Hints
 
 The OMF plugin also supports the concept of hints in the actual data
 that determine how the data should be treated by the plugin. Hints are
-encoded in a specially name datapoint within the asset, *OMFHint*. The
-hints themselves are encoded as JSON within a string.
+encoded in a specially named datapoint within a reading called *OMFHint*.
+The hints themselves are encoded as JSON within a string.
 
-Number Format Hints
-~~~~~~~~~~~~~~~~~~~
+An *OMFHint* can be added at any point in the processing of the data.
+A specific plugin called the |OMFHint filter plugin| is available for adding hints.
+
+Number Format Hint
+~~~~~~~~~~~~~~~~~~
 
 A number format hint tells the plugin what number format to use when inserting data
 into the PI Server. The following will cause all numeric data within
@@ -490,10 +493,12 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "number" : "float32" }
 
-The value of the *number* hint may be any numeric format that is supported by the PI Server.
+The value of the *number* hint may be any numeric format that is supported by the PI Server: float64, float32 or float16.
+This hint applies to all numeric datapoints in the asset.
+To apply a Number Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
-Integer Format Hints
-~~~~~~~~~~~~~~~~~~~~
+Integer Format Hint
+~~~~~~~~~~~~~~~~~~~
 
 An integer format hint tells the plugin what integer format to use when inserting
 data into the PI Server. The following will cause all integer data
@@ -504,10 +509,12 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "integer" : "integer32" }
 
-The value of the *number* hint may be any numeric format that is supported by the PI Server.
+The value of the *integer* hint may be any integer format that is supported by the PI Server: int64, int32, int16, uint64, uint32 or uint16.
+This hint applies to all integer datapoints in the asset.
+To apply a Integer Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
-Type Name Hints
-~~~~~~~~~~~~~~~
+Type Name Hint
+~~~~~~~~~~~~~~
 
 A type name hint specifies that a particular name should be used when
 defining the name of the type that will be created to store the object
@@ -538,11 +545,14 @@ that adds this hint to ensure this is the case.
 Tag Name Hint
 ~~~~~~~~~~~~~
 
-Specifies that a specific tag name should be used when storing data in the PI Server.
+The *tagName* hint specifies the name of the Container that will represent the reading's asset in the PI Server.
+In the AF Database, the *tagName* hint becomes the name of the AF Element that owns the AF Attributes that map the reading's datapoints.
+This hint does not influence the names of individual PI Points.
+If you need to specify PI Point names, see :ref:`Datapoint Specific Hints`.
 
 .. code-block:: console
 
-   "OMFHint"  : { "tagName" : "AC1246" }
+   "OMFHint"  : { "tagName" : "Reactor42" }
 
 Source Hint
 ~~~~~~~~~~~
@@ -552,38 +562,6 @@ The default data source that is associated with tags in the PI Server is Fledge,
 .. code-block:: console
 
    "OMFHint" : { "source" : "Fledge23" }
-
-
-Datapoint Specific Hint
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Hints may also be targeted to specific data points within an asset by
-using the datapoint hint. A *datapoint* hint takes a JSON object as
-its value; the object defines the name of the datapoint and the hint
-to apply.
-
-.. code-block:: console
-
-   "OMFHint"  : { "datapoint" : { "name" : "voltage:, "number" : "float32" } }
-
-The above hint applies to the datapoint *voltage* in the asset and
-applies a *number format* hint to that datapoint.
-
-If more than one datapoint within a reading is required to have OMF hints
-attached to them this may be done by using an array as a child of the
-datapoint item.
-
-.. code-block:: console
-
-   "OMFHint"  : { "datapoint" : [
-        { "name" : "voltage:, "number" : "float32", "uom" : "volt" },
-        { "name" : "current:, "number" : "uint32", "uom" : "milliampere }
-        ]
-   }
-
-The example above attaches a number hint to both the voltage and current
-datapoints and to the current datapoint. It assigns a unit of measure
-of milliampere. The unit of measure for the voltage is set to be volts.
 
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -622,8 +600,72 @@ Note the following when defining an *AFLocation* hint:
     - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
     - No references are created.
 
+Datapoint Specific Hints
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Hints may also be targeted to specific data points within an asset by
+using the *datapoint* hint. A *datapoint* hint takes a JSON object as its value.
+The object must have the *name* key to identify the datapoint to which to apply the hint.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "voltage", "number" : "float32" } }
+
+The above hint applies to the datapoint *voltage* in the asset and
+applies a *number format* hint to that datapoint.
+
+If more than one datapoint within a reading is required to have OMF hints
+attached to them, this may be done by using an array as a child of the
+datapoint item.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : [
+        { "name" : "voltage", "number" : "float32", "uom" : "volt" },
+        { "name" : "current", "number" : "uint32", "uom" : "milliampere" }
+        ]
+   }
+
+The example above attaches a number hint to both the voltage and current
+datapoints and to the current datapoint. It assigns a unit of measure
+of milliampere. The unit of measure for the voltage is set to be volts.
+
+This is a list of hints that can be applied to a datapoint:
+
+- Number
+- Integer
+- Unit of Measure
+- Minimum
+- Maximum
+- Interpolation
+- Tag Name
+
+The following sub-sections outlines each datapoint hint.
+
+Number Format Hint
+##################
+
+A number format hint tells the plugin what number format to use when inserting numeric data into the PI Server.
+The following will cause all numeric data for the *flow* datapoint within the asset to be written using the format *float32*.
+See the section :ref:`Numeric Data Types`.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "flow", "number" : "float32" } }
+
+Integer Format Hint
+###################
+
+A integer format hint tells the plugin what number format to use when inserting integer data into the PI Server.
+The following will cause all integer data for the *height* datapoint within the asset to be written using the format *integer32*.
+See the section :ref:`Numeric Data Types`.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height", "integer" : "integer32" } }
+
 Unit Of Measure Hint
-~~~~~~~~~~~~~~~~~~~~
+####################
 
 A unit of measure, or uom hint is used to associate one of the units of
 measurement defined within your PI Server with a particular data point
@@ -631,45 +673,69 @@ within an asset.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "uom" : "meter" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "uom" : "meter" } }
 
 Minimum Hint
-~~~~~~~~~~~~
+############
 
 A minimum hint is used to associate a minimum value in the PI Point created for a data point.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "minimum" : "0" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "minimum" : "0" } }
 
 Maximum Hint
-~~~~~~~~~~~~
+############
 
 A maximum hint is used to associate a maximum value in the PI Point created for a data point.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "maximum" : "100000" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "maximum" : "100000" } }
 
 Interpolation
-~~~~~~~~~~~~~
+#############
 
 The interpolation hint sets the interpolation value used within the PI Server, interpolation values supported are continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "interpolation" : "continuous" } }
-
-
-Adding OMF Hints
-~~~~~~~~~~~~~~~~
-
-An OMF Hint is implemented as a string data point on a reading with
-the data point name of *OMFHint*. It can be added at any point in the
-processing of the data, however a specific plugin is available for adding
-the hints, the |OMFHint filter plugin|.
+   "OMFHint"  : { "datapoint" : { "name" : "height", "interpolation" : "continuous" } }
 
 .. _Numeric Data Types:
+
+Tag Name Hint
+#############
+
+The datapoint *tagName* hint can be used to set the name of a PI Point.
+For example:
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "temperature", "tagName" : "T105.PV" } }
+
+If you wish to set PI Point names for multiple datapoints in the same asset, use the datapoint hint array format:
+
+.. code-block:: JSON
+
+   "OMFHint": [
+      {
+         "name":"temperature",
+         "tagName":"T105.PV"
+      },
+      {
+         "name":"pressure",
+         "tagName":"P105.PV"
+      },
+      {
+         "name":"status",
+         "tagName":"Stat105.bool"
+      }
+   ]
+
+.. note::
+
+   The datapoint *tagName* hint is supported for Linked Types only.
 
 Numeric Data Types
 ------------------

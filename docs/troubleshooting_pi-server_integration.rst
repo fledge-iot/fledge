@@ -217,7 +217,7 @@ Tracing File
 
 It is possible to generate a detailed trace of all OMF messages POSTed to the AVEVA web server for troubleshooting purposes.
 This applies to all AVEVA OMF web server types: PI Web API, AVEVA CONNECT and Edge Data Store.
-To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic tab <../plugins/fledge-north-OMF/index.html#basic>`_.
+To enable this feature, click the *Enable Tracing* checkbox on the `OMF Basic tab <plugins/fledge-north-OMF/index.html#basic>`_.
 
 .. note::
 

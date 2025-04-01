@@ -14,6 +14,7 @@
 .. |pip_1| image:: images/pip_1.jpg
 .. |pip_2| image:: images/pip_2.jpg
 .. |pip_3| image:: images/pip_3.jpg
+.. |LathePipeline| image:: images/LathePipeline.jpg
 
 .. Links
 .. |python35| raw:: html
@@ -118,7 +119,7 @@ If this is not possible for some reason a second choice solution would be to use
 OMF Specific Considerations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Certain north plugins present specific problems to the incremental development approach as changing the format of data that is sent to them can cause them internal issues. The |OMF| plugin that is used to send data to the Aveva PI Server is one such plugin.
+Certain north plugins present specific problems to the incremental development approach as changing the format of data that is sent to them can cause them internal issues. The |OMF| plugin that is used to send data to the AVEVA PI Server is one such plugin.
 
 The problem with the PI Server is that it is designed to store data in fixed formats, therefore having data that is not of a consistent type, i.e. made up of the set of attributes, can cause issues. In a PI server each new data type becomes a new tag, this is not a problem if you are happy to use tag naming that is flexible. However if you require that you used fixed name tags within the PI Server, using the |OMFhints| filter, this can be an issue for incremental development of your pipeline. Changing the properties of the tag will result in a new name being required for the tag.
 
@@ -293,3 +294,423 @@ Warnings raised will also be logged to the error log but will not cause data to 
 
 See :ref:`AccessingLogs`: for details have how to access the system logs.
 
+Debugging & Tracing Pipelines
+-----------------------------
+
+Fledge has a feature that allows the debugging of pipelines in south an north services. It provides a mechanism to view the data as it flows through the pipeline.
+
+The debugger is designed to show the data as it traverses the pipeline within the service. Users may;
+
+   - Show the data at each stage in the pipeline.
+
+   - Configure the number of readings to store at each stage in the pipeline.
+
+   - Pause the ingest into the pipeline.
+
+   - Suspend the output of the pipeline.
+
+   - Ingest a number of readings into the paused pipeline.
+
+   - Replay the currently buffered readings for a pipeline.
+
+   - Resume flow into and out of the pipeline.
+
+
+The *replay* operation is useful when manipulating the configuration of the pipeline components. The user may change a filter configuration, replay the saved readings to see the impact of the configuration change. This may be repeated multiple times until the user is then satisfied with the result of the filter configuration.
+
+Command Line Interface
+~~~~~~~~~~~~~~~~~~~~~~
+
+A command line interface is provided to access the pipeline debugger. The interface can be started by running the *fledge* script that is used to start, stop and monitor Fledge or by calling the *scripts/debug/debug* script directly.
+
+.. note::
+
+   Due to the sensitive nature of pipeline debugging only user with edit permissions may use this interface. Additionally authentication must be enabled on the Fledge instance for this interface to work.
+
+Starting the Debugger
+#####################
+
+The *debug* command should be given the name of a south or north service to debug.
+
+.. code-block:: bash
+
+   $ scripts/fledge -u admin debug Lathe
+   Debug: Lathe$ 
+
+Upon starting a new prompt will be displayed, if the service is a valid service to be debugged and is running. The user may now enter the various debug commands at this prompt. To complete the debugging session type *exit* or Control-D.
+
+To see a list of available commands enter the command *commands*
+
+.. code-block:: bash
+
+   Debug: Lathe$ commands
+   attach:              Attach the pipeline debugger
+   buffer:              Return the contents of the buffers at every pipeline element
+   detach:              Detach the debugger from the pipeline
+   isolate:             Isolate the pipeline from the destination
+   replay:              Replay the buffered data through the pipeline
+   resumeIngest:        Resume the flow of data into the pipeline
+   setBuffer:           Set the number of readings to hold in each buffer, passing an integer argument
+   state:               Return the state of the debugger
+   step:                Allow readings to flow into the pipeline. Passed an optional number of readings to ingest; default to 1 if omitted
+   store:               Allow data to flow out of the pipeline into storage
+   suspendIngest:       Suspend the ingestion of data into the pipeline
+   Debug: Lathe$ 
+
+Attach
+######
+
+The first command to issue is usually the *attach* command. It attaches the debugger session to the service and begins the process of collecting data at each node within the pipeline. Until the debugger is attached it is not possible to view the data in the pipeline.
+
+.. code-block:: bash
+
+   Debug: Lathe$ attach
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$
+
+The data returned from the *attach* command is the status of running that command encoded within a JSON document.
+
+At this point the debugger is attached and collecting data at each node within the pipeline. By default only one reading is retained at each point in the pipeline, this s the last reading seen at that point in the pipeline.
+
+Buffer
+######
+
+The buffer command will display the data at each node in the pipeline. In the example pipeline used here there are several nodes, including a branch in the pipeline.
+
++-----------------+
+| |LathePipeline| |
++-----------------+
+
+The output of the Lathe simulator south plugin is split into two branches of the pipeline. An asset filter is used at the start of each branch to control which assets are sent down that branch of the pipeline. In this case the *latheCurrent* readings are sent down one branch and all other readings are sent down the other branch.
+
+Running the *buffer* command will display the data recorded on the input of each node in the pipeline.
+
+.. code-block:: bash
+
+   Debug: Lathe$ buffer
+   {
+     "data": [
+       {
+         "name": "Branch",
+         "readings": [
+           {
+             "asset_code": "latheIR",
+             "user_ts": "2025-03-31 16:23:10.008024+00:00",
+             "ts": "2025-03-31 16:23:10.008024+00:00",
+             "reading": {
+               "gearbox": 27.93525,
+               "motor": 29.6282,
+               "headstock": 25.51,
+               "tailstock": 20.52,
+               "tool": 24.0905
+             }
+           }
+         ]
+       },
+       [
+         {
+           "name": "CurrentOnly",
+           "readings": [
+             {
+               "asset_code": "latheIR",
+               "user_ts": "2025-03-31 16:23:10.008024+00:00",
+               "ts": "2025-03-31 16:23:10.008024+00:00",
+               "reading": {
+                 "gearbox": 27.93525,
+                 "motor": 29.6282,
+                 "headstock": 25.51,
+                 "tailstock": 20.52,
+                 "tool": 24.0905
+               }
+             }
+           ]
+         },
+         {
+           "name": "RMS",
+           "readings": [
+             {
+               "asset_code": "latheCurrent",
+               "user_ts": "2025-03-31 16:23:10.008018+00:00",
+               "ts": "2025-03-31 16:23:10.008018+00:00",
+               "reading": {
+                 "current": 767
+               }
+             }
+           ]
+         },
+         {
+           "name": "Writer",
+           "readings": [
+             {
+               "asset_code": "latheCurrent RMS",
+               "user_ts": "2025-03-31 16:23:02.803881+00:00",
+               "ts": "2025-03-31 16:23:02.803881+00:00",
+               "reading": {
+                 "current": 773.9413414465,
+                 "currentpeak": 47,
+                 "currentcrest": 0.0607281166
+               }
+             }
+           ]
+         }
+       ],
+       {
+         "name": "NonCurrent",
+         "readings": [
+           {
+             "asset_code": "latheIR",
+             "user_ts": "2025-03-31 16:23:10.008024+00:00",
+             "ts": "2025-03-31 16:23:10.008024+00:00",
+             "reading": {
+               "gearbox": 27.93525,
+               "motor": 29.6282,
+               "headstock": 25.51,
+               "tailstock": 20.52,
+               "tool": 24.0905
+             }
+           }
+         ]
+       },
+       {
+         "name": "Writer",
+         "readings": [
+           {
+             "asset_code": "latheIR",
+             "user_ts": "2025-03-31 16:23:10.008024+00:00",
+             "ts": "2025-03-31 16:23:10.008024+00:00",
+             "reading": {
+               "gearbox": 27.93525,
+               "motor": 29.6282,
+               "headstock": 25.51,
+               "tailstock": 20.52,
+               "tool": 24.0905
+             }
+           }
+         ]
+       }
+     ]
+   }
+   Debug: Lathe$
+
+Data is displayed as a JSON document, each object in the data represents a node in the pipeline. Each pipeline is enclosed in a JSON array. The *name* property of the object is the name of the filter into which the data is about to be passed. There are two reserved names; *Branch* and *Writer*.
+
+The *Branch* nodes represents the data that is about to be branched and sent down each of the separate branches of the pipeline. In the case of this example we see the data that comes from the south plugin and is immediately split to each branch.
+
+The *Writer* node represents where the data is about to be written to the storage service, since this is a south service we are debugging. If we were debugging a north service, the *Writer* node represents data written to the north plugin.
+
+All other names represent a filter name in the pipeline and the readings are the data that is passed into the filter.
+
+The example above shows a single reading at each node within the pipeline, this is the default number of readings that are buffered. The readings shown are always the must recent readings to be seen at that point within the pipeline. It is possible to define how many readings are to be buffered at each point in the pipeline using the *setBuffer* command.
+
+setBuffer
+#########
+
+The *setBuffer* command is used to set the number of readings to be buffered at each point in the pipeline. The same number must be buffered at all nodes in the pipeline, it is not possible to buffer different numbers of readings at each node in the pipeline.
+
+The *setBuffer* command is passed a number which is the number of readings to buffer. If omitted then the number of buffered readings will be set to 1.
+
+.. code-block:: bash
+
+   Debug: Lathe$ setBuffer 4
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$ 
+
+The returned JSON document shows the status of running the *setBuffer* command.
+
+.. note::
+
+   It is possible to enter large numbers to the *setBuffer* command, however it is not recommended as this will considerably increase the memory footprint of the service that is attached to the debugger.
+
+After running the *setBuffer* command the next call to the *buffer* command will return up to the number of readings requested in the *setBuffer* command. It may take some time for the requested number to be buffered as it requires new data to be sent through the pipeline to fill those buffers.
+
+Multiple buffers are returned as an array in each of the nodes of the pipeline, below is a sample for the first few nodes of our pipeline.
+
+.. code-block:: bash
+
+   Debug: Lathe$ setBuffer 3
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$ buffer
+   {
+     "data": [
+       {
+         "name": "Branch",
+         "readings": [
+           {
+             "asset_code": "latheCurrent",
+             "user_ts": "2025-04-01 08:18:42.262970+00:00",
+             "ts": "2025-04-01 08:18:42.262970+00:00",
+             "reading": {
+               "current": 750
+             }
+           },
+           {
+             "asset_code": "latheIR",
+             "user_ts": "2025-04-01 08:18:42.262975+00:00",
+             "ts": "2025-04-01 08:18:42.262975+00:00",
+             "reading": {
+               "gearbox": 27.9788,
+               "motor": 29.9785,
+               "headstock": 23.65,
+               "tailstock": 20.1666666667,
+               "tool": 18.73
+             }
+           },
+           {
+             "asset_code": "lathe",
+             "user_ts": "2025-04-01 08:18:42.262955+00:00",
+             "ts": "2025-04-01 08:18:42.262955+00:00",
+             "reading": {
+               "rpm": 349,
+               "x": 0,
+               "depth": 40,
+               "state": "Spining Up"
+             }
+           }
+         ]
+       },
+       [
+         {
+           "name": "CurrentOnly",
+           "readings": [
+             {
+               "asset_code": "latheCurrent",
+               "user_ts": "2025-04-01 08:18:42.262970+00:00",
+               "ts": "2025-04-01 08:18:42.262970+00:00",
+               "reading": {
+                 "current": 750
+               }
+             },
+             {
+               "asset_code": "latheIR",
+               "user_ts": "2025-04-01 08:18:42.262975+00:00",
+               "ts": "2025-04-01 08:18:42.262975+00:00",
+               "reading": {
+                 "gearbox": 27.9788,
+                 "motor": 29.9785,
+                 "headstock": 23.65,
+                 "tailstock": 20.1666666667,
+                 "tool": 18.73
+               }
+             },
+             {
+               "asset_code": "lathe",
+               "user_ts": "2025-04-01 08:18:42.262955+00:00",
+               "ts": "2025-04-01 08:18:42.262955+00:00",
+               "reading": {
+                 "rpm": 349,
+                 "x": 0,
+                 "depth": 40,
+                 "state": "Spining Up"
+               }
+             }
+           ]
+         },
+     ...
+
+The example has been truncated at the second node merely to save space in the documentation.
+
+suspendIngest
+#############
+
+When the debugger is attached to a service it does not stop the service from ingesting and processing new data, it merely adds a way to view the latest data as it traverse the pipeline. In situation where the user wishes to troubleshot the operation of the pipeline it may be desirable to suspend the service from ingesting new data. This allows the data to be examined, configuration to be modified and data resent through the pipeline to observe the impact of configuration changes. To stop new data ingesting into the pipeline use the *suspendIngest* command.
+
+.. code-block:: bash
+
+   Debug: Lathe$ suspendIngest
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$
+
+No new data will be read into the service, either by calling the poll entry point for a south service or fetching data from storage for a north service.
+
+.. note::
+
+   If the south plugin is an asynchronous plugin, any new data that the plugin tries to send into the pipeline will be discarded whilst the pipeline ingest is suspended.
+
+If trouble shooting a pipeline it is also useful to stop the pipeline send data out to the storage layer, in the case of a south plugin, or upstream to the destination system if a north plugin. This can be down using the *isolate* command.
+
+isolate
+#######
+
+Stops the pipeline emitting data into the storage layer, if a south service is attached to the debugger, or to the upstream system if the attached service is a north service.
+
+.. code-block:: bash
+
+   Debug: Lathe$ isolate
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$ 
+
+state
+#####
+
+It is always possible to see the state of the debugger and the pipeline it is attached to by using the *state* command.
+
+.. code-block:: bash
+
+   Debug: Lathe$ state
+   {
+     "debugger": "Attached",
+     "ingress": "Suspended",
+     "egress": "Isolated"
+   }
+   Debug: Lathe$
+
+step
+####
+
+When a pipeline has its ingest suspended it can be useful to allow one or more new readings to be ingested to see the impact of any configuration changes on new data. This can be down using the *step* command. It can be passed an optional number of readings to ingest, if no number is passed then a single reading will be ingested.
+
+.. code-block:: bash
+
+   Debug: Lathe$ step
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$ step 4
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$
+
+These new readings will then be ingested into the pipeline and the buffers will be updated with the new data and the results at each node within the pipeline.
+
+replay
+######
+
+The *replay* command is useful when the user has an isolated pipeline and they wish to see the impact of updating the configuration of one or more of the filters in the pipeline on the data that flows through the pipeline. Running the *replay* command will resend the data currently in the buffer at the first node in the pipeline through the pipeline again, updating the data in all other nodes in the pipeline.
+
+.. code-block:: bash
+
+   Debug: Lathe$ replay
+   {
+     "status": "ok"
+   }
+   Debug: Lathe$
+
+.. note::
+
+   The *replay* command should only be used if a pipeline has had ingest suspended, it is also probably sensible to isolate the pipeline to prevent readings with the same timestamp as readings already sent upstream to be sent again.
+
+store
+#####
+
+The *store* command is used to resume the storage of data that comes from the pipeline, in a south service, or to send the data upstream in the case of a north service. It effective reverse the effect of the *isolate* command.
+
+resumeIngest
+############
+
+The *resumeIngest* command will restart the ingest of data into the pipeline, revoking the impact of running the *suspendIngest* command.
+
+detach
+######
+
+The *detach* command should be run at the end of the debugging session to detach the debugger. Detaching the debugger will automatically resume the ingest and egress of the pipeline and return the pipeline to normal functioning.

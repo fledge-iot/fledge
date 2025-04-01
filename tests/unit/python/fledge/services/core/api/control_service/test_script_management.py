@@ -653,7 +653,7 @@ class TestScriptManagement:
         ({"parameters": {}}, "parameters cannot be an empty."),
     ])
     async def test_bad_schedule_script_with_parameters(self, client, payload, message):
-        resp = await client.post('/fledge/control/script/{}/schedule', data=json.dumps(payload))
+        resp = await client.post('/fledge/control/script/test/schedule', data=json.dumps(payload))
         assert 400 == resp.status
         assert message == resp.reason
         result = await resp.text()

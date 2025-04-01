@@ -1462,9 +1462,10 @@ class TestAuthMandatory:
                                 resp = await client.post('/fledge/admin/3/authcertificate', data=None,
                                                          headers=ADMIN_USER_HEADER)
                                 assert 200 == resp.status
-                                r = await resp.text()
-                                actual = json.loads(r)
-                                assert msg == actual['message']
+                                assert "OK" == resp.reason
+                                cert = await resp.text()
+                                assert cert.startswith("-----BEGIN CERTIFICATE-----")
+                                assert cert.endswith("\n-----END CERTIFICATE-----\n")
                             patch_role_id.assert_called_once_with('admin')
                 patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
             patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])

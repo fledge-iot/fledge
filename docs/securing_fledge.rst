@@ -351,11 +351,11 @@ Below are the steps to create custom certificate along with existing fledge base
 
 **Using cURL**
 
-- To create a user with a unique name and case-insensitive. The cURL commands are provided below.
+- Create User
 
 .. note::
 
-    You need administrator privileges to perform this action.
+    Usernames must be distinct, are not case-sensitive, and require administrative privileges to execute this action.
 
 For example, Add a username with the name **test**
 
@@ -364,17 +364,13 @@ For example, Add a username with the name **test**
     $ AUTH_TOKEN=$(curl -d '{"username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
     $ USER_ID=$(curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}' | jq '.user.userId')
 
-- It is now time to generate a new certificate for the **test** username that was created earlier.
+- Create Authentication Certificate
 
 .. code-block:: console
 
-    $ curl -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
+    $ curl -o filename.cert -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
 
-You can now locate the **test** certificate within the $FLEDGE_DATA/etc/certs/ and can be used for login.
-
-.. warning::
-
-    For security concerns, it is highly recommended to download or copy the certificate and delete it from the certificate store. Relocate it to a secure, private location to prevent unauthorized access and sharing, using encrypted storage or password protection.
+The certificate is available for download and can be used to log in.
 
 .. note::
 

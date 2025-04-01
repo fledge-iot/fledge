@@ -247,10 +247,10 @@ class TestAuthenticationAPI:
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert {'message': "An Authentication certificate has been created for user '{}'.".format(
-            user["userName"])} == jdoc
+        assert "OK" == r.reason
+        cert = r.read().decode()
+        assert cert.startswith("-----BEGIN CERTIFICATE-----")
+        assert cert.endswith("\n-----END CERTIFICATE-----\n")
 
         # Get users
         conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})

@@ -5,12 +5,14 @@
 # FLEDGE_END
 
 """ auth routes """
+import asyncio
 import os
 import subprocess
 import datetime
 import re
 import json
 from collections import OrderedDict
+from pathlib import Path
 import jwt
 from aiohttp import web
 
@@ -19,7 +21,9 @@ from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.logger import FLCoreLogger
 from fledge.common.web.middleware import has_permission
 from fledge.common.web.ssl_wrapper import SSLVerifier
+from fledge.services.core.api import utils as apiutils
 from fledge.services.core.user_model import User
+
 
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -880,8 +884,16 @@ async def certificate(request):
     """ Add authentication certificate
 
     :Example:
-        curl -H "authorization: <token>" -sX POST  http://localhost:8081/fledge/admin/{user_id}/authcertificate
+        curl -o username.cert -H "authorization: <token>" -sX POST  http://localhost:8081/fledge/admin/{user_id}/authcertificate
     """
+
+    async def delete_cert_after_response(cert_dir, cert_name):
+        await asyncio.sleep(1)
+        import glob
+        files = "{}/{}*".format(cert_dir, cert_name)
+        for f in glob.glob(files):
+            os.remove(f)
+
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
@@ -915,9 +927,16 @@ async def certificate(request):
         msg = str(exc)
         _logger.error(exc, "Unable to generate the authentication certificate for user '{}'..".format(username))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps(msg))
-
-    return web.json_response({'message': "An Authentication certificate has been created for user '{}'.".format(
-        username)})
+    else:
+        certs_dir = apiutils.get_fl_dir("/etc/certs/")
+        cert_path = Path(certs_dir) / "{}.cert".format(username)
+        if cert_path.exists() and cert_path.is_file():
+            response = web.FileResponse(path=cert_path)
+            asyncio.ensure_future(delete_cert_after_response(certs_dir, username))
+            return response
+        else:
+            msg = "The certificate for {} could not be found.".format(username)
+            return web.HTTPNotFound(reason=msg, body=json.dumps(msg))
 
 
 async def is_valid_role(role_id):

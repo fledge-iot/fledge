@@ -27,6 +27,10 @@ JSONPath::JSONPath(const string& path) : m_path(path)
  */
 JSONPath::~JSONPath()
 {
+	for (int i = 0; i < m_parsed.size(); i++)
+	{
+		delete m_parsed[i];
+	}
 }
 
 /**

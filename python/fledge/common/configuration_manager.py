@@ -220,6 +220,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items,
                                    category_name=None):
+        def convert_json_to_list_for_category_and_item(config_item_name: str, new_config: dict):
+            old_value_json = json.loads(category_val_storage[config_item_name]['value'])
+            if isinstance(old_value_json, dict):
+                config_item_list_name = new_config.get('listName')
+                if config_item_list_name is not None:
+                    old_list_value = old_value_json.get(config_item_list_name)
+                    if old_list_value is not None:
+                        _logger.info("Upgrading the JSON configuration into a list for category: {} and "
+                                     "config item: {}".format(category_name, config_item_name))
+                        new_config['value'] = json.dumps(old_value_json)
+                    else:
+                        _logger.error("The values for the {} category could not be merged "
+                                      "because the listName value was missing in the old configuration for the {} "
+                                      "config item.".format(category_name, config_item_name))
+                else:
+                    _logger.error("The values for the {} category could not be merged because the listName key-pair was"
+                                  " not found in the {} config item.".format(category_name, config_item_name))
+            return new_config['value']
         # preserve all value_vals from category_val_storage
         # use items in category_val_new not in category_val_storage
         # keep_original_items = FALSE ignore items in category_val_storage not in category_val_new
@@ -235,6 +253,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 else:
                     if 'value' not in item_val_new:
                         item_val_new['value'] = item_val_new['default']
+                    """ Upgrade case: 
+                        when the config item is of type JSON, it will be converted into a list while preserving 
+                        its value as is.
+                    """
+                    if item_val_new['type'] == 'list' and item_val_storage['type'] == 'JSON':
+                        if 'listName' in item_val_new:
+                            convert_json_to_list_for_category_and_item(item_name_new, item_val_new)
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)
@@ -245,14 +270,23 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         for item in deprecated_items:
             category_val_new_copy.pop(item)
-
         if keep_original_items:
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
-
         return category_val_new_copy
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
+
+        def _validate_optional_attribute_string_type(optional_key_name, optional_key_value, config_item_name):
+            if not isinstance(optional_key_value, str):
+                raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
+                    category_name, optional_key_name, config_item_name, type(optional_key_value)))
+            final_optional_key_value = optional_key_value.strip()
+            if not final_optional_key_value:
+                raise ValueError('For {} category, {} cannot be empty for item name {}'.format(
+                    category_name, optional_key_name, config_item_name))
+            return final_optional_key_value
+
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
             raise TypeError('For {} category, category value must be a dictionary; got {}'
@@ -368,16 +402,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if 'items' not in item_val:
                         raise KeyError('For {} category, items KV pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
+                    if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
+                        if 'keyName' in item_val:
+                            item_val['keyName'] = _validate_optional_attribute_string_type('keyName',
+                                                                                           item_val['keyName'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
+                        if 'keyDescription' in item_val:
+                            item_val['keyDescription'] = _validate_optional_attribute_string_type(
+                                'keyDescription', item_val['keyDescription'], item_name)
+                            expected_item_entries.update({entry_name: entry_val})
                     if 'listName' in item_val:
-                        list_name = item_val['listName']
-                        if not isinstance(list_name, str):
-                            raise TypeError('For {} category, listName type must be a string for item name {}; '
-                                            'got {}'.format(category_name, item_name, type(list_name)))
-                        list_name = item_val['listName'].strip()
-                        if not list_name:
-                            raise ValueError('For {} category, listName cannot be empty for item name '
-                                             '{}'.format(category_name, item_name))
-                        item_val['listName'] = list_name
+                        item_val['listName'] = _validate_optional_attribute_string_type('listName',
+                                                                     item_val['listName'], item_name)
                     elif "permissions" in item_val:
                         permissions = item_val['permissions']
                         if not isinstance(permissions, list):
@@ -544,6 +580,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
                             raise ValueError('For {} category, {} entry values must be a string and non-empty '
                                              'for item name {}.'.format(category_name, entry_name, item_name))
+                elif 'type' in item_val and get_entry_val("type") == 'JSON':
+                    if 'schema' in item_val:
+                        if type(item_val['schema']) is not dict:
+                            raise TypeError('For {} category, {} item name and schema entry value must be an object; '
+                                            'got {}'.format(category_name, item_name, type(entry_val)))
+                        if not item_val['schema']:
+                            raise ValueError('For {} category, {} item name and schema entry value can not be empty.'
+                                             ''.format(category_name, item_name))
+                        d = {entry_name: entry_val}
+                        expected_item_entries.update(d)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
@@ -614,7 +660,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if needed_value == 0:
                     raise ValueError('For {} category, missing entry name {} for item name {}'.format(
                         category_name, needed_key, item_name))
-
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
                 raise ValueError(
@@ -626,7 +671,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if 'mandatory' in item_val:
                 item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
             if set_value_val_from_default_val:
-                item_val['default'] = self._clean(item_val['type'], item_val['default'])
+                item_val['default'] = self._clean(item_val, item_val['default'])
                 item_val['value'] = item_val['default']
         return category_val_copy
 
@@ -634,8 +679,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         try:
             if isinstance(category_val, dict):
                 new_category_val = copy.deepcopy(category_val)
-                # Remove "deprecated" items from a new category configuration
                 for i, v in category_val.items():
+                    # Remove "deprecated" items from a new category configuration
                     if 'deprecated' in v and v['deprecated'] == 'true':
                         new_category_val.pop(i)
             else:
@@ -897,12 +942,18 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             if s not in ev_options:
                                 raise ValueError('For {}, new value does not exist in options enum'.format(s))
                 old_value = cat_info[item_name]['value']
-                new_val = self._clean(cat_info[item_name]['type'], new_val)
+                new_val = self._clean(cat_info[item_name], new_val)
                 # Validations on the basis of optional attributes
                 self._validate_value_per_optional_attribute(item_name, cat_info[item_name], new_val)
 
                 old_value_for_check = old_value
                 new_val_for_check = new_val
+                # Special case: If type is list and listName is given then modify the value internally
+                if cat_info[item_name]['type'] == 'list' and 'listName' in cat_info[item_name]:
+                    if cat_info[item_name]["listName"] not in new_val:
+                        modify_value = json.dumps({cat_info[item_name]['listName']: json.loads(new_val)})
+                        new_val_for_check = modify_value
+                        new_val = modify_value
                 if type(new_val) == dict:
                     # it converts .old so both .new and .old are dicts
                     # it uses OrderedDict to preserve the sequence of the keys
@@ -1173,7 +1224,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         raise ValueError("A value must be given for {}".format(item_name))
                     elif storage_value_entry['type'] == 'JSON' and not len(new_value_entry):
                         raise ValueError("Dict cannot be set as empty. A value must be given for {}".format(item_name))
-            new_value_entry = self._clean(storage_value_entry['type'], new_value_entry)
+            new_value_entry = self._clean(storage_value_entry, new_value_entry)
             # Evaluate new_value_entry as per rule if defined
             if 'rule' in storage_value_entry:
                 rule = storage_value_entry['rule'].replace("value", new_value_entry)
@@ -1187,6 +1238,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 old_value = storage_value_entry['value']
                 new_val = new_value_entry
                 await self._handle_update_config_for_acl(category_name, old_value, new_val)
+
+            # Special case: If type is list and listName is given then modify the value internally
+            if storage_value_entry['type'] == 'list' and 'listName' in storage_value_entry:
+                if storage_value_entry["listName"] not in new_value_entry:
+                    modify_value = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
+                    new_value_entry = modify_value
 
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
@@ -1904,11 +1961,33 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         elif _type == 'string' or _type == 'northTask':
             return isinstance(_value, str)
 
-    def _clean(self, item_type, item_val):
-        if item_type == 'boolean':
+    def _clean(self, storage_val, item_val) -> str:
+        # For optional attributes
+        if isinstance(storage_val, str):
+            return item_val.lower() if storage_val == 'boolean' else item_val
+        # For required attributes
+        if storage_val['type'] == 'boolean':
             return item_val.lower()
-        elif item_type == 'float':
+        elif storage_val['type'] == 'float':
             return str(float(item_val))
+        elif storage_val.get('items') == 'object':
+            if storage_val.get('type') == 'list':
+                # Convert string to list
+                data_list = json.loads(item_val)
+                if isinstance(data_list, list):
+                    # Remove duplicate objects
+                    new_item_val = []
+                    seen = set()
+                    for item in data_list:
+                        item_frozenset = frozenset(item.items())
+                        if item_frozenset not in seen:
+                            new_item_val.append(item)
+                            seen.add(item_frozenset)
+                    return json.dumps(new_item_val)
+            elif storage_val.get('type') == 'kvlist':
+                # Remove duplicate objects
+                new_item_val = json.loads(item_val)
+                return json.dumps(new_item_val)
 
         return item_val
 

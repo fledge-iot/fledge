@@ -188,7 +188,7 @@ void Reading::addDatapoint(Datapoint *value)
 /**
  * Remove a datapoint from the reading
  *
- * @param name	Name of the datapoitn to remove
+ * @param name	Name of the datapoint to remove
  * @return	Pointer to the datapoint removed or NULL if it was not found
  */
 Datapoint *Reading::removeDatapoint(const string& name)
@@ -548,6 +548,14 @@ int bscount = 0;
 	{
 		if (str[i] == '\\')
 		{
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/' || str[i-1] == '\\'))
+			{
+				rval += '\\';
+			}
+			else
+			{
+				rval += "\\\\";
+			}
 			bscount++;
 		}
 		else if (str[i] == '\"')
@@ -556,13 +564,14 @@ int bscount = 0;
 			{
 				rval += "\\";	// Add escape of "
 			}
+			rval += str[i];
 			bscount = 0;
 		}
 		else
 		{
+			rval += str[i];
 			bscount = 0;
 		}
-		rval += str[i];
 	}
 	return rval;
 }
@@ -700,7 +709,9 @@ string Reading::substitute(const string& str)
 				datapointValue = datapoint->getData().toStringValue();
 				break;
 			}
-			rval.replace(it->start, it->name.length()+2, datapointValue );
+			rval.replace(it->start, it->name.length()+2
+						+ (it->def.empty() ? 0 : it->def.length() + 1),
+						datapointValue );
 		}
 		else if (!it->def.empty())
 		{

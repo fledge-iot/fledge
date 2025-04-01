@@ -10,6 +10,7 @@ Plugin Developer Guide
     01_Fledge_plugins
     01_01_Data
     02_writing_plugins
+    02_persisting_data
     03_south_plugins
     03_south_C_plugins
     035_CPP

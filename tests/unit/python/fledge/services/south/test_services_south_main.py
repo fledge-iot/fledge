@@ -19,8 +19,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "south")
 @pytest.mark.asyncio
 async def test_south_main(mocker):
     # GIVEN

@@ -22,8 +22,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "plugin-discovery")
 class TestPluginDiscovery:
     mock_north_folders = ["OMF", "fledge-north"]
     mock_south_folders = ["modbus", "http"]
@@ -221,7 +219,6 @@ class TestPluginDiscovery:
     ]
 
     def test_get_plugins_installed_type_none(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
             yield TestPluginDiscovery.mock_south_folders
@@ -229,7 +226,6 @@ class TestPluginDiscovery:
             yield TestPluginDiscovery.mock_py_notify_folders
             yield TestPluginDiscovery.mock_py_rule_folders
 
-        @asyncio.coroutine
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_north_folders
             yield TestPluginDiscovery.mock_c_south_folders
@@ -255,11 +251,9 @@ class TestPluginDiscovery:
         assert 5 == mock_get_c_plugin_config.call_count
 
     def test_get_plugins_installed_type_north(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
 
-        @asyncio.coroutine
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_north_folders
 
@@ -281,11 +275,9 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_plugin_config.call_count
 
     def test_get_plugins_installed_type_south(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_south_folders
 
-        @asyncio.coroutine
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_south_folders
 
@@ -307,11 +299,9 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_plugin_config.call_count
 
     def test_get_filter_plugins_installed(self, mocker):
-        @asyncio.coroutine
         def mock_c_filter_folders():
             yield TestPluginDiscovery.mock_c_filter_folders
 
-        @asyncio.coroutine
         def mock_filter_folders():
             yield TestPluginDiscovery.mock_py_filter_folders
 
@@ -330,11 +320,9 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_filter_plugin_config.call_count
 
     def test_get_notify_plugins_installed(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_py_notify_folders
 
-        @asyncio.coroutine
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_notify_folders
 
@@ -355,11 +343,9 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_plugin_config.call_count
 
     def test_get_rules_plugins_installed(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_py_rule_folders
 
-        @asyncio.coroutine
         def mock_c_folders():
             yield TestPluginDiscovery.mock_c_rule_folders
 
@@ -381,7 +367,6 @@ class TestPluginDiscovery:
         assert 1 == mock_get_c_plugin_config.call_count
 
     def test_fetch_plugins_installed(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             yield TestPluginDiscovery.mock_north_folders
 
@@ -396,7 +381,6 @@ class TestPluginDiscovery:
         assert 2 == mock_get_plugin_config.call_count
 
     def test_get_plugin_folders(self, mocker):
-        @asyncio.coroutine
         def mock_folders():
             listdir = copy.deepcopy(TestPluginDiscovery.mock_north_folders)
             listdir.extend(["__init__", "empty", "common"])

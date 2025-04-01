@@ -428,7 +428,7 @@ bool retCode;
 /**
  * Create a SQLite3 database connection
  */
-Connection::Connection()
+Connection::Connection(ConnectionManager *manager) : m_manager(manager)
 {
 	string dbPath, dbPathReadings;
 	const char *defaultConnection = getenv("DEFAULT_SQLITE_DB_FILE");
@@ -502,12 +502,12 @@ Connection::Connection()
 		char *zErrMsg = NULL;
 
 		// Enable the WAL for the fledge DB
-		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, &zErrMsg);
+		rc = sqlite3_exec(dbHandle, m_manager->getDBConfiguration().c_str(), NULL, NULL, &zErrMsg);
 		if (rc != SQLITE_OK)
 		{
-			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
+			string errMsg = "Failed to set WAL from the fledge DB - " + m_manager->getDBConfiguration();
 			logger->error("%s : error %s",
-			                           DB_CONFIGURATION,
+			                           m_manager->getDBConfiguration().c_str(),
 									   zErrMsg);
 			connectErrorTime = time(0);
 
@@ -596,10 +596,10 @@ Connection::Connection()
 			delete[] sqlReadingsStmt;
 
 			// Enable the WAL for the readings DB
-			rc = sqlite3_exec(dbHandle, DB_CONFIGURATION,NULL, NULL, &zErrMsg);
+			rc = sqlite3_exec(dbHandle, m_manager->getDBConfiguration().c_str(), NULL, NULL, &zErrMsg);
 			if (rc != SQLITE_OK)
 			{
-				string errMsg = "Failed to set WAL from the readings DB - " DB_CONFIGURATION;
+				string errMsg = "Failed to set WAL from the readings DB - " + m_manager->getDBConfiguration();
 				Logger::getLogger()->error("%s : error %s",
 										   errMsg.c_str(),
 										   zErrMsg);
@@ -1338,7 +1338,7 @@ std::size_t arr = data.find("inserts");
 					}
 					else
 					{	
-						sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
+						sqlite3_bind_text(stmt, columID, str, -1, SQLITE_TRANSIENT);
 					}
 				}
 				else if (itr->value.IsDouble()) {
@@ -1534,10 +1534,10 @@ bool		allowZero = false;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
+					else if (itr->value.IsUint64())
+						sql.append((unsigned long)itr->value.GetUint64());
 					else if (itr->value.IsInt64())
 						sql.append((long)itr->value.GetInt64());
-					else if (itr->value.IsNumber())
-						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1619,7 +1619,7 @@ bool		allowZero = false;
 						sql.append(value.GetDouble());
 					else if (value.IsInt64())
 						sql.append((long)value.GetInt64());
-					else if (value.IsNumber())
+					else if (value.IsInt())
 						sql.append(value.GetInt());
 					else if (value.IsObject())
 					{
@@ -1732,7 +1732,7 @@ bool		allowZero = false;
 					{
 						sql.append((long)value.GetInt64());
 					}
-					else if (value.IsNumber())
+					else if (value.IsInt())
 					{
 						sql.append(value.GetInt());
 					}
@@ -1742,7 +1742,7 @@ bool		allowZero = false;
 						Writer<StringBuffer> writer(buffer);
 						value.Accept(writer);
 						sql.append('\'');
-						sql.append(buffer.GetString());
+						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
 					sql.append(")");

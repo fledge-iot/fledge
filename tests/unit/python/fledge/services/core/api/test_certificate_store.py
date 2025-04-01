@@ -43,8 +43,6 @@ ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin
 REST_API_CAT_INFO = {'certificateName': {'value': 'fledge'}, 'authCertificateName': {'value': 'ca'}}
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "certificate-store")
 class TestCertificateStore:
     @pytest.fixture
     def client(self, loop, aiohttp_server, aiohttp_client):
@@ -138,7 +136,7 @@ class TestCertificateStore:
             assert 500 == resp.status
             assert 'Internal Server Error' == resp.reason
         assert excinfo.type is FileNotFoundError
-        assert "No such file or directory:" in str(excinfo)
+        assert "No such file or directory" in str(excinfo)
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.pem', 404, "Certificate with name root.pem does not exist"),
@@ -258,8 +256,6 @@ class TestCertificateStore:
         patch_logger.assert_called_once_with(certificate_store.FORBIDDEN_MSG)
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "upload-certificate-store-with-authentication-mandatory")
 class TestUploadCertStoreIfAuthenticationIsMandatory:
     AUTH_HEADER = {'Authorization': 'admin_user_token'}
 
@@ -436,8 +432,6 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "delete-certificate-store-with-authentication-mandatory")
 class TestDeleteCertStoreIfAuthenticationIsMandatory:
     @pytest.fixture
     def client(self, loop, aiohttp_server, aiohttp_client):

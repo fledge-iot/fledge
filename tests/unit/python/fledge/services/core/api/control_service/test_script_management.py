@@ -43,8 +43,6 @@ async def mock_schedule(name):
     return schedules
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "script-management")
 class TestScriptManagement:
     """ Automation script API tests
     """
@@ -239,8 +237,7 @@ class TestScriptManagement:
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_acl':
@@ -311,8 +308,7 @@ class TestScriptManagement:
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_acl':
@@ -326,8 +322,7 @@ class TestScriptManagement:
             else:
                 return {}
 
-        @asyncio.coroutine
-        def i_result(*args):
+        async def i_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -405,8 +400,7 @@ class TestScriptManagement:
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'control_acl':
                 assert acl_query_payload == json.loads(args[1])
@@ -447,8 +441,7 @@ class TestScriptManagement:
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         insert_result = {"response": "inserted", "rows_affected": 1}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'control_acl':
                 assert acl_query_payload == json.loads(args[1])
@@ -461,8 +454,7 @@ class TestScriptManagement:
             else:
                 return {}
 
-        @asyncio.coroutine
-        def i_result(*args):
+        async def i_result(*args):
             table = args[0]
             payload_ins = args[1]
             if table == "acl_usage":
@@ -535,8 +527,7 @@ class TestScriptManagement:
         delete_sch_result = (True, 'Schedule deleted successfully.')
         message = '{} script deleted successfully.'.format(script_name)
 
-        @asyncio.coroutine
-        def query_schedule(*args):
+        async def query_schedule(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -545,8 +536,7 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def d_schedule(*args):
+        async def d_schedule(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -616,8 +606,7 @@ class TestScriptManagement:
                                                        "and": {"column": "entity_name", "condition": "=",
                                                                "value": script_name}}}
 
-        @asyncio.coroutine
-        def query_result(*args):
+        async def query_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -626,8 +615,7 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def d_result(*args):
+        async def d_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -665,7 +653,7 @@ class TestScriptManagement:
         ({"parameters": {}}, "parameters cannot be an empty."),
     ])
     async def test_bad_schedule_script_with_parameters(self, client, payload, message):
-        resp = await client.post('/fledge/control/script/{}/schedule', data=json.dumps(payload))
+        resp = await client.post('/fledge/control/script/test/schedule', data=json.dumps(payload))
         assert 400 == resp.status
         assert message == resp.reason
         result = await resp.text()

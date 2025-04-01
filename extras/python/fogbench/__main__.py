@@ -218,11 +218,8 @@ async def send_to_coap(payload):
 
     context = await Context.create_client_context()
 
-    request = Message(payload=dumps(payload), code=Code.POST)
-    request.opt.uri_host = arg_host
-    request.opt.uri_port = arg_port
-    request.opt.uri_path = ("other", "sensor-values")
-
+    uri = "coap://{}:{}/other/sensor-values".format(arg_host, arg_port)
+    request = Message(payload=dumps(payload), uri=uri, code=Code.POST)
     response = await context.request(request).response
     str_res = str(response.code)
     status_code = str_res[:4]  # or str_res.split()[0]

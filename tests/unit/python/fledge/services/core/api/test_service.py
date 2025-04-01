@@ -33,8 +33,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "service")
 class TestService:
     def setup_method(self):
         ServiceRegistry._registry = list()
@@ -73,9 +71,20 @@ class TestService:
             ServiceRegistry.register('name6', 'Northbound', 'address6', 6, 6, 'http')
             ServiceRegistry.register('name7', 'Dispatcher', 'address7', 7, 7, 'http')
             ServiceRegistry.register('name8', 'BucketStorage', 'address8', 8, 8, 'http')
+            ServiceRegistry.register('name9', 'Northbound', 'address9', 9, 9, 'http')
             ServiceRegistry.unregister(s_id_3)
             ServiceRegistry.mark_as_failed(s_id_4)
-
+            default_debugger = {"debugger": "Detached"}
+            svc_3_debugger = {"debugger": "Attached", "ingress": "Suspended", "egress": "Storage"}
+            svc_9_debugger = {"debugger": "Attached", "ingress": "Running", "egress": "Storage"}
+            for service_record in ServiceRegistry.all():
+                if service_record._type in ('Southbound', 'Northbound'):
+                    if service_record._name == 'name3':
+                        service_record._debug = svc_3_debugger
+                    elif service_record._name == 'name9':
+                        service_record._debug = svc_9_debugger
+                    else:
+                        service_record._debug = default_debugger
             resp = await client.get('/fledge/service')
             assert 200 == resp.status
             result = await resp.text()
@@ -98,7 +107,8 @@ class TestService:
                         'protocol': 'protocol2',
                         'status': 'running',
                         'name': 'name2',
-                        'management_port': 2
+                        'management_port': 2,
+                        'debug': default_debugger
                     },
                     {
                         'type': 'Southbound',
@@ -107,7 +117,8 @@ class TestService:
                         'protocol': 'protocol3',
                         'status': 'shutdown',
                         'name': 'name3',
-                        'management_port': 3
+                        'management_port': 3,
+                        'debug': svc_3_debugger
                     },
                     {
                         'type': 'Notification',
@@ -134,7 +145,8 @@ class TestService:
                         'protocol': 'http',
                         'status': 'running',
                         'name': 'name6',
-                        'management_port': 6
+                        'management_port': 6,
+                        'debug': default_debugger
                     },
                     {
                         'type': 'Dispatcher',
@@ -153,10 +165,20 @@ class TestService:
                         'status': 'running',
                         'name': 'name8',
                         'management_port': 8
+                    },
+                    {
+                        'type': 'Northbound',
+                        'service_port': 9,
+                        'address': 'address9',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name9',
+                        'management_port': 9,
+                        'debug': svc_9_debugger
                     }
                 ]
             }
-        assert 10 == log_patch_info.call_count
+        assert 11 == log_patch_info.call_count
 
     @pytest.mark.parametrize("_type", ["blah", 1, "storage"])
     async def test_bad_get_service_with_type(self, client, _type):
@@ -238,8 +260,7 @@ class TestService:
     async def test_insert_scheduled_process_exception_add_service(self, client):
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             return {'count': 0, 'rows': []}
 
         mock_plugin_info = {
@@ -320,8 +341,7 @@ class TestService:
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_schedule_name_add_service(self, client):
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
@@ -381,8 +401,7 @@ class TestService:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
             if table == 'scheduled_processes':
@@ -495,8 +514,7 @@ class TestService:
             schedule.schedule_id = sch_id
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             if table == 'schedules':
@@ -568,8 +586,7 @@ class TestService:
     async def test_dupe_external_service_schedule(self, client, payload, svc_type):
         data = json.loads(payload)
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             sch_ps = svc_type if svc_type != "bucketstorage" else "bucket_storage"
@@ -636,8 +653,7 @@ class TestService:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
             if table == 'scheduled_processes':
@@ -750,16 +766,18 @@ class TestService:
 
         delete_result = {'response': 'deleted', 'rows_affected': 1}
         update_result = {'rows_affected': 1, "response": "updated"}
-
+        query_result = [{'rows': [{'name': 'Delta #123'}], 'count': 1}]
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_result()
             _rv3 = await self.async_mock(delete_result)
             _rv4 = await self.async_mock(update_result)
+            _rv5 = await self.async_mock(query_result)
         else:
             _rv1 = asyncio.ensure_future(mock_result())
             _rv3 = asyncio.ensure_future(self.async_mock(delete_result))
             _rv4 = asyncio.ensure_future(self.async_mock(update_result))
+            _rv5 = asyncio.ensure_future(self.async_mock(query_result))
         _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
         mocker.patch.object(connect, 'get_storage_async')
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv1)
@@ -772,6 +790,7 @@ class TestService:
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
         delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv3)
         delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv3)
+        delete_filters = mocker.patch.object(service, "delete_filters", return_value=_rv5)
         update_deprecated_ts_in_asset_tracker = mocker.patch.object(service, "update_deprecated_ts_in_asset_tracker",
                                                                     return_value=_rv4)
 
@@ -811,6 +830,10 @@ class TestService:
         assert sch_name in args
 
         assert 1 == delete_plugin_data.call_count
+        args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_filters.call_count
         args, kwargs = delete_plugin_data.call_args_list[0]
         assert sch_name in args
 
@@ -937,7 +960,7 @@ class TestService:
         query_tbl_payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
                                                              "and": {"column": "name", "condition": "=",
                                                                      "value": pkg_name}}}
-        
+        svc_list = ["storage", "south"]
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await async_mock({'count': 0, 'rows': []})
@@ -950,29 +973,34 @@ class TestService:
             _rv3 = asyncio.ensure_future(async_mock({"response": "inserted", "rows_affected": 1}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1) as query_tbl_patch:
-                with patch.object(common, 'fetch_available_packages', return_value=(_rv2)) as patch_fetch_available_package:
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv3) as insert_tbl_patch:
-                        with patch.object(service._logger, "info") as log_info:
-                            with patch('multiprocessing.Process'):
-                                resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-                                assert 200 == resp.status
-                                result = await resp.text()
-                                response = json.loads(result)
-                                assert 'id' in response
-                                assert '{} service installation started'.format(pkg_name) == response['message']
-                                assert response['statusLink'].startswith('fledge/package/install/status?id=')
-                        assert 1 == log_info.call_count
-                        log_info.assert_called_once_with('{} service installation started...'.format(pkg_name))
-                    args, kwargs = insert_tbl_patch.call_args_list[0]
-                    assert 'packages' == args[0]
-                    actual = json.loads(args[1])
-                    assert 'id' in actual
-                    assert pkg_name == actual['name']
-                    assert 'install' == actual['action']
-                    assert -1 == actual['status']
-                    assert '' == actual['log_file_uri']
-                patch_fetch_available_package.assert_called_once_with()
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1
+                              ) as query_tbl_patch:
+                with patch.object(service, 'get_service_installed', return_value=svc_list) as svc_list_patch:
+                    with patch.object(common, 'fetch_available_packages', return_value=_rv2
+                                      ) as patch_fetch_available_package:
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv3
+                                          ) as insert_tbl_patch:
+                            with patch.object(service._logger, "info") as log_info:
+                                with patch('multiprocessing.Process'):
+                                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                                    assert 200 == resp.status
+                                    result = await resp.text()
+                                    response = json.loads(result)
+                                    assert 'id' in response
+                                    assert '{} service installation started'.format(pkg_name) == response['message']
+                                    assert response['statusLink'].startswith('fledge/package/install/status?id=')
+                            assert 1 == log_info.call_count
+                            log_info.assert_called_once_with('{} service installation started...'.format(pkg_name))
+                        args, kwargs = insert_tbl_patch.call_args_list[0]
+                        assert 'packages' == args[0]
+                        actual = json.loads(args[1])
+                        assert 'id' in actual
+                        assert pkg_name == actual['name']
+                        assert 'install' == actual['action']
+                        assert -1 == actual['status']
+                        assert '' == actual['log_file_uri']
+                    patch_fetch_available_package.assert_called_once_with()
+                svc_list_patch.assert_called_once_with()
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
             actual = json.loads(args[1])
@@ -1002,7 +1030,8 @@ class TestService:
         payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
                                                    "and": {"column": "name", "condition": "=", "value": pkg_name}}}
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        svc_list = ["storage", "south"]
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await async_mock({'count': 0, 'rows': []})
@@ -1015,11 +1044,14 @@ class TestService:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               return_value=_rv1) as query_tbl_patch:
-                with patch.object(common, 'fetch_available_packages', return_value=_rv2) as patch_fetch_available_package:
-                    resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
-                    assert 404 == resp.status
-                    assert "'{} service is not available for the given repository'".format(pkg_name) == resp.reason
-                patch_fetch_available_package.assert_called_once_with()
+                with patch.object(service, 'get_service_installed', return_value=svc_list) as svc_list_patch:
+                    with patch.object(common, 'fetch_available_packages', return_value=_rv2
+                                      ) as patch_fetch_available_package:
+                        resp = await client.post('/fledge/service?action=install', data=json.dumps(param))
+                        assert 404 == resp.status
+                        assert "'{} service is not available for the given repository'".format(pkg_name) == resp.reason
+                    patch_fetch_available_package.assert_called_once_with()
+                svc_list_patch.assert_called_once_with()
             args, kwargs = query_tbl_patch.call_args_list[0]
             assert 'packages' == args[0]
             assert payload == json.loads(args[1])
@@ -1168,8 +1200,7 @@ class TestService:
         payload = '{"name": "FL Agent", "type": "management"}'
         data = json.loads(payload)
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
             if table == 'schedules':

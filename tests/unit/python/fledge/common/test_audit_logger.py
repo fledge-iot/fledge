@@ -12,13 +12,11 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@asyncio.coroutine
-def mock_coro():
+async def mock_coro():
     return None
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "audit-logger")
-class TestAuditLogger():
+
+class TestAuditLogger:
 
     @pytest.mark.asyncio
     async def test_constructor_no_storage(self):

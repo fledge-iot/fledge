@@ -23,8 +23,6 @@ async def mock_coro(*args):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "entrypoint")
 class TestEntrypoint:
     """ Control Flow Entrypoint API tests """
 
@@ -124,8 +122,7 @@ class TestEntrypoint:
         storage_result = {"count": 0, "rows": []}
         insert_result = {"response": "inserted", "rows_affected": 1}
 
-        @asyncio.coroutine
-        def i_result(*args):
+        async def i_result(*args):
             table = args[0]
             insert_payload = args[1]
             if table == 'control_api':

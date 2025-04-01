@@ -174,6 +174,8 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 
 /**
  * Copy constructor for a configuration category
+ *
+ * @param rhs	The configuration category to copy
  */
 ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 {
@@ -181,6 +183,22 @@ ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 	m_description = rhs.m_description;
 
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+}
+
+/**
+ * Copy constructor for a configuration category when copying from a pointer
+ *
+ * @param rhs	The configuration category to copy
+ */
+ConfigCategory::ConfigCategory(ConfigCategory const *rhs)
+{
+	m_name = rhs->m_name;
+	m_description = rhs->m_description;
+
+	for (auto it = rhs->m_items.cbegin(); it != rhs->m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));
 	}
@@ -593,6 +611,12 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_listItemType;
 				case LIST_NAME_ATTR:
 				    return m_items[i]->m_listName;
+				case KVLIST_KEY_NAME_ATTR:
+				    return m_items[i]->m_kvlistKeyName;
+				case KVLIST_KEY_DESCRIPTION_ATTR:
+				    return m_items[i]->m_kvlistKeyDescription;
+				case JSON_SCHEMA_ATTR:
+					return m_items[i]->m_jsonSchema;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -670,6 +694,15 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 				case LIST_NAME_ATTR:
 					m_items[i]->m_listName = value;
 					return true;
+				case KVLIST_KEY_NAME_ATTR:
+					m_items[i]->m_kvlistKeyName = value;
+					return true;
+				case KVLIST_KEY_DESCRIPTION_ATTR:
+					m_items[i]->m_kvlistKeyDescription = value;
+					return true;
+				case JSON_SCHEMA_ATTR:
+				    m_items[i]->m_jsonSchema = value;
+				    return true;
 				default:
 					return false;
 			}
@@ -1357,6 +1390,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	if (item.HasMember("schema"))
+	{
+		Logger::getLogger()->debug("item['schema'].IsString()=%s, item['schema'].IsObject()=%s",
+										item["schema"].IsString()?"true":"false",
+										item["schema"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["schema"].Accept(writer);
+		m_jsonSchema = item["schema"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_jsonSchema=%s", m_jsonSchema.c_str());
+	}
+	else
+	{
+		m_jsonSchema = "";
+	}
+
 	if (item.HasMember("items"))
 	{
 		if (item["items"].IsString())
@@ -1394,7 +1449,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			throw new runtime_error("ListName configuration item property is not a string");
 		}
 	}
-
+	if (item.HasMember("keyName"))
+	{
+		if (item["keyName"].IsString())
+		{
+			m_kvlistKeyName = item["keyName"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("keyName configuration item property is not a string");
+		}
+	}
+	if (item.HasMember("keyDescription"))
+	{
+		if (item["keyDescription"].IsString())
+		{
+			m_kvlistKeyDescription = item["keyDescription"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("keyDescription configuration item property is not a string");
+		}
+	}
 	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
 
@@ -1683,10 +1759,13 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_listSize = rhs.m_listSize;
 	m_listItemType = rhs.m_listItemType;
 	m_listName = rhs.m_listName;
+	m_kvlistKeyName = rhs.m_kvlistKeyName;
+	m_kvlistKeyDescription = rhs.m_kvlistKeyDescription;
 	for (auto it = rhs.m_permissions.cbegin(); it != rhs.m_permissions.cend(); it++)
 	{
 		m_permissions.push_back(*it);
 	}
+	m_jsonSchema = rhs.m_jsonSchema;
 }
 
 /**
@@ -1823,6 +1902,18 @@ ostringstream convert;
 		{
 			convert << ", \"listName\" : \"" << m_listName << "\"";
 		}
+		if (!m_kvlistKeyName.empty())
+		{
+			convert << ", \"keyName\" : \"" << m_kvlistKeyName << "\"";
+		}
+		if (!m_kvlistKeyDescription.empty())
+		{
+			convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
+		}
+		if (!m_jsonSchema.empty())
+		{
+			convert << ", \"schema\" : " << m_jsonSchema;
+		}
 	}
 	convert << " }";
 
@@ -1933,7 +2024,18 @@ ostringstream convert;
 	{
 	    convert << ", \"listName\" : \"" << m_listName << "\"";
 	}
-
+	if (!m_kvlistKeyName.empty())
+	{
+	    convert << ", \"keyName\" : \"" << m_kvlistKeyName << "\"";
+	}
+	if (!m_kvlistKeyDescription.empty())
+	{
+	    convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
+	}
+	if (!m_jsonSchema.empty())
+	{
+		convert << ", \"schema\" : " << m_jsonSchema;
+	}
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||

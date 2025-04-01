@@ -23,8 +23,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "statistics")
 class TestStatistics:
 
     @pytest.fixture
@@ -115,8 +113,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -169,8 +166,7 @@ class TestStatistics:
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -206,8 +202,7 @@ class TestStatistics:
         p1 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -236,8 +231,7 @@ class TestStatistics:
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -290,8 +284,7 @@ class TestStatistics:
         p1 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -314,8 +307,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -343,8 +335,7 @@ class TestStatistics:
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
         p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -376,8 +367,8 @@ class TestStatistics:
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
         p3 = {"where": {"and": {"column": "key", "condition": "=", "value": "READINGS", "or": {"column": "key", "condition": "=", "value": "PURGED", "or": {"column": "key", "condition": "=", "value": "UNSENT"}}}, "column": "1", "condition": "=", "value": 1}, "return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"direction": "desc", "column": "history_ts"}}
-        @asyncio.coroutine
-        def q_result(*args):
+
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -413,8 +404,7 @@ class TestStatistics:
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "limit": 1}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -445,8 +435,7 @@ class TestStatistics:
               "where": {"column": "1", "condition": "=", "value": 1,
                         "and": {"column": "key", "condition": "=", "value": "blah"}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 

@@ -257,7 +257,10 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_dryRun(false),
 				m_requestRestart(false),
 				m_auditLogger(NULL),
-				m_perfMonitor(NULL)
+				m_perfMonitor(NULL),
+				m_suspendIngest(false),
+				m_steps(0),
+				m_provider(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -284,6 +287,7 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+	delete m_provider;
 
 	// We would like to shutdown the Python environment if it
 	// was running. However this causes a segmentation fault within Python
@@ -301,9 +305,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
+	m_provider = new SouthServiceProvider(this);
+	management.registerProvider(m_provider);
 	management.registerService(this);
 
-	// Listen for incomming managment requests
+	// Listen for incoming managment requests
 	management.start();
 
 	// Create the south API
@@ -473,6 +479,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				m_perfMonitor->setCollecting(false);
 		}
 
+		if (m_configAdvanced.itemExists("rateMonitoringInterval") && m_configAdvanced.itemExists("rateSigmaFactor"))
+		{
+			string s = m_configAdvanced.getValue("rateMonitoringInterval");
+			long interval = strtol(s.c_str(), NULL, 10);
+			s = m_configAdvanced.getValue("rateSigmaFactor");
+			long factor = strtol(s.c_str(), NULL, 10);
+			ingest.configureRateMonitor(interval, factor);
+
+		}
+
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
@@ -614,7 +630,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					for (uint64_t i=0; i<exp; i++)
 #endif
 					{
-						if (!pollInterfaceV2) // v1 poll method
+						bool doPoll = true;
+						if (isSuspended())
+						{
+							doPoll = false;
+							if (willStep())
+							{
+								doPoll = true;
+							}
+						}
+						if (doPoll && (!pollInterfaceV2)) // v1 poll method
 						{
 						
 							Reading reading = southPlugin->poll();
@@ -624,7 +649,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							}
 							++pollCount;
 						}
-						else // V2 poll method
+						else if (doPoll)// V2 poll method
 						{
 							checkPendingReconfigure();
 							ReadingSet *set = southPlugin->pollV2();
@@ -643,6 +668,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 								delete set;
 							}
+						}
+						else
+						{
+							checkPendingReconfigure();
 						}
 						throttlePoll();
 					}
@@ -716,8 +745,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (southPlugin->persistData())
 			{
 				string data = southPlugin->shutdownSaveData();
-				Logger::getLogger()->debug("Persist plugin data, %s '%s'", m_dataKey, data.c_str());
-				m_pluginData->persistPluginData(m_dataKey, data);
+				Logger::getLogger()->debug("Persist plugin data, key: '%s' data: '%s' service name: '%s'", m_dataKey, data.c_str(), m_name.c_str());
+				m_pluginData->persistPluginData(m_dataKey, data, m_name);
 			}
 			else
 			{
@@ -918,6 +947,8 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
+		// Propogate advanced configuration changes to the ingest class always
+		m_ingest->configChange(categoryName, category);
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		if (m_configAdvanced.itemExists("statistics"))
 		{
@@ -1020,8 +1051,6 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
 			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
-			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
-			m_ingest->configChange(categoryName, "logLevel");
 			
 			if (type == PYTHON_PLUGIN)
 			{
@@ -1092,42 +1121,28 @@ void SouthService::handlePendingReconf()
 		unique_lock<mutex> lck(mtx);
 		m_cvNewReconf.wait(lck);
 		Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
-
-		while (isRunning())
+		unsigned int numPendingReconfs = 0;
 		{
-			unsigned int numPendingReconfs = 0;
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+		}
+		while (isRunning() && numPendingReconfs)
+		{
+			std::pair<std::string,std::string> reconfValue;
+			{
+				reconfValue = m_pendingNewConfig.front();
+				m_pendingNewConfig.pop_front();
+			}
+			{
+				string categoryName = reconfValue.first;
+				string category = reconfValue.second;
+				logger->info("Handle config change %s, %s",
+						categoryName.c_str(), category.c_str());
+				processConfigChange(categoryName, category);
+			}
 			{
 				lock_guard<mutex> guard(m_pendingNewConfigMutex);
 				numPendingReconfs = m_pendingNewConfig.size();
-				if (numPendingReconfs)
-					Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
-				else
-				{
-					Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
-					break;
-				}
-			}
-
-			for (unsigned int i=0; i<numPendingReconfs; i++)
-			{
-				logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
-				std::pair<std::string,std::string> *reconfValue = NULL;
-				{
-					lock_guard<mutex> guard(m_pendingNewConfigMutex);
-					reconfValue = &m_pendingNewConfig[i];
-				}
-				std::string categoryName = reconfValue->first;
-				std::string category = reconfValue->second;
-				processConfigChange(categoryName, category);
-
-				logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
-			}
-			
-			{
-				lock_guard<mutex> guard(m_pendingNewConfigMutex);
-				for (unsigned int i=0; i<numPendingReconfs; i++)
-					m_pendingNewConfig.pop_front();
-				logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
 			}
 		}
 	}
@@ -1174,6 +1189,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 
 		}
 	}
+
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, to_string(MAXSENDLATENCY));
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MINIMUM_ATTR, "0");
 
 	if (!isAsync)
 	{
@@ -1239,6 +1257,18 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			       "boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
+
+	// Rate Monitoring options
+	defaultConfig.addItem("rateMonitoringInterval",
+				"The interval in minutes to use when calculating average ingestion rates for monitoring the service ingestion",
+				"integer", "1", "1");
+	defaultConfig.setItemDisplayName("rateMonitoringInterval", "Monitoring Period");
+	defaultConfig.setItemAttribute("rateMonitoringInterval", ConfigCategory::MINIMUM_ATTR, "0");
+	defaultConfig.addItem("rateSigmaFactor",
+				"The sensitivity of the ingest rate monitor, expressed as a number of standard deviations of the average ingest rate.",
+				"integer", "3", "3");
+	defaultConfig.setItemDisplayName("rateSigmaFactor", "Monitoring Sensitivity");
+	defaultConfig.setItemAttribute("rateSigmaFactor", ConfigCategory::MINIMUM_ATTR, "1");
 }
 
 /**
@@ -1748,4 +1778,36 @@ void SouthService::checkPendingReconfigure()
 		else
 			return;
 	}
+}
+
+/**
+ * Return the state of the pipeline debugger
+ *
+ * @return string	JSON document reporting the state of the pipeline debugger
+ */
+string SouthService::debugState()
+{
+	string rval;
+	rval = "{ ";
+	rval += "\"debugger\" : ";
+	if (m_debugState & DEBUG_ATTACHED)
+	{
+		rval += "\"Attached\",";
+		rval += "\"ingress\" : ";
+		if (m_debugState & DEBUG_SUSPENDED)
+			rval += "\"Suspended\", ";
+		else
+			rval += "\"Running\", ";
+		rval += "\"egress\" : ";
+		if (m_debugState & DEBUG_ISOLATED)
+			rval += "\"Isolated\"";
+		else
+			rval += "\"Storage\"";
+	}
+	else
+	{
+		rval += "\"Detached\"";
+	}
+	rval += "}";
+	return rval;
 }

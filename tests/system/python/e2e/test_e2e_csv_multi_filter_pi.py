@@ -57,7 +57,7 @@ class TestE2eCsvMultiFltrPi:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, fledge_url, add_filter, filter_branch,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token,
+                          start_north_pi_server_c_web_api, pi_host, pi_port,
                           clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
                           asset_name="e2e_csv_filter_pi"):
         """ This fixture clone a south and north repo and starts both south and north instance
@@ -129,7 +129,8 @@ class TestE2eCsvMultiFltrPi:
         # enable service when all filters all applied
         enable_schedule(fledge_url, SVC_NAME)
 
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                        taskname="NorthReadingsToPI")
 
         yield self.start_south_north
 
@@ -140,7 +141,7 @@ class TestE2eCsvMultiFltrPi:
 
         remove_data_file(csv_file_path)
 
-    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi_asset_server, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using playback south plugin &
             Delta, RMS, Rate, Scale, Asset & Metadata filters, and sent to PI
@@ -172,7 +173,7 @@ class TestE2eCsvMultiFltrPi:
             assert 1 == actual_stats_map['NorthReadingsToPI']
 
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -249,14 +250,14 @@ class TestE2eCsvMultiFltrPi:
         assert 3162.2776601684 == read["ivalue"]
         assert "value" == read["name"]
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
 
         # Wait until full data is recieved in PI server
         time.sleep(wait_time * 2)
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db,
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db,
                                              "e2e_filters_RMS", {"ivalue", "ivaluepeak", "name"})
             retry_count += 1
             time.sleep(wait_time * 2)

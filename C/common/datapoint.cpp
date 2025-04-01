@@ -172,6 +172,12 @@ void DatapointValue::deleteNestedDPV()
 	}
 	else if (m_type == T_2D_FLOAT_ARRAY)
 	{
+		for (auto it = m_value.a2d->begin();
+				 it != m_value.a2d->end();
+				 ++it)
+		{
+			delete(*it);
+		}
 		delete m_value.a2d;
 		m_value.a2d = NULL;
 	}
@@ -331,6 +337,14 @@ int bscount = 0;
 	{
 		if (str[i] == '\\')
 		{
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/'|| str[i-1] == '\\'))
+			{
+				rval += '\\';
+			}
+			else
+			{
+				rval += "\\\\";
+			}
 			bscount++;
 		}
 		else if (str[i] == '\"')
@@ -339,13 +353,14 @@ int bscount = 0;
 			{
 				rval += "\\";	// Add escape of "
 			}
+			rval += str[i];
 			bscount = 0;
 		}
 		else
 		{
+			rval += str[i];
 			bscount = 0;
 		}
-		rval += str[i];
 	}
 	return rval;
 }

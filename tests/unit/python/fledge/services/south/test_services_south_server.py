@@ -87,17 +87,10 @@ plugin_attrs = {
 }
 
 
-@asyncio.coroutine
-def mock_coro():
-    yield from false_coro()
-
-
-async def false_coro():
+async def mock_coro():
     return True
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("south")
 class TestServicesSouthServer:
     def south_fixture(self, mocker):
         def cat_get():

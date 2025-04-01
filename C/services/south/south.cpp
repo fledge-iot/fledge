@@ -374,14 +374,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				return;
 			}
 
-			ConfigCategory features = m_mgtClient->getCategory("Features");
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
 			updateFeatures(features);
 
 			// Register for category content changes
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
-			configHandler->registerCategory(this, "Features");
+			configHandler->registerCategory(this, "FEATURES");
 		}
 
 		// Get a handle on the storage layer
@@ -1102,9 +1102,9 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	}
 
 	// Deal with changes to the features settings
-	if (categoryName.compare("Features") == 0)
+	if (categoryName.compare("FEATURES") == 0)
 	{
-		this->updateFeatures(ConfigCategory("Features", category));
+		this->updateFeatures(ConfigCategory("FEATURES", category));
 	}
 }
 

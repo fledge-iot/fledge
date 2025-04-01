@@ -406,3 +406,4 @@ Currently there are two features that can be disabled on an instance wide basis:
 The *Control* toggle button can be used to disable all write and operation calls from south plugins back to devices. To disable |control| features for a Fledge instance uncheck the *Control* toggle button.
 
 The *Pipeline Debugger* toggle button will control the ability to perform pipeline debugging in any north or south service within Fledge. If there are any pipeline debugging sessions in progress when the toggle is unset, they will be terminated. No new debugging sessions can be started if the pipeline debugger option is not enabled in the *Features* configuration category.
+

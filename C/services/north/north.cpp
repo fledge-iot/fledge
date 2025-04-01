@@ -410,13 +410,13 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				return;
 			}
 
-			ConfigCategory features = m_mgtClient->getCategory("Features");
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
 			updateFeatures(features);
 
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
-			configHandler->registerCategory(this, "Features");
+			configHandler->registerCategory(this, "FEATURES");
 		}
 
 		// Get a handle on the storage layer
@@ -914,9 +914,9 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	{
 		this->updateSecurityCategory(category);
 	}
-	if (categoryName.compare("Features") == 0)
+	if (categoryName.compare("FEATURES") == 0)
 	{
-		ConfigCategory conf("Features", category);
+		ConfigCategory conf("FEATURES", category);
 		this->updateFeatures(conf);
 	}
 }

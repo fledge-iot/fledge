@@ -491,9 +491,9 @@ async def _check_parameters(payload, request):
                     source_name in north_schedules and des_name in north_schedules):
                 raise ValueError(error_msg)
             if source_name in south_schedules:
-                raise ValueError("South services can not be the source for control pipelines")
+                raise ValueError("South services can not be the source for control pipelines.")
             if des_name in north_schedules:
-                raise ValueError("North services can not be the destination for control pipelines")
+                raise ValueError("North services can not be the destination for control pipelines.")
         # Script
         if source_type == 6 and des_type == 4:
             raise ValueError(error_msg)
@@ -502,13 +502,13 @@ async def _check_parameters(payload, request):
         schedules = await server.Server.scheduler.get_schedules()
         south_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "south_c"]
         if source_name in south_schedules:
-            raise ValueError("South services can not be the source for control pipelines")
+            raise ValueError("South services can not be the source for control pipelines.")
     # Destination can not be a north service
     if destination is not None and des_type == 2:
         schedules = await server.Server.scheduler.get_schedules()
         north_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "north_C"]
         if des_name in north_schedules:
-            raise ValueError("North services can not be the destination for control pipelines")
+            raise ValueError("North services can not be the destination for control pipelines.")
     # filters
     filters = payload.get('filters', None)
     if filters is not None:

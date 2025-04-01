@@ -579,7 +579,7 @@ void SouthApi::isolateDebugger(Response response, Request request)
 					}
 					else
 					{
-						string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'discard' or 'store'." });
+						string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'discard' or 'store'" });
 						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 					}
 				}
@@ -646,7 +646,7 @@ void SouthApi::suspendDebugger(Response response, Request request)
 					}
 					else
 					{
-						string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'suspend' or 'resume'." });
+						string responsePayload = QUOTE({ "message" : "The value of 'size' should be a string with either 'suspend' or 'resume'" });
 						m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 					}
 				}

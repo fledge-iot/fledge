@@ -1793,7 +1793,7 @@ void SouthService::checkPendingReconfigure()
 }
 
 /**
- * Process the setting of allowed fetures
+ * Process the setting of allowed features
  *
  * @param category	The configuration category
  */
@@ -1808,7 +1808,7 @@ void SouthService::updateFeatures(const ConfigCategory& category)
 	{
 		string s = category.getValue("debugging");
 		m_debuggerEnabled = s.compare("true") == 0 ? true : false;
-		if (m_debugState & DEBUG_ATTACHED != 0 && m_debuggerEnabled == false)
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_debuggerEnabled == false)
 		{
 			// Detach the debugger
 			detachDebugger();

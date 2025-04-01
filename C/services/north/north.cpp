@@ -1407,7 +1407,7 @@ string NorthService::debugState()
 }
 
 /**
- * Process the setting of allowed fetures
+ * Process the setting of allowed features
  *
  * @param category	The configuration category
  */

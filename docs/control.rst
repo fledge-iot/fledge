@@ -33,7 +33,7 @@
 .. |control_api_8| image:: images/control/control_api_8.jpg
 .. |control_api_9| image:: images/control/control_api_9.jpg
 .. |control_api_10| image:: images/control/control_api_10.jpg
-.. |features| image:: images/fetures.jpg
+.. |features| image:: images/features.jpg
 
 .. Links
 .. |ExpressionFilter| raw:: html
@@ -52,11 +52,11 @@ Fledge supports facilities that allows control of devices via the south service 
 
 .. note::
 
-   The control features within Fledge may be disabled globally. This is done via the *Configuration* menu item, select the *Advanced::Features* configuration category. The *Control* toggle enables and disables access to control features. This may only be modified by users with administration rights within the system.
+   The control features within Fledge may be disabled globally. The feature configuration is locations in the *Configuration* menu item under the *Advanced::Features* configuration category. The *Control* toggle enables or disables access to control features. Administrative rights are required to update the features that are enabled or disabled.
 
-   +-------------+
-   | |features | |
-   +-------------+
+   +------------+
+   | |features| |
+   +------------+
 
 Control Functions
 =================

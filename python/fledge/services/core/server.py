@@ -603,7 +603,7 @@ class Server:
         """ Get the features inclusion configuration """
         try:
             config = cls._FEATURES_DEFAULT_CONFIG
-            category = 'Features'
+            category = 'FEATURES'
             description = "Control the inclusion of system features"
             if cls._configuration_manager is None:
                 cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
@@ -951,7 +951,7 @@ class Server:
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
-                                                                                "CONFIGURATION","Features"])
+                                                                                "CONFIGURATION","FEATURES"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise

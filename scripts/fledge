@@ -439,7 +439,7 @@ fledge_debug() {
 	service="$1"
 	result=`fledge_status "silent"`
 	if [[ $result != "0" ]]; then
-		fledge_log "info" "Fledge appears not to be running, debug should be performed on a running system . Start Fledge first." "all" "pretty"
+		fledge_log "info" "Fledge appears not to be running. Debug should be performed on a running system. Start Fledge first." "all" "pretty"
 		exit 0
 	fi
 	"${FLEDGE_ROOT}/scripts/debug/debug" "$service"

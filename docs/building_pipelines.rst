@@ -297,9 +297,9 @@ See :ref:`AccessingLogs`: for details have how to access the system logs.
 Debugging & Tracing Pipelines
 -----------------------------
 
-Fledge has a feature that allows the debugging of pipelines in south an north services. It provides a mechanism to view the data as it flows through the pipeline.
+Fledge has a feature that allows the debugging of pipelines in south and north services. It provides a mechanism to view the data as it flows through the pipeline.
 
-The debugger is designed to show the data as it traverses the pipeline within the service. Users may;
+The debugger is designed to show the data as it traverses the pipeline within the service. Users may:
 
    - Show the data at each stage in the pipeline.
 
@@ -316,7 +316,7 @@ The debugger is designed to show the data as it traverses the pipeline within th
    - Resume flow into and out of the pipeline.
 
 
-The *replay* operation is useful when manipulating the configuration of the pipeline components. The user may change a filter configuration, replay the saved readings to see the impact of the configuration change. This may be repeated multiple times until the user is then satisfied with the result of the filter configuration.
+The *replay* operation is useful when manipulating the configuration of the pipeline components. The user may change a filter configuration and replay the saved readings to see the impact of the configuration change. This may be repeated multiple times until the user is satisfied with the result of the filter configuration.
 
 Command Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -372,7 +372,7 @@ The first command to issue is usually the *attach* command. It attaches the debu
 
 The data returned from the *attach* command is the status of running that command encoded within a JSON document.
 
-At this point the debugger is attached and collecting data at each node within the pipeline. By default only one reading is retained at each point in the pipeline, this s the last reading seen at that point in the pipeline.
+At this point the debugger is attached and collecting data at each node within the pipeline. By default only one reading is retained at each point in the pipeline; this is the last reading seen at that point in the pipeline.
 
 Buffer
 ######
@@ -494,7 +494,7 @@ Running the *buffer* command will display the data recorded on the input of each
    }
    Debug: Lathe$
 
-Data is displayed as a JSON document, each object in the data represents a node in the pipeline. Each pipeline is enclosed in a JSON array. The *name* property of the object is the name of the filter into which the data is about to be passed. There are two reserved names; *Branch* and *Writer*.
+Data is displayed as a JSON document. Each object in the data represents a node in the pipeline. Each pipeline is enclosed in a JSON array. The *name* property of the object is the name of the filter into which the data is about to be passed. There are two reserved names: *Branch* and *Writer*.
 
 The *Branch* nodes represents the data that is about to be branched and sent down each of the separate branches of the pipeline. In the case of this example we see the data that comes from the south plugin and is immediately split to each branch.
 

@@ -26,7 +26,7 @@ If authentication is enabled, which is the default mode for Fledge version 3.0 o
 
   - If neither of the above are done the user will be prompted to enter a user name.
 
-In both cases the user will be prompted to enter a password. It is possible, but not recommended, to set an environment variable *FLEDGE_PASSWORD* with the plain text version of the password.
+In both cases the user will be prompted to enter a password. It is possible, but not recommended, to set an environment variable *FLEDGE_PASSWORD* or pass the *-p* flag on the command line, with the plain text version of the password.
 
 .. code-block:: console
 
@@ -38,6 +38,18 @@ In both cases the user will be prompted to enter a password. It is possible, but
 .. note::
 
    The *start*, *status* and *help* commands do not require authentication.
+
+It is also possible to use certificate based authentication to login to the system. In this case the "fledge" command line utility should be passed the *-c* flag with the name of the certificate file to use to authenticate.
+
+.. code-block:: console
+
+   $ /usr/local/fledge/bin/fledge -c ~/.fledge/admin.cert stop
+   Stopping Fledge..........
+   Fledge Stopped
+
+.. note::
+
+   Extreme caution should be taken when storing certificate files that they not be readable by any other user within the system.
 
 Following a successful authentication attempt a time based token is issued that allows the user to run further commands, for a limited time, without the need to authenticate again.
 

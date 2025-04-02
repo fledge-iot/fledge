@@ -507,7 +507,7 @@ The example above shows a single reading at each node within the pipeline, this 
 setBuffer
 #########
 
-The *setBuffer* command is used to set the number of readings to be buffered at each point in the pipeline. The same number must be buffered at all nodes in the pipeline, it is not possible to buffer different numbers of readings at each node in the pipeline.
+The *setBuffer* command is used to set the number of readings to be buffered at each point in the pipeline. The same number must be buffered at all nodes in the pipeline. It is not possible to buffer different numbers of readings at each node in the pipeline.
 
 The *setBuffer* command is passed a number which is the number of readings to buffer. If omitted then the number of buffered readings will be set to 1.
 
@@ -527,7 +527,7 @@ The returned JSON document shows the status of running the *setBuffer* command.
 
 After running the *setBuffer* command the next call to the *buffer* command will return up to the number of readings requested in the *setBuffer* command. It may take some time for the requested number to be buffered as it requires new data to be sent through the pipeline to fill those buffers.
 
-Multiple buffers are returned as an array in each of the nodes of the pipeline, below is a sample for the first few nodes of our pipeline.
+Multiple buffers are returned as an array in each of the nodes of the pipeline. Below is a sample for the first few nodes of our pipeline.
 
 .. code-block:: bash
 
@@ -618,7 +618,7 @@ The example has been truncated at the second node merely to save space in the do
 suspendIngest
 #############
 
-When the debugger is attached to a service it does not stop the service from ingesting and processing new data, it merely adds a way to view the latest data as it traverse the pipeline. In situation where the user wishes to troubleshot the operation of the pipeline it may be desirable to suspend the service from ingesting new data. This allows the data to be examined, configuration to be modified and data resent through the pipeline to observe the impact of configuration changes. To stop new data ingesting into the pipeline use the *suspendIngest* command.
+When the debugger is attached to a service it does not stop the service from ingesting and processing new data; it merely adds a way to view the latest data as it traverse the pipeline. In situation where the user wishes to troubleshoot the operation of the pipeline it may be desirable to suspend the service from ingesting new data. This allows the data to be examined, configuration to be modified and data resent through the pipeline to observe the impact of configuration changes. To stop new data ingesting into the pipeline use the *suspendIngest* command.
 
 .. code-block:: bash
 
@@ -634,7 +634,7 @@ No new data will be read into the service, either by calling the poll entry poin
 
    If the south plugin is an asynchronous plugin, any new data that the plugin tries to send into the pipeline will be discarded whilst the pipeline ingest is suspended.
 
-If trouble shooting a pipeline it is also useful to stop the pipeline send data out to the storage layer, in the case of a south plugin, or upstream to the destination system if a north plugin. This can be down using the *isolate* command.
+If troubleshooting a pipeline it is also useful to stop the pipeline send data out to the storage layer, in the case of a south plugin, or upstream to the destination system if a north plugin. This can be down using the *isolate* command.
 
 isolate
 #######
@@ -667,7 +667,7 @@ It is always possible to see the state of the debugger and the pipeline it is at
 step
 ####
 
-When a pipeline has its ingest suspended it can be useful to allow one or more new readings to be ingested to see the impact of any configuration changes on new data. This can be down using the *step* command. It can be passed an optional number of readings to ingest, if no number is passed then a single reading will be ingested.
+When a pipeline has its ingest suspended it can be useful to allow one or more new readings to be ingested to see the impact of any configuration changes on new data. This can be done using the *step* command. It can be passed an optional number of readings to ingest. If no number is passed then a single reading will be ingested.
 
 .. code-block:: bash
 
@@ -681,7 +681,7 @@ When a pipeline has its ingest suspended it can be useful to allow one or more n
    }
    Debug: Lathe$
 
-These new readings will then be ingested into the pipeline and the buffers will be updated with the new data and the results at each node within the pipeline.
+These new readings will then be ingested into the pipeline. The buffers will be updated with the new data and the results buffered at each node within the pipeline.
 
 replay
 ######
@@ -698,12 +698,12 @@ The *replay* command is useful when the user has an isolated pipeline and they w
 
 .. note::
 
-   The *replay* command should only be used if a pipeline has had ingest suspended, it is also probably sensible to isolate the pipeline to prevent readings with the same timestamp as readings already sent upstream to be sent again.
+   The *replay* command should only be used if a pipeline has had ingest suspended. It is also probably sensible to isolate the pipeline to prevent readings with the same timestamp as readings already sent upstream to be sent again.
 
 store
 #####
 
-The *store* command is used to resume the storage of data that comes from the pipeline, in a south service, or to send the data upstream in the case of a north service. It effective reverse the effect of the *isolate* command.
+The *store* command is used to resume the storage of data that comes from the pipeline, in a south service, or to send the data upstream in the case of a north service. It effectively reverses the effect of the *isolate* command.
 
 resumeIngest
 ############

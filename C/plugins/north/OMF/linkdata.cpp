@@ -179,7 +179,7 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 						format = (*hit)->getHint();
 						break;
 					}
-					if (typeid(**hit) == typeid(OMFTagNameHint))
+					if (typeid(**hit) == typeid(OMFTagNameDatapointHint))
 					{
 						tagNameHintRaw = (*hit)->getHint();
 						tagNameHint = OMF::ApplyPIServerNamingRulesObj(tagNameHintRaw, &tagNameHintchanged);

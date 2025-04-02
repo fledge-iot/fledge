@@ -880,7 +880,7 @@ async def delete_user(request):
 
 
 @has_permission("admin")
-async def certificate(request):
+async def create_certificate(request):
     """ Add authentication certificate
 
     :Example:

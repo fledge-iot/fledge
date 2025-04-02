@@ -58,7 +58,7 @@ def setup(app):
     app.router.add_route('PUT', '/fledge/admin/{user_id}/enable', auth.enable_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/unblock', auth.unblock_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/reset', auth.reset)
-    app.router.add_route('POST', '/fledge/admin/{user_id}/authcertificate', auth.certificate)
+    app.router.add_route('POST', '/fledge/admin/{user_id}/authcertificate', auth.create_certificate)
 
     # Configuration
     app.router.add_route('GET', '/fledge/category', api_configuration.get_categories)

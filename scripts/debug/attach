@@ -1,0 +1,31 @@
+#!/bin/bash
+#help 		Attach the pipeline debugger
+
+fledge_authenticate() {
+
+    if [[ -f ~/.fledge_token ]]; then
+	cat ~/.fledge_token
+	exit 0
+    fi
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+	    read -p "Username: " USERNAME
+	    read -s -p "Password: " PASSWORD
+	    /bin/echo >/dev/tty
+    fi
+
+    # Get/Updates the rest API URL
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.fledge_token
+	echo $token
+    fi
+}
+
+token=`fledge_authenticate`
+curl -s -H "authorization: $token" -X PUT "${REST_API_URL}/fledge/service/${SERVICE}/debug?action=attach"|jq

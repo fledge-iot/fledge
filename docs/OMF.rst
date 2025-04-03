@@ -21,6 +21,9 @@
 
    <a href="../fledge-filter-omfhint/index.html">OMFHint filter plugin</a>
 
+.. |OMF North Troubleshooting| raw:: html
+
+   <a href="../troubleshooting_pi-server_integration.html">Troubleshooting the PI Server integration</a>
 
 OMF End Points
 --------------
@@ -290,12 +293,12 @@ The OMF plugin names objects in the Asset Framework based upon the asset
 name in the reading within Fledge. Asset names are typically added to
 the readings in the south plugins, however they may be altered by filters
 between the south ingest and the north egress points in the data
-pipeline. Asset names can be overridden using the `OMF Hints` mechanism
+pipeline. Asset names can be overridden using the :ref:`OMF Hints` mechanism
 described below.
 
 The attribute names used within the objects in the PI System are based
 on the names of the datapoints within each Reading within Fledge. Again
-`OMF Hints` can be used to override this mechanism.
+:ref:`OMF Hints` can be used to override this mechanism.
 
 The naming used within the objects in the Asset Framework is controlled
 by the *Naming Scheme* option:
@@ -470,6 +473,8 @@ use our original location */BuildingA/${room}* and we have the reading
 
 this reading would be stored in */BuildingA*.
 
+.. _OMF Hints:
+
 OMF Hints
 ---------
 
@@ -542,10 +547,11 @@ that adds this hint to ensure this is the case.
 
    This hint only has meaning when using the complex type legacy mode with this plugin.
 
-Tag Name Hint
-~~~~~~~~~~~~~
+Tag Name Hint for a Container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The *tagName* hint specifies the name of the Container that will represent the reading's asset in the PI Server.
+The default name of an OMF Container is the reading's asset name.
+The *tagName* hint allows you to override this and specify the OMF Container name.
 In the AF Database, the *tagName* hint becomes the name of the AF Element that owns the AF Attributes that map the reading's datapoints.
 This hint does not influence the names of individual PI Points.
 If you need to specify PI Point names, see :ref:`Datapoint Specific Hints`.
@@ -553,6 +559,13 @@ If you need to specify PI Point names, see :ref:`Datapoint Specific Hints`.
 .. code-block:: console
 
    "OMFHint"  : { "tagName" : "Reactor42" }
+
+.. note::
+
+   If you configure a *tagName* hint to specify the name of the OMF Container, you must do so before you start your OMF North instance for the first time.
+   After that, you must include the *tagName* hint for every reading without changing it.
+   If you don't, the OMF North plugin will create a new OMF Container with the default name along with new PI Points.
+   If this happens, there is a procedure for restoring your configuration in the |OMF North Troubleshooting| guide.
 
 Source Hint
 ~~~~~~~~~~~
@@ -599,6 +612,8 @@ Note the following when defining an *AFLocation* hint:
     - If you disable the OMF Hint filter, the Reading AF Element will not move.
     - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
     - No references are created.
+
+.. _Datapoint Specific Hints:
 
 Datapoint Specific Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -702,12 +717,11 @@ The interpolation hint sets the interpolation value used within the PI Server, i
 
    "OMFHint"  : { "datapoint" : { "name" : "height", "interpolation" : "continuous" } }
 
-.. _Numeric Data Types:
+Tag Name Hint for a Datapoint (Linked Types only)
+#################################################
 
-Tag Name Hint
-#############
-
-The datapoint *tagName* hint can be used to set the name of a PI Point.
+The default name of a datapoint's PI Point is the reading's asset name concatenated with the datapoint name, separated by a dot (".").
+The datapoint *tagName* hint allows you to override this and specify the name of the PI Point.
 For example:
 
 .. code-block:: console
@@ -735,7 +749,12 @@ If you wish to set PI Point names for multiple datapoints in the same asset, use
 
 .. note::
 
-   The datapoint *tagName* hint is supported for Linked Types only.
+   If you configure a *tagName* hint to specify a PI Point name, you must do so before you start your OMF North instance for the first time.
+   After that, you must include the *tagName* hint for every reading without changing it.
+   If you don't, the OMF North plugin will report errors and stop processing.
+   If this happens, there is a procedure for restoring your configuration in the |OMF North Troubleshooting| guide.
+
+.. _Numeric Data Types:
 
 Numeric Data Types
 ------------------

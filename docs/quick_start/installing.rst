@@ -64,7 +64,7 @@ Once complete you can add the repository itself into the apt configuration file 
     to the end of the file.
 
     .. note:: 
-       We exclusively provide support for Bullseye and Buster (armv7l) versions. Use specific version name of the Raspberry Operating System you have installed.
+       We only offer support for Bullseye on both armv7l and aarch64 architectures, as well as Buster on the armv7l architecture. Use the specific version name of the Raspberry Operating System you have installed.
 
   - Users with an Intel or AMD system with Ubuntu versions should ensure compatibility with their respective platforms, should run
 

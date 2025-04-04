@@ -11,6 +11,10 @@
 
    <a href="../storage.html#configuring-the-storage-plugin">Configure Storage Plugin from GUI</a>
 
+.. |Supported Platforms| raw:: html
+
+   <a href="platforms.html">Supported Platforms</a>
+
 
 Installing Fledge
 ==================
@@ -58,29 +62,26 @@ Once complete you can add the repository itself into the apt configuration file 
     
     .. code-block:: console
 
-       deb  http://archives.fledge-iot.org/latest/bullseye/armv7l/ /
        deb  http://archives.fledge-iot.org/latest/bullseye/aarch64/ /
 
     to the end of the file.
 
-    .. note:: 
-       We only offer support for Bullseye on both armv7l and aarch64 architectures, as well as Buster on the armv7l architecture. Use the specific version name of the Raspberry Operating System you have installed.
-
-  - Users with an Intel or AMD system with Ubuntu versions should ensure compatibility with their respective platforms, should run
+  - Users utilizing x86_64 or amd64 architectures on Ubuntu versions need to confirm compatibility with their particular platforms and should run the following command:
 
     .. code-block:: console
 
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / "
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / "
        sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2204/x86_64/ / "
 
-  - Users with an ARM system with Ubuntu versions should ensure compatibility with their respective platforms, should run
+  - Users utilizing aarch64 or arm64 architectures on Ubuntu versions need to confirm compatibility with their particular platforms and should run the following command:
 
     .. code-block:: console
 
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / "
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2004/aarch64/ / "
        sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2204/aarch64/ / "
+
+.. note::
+
+       Explore other |Supported Platforms|
+
 
 Once the repository has been added you must inform the package manager to go and fetch a list of the packages it supports. To do this run the command
 

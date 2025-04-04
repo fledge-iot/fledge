@@ -223,7 +223,7 @@ class SouthService : public ServiceAuthHandler {
 		std::mutex			m_suspendMutex;
 		unsigned int			m_debugState;
 		SouthServiceProvider		*m_provider;
-		ServiceBufferingType			m_serviceBufferingType;
+		ServiceBufferingType		m_serviceBufferingType;
 		unsigned int			m_serviceBufferSize;
 		DiscardPolicy			m_discardPolicy;
 };

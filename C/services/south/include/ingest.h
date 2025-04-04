@@ -61,8 +61,10 @@ enum class DiscardPolicy {
 };
 
 #define SERVICE_BUFFER_BUFFER_TYPE_DEFAULT 	ServiceBufferingType::UNLIMITED
-#define SERVICE_BUFFER_DISCARD_POLICY_DEFAULT 	DiscardPolicy::REDUCE_FIDELITY
+#define SERVICE_BUFFER_DISCARD_POLICY_DEFAULT 	DiscardPolicy::DISCARD_OLDEST
 #define SERVICE_BUFFER_SIZE_DEFAULT		1000
+#define SERVICE_BUFFER_SIZE_MIN		1000
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,

@@ -781,6 +781,27 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 void SouthService::getResourceLimit()
 {
+	auto discardPolicyToString = [](DiscardPolicy policy) -> std::string 
+	{
+		switch (policy) 
+		{
+			case DiscardPolicy::DISCARD_OLDEST:   return "Discard Oldest";
+			case DiscardPolicy::REDUCE_FIDELITY: return "Reduce Fidelity";
+			case DiscardPolicy::DISCARD_NEWEST:  return "Discard Newest";
+			default: throw std::invalid_argument("Invalid DiscardPolicy enum value");
+		}
+	};
+
+	auto serviceBufferingTypeToString = [](ServiceBufferingType type) -> std::string 
+	{
+		switch (type) 
+		{
+			case ServiceBufferingType::UNLIMITED: return "Unlimited";
+			case ServiceBufferingType::LIMITED:   return "Limited";
+			default: throw std::invalid_argument("Invalid ServiceBufferingType enum value");
+		}
+	};
+
 	// Update the resource limit configuration
 	try 
 	{
@@ -796,8 +817,8 @@ void SouthService::getResourceLimit()
 		} 
 		else
 		{
-			Logger::getLogger()->error("Invalid serviceBuffering value: %s. Using default: UNLIMITED.", serviceBuffering.c_str());
 			m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Service Buffering Type' configuration value: '%s'. Default value '%s' has been applied.", serviceBuffering.c_str(), serviceBufferingTypeToString(m_serviceBufferingType).c_str());
 		}
 
 		// Parse and validate the service buffer size
@@ -806,53 +827,65 @@ void SouthService::getResourceLimit()
 			std::string bufferSizeStr = m_configResourceLimit.getValue("serviceBufferSize");
 			m_serviceBufferSize = (unsigned int)std::stoi(bufferSizeStr); // Convert to integer
 
-			if (m_serviceBufferSize <= 0)
+			if (m_serviceBufferSize < SERVICE_BUFFER_SIZE_MIN)
 			{
-				Logger::getLogger()->error("Invalid serviceBufferSize value: %s. Must be greater than zero. Using default: 1000.", bufferSizeStr.c_str());
 				m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+				Logger::getLogger()->error("Invalid 'Service Buffer Size' value: '%s'. The value must be at least %d. Default value of %d has been applied.", bufferSizeStr.c_str(), SERVICE_BUFFER_SIZE_MIN, m_serviceBufferSize);
 			}
 		} 
 		catch (const std::exception& e)
 		{
 			// Handle conversion errors and out-of-range values
-			Logger::getLogger()->error("Error parsing serviceBufferSize: %s. Using default value: 1000.", e.what());
 			m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+			Logger::getLogger()->error("Failed to parse 'serviceBufferSize': %s. Default value '%d' has been applied.", e.what(), m_serviceBufferSize);
 		}
 
 		// Parse the discard policy
 		std::string discardPolicy = m_configResourceLimit.getValue("discardPolicy");
-		if (discardPolicy == "DiscardOldest") 
+		if (discardPolicy == "Discard Oldest") 
 		{
 			m_discardPolicy = DiscardPolicy::DISCARD_OLDEST;
 		} 
-		else if (discardPolicy == "DiscardNewest") 
+		else if (discardPolicy == "Discard Newest") 
 		{
 			m_discardPolicy = DiscardPolicy::DISCARD_NEWEST;
 		} 
-		else if (discardPolicy == "ReduceFidelity") 
+		else if (discardPolicy == "Reduce Fidelity") 
 		{
 			m_discardPolicy = DiscardPolicy::REDUCE_FIDELITY;
 		} 
 		else 
 		{
-			Logger::getLogger()->error("Invalid m_discardPolicy value: %s. Using default: REDUCE_FIDELITY.", discardPolicy.c_str());
 			m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Discard Policy' configuration value: '%s'. Default value '%s' has been applied.", discardPolicy.c_str(), discardPolicyToString(m_discardPolicy).c_str());
 		}
+
+		Logger::getLogger()->info("Resource Limit configuration applied successfully: "
+			"Service Buffering Type: '%s', "
+			"Service Buffer Size: '%d', "
+			"Discard Policy: '%s'.",
+			serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+			m_serviceBufferSize,
+			discardPolicyToString(m_discardPolicy).c_str());
+
 	} 
 	catch (const std::exception& e) 
 	{
 		// Catch any other exceptions and log the error
-		Logger::getLogger()->error("Error updating resource limit configuration: %s. Using default values.", e.what());
+		Logger::getLogger()->error("Failed to update resource limit configuration due to an exception: %s. Default values will be applied to ensure system stability.", e.what());
 
 		// Set default values to ensure the system can continue running
 		m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT;
 		m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT;
 		m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT;
 
-		Logger::getLogger()->info("Using default configuration: "
-								"serviceBufferingType=UNLIMITED, "
-								"serviceBufferSize=1000, "
-								"discardPolicy=REDUCE_FIDELITY.");
+		Logger::getLogger()->info("Default configuration applied: "
+								"Service Buffering Type: '%s', "
+								"Service Buffer Size: '%d', "
+								"Discard Policy: '%s'.",
+								serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+								m_serviceBufferSize,
+								discardPolicyToString(m_discardPolicy).c_str());
 	}
 }
 

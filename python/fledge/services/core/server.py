@@ -343,7 +343,6 @@ class Server:
             'type': 'enumeration',
             'displayName': 'Discard Policy',
             'options': ['Discard Oldest', 'Reduce Fidelity', 'Discard Newest'],
-            'minimum': '1',
             'default': 'Discard Oldest',
             'order': '3',
             "validity" : "serviceBuffering == \"Limited\"",
@@ -687,7 +686,7 @@ class Server:
                 cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             await cls._configuration_manager.create_category(category, config, description, True,
                                                              display_name='Resource Limit')
-            config = await cls._configuration_manager.get_category_all_items(category)
+            await cls._configuration_manager.get_category_all_items(category)
         except Exception as ex:
             _logger.exception(ex)
             raise

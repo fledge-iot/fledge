@@ -11,6 +11,7 @@
  */
 
 #include <openssl/sha.h>
+#include <openssl/md5.h>
 #include <openssl/opensslv.h>
 #ifdef OPENSSL_VERSION_NUMBER
 	#if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -20,6 +21,7 @@
 
 #include <string>
 std::string compute_sha256(const std::string& input);
+std::string compute_md5(const std::string& input);
 
 #endif
 

@@ -53,10 +53,7 @@ static char ident[80];
 
 Logger::~Logger()
 {
-	{
-		std::lock_guard<std::mutex> lock(m_queueMutex);
-		m_running = false;
-	}
+	m_running = false;
 	m_condition.notify_one();
 	if (m_workerThread.joinable())
 	{

@@ -79,7 +79,11 @@ fledge_start() {
  
 fledge_stop() {
     if [ "$IS_RHEL" = "" ]; then
-        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+	if [ -f "${FLEDGE_CERT}" ]; then
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" stop > /dev/null
+	else
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+	fi
     elif [ -f "$FLEDGE_CERT" ]; then
         "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" stop > /dev/null
     else

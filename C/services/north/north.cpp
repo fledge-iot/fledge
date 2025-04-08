@@ -1423,7 +1423,7 @@ void NorthService::updateFeatures(const ConfigCategory& category)
 		m_allowDebugger = s.compare("true") == 0 ? true : false;
 		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_allowDebugger == false)
 		{
-			// Detach the debugger
+			// Detach the debugger in case there is an active session
 			detachDebugger();
 		}
 	}

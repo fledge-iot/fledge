@@ -69,8 +69,12 @@ get_pid() {
 
 fledge_start() {
     if [ "$IS_RHEL" = "" ]; then
-        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
-    elif [ -f "$FLEDGE_CERT" ]; then
+        if [ -f "${FLEDGE_CERT}" ]; then
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" -c "$FLEDGE_CERT}" start > /dev/null
+        else
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+	fi
+    elif [ -f "${FLEDGE_CERT}" ]; then
         "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" start > /dev/null
     else
         "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
@@ -84,7 +88,7 @@ fledge_stop() {
 	else
             sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
 	fi
-    elif [ -f "$FLEDGE_CERT" ]; then
+    elif [ -f "${FLEDGE_CERT}" ]; then
         "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" stop > /dev/null
     else
         "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null

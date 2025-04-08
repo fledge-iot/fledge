@@ -15,6 +15,7 @@
 #include <memory>
 #include <string.h>
 #include <sys/time.h>
+#include <exception>
 
 using namespace std;
 
@@ -30,11 +31,11 @@ inline long getCurrTimeUsec()
 
 Logger *Logger::instance = 0;
 
-Logger::Logger(const string& application)
+Logger::Logger(const string& application) : m_running(true)
 {
 static char ident[80];
 
-	/* Prepend "Fledge " in all casaes other than Fledge itelf and Fledge Storage..
+	/* Prepend "Fledge " in all cases other than Fledge itself and Fledge Storage.
 	 */
 	if (application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
 	{
@@ -47,10 +48,18 @@ static char ident[80];
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 	m_level = LOG_WARNING;
+	m_workerThread = std::thread(&Logger::workerThread, this);
 }
 
 Logger::~Logger()
 {
+	m_running = false;
+	m_condition.notify_one();
+	if (m_workerThread.joinable())
+	{
+		m_workerThread.join();
+	}
+
 	closelog();
 	// Stop the getLogger() call returning a deleted instance
 	if (instance == this)
@@ -65,11 +74,6 @@ Logger *Logger::getLogger()
 	return instance;
 }
 
-/**
- *  Set the minimum logging level to report for this process.
- *
- *  @param level	Sring representing level
- */
 void Logger::setMinLevel(const string& level)
 {
 	if (level.compare("info") == 0)
@@ -98,6 +102,79 @@ void Logger::setMinLevel(const string& level)
 	}
 }
 
+bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* userData)
+{
+	// Do not register the interceptor if callback function is null
+	if (callback == nullptr)
+	{
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+	auto it = m_interceptors.emplace(level, InterceptorData{callback, userData});
+	if (it != m_interceptors.end())
+	{
+		return true;
+	}
+	return false;
+}
+
+bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
+{
+	std::lock_guard<mutex> lock(m_interceptorMapMutex);
+	auto range = m_interceptors.equal_range(level);
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		if (it->second.callback == callback)
+		{
+			m_interceptors.erase(it);
+			return true;
+		}
+	}
+	return false;
+}
+
+void Logger::executeInterceptor(LogLevel level, const std::string& message)
+{
+	std::lock_guard<mutex> lock(m_interceptorMapMutex);
+	auto range = m_interceptors.equal_range(level);
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		std::lock_guard<mutex> lock(m_queueMutex);
+		m_taskQueue.push({level, message, it->second.callback, it->second.userData});
+	}
+	m_condition.notify_one();
+}
+
+void Logger::workerThread()
+{
+	while (m_running)
+	{
+		std::unique_lock<mutex> lock(m_queueMutex);
+		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_running; });
+
+		while (!m_taskQueue.empty())
+		{
+			if(!m_running) //Exit immediately during shutdown
+			{
+				return;
+			}
+
+			LogTask task = m_taskQueue.front();
+			m_taskQueue.pop();
+			lock.unlock();
+
+			if (task.callback)
+			{
+				task.callback(task.level, task.message, task.userData);
+			}
+
+			lock.lock();
+		}
+	}
+}
+
+
 void Logger::debug(const string& msg, ...)
 {
 	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
@@ -108,6 +185,10 @@ void Logger::debug(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_DEBUG, "DEBUG: %s", fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::DEBUG, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -135,6 +216,10 @@ void Logger::info(const string& msg, ...)
 #else
 	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
 #endif
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::INFO, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -145,6 +230,10 @@ void Logger::warn(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_WARNING, "WARNING: %s", fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::WARNING, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -159,6 +248,10 @@ void Logger::error(const string& msg, ...)
 #else
 		syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
 #endif
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::ERROR, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -169,6 +262,10 @@ void Logger::fatal(const string& msg, ...)
 	va_start(args, msg);
 	string *fmt = format(msg, args);
 	syslog(LOG_CRIT, "FATAL: %s", fmt->c_str());
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(LogLevel::FATAL, fmt->c_str());
+	}
 	delete fmt;
 	va_end(args);
 }
@@ -180,3 +277,4 @@ char	buf[1000];
 	  vsnprintf(buf, sizeof(buf), format.c_str(), args);
 	  return new string(buf);
 }
+

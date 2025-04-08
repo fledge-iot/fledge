@@ -155,6 +155,11 @@ void Logger::workerThread()
 
 		while (!m_taskQueue.empty())
 		{
+			if(!m_running) //Exit immediately during shutdown
+			{
+				return;
+			}
+
 			LogTask task = m_taskQueue.front();
 			m_taskQueue.pop();
 			lock.unlock();

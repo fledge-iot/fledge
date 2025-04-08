@@ -79,7 +79,6 @@ class TestAuthOptional:
             _rv = await mock_coro(ret_val)
         else:
             _rv = asyncio.ensure_future(mock_coro(ret_val))
-        
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'all', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user')
@@ -317,3 +316,14 @@ class TestAuthOptional:
             actual = await auth.is_valid_role(role_id)
             assert expected is actual
         patch_get_roles.assert_called_once_with()
+
+    async def test_certificate(self, client):
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.post('/fledge/admin/2/authcertificate')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST',
+                                             '/fledge/admin/2/authcertificate')
+

@@ -374,23 +374,28 @@ A default certificate authority (CA) certificate is available inside $FLEDGE_DAT
 
 Below are the steps to create custom certificates along with existing Fledge based CA signed for authentication certificates.
 
-a) Create a new certificate for username. Let say **test**
+**Using cURL**
+
+- Create User
+
+.. note::
+
+    Usernames must be distinct, are not case-sensitive, and require administrative privileges to execute this action.
+
+For example, Add a username with the name **test**
 
 .. code-block:: console
 
-    $ cd $FLEDGE_ROOT
-    $ ./scripts/auth_certificates user test 365
+    $ AUTH_TOKEN=$(curl -d '{"username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
+    $ USER_ID=$(curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}' | jq '.user.userId')
 
-    Here script arguments are: $1=user $2=FLEDGE_USERNAME $3=SSL_DAYS_EXPIRATION
-
-And now you can find a **test** certificate inside the $FLEDGE_DATA/etc/certs/ directory.
-
-b) Now, it's time to create user with name **test** (case sensitive). Also only admin role users can create users in Fledge. Below are the cURL Commands
+- Create Authentication Certificate
 
 .. code-block:: console
 
-    $ AUTH_TOKEN=$(curl -d '{"username": "admin", "password": "fledge"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
-    $ curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}'
+    $ curl -o filename.cert -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
+
+The certificate is available for download and can be used to log in.
 
 .. note::
 

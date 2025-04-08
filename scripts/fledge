@@ -435,6 +435,15 @@ fledge_kill() {
 
 }
 
+fledge_debug() {
+	service="$1"
+	result=`fledge_status "silent"`
+	if [[ $result != "0" ]]; then
+		fledge_log "info" "Fledge appears not to be running. Debug should be performed on a running system. Start Fledge first." "all" "pretty"
+		exit 0
+	fi
+	"${FLEDGE_ROOT}/scripts/debug/debug" "$service"
+}
 
 fledge_authenticate() {
 
@@ -638,6 +647,7 @@ Arguments:
  stop              - Stop all Fledge services and processes
  kill              - Kill all Fledge services and processes
  status            - Show the status for the Fledge services
+ debug <service>   - Debug the pipeline of a south or north service
  healthcheck       - Perform a number of checks on the health of the system, Fledge must be running
  reset             - Restore Fledge factory settings
                      WARNING! This command will destroy all your data!
@@ -920,6 +930,14 @@ case "$1" in
         ;;
     healthcheck)
         fledge_healthcheck
+        ;;
+    debug)
+        if [ ! -z "$2" ]; then
+             fledge_debug "$2"
+        else
+	     echo "Debug must be passed the name of a service"
+	     exit 1
+	fi
         ;;
     help)
         fledge_help

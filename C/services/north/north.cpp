@@ -824,6 +824,10 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
+		if (m_dataSender)
+		{
+			m_dataSender->configChange();
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{

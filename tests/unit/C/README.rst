@@ -11,7 +11,7 @@ These tests are written using the Google Test framework. This should be installe
 
 To install Google Test, you can use the following commands:
 
-- sudo ./requirement.sh
+- sudo ./requirements.sh
 
 Running Tests
 =============

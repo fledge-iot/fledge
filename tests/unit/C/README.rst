@@ -9,34 +9,9 @@ Prequisite
 
 These tests are written using the Google Test framework. This should be installed on your machine
 
-Ubuntu:
--------
-
-For Ubuntu versions less than 24.x:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- sudo apt-get install libgtest-dev
-
-Unfortunately this does not install the libraries and a manual build set is required
-
-- cd /usr/src/gtest
-- sudo cmake -E make_directory build
-- sudo cmake -E chdir build cmake ..
-- sudo cmake --build build
-- sudo cp build/libgtest* /usr/lib
-
-For Ubuntu 24.x:
-~~~~~~~~~~~~~~~~
+To install Google Test, you can use the following commands:
 
 - sudo ./requirement.sh
-
-
-Red Hat Enterprise Linux:
--------------------------
-
-- sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-- sudo yum install gtest gtest-devel
-- cd /tmp
 
 Running Tests
 =============

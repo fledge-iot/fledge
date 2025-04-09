@@ -20,49 +20,93 @@
 ## Author: Ashwini Kumar Pandey
 ##
 
-set -e
+set -e  # Exit immediately if a command exits with a non-zero status.
 
-# Builds Google Test from sources
-gtest_build_prepare() {
+# Function to install and build Google Test for Ubuntu
+install_gtest_ubuntu_from_package() {
+    echo "Installing Google Test for Ubuntu..."
 
-    # Define the repository name and branch
-    GTEST_REPO_NAME="googletest"
+    # Install the libgtest-dev package
+    sudo apt-get update -y
+    sudo apt-get install -y libgtest-dev
 
-    if [ -z "$1" ]; then
-        GTEST_BRANCH="release-1.11.0"  # Default branch
-    else
-        GTEST_BRANCH="$1"  # Use the user-specified branch
+   if [[ ${OS_VERSION} == *"18."* ]]; then
+        echo "Building Google Test libraries manually..."
+        cd /usr/src/gtest
+        sudo cmake -E make_directory build
+        sudo cmake -E chdir build cmake ..
+        sudo cmake --build build
+        sudo cp build/libgtest* /usr/lib
     fi
 
+    echo "Google Test installation complete for Ubuntu..."
+}
+
+# Function to build and install Google Test from source
+install_gtest_ubuntu_from_source() {
+    echo "Installing Google Test for using source..."
+
+    # Define repository name and branch
+    local GTEST_REPO_NAME="googletest"
+    local GTEST_BRANCH="${1:-release-1.11.0}"  # Default branch is release-1.11.0
+
     # Clean up any existing directory
-    if [ -d /tmp/${GTEST_REPO_NAME} ]; then
+    if [ -d "/tmp/${GTEST_REPO_NAME}" ]; then
         echo "Removing existing ${GTEST_REPO_NAME} directory in /tmp..."
-        rm -rf /tmp/${GTEST_REPO_NAME}
+        sudo rm -rf "/tmp/${GTEST_REPO_NAME}"
     fi
 
     # Clone the Google Test repository
-    echo "Cloning Google Test ${GTEST_BRANCH} branch from repository..."
-    cd /tmp/
-    git clone https://github.com/google/${GTEST_REPO_NAME}.git --branch=${GTEST_BRANCH} --depth 1
+    echo "Cloning Google Test repository (${GTEST_BRANCH})..."
+    git clone https://github.com/google/${GTEST_REPO_NAME}.git --branch="${GTEST_BRANCH}" --depth 1 -q /tmp/${GTEST_REPO_NAME}
 
-    # Navigate to the cloned repository
-    cd ${GTEST_REPO_NAME}
-
-    # Create and navigate to a build directory
-    mkdir -p build
-    cd build
-
-    # Configure and compile the project
+    # Build and install Google Test
+    cd "/tmp/${GTEST_REPO_NAME}"
+    mkdir -p build && cd build
     echo "Configuring and building Google Test..."
-    cmake .. -DBUILD_GMOCK=OFF
-    make -j$(nproc)
+    cmake .. -DBUILD_GMOCK=OFF > /dev/null
+    make -j$(nproc) > /dev/null
 
-    # Install the compiled binaries (optional)
     echo "Installing Google Test..."
-    sudo make install
+    sudo make install > /dev/null
 
-    echo "Google Test build and installation complete!"
+    echo "Google Test installation complete for Ubuntu 24.04 or later!"
 }
 
-# Execute the build function
-gtest_build_prepare "$1"
+# Function to install Google Test for Red Hat-based distributions
+install_gtest_rhel() {
+    echo "Installing Google Test for Red Hat-based distributions..."
+
+    # Install required packages
+    sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    sudo yum install -y gtest gtest-devel
+
+    echo "Google Test installation complete for Red Hat-based distributions!"
+}
+
+# Function to detect the platform and execute the appropriate installation
+detect_and_install_gtest() {
+    # Detect OS name and version
+    OS_NAME=$(grep -oP '^NAME="\K[^"]+' /etc/os-release)
+    OS_VERSION=$(grep -oP '^VERSION_ID="\K[^"]+' /etc/os-release)
+
+    echo "Detected Platform: ${OS_NAME}, Version: ${OS_VERSION}"
+
+    # Install based on detected OS
+    if [[ ${OS_NAME,,} == "red hat"* ]] || [[ ${OS_NAME,,} == "centos"* ]]; then
+        install_gtest_rhel
+    elif [[ ${OS_NAME,,} == "ubuntu" ]]; then
+        if [[ $(echo "${OS_VERSION} >= 24.04" | bc -l) -eq 1 ]]; then
+            install_gtest_ubuntu_from_source
+        else
+            install_gtest_ubuntu_from_package
+        fi
+    else
+        echo "Error: Unsupported platform. Please refer to the README.rst for manual installation instructions."
+        exit 1
+    fi
+}
+
+# Main execution
+detect_and_install_gtest
+echo "Google Test installation process completed successfully!"

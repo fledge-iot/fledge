@@ -124,6 +124,7 @@ class TestAPIEndpointsWithViewUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -292,6 +293,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 403), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 403),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -460,6 +462,7 @@ class TestAPIEndpointsWithControlUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 400), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 400), ("DELETE", "/fledge/category/General", 400),

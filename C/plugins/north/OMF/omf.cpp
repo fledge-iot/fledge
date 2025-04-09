@@ -343,12 +343,12 @@ OMFData::OMFData(OMFBuffer& payload, const Reading& reading, string measurementI
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
 				measurementId = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+				Logger::getLogger()->debug("Using OMF TagName hint: %s", measurementId.c_str());
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
 				measurementId = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s", measurementId.c_str());
+				Logger::getLogger()->debug("Using OMF Tag hint: %s", measurementId.c_str());
 			}
 		}
 	}
@@ -1438,7 +1438,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			{
 				if (typeid(**it) == typeid(OMFTagHint))
 				{
-					Logger::getLogger()->info("Using OMF Tag hint: %s", (*it)->getHint().c_str());
+					Logger::getLogger()->debug("Using OMF Tag hint: %s", (*it)->getHint().c_str());
 					keyComplete.append("_" + (*it)->getHint());
 					usingTagHint = true;
 				}
@@ -1531,7 +1531,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					{
 						if (typeid(**it) == typeid(OMFTypeNameHint))
 						{
-							Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+							Logger::getLogger()->debug("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
 							keyComplete.append("_" + (*it)->getHint());
 							usingTypeNameHint = true;
 							break;
@@ -2275,7 +2275,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		{
 			if (typeid(**it) == typeid(OMFTypeNameHint))
 			{
-					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+					Logger::getLogger()->debug("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
 				tData.append((*it)->getHint());
 				typeNameSet = true;
 				break;
@@ -2331,7 +2331,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 			if (typeid(**it) == typeid(OMFTypeNameHint))
 			{
 				typeName = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TypeName hint: %s", typeName.c_str());
+				Logger::getLogger()->debug("Using OMF TypeName hint: %s", typeName.c_str());
 			}
 		}
 	}
@@ -2358,7 +2358,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
 				measurementId = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+				Logger::getLogger()->debug("Using OMF TagName hint: %s", measurementId.c_str());
 				break;
 			}
 		}
@@ -2619,14 +2619,14 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 					if (typeid(**it) == typeid(OMFTagNameHint))
 					{
 						string hintValue = (*it)->getHint();
-						Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+						Logger::getLogger()->debug("Using OMF TagName hint: %s for asset %s",
 							       hintValue.c_str(), assetName.c_str());
 						newAssetName = hintValue;
 					}
 					if (typeid(**it) == typeid(OMFTagHint))
 					{
 						string hintValue = (*it)->getHint();
-						Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+						Logger::getLogger()->debug("Using OMF Tag hint: %s for asset %s",
 							       hintValue.c_str(), assetName.c_str());
 						newAssetName = hintValue;
 					}
@@ -2679,7 +2679,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 				if (typeid(**it) == typeid(OMFTagNameHint))
 				{
 					measurementId = (*it)->getHint();
-					Logger::getLogger()->info("Using OMF TagName hint: %s", measurementId.c_str());
+					Logger::getLogger()->debug("Using OMF TagName hint: %s", measurementId.c_str());
 					break;
 				}
 			}
@@ -4581,7 +4581,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		{
 			if (typeid(**it) == typeid(OMFTypeNameHint))
 			{
-					Logger::getLogger()->info("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
+					Logger::getLogger()->debug("Using OMF TypeName hint: %s", (*it)->getHint().c_str());
 				keyComplete.append("_" + (*it)->getHint());
 				break;
 			}

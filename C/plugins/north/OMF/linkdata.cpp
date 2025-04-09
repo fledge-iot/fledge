@@ -87,14 +87,14 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF TagName hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF Tag hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
@@ -162,6 +162,8 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 				needDelim = true;
 			}
 			string format;
+			string tagNameHintRaw, tagNameHint;
+			bool tagNameHintchanged = false;
 			if (hints)
 			{
 				const vector<OMFHint *> omfHints = hints->getHints(dpName);
@@ -177,12 +179,17 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 						format = (*hit)->getHint();
 						break;
 					}
-
+					if (typeid(**hit) == typeid(OMFTagNameDatapointHint))
+					{
+						tagNameHintRaw = (*hit)->getHint();
+						tagNameHint = OMF::ApplyPIServerNamingRulesObj(tagNameHintRaw, &tagNameHintchanged);
+						break;
+					}
 				}
 			}
 
 			// Create the link for the asset if not already created
-			string link = assetName + m_delimiter + dpName;
+			string link = tagNameHint.empty() ? assetName + m_delimiter + dpName : tagNameHint;
 			string dpLookupName = originalAssetName + m_delimiter + dpName;
 			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
@@ -195,6 +202,15 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			{
 				sendContainer(link, dp, hints, baseType);
 				dpLookup->second.containerSent(assetName, baseType);
+
+				if (tagNameHintchanged)
+				{
+					Logger::getLogger()->warn("Datapoint %s.%s tagName Hint %s is not a valid PI name. Changed to %s",
+						assetName.c_str(),
+						dpName.c_str(),
+						tagNameHintRaw.c_str(),
+						tagNameHint.c_str());
+				}
 			}
 			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
 			{

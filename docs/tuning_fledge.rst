@@ -945,13 +945,17 @@ Fledge includes a *Resource Limit* configuration for South Services, offering co
 +---------------------------------+
 
 The following parameters are available for configuration:
+
   - **South Service Buffering** : Defines whether the buffering for South Services is unlimited or capped. If set to `"Limited"`, additional configuration options become applicable.  
 
-  - **South Service Limit** :Specifies the maximum number of readings that can be buffered in the South Service. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+  - **South Service Limit** : Specifies the maximum number of readings that can be buffered in the South Service. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
 
   - **Discard Policy** : Determines the policy for discarding readings when the buffer limit is reached. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+
      - **Discard Oldest**: Removes the oldest readings to keep the buffer size within the limit.  
+
      - **Reduce Fidelity**: Reduces the fidelity of buffered readings by discarding every second reading, starting from the oldest. This policy tracks the next reading to discard to avoid repeated reduction of fidelity for the same data.  
+     
      - **Discard Newest**: Discards the newest readings to maintain the buffer size.  
 
 Access Control

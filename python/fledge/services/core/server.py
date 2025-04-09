@@ -686,7 +686,6 @@ class Server:
                 cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             await cls._configuration_manager.create_category(category, config, description, True,
                                                              display_name='Resource Limit')
-            await cls._configuration_manager.get_category_all_items(category)
         except Exception as ex:
             _logger.exception(ex)
             raise

@@ -27,7 +27,12 @@ gtest_build_prepare() {
 
     # Define the repository name and branch
     GTEST_REPO_NAME="googletest"
-    GTEST_BRANCH="release-1.11.0"
+
+    if [ -z "$1" ]; then
+        GTEST_BRANCH="release-1.11.0"  # Default branch
+    else
+        GTEST_BRANCH="$1"  # Use the user-specified branch
+    fi
 
     # Clean up any existing directory
     if [ -d /tmp/${GTEST_REPO_NAME} ]; then
@@ -38,7 +43,7 @@ gtest_build_prepare() {
     # Clone the Google Test repository
     echo "Cloning Google Test ${GTEST_BRANCH} branch from repository..."
     cd /tmp/
-    git clone https://github.com/google/${GTEST_REPO_NAME}.git --branch=${GTEST_BRANCH}
+    git clone https://github.com/google/${GTEST_REPO_NAME}.git --branch=${GTEST_BRANCH} --depth 1
 
     # Navigate to the cloned repository
     cd ${GTEST_REPO_NAME}
@@ -49,7 +54,7 @@ gtest_build_prepare() {
 
     # Configure and compile the project
     echo "Configuring and building Google Test..."
-    cmake .. -DBUILD_GMOCK=ON -DBUILD_GTEST=ON
+    cmake .. -DBUILD_GMOCK=OFF
     make -j$(nproc)
 
     # Install the compiled binaries (optional)
@@ -60,4 +65,4 @@ gtest_build_prepare() {
 }
 
 # Execute the build function
-gtest_build_prepare
+gtest_build_prepare "$1"

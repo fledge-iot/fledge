@@ -12,6 +12,9 @@ These tests are written using the Google Test framework. This should be installe
 Ubuntu:
 -------
 
+For Ubuntu versions less than 24.x:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 - sudo apt-get install libgtest-dev
 
 Unfortunately this does not install the libraries and a manual build set is required
@@ -21,6 +24,12 @@ Unfortunately this does not install the libraries and a manual build set is requ
 - sudo cmake -E chdir build cmake ..
 - sudo cmake --build build
 - sudo cp build/libgtest* /usr/lib
+
+For Ubuntu 24.x:
+~~~~~~~~~~~~~~~~
+
+- sudo ./requirement.sh
+
 
 Red Hat Enterprise Linux:
 -------------------------

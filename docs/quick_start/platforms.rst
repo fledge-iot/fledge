@@ -1,6 +1,7 @@
 .. |br| raw:: html
 
-   <br />
+   <br /><br />
+
 
 Supported Platforms
 ===================

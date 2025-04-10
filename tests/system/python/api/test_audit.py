@@ -19,7 +19,7 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-DEFAULT_AUDIT_COUNT = 17
+DEFAULT_AUDIT_COUNT = 18
 
 
 class TestAudit:
@@ -67,13 +67,13 @@ class TestAudit:
     @pytest.mark.parametrize("request_params, total_count, audit_count", [
         ('', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?limit=1', DEFAULT_AUDIT_COUNT, 1),
-        ('?skip=4', DEFAULT_AUDIT_COUNT, 13),
+        ('?skip=4', DEFAULT_AUDIT_COUNT, 14),
         ('?limit=1&skip=8', DEFAULT_AUDIT_COUNT, 1),
         ('?source=START', 1, 1),
-        ('?source=CONAD', 16, 16),
-        ('?source=CONAD&limit=1', 16, 1),
-        ('?source=CONAD&skip=1', 16, 15),
-        ('?source=CONAD&skip=6&limit=1', 16, 1),
+        ('?source=CONAD', 17, 17),
+        ('?source=CONAD&limit=1', 17, 1),
+        ('?source=CONAD&skip=1', 17, 16),
+        ('?source=CONAD&skip=6&limit=1', 17, 1),
         ('?severity=INFORMATION', DEFAULT_AUDIT_COUNT, DEFAULT_AUDIT_COUNT),
         ('?severity=failure', 0, 0),
         ('?source=CONAD&severity=failure', 0, 0),

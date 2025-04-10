@@ -102,6 +102,12 @@ class TestConfiguration:
                       'description': 'Core Configuration Manager',
                       'displayName': 'Configuration Manager',
                       'children': []
+                  },
+                  {
+                      'key': 'FEATURES',
+                      'description': 'Control the inclusion of system features',
+                      'displayName': 'Features',
+                      'children': []
                   }
               ]
           },

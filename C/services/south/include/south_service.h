@@ -160,7 +160,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
 		void				checkPendingReconfigure();
-		void				updateFeatures(const ConfigCategory& cateogry);
+		void				updateFeatures(const ConfigCategory& category);
 		void				suspendIngest(bool suspend)
 						{
 							std::lock_guard<std::mutex> guard(m_suspendMutex);

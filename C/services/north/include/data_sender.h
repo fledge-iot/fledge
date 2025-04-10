@@ -17,7 +17,7 @@
 // BAckoff sending when we see repeated failures
 #define FAILURE_BACKOFF_THRESHOLD	10	// Number of consequetive failures to trigger backoff
 #define MIN_SEND_BACKOFF		50	// Min backoff in milliseconds
-#define MAX_SEND_BACKOFF		500	// Max backoff in milliseconds
+#define MAX_SEND_BACKOFF		60000	// Max backoff in milliseconds
 
 class DataLoad;
 class NorthService;
@@ -34,6 +34,7 @@ class DataSender {
 		bool			isRunning() { return !m_shutdown; };
 		void			flushStatistics();
 		bool			isDryRun();
+		void			configChange();
 	private:
 		void			updateStatistics(uint32_t increment);
 		bool 			createStats(const std::string &key, unsigned int value);
@@ -66,5 +67,7 @@ class DataSender {
 					m_statsDbEntriesCache;
 		unsigned int		m_repeatedFailure;
 		unsigned int		m_sendBackoffTime;
+		std::mutex		m_backoffMutex;
+		std::condition_variable m_backoffCV;
 };
 #endif

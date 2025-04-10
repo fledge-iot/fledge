@@ -178,7 +178,7 @@ OMFHints::OMFHints(const string& hints)
 								}
 								else if (strcmp(name, "tagName") == 0)
 								{
-									hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
+									hints.push_back(new OMFTagNameDatapointHint(dpitr->value.GetString()));
 								}
 								else if (strcmp(name, "tag") == 0)
 								{
@@ -248,7 +248,7 @@ OMFHints::OMFHints(const string& hints)
 							}
 							else if (strcmp(name, "tagName") == 0)
 							{
-								hints.push_back(new OMFTagNameHint(dpitr->value.GetString()));
+								hints.push_back(new OMFTagNameDatapointHint(dpitr->value.GetString()));
 							}
 							else if (strcmp(name, "tag") == 0)
 							{

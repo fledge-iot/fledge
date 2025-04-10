@@ -116,12 +116,7 @@ public:
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
-	void		setResourceLimit(ServiceBufferingType serviceBufferingType, unsigned long serviceBufferSize, DiscardPolicy discardPolicy)
-			{
-				m_serviceBufferingType = serviceBufferingType;
-				m_serviceBufferSize = serviceBufferSize;
-				m_discardPolicy = discardPolicy;
-			};
+	void		setResourceLimit(ServiceBufferingType serviceBufferingType, unsigned long serviceBufferSize, DiscardPolicy discardPolicy);
 	void		flowControl();
 	void		setPerfMon(PerformanceMonitor *mon)
 			{

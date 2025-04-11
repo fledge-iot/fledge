@@ -23,7 +23,7 @@
 
 .. |OMF North Troubleshooting| raw:: html
 
-   <a href="../troubleshooting_pi-server_integration.html">Troubleshooting the PI Server integration</a>
+   <a href="../../troubleshooting_pi-server_integration.html">Troubleshooting the PI Server integration</a>
 
 OMF End Points
 --------------

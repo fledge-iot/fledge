@@ -40,6 +40,12 @@ else()
     find_package(Python3 COMPONENTS Interpreter Development)
 endif()
 
+if(Python3_VERSION VERSION_GREATER_EQUAL 3.12)
+    # Now you can use Python3_NumPy_INCLUDE_DIRS in your project
+    message(STATUS "Using NumPy include dirs: ${Python3_NumPy_INCLUDE_DIRS}")
+    include_directories(${Python3_NumPy_INCLUDE_DIRS})
+endif()
+
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)
 include_directories(../../../C/plugins/north/OMF/include)

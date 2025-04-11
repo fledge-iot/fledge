@@ -27,7 +27,7 @@ class OMFNumberHint : public OMFHint
 };
 
 /**
- * A integer hint, defines how ineteger type should be defined, int64, int32 o int16
+ * A integer hint, defines how integer type should be defined, int64, int32 or int16
 
  */
 class OMFIntegerHint : public OMFHint
@@ -59,7 +59,7 @@ class OMFTypeNameHint : public OMFHint
 };
 
 /**
- * A tag name hint, tells us whuch tag name ot use in PI
+ * A tag name hint, tells us which Container name to use in PI
  */
 class OMFTagNameHint : public OMFHint
 {
@@ -68,9 +68,18 @@ class OMFTagNameHint : public OMFHint
 		~OMFTagNameHint() {};
 };
 
+/**
+ * A tag name hint, defines which PI Tag to use for a Datapoint
+ */
+class OMFTagNameDatapointHint : public OMFHint
+{
+	public:
+		OMFTagNameDatapointHint(const std::string &name) { m_hint = name; };
+		~OMFTagNameDatapointHint() {};
+};
 
 /**
- * A AFLocation hint, tells use in which Asset Framework hierarchy the asset should be created
+ * A AFLocation hint, tells us in which Asset Framework hierarchy the asset should be created
  */
 class OMFAFLocationHint : public OMFHint
 {

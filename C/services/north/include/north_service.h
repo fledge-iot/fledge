@@ -131,12 +131,17 @@ class NorthService : public ServiceAuthHandler {
 						{
 							return m_debugState & DEBUG_ATTACHED;
 						}
+		bool				allowDebugger()
+						{
+							return m_allowDebugger;
+						}
 		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 		void				restartPlugin();
+		void				updateFeatures(const ConfigCategory& category);
 	private:
 		std::string			controlSource();
 		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
@@ -163,6 +168,7 @@ class NorthService : public ServiceAuthHandler {
 		PerformanceMonitor		*m_perfMonitor;
 		unsigned int			m_debugState;
 		NorthServiceProvider		*m_provider;
+		bool				m_allowDebugger;
 };
 
 

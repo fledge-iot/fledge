@@ -260,7 +260,9 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_perfMonitor(NULL),
 				m_suspendIngest(false),
 				m_steps(0),
-				m_provider(NULL)
+				m_provider(NULL),
+				m_controlEnabled(true),
+				m_debuggerEnabled(true)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -373,10 +375,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				return;
 			}
 
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
+			updateFeatures(features);
+
 			// Register for category content changes
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, "FEATURES");
 			configHandler->registerCategory(this, RESOURCE_LIMIT_CATEGORY);
 		}
 
@@ -1210,6 +1216,12 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 		this->updateSecurityCategory(category);
 	}
 
+	// Deal with changes to the features settings
+	if (categoryName.compare("FEATURES") == 0)
+	{
+		this->updateFeatures(ConfigCategory("FEATURES", category));
+	}
+
 	if(categoryName.compare(RESOURCE_LIMIT_CATEGORY) == 0)
 	{
 		m_configResourceLimit = ConfigCategory(RESOURCE_LIMIT_CATEGORY, category);
@@ -1903,6 +1915,30 @@ void SouthService::checkPendingReconfigure()
 }
 
 /**
+ * Process the setting of allowed features
+ *
+ * @param category	The configuration category
+ */
+void SouthService::updateFeatures(const ConfigCategory& category)
+{
+	if (category.itemExists("control"))
+	{
+		string s = category.getValue("control");
+		m_controlEnabled = s.compare("true") == 0 ? true : false;
+	}
+	if (category.itemExists("debugging"))
+	{
+		string s = category.getValue("debugging");
+		m_debuggerEnabled = s.compare("true") == 0 ? true : false;
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_debuggerEnabled == false)
+		{
+			// Detach the debugger
+			detachDebugger();
+		}
+	}
+}
+
+/**
  * Return the state of the pipeline debugger
  *
  * @return string	JSON document reporting the state of the pipeline debugger
@@ -1926,9 +1962,13 @@ string SouthService::debugState()
 		else
 			rval += "\"Storage\"";
 	}
-	else
+	else if (allowDebugger())
 	{
 		rval += "\"Detached\"";
+	}
+	else
+	{
+		rval += "\"Disabled\"";
 	}
 	rval += "}";
 	return rval;

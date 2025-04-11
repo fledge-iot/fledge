@@ -136,7 +136,16 @@ class SouthService : public ServiceAuthHandler {
 		bool				debuggerAttached()
 						{
 							return m_debugState & DEBUG_ATTACHED;
-						}
+						};
+		// Global controls
+		bool				allowControl()
+						{
+							return m_controlEnabled;
+						};
+		bool				allowDebugger()
+						{
+							return m_debuggerEnabled;
+						};
 		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
@@ -151,6 +160,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
 		void				checkPendingReconfigure();
+		void				updateFeatures(const ConfigCategory& category);
 		void				suspendIngest(bool suspend)
 						{
 							std::lock_guard<std::mutex> guard(m_suspendMutex);
@@ -223,6 +233,8 @@ class SouthService : public ServiceAuthHandler {
 		std::mutex			m_suspendMutex;
 		unsigned int			m_debugState;
 		SouthServiceProvider		*m_provider;
+		bool				m_controlEnabled;
+		bool				m_debuggerEnabled;
 		ServiceBufferingType		m_serviceBufferingType;
 		unsigned int			m_serviceBufferSize;
 		DiscardPolicy			m_discardPolicy;

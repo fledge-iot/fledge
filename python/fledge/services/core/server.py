@@ -164,6 +164,27 @@ class Server:
         }
     }
 
+    _FEATURES_DEFAULT_CONFIG = {
+        'control': {
+            'description': 'Allow the use of control features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Control',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        },
+        'debugging': {
+            'description': 'Allow the use of pipeline debugging features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Pipeline Debugging',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        }
+    }
+
     _MANAGEMENT_SERVICE = '_fledge-manage._tcp.local.'
     """ The management service we advertise """
 
@@ -610,6 +631,22 @@ class Server:
             raise
 
     @classmethod
+    async def features_config(cls):
+        """ Get the features inclusion configuration """
+        try:
+            config = cls._FEATURES_DEFAULT_CONFIG
+            category = 'FEATURES'
+            description = "Control the inclusion of system features"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Features')
+            config = await cls._configuration_manager.get_category_all_items(category)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
     async def service_config(cls):
         """
         Get the service level configuration
@@ -961,7 +998,7 @@ class Server:
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING", "RESOURCE_LIMIT",
-                                                                                "CONFIGURATION"])
+                                                                                "CONFIGURATION","FEATURES"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -1034,6 +1071,7 @@ class Server:
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
             loop.run_until_complete(cls.firewall_config())
+            loop.run_until_complete(cls.features_config())
 
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 

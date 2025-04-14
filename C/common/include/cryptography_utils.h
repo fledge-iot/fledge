@@ -1,7 +1,7 @@
 #ifndef _CRYPTOGRAPHY_UTILS_H
 #define _CRYPTOGRAPHY_UTILS_H
 /*
- * FogLAMP utilities functions for generating cryptographic hash
+ * Fledge utilities functions for generating cryptographic hash
  *
  * Copyright (c) 2025 Dianomic Systems
  *

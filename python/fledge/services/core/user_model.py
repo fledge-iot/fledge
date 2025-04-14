@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 """Fledge user entity class with CRUD operations to Storage layer"""
+import os
 import json
 import uuid
 import hashlib
@@ -596,6 +597,18 @@ class User:
         async def verify_certificate(cls, cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
 
+            # TODO: we may require and additional configuration item in the REST API for user input regarding
+            #  intermediates or chain certs.
+
+            # Define possible filenames
+            possible_files = ["intermediate.cert", "intermediate.pem"]
+            intermediate_cert_file = ""
+            for filename in possible_files:
+                full_path = os.path.join(certs_dir, filename)
+                if os.path.isfile(full_path):
+                    intermediate_cert_file = full_path
+                    break
+
             storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
             ca_cert_item = await cfg_mgr.get_category_item('rest_api', 'authCertificateName')
@@ -603,6 +616,9 @@ class User:
 
             SSLVerifier.set_ca_cert(ca_cert_file)
             SSLVerifier.set_user_cert(cert)
+            SSLVerifier.set_intermediate_cert(None)
+            if intermediate_cert_file:
+                SSLVerifier.set_intermediate_cert(intermediate_cert_file)
             SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
 
     class Sessions:

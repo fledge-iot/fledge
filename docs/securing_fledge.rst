@@ -347,8 +347,8 @@ To add a new certificate select the *Import* icon in the top right of the certif
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
 
 
-Custom Create Authority (CA) Certificate
-----------------------------------------
+Custom Certificate Authority (CA)
+---------------------------------
 
 Fledge is not restricted to utilizing its own CA certificates; you have the option to use your own CA certificates.
 

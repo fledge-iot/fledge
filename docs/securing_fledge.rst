@@ -347,14 +347,19 @@ To add a new certificate select the *Import* icon in the top right of the certif
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
 
 
-Custom Create Authority Certificate (CA) certs
-----------------------------------------------
+Custom Certificate Authority (CA)
+---------------------------------
 
 Fledge is not restricted to utilizing its own CA certificates; you have the option to use your own CA certificates.
 
-To configure Fledge with your own CA certificates, ensure that they are properly signed with the user authentication certificates. Additionally, if any intermediate certificates are involved, verify the signing process before integrating them into Fledge.
+To configure Fledge with your own Root CA certificate:
 
-Make sure that any prepared certificates are stored in either **$FLEDGE_DATA or $FLEDGE_ROOT/data**. After placing the certificates, proceed to configure the CA settings within the **Admin and User REST API** configuration section, specifically for the **Auth Certificate** configuration item in the settings.
+- Make sure that the Root CA certificate is correctly utilized to sign the user authentication certificates.
+- If your certificate chain contains intermediate certificates, generate a **certificate bundle** by combining the intermediate certificates in the proper sequence. This bundle guarantees that the complete trust chain is acknowledged during the validation process.
+
+Position the Root CA certificate (and its bundle, if necessary) in the `$FLEDGE_DATA` directory or the `$FLEDGE_ROOT/data` directory.
+
+After obtaining the certificates, modify the **Root CA Certificate** setting (currently labeled as **Auth Certificate**) in the **Admin and User REST API configuration** section to reference your custom CA.
 
 +-------------+
 | |admin_api| |

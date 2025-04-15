@@ -296,11 +296,9 @@ class TestUserModel:
                     assert str(excinfo.value) == expected['message']
             update_tbl_patch.assert_called_once_with('users', payload)
 
-    @pytest.mark.parametrize("access_method", [
-        'Any', 'pwd'
-    ])
-    async def test_update_user_access_method_fails_without_password(self, access_method):
+    async def test_update_user_access_method_fails_without_password(self):
         user_id = 3
+        access_method = 'pwd'
         user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
          'description': 'Company', 'hash_algorithm': 'SHA512', 'block_until': '', 'failed_attempts': 0}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -319,7 +317,7 @@ class TestUserModel:
                         await User.Objects.update(user_id, {'access_method': access_method})
                     assert excinfo.type is ValueError
                     assert ('No password has been set for this user. Please create one before switching the '
-                            'authentication method to "Password" or "Any".') == str(excinfo.value)
+                            'authentication method to "Password".') == str(excinfo.value)
                 args, kwargs = query_tbl_patch.call_args
                 assert 'users' == args[0]
                 p = json.loads(args[1])

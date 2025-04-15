@@ -189,14 +189,14 @@ class User:
             new_kwargs = {}
             old_kwargs = {}
             if 'access_method' in user_data:
-                if user_data['access_method'] != 'cert':
+                if user_data['access_method'] == 'pwd':
                     # Validate that the password is not empty; if it is, reject the client request with a bad request
                     payload = PayloadBuilder().SELECT("pwd").WHERE(['id', '=', user_id]).AND_WHERE(
                         ['enabled', '=', 't']).payload()
                     result = await storage_client.query_tbl_with_payload("users", payload)
                     if not result['rows'][0]['pwd']:
                         msg = ('No password has been set for this user. Please create one before switching '
-                               'the authentication method to "Password" or "Any".')
+                               'the authentication method to "Password".')
                         raise ValueError(msg)
                 old_kwargs["access_method"] = old_data['access_method']
                 new_kwargs.update({"access_method": user_data['access_method']})

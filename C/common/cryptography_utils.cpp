@@ -1,5 +1,5 @@
 /*
- * FogLAMP utilities functions for generating cryptographic hash
+ * Fledge utilities functions for generating cryptographic hash
  *
  * Copyright (c) 2025 Dianomic Systems
  *

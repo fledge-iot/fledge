@@ -37,7 +37,13 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python3 COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development NumPy)
+endif()
+
+if(Python3_VERSION VERSION_GREATER_EQUAL 3.12)
+    # Now you can use Python3_NumPy_INCLUDE_DIRS in your project
+    message(STATUS "Using NumPy include dirs: ${Python3_NumPy_INCLUDE_DIRS}")
+    include_directories(${Python3_NumPy_INCLUDE_DIRS})
 endif()
 
 include_directories(../../../C/common/include)

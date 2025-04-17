@@ -275,6 +275,50 @@ In these circumstances, it is recommended to disable or severely limit the buffe
 
 The system imposes an upper limit of 600000 milliseconds (10 minutes) on the maximum send latency to prevent it being set so high that it appears that the south service is no longer functioning. This is really only an issue in situations where the south service does not receive high rates of data and the send latency is set very high. In these cases the data may reside in the south service for a long period, during which it is not accessible to other services within the system. There is also a risk, in these circumstances, that data for a long period of time might be lost if there was a failure that caused the south service to terminate before sending the data to the storage service.
 
+
+Resource Limit of South Services
+================================
+
+South service within Fledge will buffer readings before forwarding them onto the internal storage service. The default behavior is to buffer all readings until they reach a certain age or a certain number. When this occurs, they will be sent to the storage layer. The thresholds that cause data to be sent to the storage layer can be configured and are discussed in **South Service Advanced Configuration**.
+
+If there is a problem sending readings to the storage layer, the south service will continue to buffer the data until that fault is cleared. This behavior will cause the south service to consume increasing amounts of system memory until the fault clears. This can be undesirable if that consumption is not checked. The resource limit configuration for the south service allows the administrator to control the buffering that will occur in this case.
+
++---------------------------------+
+| |resource_limit_south_advanced| |
++---------------------------------+
+
+The following parameters are available for configuration:
+
+  - **South Service Buffering** : Defines whether the buffering for South Services is unlimited or capped. If set to `"Limited"`, additional configuration options become applicable.  
+
+  - **South Service Buffer Size** : Specifies the maximum number of readings that can be buffered in the South Service. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+
+  - **Discard Policy** : Determines the policy for discarding readings when the buffer limit is reached. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+
+     - **Discard Oldest**: Removes the oldest readings to keep the buffer size within the limit.  
+
+     - **Reduce Fidelity**: Reduces the fidelity of buffered readings by discarding every second reading, starting from the oldest. This policy tracks the next reading to discard to avoid repeated reduction of fidelity for the same data.  
+     
+     - **Discard Newest**: Discards the newest readings to maintain the buffer size.  
+
+Access Control
+--------------
+Only users with administrative privileges can modify the **Resource Limit** configuration items.
+
+Buffering Behavior and Discard Policies
+---------------------------------------
+When the **South Service Buffering** option is set to `"Limited"`, the following behaviors apply based on the configured **Discard Policy**:
+
+1. **Discard Oldest**:  
+   The oldest readings in the buffer are removed until the buffer size is within the configured limit.  
+
+2. **Reduce Fidelity**:  
+   Every second reading is discarded, starting from the oldest, to reduce the number of buffered readings. The discard mechanism tracks the last removed reading to ensure fidelity reduction is evenly distributed and does not repeatedly affect the same data. If the reading associated with the tracked timestamp is no longer in the queue, the discard mechanism adjusts to the current state of the queue.  
+
+3. **Discard Newest**:  
+   The newest readings are discarded as they arrive, ensuring the buffer size remains within the configured limit.  
+
+
 North Advanced Configuration
 ============================
 
@@ -933,48 +977,3 @@ Care should be taken when using performance counters, as with almost any system 
 .. note::
 
   Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
-
-
-Resource Limit Configuration of South Services
-==============================================
-
-Fledge includes a *Resource Limit* configuration for South Services, offering controls to manage resource usage and buffering effectively, thereby preventing excessive memory consumption or system overload due to unbounded buffering.
-
-+---------------------------------+
-| |resource_limit_south_advanced| |
-+---------------------------------+
-
-The following parameters are available for configuration:
-
-  - **South Service Buffering** : Defines whether the buffering for South Services is unlimited or capped. If set to `"Limited"`, additional configuration options become applicable.  
-
-  - **South Service Buffer Size** : Specifies the maximum number of readings that can be buffered in the South Service. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
-
-  - **Discard Policy** : Determines the policy for discarding readings when the buffer limit is reached. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
-
-     - **Discard Oldest**: Removes the oldest readings to keep the buffer size within the limit.  
-
-     - **Reduce Fidelity**: Reduces the fidelity of buffered readings by discarding every second reading, starting from the oldest. This policy tracks the next reading to discard to avoid repeated reduction of fidelity for the same data.  
-     
-     - **Discard Newest**: Discards the newest readings to maintain the buffer size.  
-
-Access Control
---------------
-Only users with administrative privileges can modify the **Resource Limit** configuration items.
-
-Dynamic Configuration Updates
------------------------------
-Any updates to the configuration are applied in real-time without requiring a system restart.  
-
-Buffering Behavior and Discard Policies
----------------------------------------
-When the **South Service Buffering** option is set to `"Limited"`, the following behaviors apply based on the configured **Discard Policy**:
-
-1. **Discard Oldest**:  
-   The oldest readings in the buffer are removed until the buffer size is within the configured limit.  
-
-2. **Reduce Fidelity**:  
-   Every second reading is discarded, starting from the oldest, to reduce the number of buffered readings. The discard mechanism tracks the last removed reading to ensure fidelity reduction is evenly distributed and does not repeatedly affect the same data. If the reading associated with the tracked timestamp is no longer in the queue, the discard mechanism adjusts to the current state of the queue.  
-
-3. **Discard Newest**:  
-   The newest readings are discarded as they arrive, ensuring the buffer size remains within the configured limit.  

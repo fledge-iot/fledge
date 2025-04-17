@@ -792,8 +792,7 @@ void Ingest::processQueue()
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				if (tracker == nullptr)
 				{
-					Logger::getLogger()->error("%s could not initialize asset tracker",
-					__FUNCTION__);
+					Logger::getLogger()->error("Failed to initialize asset tracker.");
 					return;
 				}
 

@@ -785,6 +785,22 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
 }
 
+/**
+ * @brief Retrieves and processes resource limit configuration for the South Service
+ *
+ * This function reads the resource limit configuration values from the service configuration,
+ * validates them, and sets the corresponding member variables. The function handles three main
+ * configuration parameters:
+ *
+ * 1. Service Buffering Type (Unlimited or Limited)
+ * 2. Service Buffer Size (minimum value enforced)
+ * 3. Discard Policy (Discard Oldest, Discard Newest, or Reduce Fidelity)
+ *
+ * If any configuration value is invalid or cannot be parsed, the function logs an error and
+ * applies default values to ensure the service can continue running.
+ *
+ * @throws std::exception Catches any exceptions during configuration parsing and applies defaults
+ */
 void SouthService::getResourceLimit()
 {
 	auto discardPolicyToString = [](DiscardPolicy policy) -> std::string 

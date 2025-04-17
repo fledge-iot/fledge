@@ -21,12 +21,34 @@ __version__="1.0"
 
 # Get the storage database plugin from the Storage microservice cache file
 get_readings_plugin() {
-if [ "${FLEDGE_ROOT}" ]; then
-    $FLEDGE_ROOT/scripts/services/storage --readingsPlugin | cut -d' ' -f1
-elif [ -x scripts/services/storage ]; then
-    scripts/services/storage --readingsPlugin | cut -d' ' -f1
-else
-    logger "Unable to find Fledge storage script."
-    exit 1
-fi
+    # Capture the output to a variable
+    if [ "${FLEDGE_ROOT}" ]; then
+        res=$($FLEDGE_ROOT/scripts/services/storage --readingsPlugin 2>/dev/null)
+    elif [ -x scripts/services/storage ]; then
+        res=$(scripts/services/storage --readingsPlugin 2>/dev/null)
+    else
+        logger "Unable to find Fledge storage script."
+        exit 1
+    fi
+    
+    # Extract the first word from the result
+    plugin=$(echo "$res" | cut -d' ' -f1)
+    
+    # Check if the first three words are "Use main plugin"
+    if [[ "$res" =~ "Use main plugin" ]]; then
+        if [ "${FLEDGE_ROOT}" ]; then
+            # Run the --plugin command to get the actual plugin name
+            plugin=$($FLEDGE_ROOT/scripts/services/storage --plugin 2>/dev/null | cut -d' ' -f1)
+        elif [ -x scripts/services/storage ]; then
+            # Run the local --plugin command
+            plugin=$(scripts/services/storage --plugin 2>/dev/null | cut -d' ' -f1)
+        else
+            # Log an error and exit if the storage script is not found
+            logger "Unable to fetch plugin information."
+            exit 1
+        fi
+    fi
+    
+    # Return the plugin name
+    echo "$plugin"
 }

@@ -94,3 +94,5 @@ doxy/
 
 # aspell backups
 *.bak
+
+tests/unit/C/*/*/*/build/*

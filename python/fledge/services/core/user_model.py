@@ -184,9 +184,20 @@ class User:
             if not user_data:
                 return False
             old_data = await cls.get(uid=user_id)
+            storage_client = connect.get_storage_async()
+
             new_kwargs = {}
             old_kwargs = {}
             if 'access_method' in user_data:
+                if user_data['access_method'] == 'pwd':
+                    # Validate that the password is not empty; if it is, reject the client request with a bad request
+                    payload = PayloadBuilder().SELECT("pwd").WHERE(['id', '=', user_id]).AND_WHERE(
+                        ['enabled', '=', 't']).payload()
+                    result = await storage_client.query_tbl_with_payload("users", payload)
+                    if not result['rows'][0]['pwd']:
+                        msg = ('No password has been set for this user. Please create one before switching '
+                               'the authentication method to "Password".')
+                        raise ValueError(msg)
                 old_kwargs["access_method"] = old_data['access_method']
                 new_kwargs.update({"access_method": user_data['access_method']})
             if 'real_name' in user_data:
@@ -205,7 +216,6 @@ class User:
                 old_kwargs["block_until"] = old_data['block_until']
                 new_kwargs.update({"block_until": str(user_data['block_until'])})
 
-            storage_client = connect.get_storage_async()
             hashed_pwd = None
             pwd_history_list = []
             if 'password' in user_data:

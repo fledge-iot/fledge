@@ -296,6 +296,35 @@ class TestUserModel:
                     assert str(excinfo.value) == expected['message']
             update_tbl_patch.assert_called_once_with('users', payload)
 
+    async def test_update_user_access_method_fails_without_password(self):
+        user_id = 3
+        access_method = 'pwd'
+        user_info = {'id': user_id, 'uname': 'dianomic', 'role_id': 4, 'access_method': 'cert', 'real_name': 'D System',
+         'description': 'Company', 'hash_algorithm': 'SHA512', 'block_until': '', 'failed_attempts': 0}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv0 = await mock_coro(user_info)
+            _rv1 = await mock_coro({'rows': [{'pwd': ''}], 'count': 1})
+        else:
+            _rv0 = asyncio.ensure_future(mock_coro(user_info))
+            _rv1 = asyncio.ensure_future(mock_coro({'rows': [{'pwd': ''}], 'count': 1}))
+        with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1
+                                  ) as query_tbl_patch:
+                    with pytest.raises(Exception) as excinfo:
+                        await User.Objects.update(user_id, {'access_method': access_method})
+                    assert excinfo.type is ValueError
+                    assert ('No password has been set for this user. Please create one before switching the '
+                            'authentication method to "Password".') == str(excinfo.value)
+                args, kwargs = query_tbl_patch.call_args
+                assert 'users' == args[0]
+                p = json.loads(args[1])
+                assert {'return': ['pwd'], 'where': {'and': {'column': 'enabled', 'condition': '=', 'value': 't'},
+                                                     'column': 'id', 'condition': '=', 'value': user_id}} == p
+        patch_get.assert_called_once_with(uid=user_id)
+
     @pytest.mark.parametrize("user_data, payload", [
         ({'role_id': 2}, {"values": {"role_id": 2}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}}),
         ({'role_id': '2'}, {"values": {"role_id": "2"}, "where": {"column": "id", "condition": "=", "value": 2, "and": {"column": "enabled", "condition": "=", "value": "t"}}})
@@ -460,26 +489,39 @@ class TestUserModel:
             _rv1 = await mock_coro()
             _rv2 = await mock_coro(expected)
             _rv3 = await mock_coro(None)
+            _rv4 = await mock_coro({'rows': [{'pwd': '2Xc34'}], 'count': 1})
         else:
             _rv0 = asyncio.ensure_future(mock_coro(user_info))
             _rv1 = asyncio.ensure_future(mock_coro())
             _rv2 = asyncio.ensure_future(mock_coro(expected))
             _rv3 = asyncio.ensure_future(mock_coro(None))
+            _rv4 = asyncio.ensure_future(mock_coro({'rows': [{'pwd': '2Xc34'}], 'count': 1}))
 
         with patch.object(User.Objects, 'get', return_value=_rv0) as patch_get:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                    with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1) as delete_token_patch:
-                        with patch.object(AuditLogger, '__init__', return_value=None):
-                            with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
-                                actual = await User.Objects.update(user_id, user_data)
-                                assert actual is True
-                            patch_audit.assert_called_once_with('USRCH', audit_details)
-                    delete_token_patch.assert_not_called()
-                args, kwargs = update_tbl_patch.call_args
-                assert 'users' == args[0]
-                p = json.loads(args[1])
-                assert expected_payload == p
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv4
+                                  ) as query_tbl_patch:
+                    with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
+                        with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv1
+                                          ) as delete_token_patch:
+                            with patch.object(AuditLogger, '__init__', return_value=None):
+                                with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                                    actual = await User.Objects.update(user_id, user_data)
+                                    assert actual is True
+                                patch_audit.assert_called_once_with('USRCH', audit_details)
+                        delete_token_patch.assert_not_called()
+                    args, kwargs = update_tbl_patch.call_args
+                    assert 'users' == args[0]
+                    p = json.loads(args[1])
+                    assert expected_payload == p
+                if 'access_method' in user_data and user_data['access_method'] != 'cert':
+                    args, kwargs = query_tbl_patch.call_args
+                    assert 'users' == args[0]
+                    p = json.loads(args[1])
+                    assert {'return': ['pwd'], 'where': {'and': {'column': 'enabled', 'condition': '=', 'value': 't'},
+                                                         'column': 'id', 'condition': '=', 'value': user_id}} == p
+                else:
+                    query_tbl_patch.assert_not_called()
         patch_get.assert_called_once_with(uid=user_id)
 
     async def test_login_if_no_user_exists(self):

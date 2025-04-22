@@ -51,6 +51,23 @@ def add_south_service(south_plugin, fledge_url, service_name, config=None, start
     r = r.read().decode()
     return json.loads(r)
 
+
+def add_north_service(north_plugin, fledge_url, service_name, config=None, start_service=True):
+    """Add the north service and set it to start automatically"""
+    _config = config if config is not None else {}
+    _enabled = "true" if start_service else "false"
+    data = {"name": "{}".format(service_name), "type": "North", "plugin": "{}".format(north_plugin),
+            "enabled": _enabled, "config": _config}
+
+    # Create south service
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("POST", '/fledge/service', json.dumps(data))
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    return json.loads(r)
+
+
 def create_filter(fledge_url, filter_name, plugin_name, config=None):
     """Create standalone filter"""
     data = {"name": filter_name, "plugin": plugin_name}

@@ -25,10 +25,12 @@ class SSLVerifier(object):
 
     user_cert = None
     ca_cert = None
+    intermediate_cert = None
 
-    def __init__(self, cert_user=None, cert_ca=None):
+    def __init__(self, cert_user=None, cert_ca=None, intermediate_cert=None):
         self.__class__.user_cert = cert_user
         self.__class__.ca_cert = cert_ca
+        self.__class__.intermediate_cert = intermediate_cert
 
     @classmethod
     def verify(cls):
@@ -81,6 +83,8 @@ class SSLVerifier(object):
     def verify_against_ca(cls):
         echo_process = subprocess.Popen(['echo', cls.user_cert], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         args = "openssl verify -CAfile {}".format(cls.ca_cert)
+        if cls.intermediate_cert is not None:
+            args = "openssl verify -CAfile {} -untrusted {}".format(cls.ca_cert, cls.intermediate_cert)
         # TODO: FOGL-7302 to handle -x509_strict check when OpenSSL version >=3.x
         # Removing the -x509_strict flag as an interim solution; as of now only CentOS Stream9 has OpenSSL version 3.0
         if utils.get_open_ssl_version(version_string=False)[0] < 3:
@@ -213,3 +217,8 @@ class SSLVerifier(object):
     @classmethod
     def set_user_cert(cls, cert):
         cls.user_cert = cert
+
+    @classmethod
+    def set_intermediate_cert(cls, cert):
+        cls.intermediate_cert = cert
+

@@ -51,11 +51,12 @@ def clean_setup_fledge_packages(package_build_version):
 
 
 @pytest.fixture
-def reset_and_start_fledge(storage_plugin, readings_plugin):
+def reset_and_start_fledge(storage_plugin, readings_plugin, authentication):
     """Fixture that kills fledge, reset database and starts fledge again
-        storage_plugin: Fixture that defines the storage plugin to be used for tests
+        storage_plugin: A fixture that specifies the storage plugin to be used in the tests.
+        readings_plugin: A fixture that specifies the readings plugin to be used in the tests.
+        authentication: A fixture that defines the authentication method to be used for the tests. By default 'optional'
     """
-
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
@@ -69,6 +70,12 @@ def reset_and_start_fledge(storage_plugin, readings_plugin):
         ["echo $(jq -c --arg READINGS_PLUGIN_VAL \"{}\" '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
          "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(readings_plugin)],
         shell=True, check=True)
+    if authentication == 'optional':
+        subprocess.run(["sed -i \"s/'default': 'mandatory'/'default': 'optional'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
+    else:
+        subprocess.run(["sed -i \"s/'default': 'optional'/'default': 'mandatory'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
     subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
@@ -810,7 +817,6 @@ def read_data_from_pi_asset_server():
                             if el["Name"].endswith(f"{asset}.{_head}"):
                                 for itm in el["Items"]:
                                     _recoded_value_list.append(itm["Value"])
-                                    # pprint(_data_pi)
                                 _data_pi[_head] = _recoded_value_list
 
             return _data_pi
@@ -947,8 +953,11 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
-    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
-
+    parser.addoption("--num-assets", action="store", default=300, type=int, 
+                     help="Total number of assets that need to be created")
+    parser.addoption("--north-historian", action="store", default="EdgeDataStore",
+                     help="Name of the North Historian to which the data will be sent")
+    
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
     parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
@@ -1149,6 +1158,9 @@ def asset_name(request):
 def fledge_url(request):
     return request.config.getoption("--fledge-url")
 
+@pytest.fixture
+def authentication(request):
+    return "optional"
 
 @pytest.fixture
 def wait_time(request):
@@ -1162,6 +1174,9 @@ def wait_fix(request):
 def retries(request):
     return request.config.getoption("--retries")
 
+@pytest.fixture
+def north_historian(request):
+    return request.config.getoption("--north-historian")
 
 @pytest.fixture
 def pi_host(request):

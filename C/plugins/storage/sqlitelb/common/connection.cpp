@@ -868,14 +868,14 @@ unsigned long nRows = 0, nCols = 0;
 						else
 						{
 							// JSON parsing ok, use the document
-							// if string value is not "null"
-							if (strcmp(str, "null") != 0)
+							// if string value is not "null", "true", "false"
+							if (strcmp(str, "null") != 0 && strcmp(str, "true") != 0 && strcmp(str, "false") != 0)
 							{
 								value = Value(d, allocator);
 							}
 							else
 							{
-								// Use (char *) value for "null"
+								// Use (char *) value for "null", "true", "false"
 								value = Value(str, allocator);
 							}
 						}
@@ -1646,10 +1646,10 @@ vector<string>  asset_codes;
 					}
 					else if (itr->value.IsDouble())
 						sql.append(itr->value.GetDouble());
+					else if (itr->value.IsUint64())
+						sql.append((unsigned long)itr->value.GetUint64());
 					else if (itr->value.IsInt64())
 						sql.append((long)itr->value.GetInt64());
-					else if (itr->value.IsNumber())
-						sql.append(itr->value.GetInt());
 					else if (itr->value.IsObject())
 					{
 						StringBuffer buffer;
@@ -1731,7 +1731,7 @@ vector<string>  asset_codes;
 						sql.append(value.GetDouble());
 					else if (value.IsInt64())
 						sql.append((long)value.GetInt64());
-					else if (value.IsNumber())
+					else if (value.IsInt())
 						sql.append(value.GetInt());
 					else if (value.IsObject())
 					{
@@ -1844,7 +1844,7 @@ vector<string>  asset_codes;
 					{
 						sql.append((long)value.GetInt64());
 					}
-					else if (value.IsNumber())
+					else if (value.IsInt())
 					{
 						sql.append(value.GetInt());
 					}

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 FLEDGE_ROOT="/usr/local/fledge"
+source ../common/scripts/reset_user_authentication "$FLEDGE_ROOT"
 
 install_postgres() {
   sudo apt install -y postgresql
@@ -28,10 +29,13 @@ else
 fi
 
 echo "Stopping Fledge using systemctl ..."
-sudo systemctl stop fledge
+# FIXME: FOGL-1499 After the issue is resolved, remove the explicit 'kill' command and use 'systemctl stop' instead
+# sudo systemctl stop fledge
+/usr/local/fledge/bin/fledge kill
 echo -e "YES\nYES" | $FLEDGE_ROOT/bin/fledge reset || exit 1
 echo
 echo "Starting Fledge using systemctl ..."
-sudo systemctl start fledge
+# FIXME: FOGL-1499 Once the issue is resolved, replace 'restart' with 'start
+sudo systemctl restart fledge
 echo "Fledge Status"
 systemctl status fledge | grep "Active"

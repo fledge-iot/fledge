@@ -28,6 +28,19 @@ else
 	CMAKE := cmake
 endif
 
+# Extract Python version components
+PYTHON_VERSION := $(shell python3 --version 2>&1 | awk '{print $$2}')
+PYTHON_MAJOR := $(word 1, $(subst ., ,$(PYTHON_VERSION)))
+PYTHON_MINOR := $(word 2, $(subst ., ,$(PYTHON_VERSION)))
+PYTHON_PATCH := $(word 3, $(subst ., ,$(PYTHON_VERSION)))
+
+# Apply the --break-system-packages flag only for Python versions 3.11 or later
+ifeq ($(shell test $(PYTHON_MAJOR) -gt 3 || { [ $(PYTHON_MAJOR) -eq 3 ] && [ $(PYTHON_MINOR) -ge 11 ]; } && echo 1 || echo 0),1)
+    PIP_BREAK_SYSTEM_PACKAGES := --break-system-packages
+else
+    PIP_BREAK_SYSTEM_PACKAGES :=  # No flag
+endif
+
 MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
@@ -324,11 +337,11 @@ python_build : $(PYTHON_SETUP_FILE)
 
 # install python requirements without --user
 python_requirements : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(NO_CACHE_DIR) $(PIP_BREAK_SYSTEM_PACKAGES)
 
 # install python requirements for user
 python_requirements_user : $(PYTHON_REQUIREMENTS_FILE)
-	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) $(NO_CACHE_DIR)
+	$(PIP_INSTALL_REQUIREMENTS) $(PYTHON_REQUIREMENTS_FILE) $(PIP_USER_FLAG) $(NO_CACHE_DIR) $(PIP_BREAK_SYSTEM_PACKAGES)
 
 # create python install dir
 $(PYTHON_INSTALL_DIR) :

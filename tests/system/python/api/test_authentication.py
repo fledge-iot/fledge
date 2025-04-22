@@ -25,27 +25,12 @@ TOKEN = None
 
 
 @pytest.fixture
-def change_to_auth_mandatory(reset_and_start_fledge, fledge_url, wait_time):
-    # Wait for fledge server to start
-    time.sleep(wait_time)
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/category/rest_api', json.dumps({"authentication": "mandatory"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "mandatory" == jdoc['authentication']['value']
-
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
+def authentication():
+    return "mandatory"
 
 
 class TestAuthenticationAPI:
-    def test_login_username_regular_user(self, change_to_auth_mandatory, fledge_url, wait_time):
+    def test_login_username_regular_user(self, fledge_url, wait_time,  authentication, reset_and_start_fledge):
         time.sleep(wait_time * 3)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
@@ -245,6 +230,57 @@ class TestAuthenticationAPI:
         jdoc = json.loads(r)
         assert {'message': 'User with ID:<{}> has been updated successfully.'.format(uid)} == jdoc
 
+    def test_create_user_cert(self, fledge_url, storage_plugin):
+        conn = http.client.HTTPConnection(fledge_url)
+        # Get users
+        conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        user = jdoc["users"][6]
+        if storage_plugin == 'postgres':
+            user = jdoc["users"][4]
+        assert 8 == user["userId"]
+        assert "control" == user["userName"]
+
+        # Generate an Authentication Certificate for the control user.
+        conn.request("POST", "/fledge/admin/{}/authcertificate".format(user["userId"]),
+                     headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        assert "OK" == r.reason
+        cert = r.read().decode()
+        assert cert.startswith("-----BEGIN CERTIFICATE-----")
+        assert cert.endswith("\n-----END CERTIFICATE-----\n")
+
+        # Get users
+        conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        user = jdoc["users"][6]
+        if storage_plugin == 'postgres':
+            user = jdoc["users"][4]
+        assert 8 == user["userId"]
+        assert "control" == user["userName"]
+
+        # Log in using the newly created certificate above
+        conn = http.client.HTTPConnection(fledge_url)
+        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/{}.cert'.format(
+            user["userName"]))
+        with open(cert_file_path, 'r') as f:
+            conn.request("POST", "/fledge/login", body=f)
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert "Logged in successfully." == jdoc['message']
+            assert "token" in jdoc
+            assert not jdoc['admin']
+            assert user["userId"] == jdoc['uid']
+
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": TOKEN})
@@ -314,6 +350,13 @@ class TestAuthenticationAPI:
         r = r.read().decode()
         assert "403: Forbidden" == r
 
+        # Create a user authentication certificate.
+        conn.request("POST", "/fledge/admin/2/authcertificate", headers={"authorization": _token})
+        r = conn.getresponse()
+        assert 403 == r.status
+        r = r.read().decode()
+        assert "403: Forbidden" == r
+
     def test_login_with_user_certificate(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')
@@ -327,9 +370,17 @@ class TestAuthenticationAPI:
             assert "token" in jdoc
             assert not jdoc['admin']
 
-    def test_login_with_admin_certificate(self, fledge_url):
+    @pytest.mark.parametrize("cert_path, username, is_admin, role_id", [
+        ('data/etc/certs/admin.cert', 'Admin', True, 1),
+        ('data/etc/certs/admin.cert', 'admin', True, 1),
+        ('data/etc/certs/admin.cert', 'ADMIN', True, 1),
+        ('data/etc/certs/user.cert', 'USER', False, 2),
+        ('data/etc/certs/user.cert', 'User', False, 2),
+        ('data/etc/certs/user.cert', 'user', False, 2)
+    ])
+    def test_login_with_admin_certificate(self, fledge_url, cert_path, username, is_admin, role_id):
         conn = http.client.HTTPConnection(fledge_url)
-        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/admin.cert')
+        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), cert_path)
         with open(cert_file_path, 'r') as f:
             conn.request("POST", "/fledge/login", body=f)
             r = conn.getresponse()
@@ -338,7 +389,17 @@ class TestAuthenticationAPI:
             jdoc = json.loads(r)
             assert "Logged in successfully." == jdoc['message']
             assert "token" in jdoc
-            assert jdoc['admin']
+            assert is_admin == jdoc['admin']
+            # Verify user after login
+            conn.request("GET", "/fledge/user?username={}".format(username),
+                         headers={"authorization": jdoc['token']})
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            user_jdoc = json.loads(r)
+            assert len(user_jdoc) > 0, "No record found for {} username.".format(username)
+            assert role_id == user_jdoc["roleId"]
+            assert username.lower() == user_jdoc['userName']
 
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign

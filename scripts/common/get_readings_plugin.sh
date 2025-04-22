@@ -44,7 +44,7 @@ get_readings_plugin() {
             plugin=$(scripts/services/storage --plugin 2>/dev/null | cut -d' ' -f1)
         else
             # Log an error and exit if the storage script is not found
-            logger "Unable to fetch plugin information."
+            logger "Failed to retrieve information from the readings plugin."
             exit 1
         fi
     fi

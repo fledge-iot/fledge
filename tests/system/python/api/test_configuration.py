@@ -98,6 +98,12 @@ class TestConfiguration:
                       'children': []
                   },
                   {
+                      "key": "RESOURCE_LIMIT",
+                      "description": "Resource Limit of South Service",
+                      "displayName": "Resource Limit",
+                      "children": []
+                  },
+                  {
                       'key': 'CONFIGURATION',
                       'description': 'Core Configuration Manager',
                       'displayName': 'Configuration Manager',

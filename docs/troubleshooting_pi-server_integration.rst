@@ -514,6 +514,51 @@ This Suggestion is evidence that the OMF message sent by OMF North included an i
 even though the item had been deleted from the AF Database manually and checked in.
 To address this, restart the PI Web API.
 
+HTTP Code 413: Payload Too Large
+--------------------------------
+
+This error means that a message POSTed to the PI Web API server is larger than the server will accept.
+This can occur if Readings have large numbers of Datapoints or if the data rates into OMF North are high.
+OMF North will work around this error for Data messages but you should be aware of its method for doing this.
+If this error occurs, you will see the following in */var/log/syslog*:
+
+.. code-block:: bash
+
+    ERROR: Error sending Data, 413 Payload Too Large - mypiserver:443 /piwebapi/omf
+    WARNING: Next POST of Readings will take place in 2 blocks
+
+The HTTP code of 413 (Payload Too Large) is returned by PI Web API.
+If this occurs, OMF North will divide the number of Readings it has received into 2 blocks and try to send its Data message again.
+If HTTP 413 is returned again, OMF North will divide the Readings into 3 blocks and so on.
+The block count will increase until the OMF Data message size is under the PI Web API limit.
+
+Once the block count has been set, OMF North will use continue to use this value.
+It will not be reduced automatically.
+If you believe that OMF Data message sizes will be significantly lower as processing continues, restart your OMF North instance.
+The block count will be reset to 1.
+
+If you have enabled the `Tracing File`_, you will see more detail:
+
+.. code-block:: bash
+
+    Code: 413 Request Entity Too Large
+    Content: {"Errors":["Request content exceeds the maximum allowed length 4194304"]}
+
+The integer 4194304 in the Content message is the PI Web API default value for the maximum inbound message size which is 4 Gigabytes.
+
+OMF North will divide its Readings into blocks for OMF Data messages only.
+Error logs for OMF Data messages begin with "*ERROR: Error sending Data.*"
+If you encounter the HTTP 413 error for any other type of OMF message, you must increase the maximum inbound message size in the PI Web API.
+The PI Web API parameter name for this message size limit is *MaxRequestContentLength*.
+See the `AVEVA Documentation page <https://docs.aveva.com/bundle/pi-web-api/page/1023031.html>`_ for instructions on how to edit this limit.
+
+.. note::
+
+    Another way to reduce OMF message size is to reduce the *Data Block Size* on the *Advanced* tab of the Fledge GUI.
+    This will result in fewer Readings being processed by OMF North at once.
+    In general, a *Data Block Size* setting of 2000 offers the best performance so this solution is not ideal.
+    It may be necessary if OMF Container messages generate the HTTP 413 error and the PI Web API *MaxRequestContentLength* cannot be increased.
+
 Changing the Tag Name OMF Hint
 ------------------------------
 

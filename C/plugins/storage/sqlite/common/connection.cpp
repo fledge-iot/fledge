@@ -739,14 +739,14 @@ unsigned long nRows = 0, nCols = 0;
 						else
 						{
 							// JSON parsing ok, use the document
-							// if string value is not "null"
-							if (strcmp(str, "null") != 0)
+							// if string value is not "null", "true", "false"
+							if (strcmp(str, "null") != 0 && strcmp(str, "true") != 0 && strcmp(str, "false") != 0)
 							{
 								value = Value(d, allocator);
 							}
 							else
 							{
-								// Use (char *) value for "null"
+								// Use (char *) value for "null", "true", "false"
 								value = Value(str, allocator);
 							}
 						}

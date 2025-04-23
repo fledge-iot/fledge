@@ -55,7 +55,7 @@ A major advantage of Linked Types is that new Readings with additional Datapoint
 OMF will simply create a new AF Attribute and PI Point and link it to the existing parent AF Element.
 
 Understanding Types when upgrading Fledge
------------------------------------------
+------------------------------------------
 
 When upgrading from a Fledge version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the pre-OMF 1.2 Complex Types definitions to send data.
 This ensures that data will continue to be written to the same PI Points within the PI Server or other OMF end points. New OMF North instances will send data using the newer OMF 1.2 mechanism.

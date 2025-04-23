@@ -19,6 +19,7 @@
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
 .. |firewall| image:: images/firewall.jpg
+.. |features| image:: images/features.jpg
 
 
 .. Links
@@ -33,6 +34,10 @@
 .. |User Management| raw:: html
 
     <a href="#user-management">User Management</a>
+
+.. |control| raw:: html
+
+    <a href="control.html">control</a>
 
 *****************
 Securing Fledge
@@ -342,6 +347,29 @@ To add a new certificate select the *Import* icon in the top right of the certif
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
 
 
+Custom Certificate Authority (CA)
+---------------------------------
+
+Fledge is not restricted to utilizing its own CA certificates; you have the option to use your own CA certificates.
+
+To configure Fledge with your own Root CA certificate:
+
+- Make sure that the Root CA certificate is correctly utilized to sign the user authentication certificates.
+- If your certificate chain contains intermediate certificates, generate a **certificate bundle** by combining the intermediate certificates in the proper sequence. This bundle guarantees that the complete trust chain is acknowledged during the validation process.
+
+Position the Root CA certificate (and its bundle, if necessary) in the `$FLEDGE_DATA` directory or the `$FLEDGE_ROOT/data` directory.
+
+After obtaining the certificates, modify the **Root CA Certificate** setting (currently labeled as **Auth Certificate**) in the **Admin and User REST API configuration** section to reference your custom CA.
+
++-------------+
+| |admin_api| |
++-------------+
+
+
+.. note::
+
+    If there are any intermediate certificates forming a chain, consolidate them into a single file named **intermediate.cert or intermediate.pem** and store it in the same directory specified earlier.
+
 Generate a new auth certificates for user login
 -----------------------------------------------
 
@@ -389,3 +417,21 @@ c) Now you can login with the newly created user **test**, with the following cU
     $ curl -T $FLEDGE_DATA/etc/certs/test.cert -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login
 
 Or use GUI |Require User Login|
+
+Managing Features
+=================
+
+Fledge provides mechanisms whereby the administration user can disable access to features which may not be desirable in a production system or may not be required for a particular installation.
+
+The interface to enable or disable these features can be found in the *Configuration* menu item under the configuration category *Advanced::Features*.
+
++------------+
+| |features| |
++------------+
+
+Currently there are two features that can be disabled on an instance wide basis: *Control* and *Pipeline Debugging*.
+
+The *Control* toggle button can be used to disable all write and operation calls from south plugins back to devices. To disable |control| features for a Fledge instance uncheck the *Control* toggle button.
+
+The *Pipeline Debugger* toggle button will control the ability to perform pipeline debugging in any north or south service within Fledge. If there are any pipeline debugging sessions in progress when the toggle is unset, they will be terminated. No new debugging sessions can be started if the pipeline debugger option is not enabled in the *Features* configuration category.
+

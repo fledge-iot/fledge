@@ -36,7 +36,7 @@
 #include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
-
+#define RESOURCE_LIMIT_CATEGORY "RESOURCE_LIMIT"
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -260,7 +260,9 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_perfMonitor(NULL),
 				m_suspendIngest(false),
 				m_steps(0),
-				m_provider(NULL)
+				m_provider(NULL),
+				m_controlEnabled(true),
+				m_debuggerEnabled(true)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -349,6 +351,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
+		m_configResourceLimit = m_mgtClient->getCategory(RESOURCE_LIMIT_CATEGORY);
 		if (!loadPlugin())
 		{
 			logger->fatal("Failed to load south plugin %s, exiting...", m_name.c_str());
@@ -372,10 +375,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				return;
 			}
 
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
+			updateFeatures(features);
+
 			// Register for category content changes
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, "FEATURES");
+			configHandler->registerCategory(this, RESOURCE_LIMIT_CATEGORY);
 		}
 
 		// Get a handle on the storage layer
@@ -488,6 +496,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			ingest.configureRateMonitor(interval, factor);
 
 		}
+
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
 
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
@@ -772,6 +783,132 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	}
 	management.stop();
 	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
+}
+
+/**
+ * @brief Retrieves and processes resource limit configuration for the South Service
+ *
+ * This function reads the resource limit configuration values from the service configuration,
+ * validates them, and sets the corresponding member variables. The function handles three main
+ * configuration parameters:
+ *
+ * 1. Service Buffering Type (Unlimited or Limited)
+ * 2. Service Buffer Size (minimum value enforced)
+ * 3. Discard Policy (Discard Oldest, Discard Newest, or Reduce Fidelity)
+ *
+ * If any configuration value is invalid or cannot be parsed, the function logs an error and
+ * applies default values to ensure the service can continue running.
+ *
+ * @throws std::exception Catches any exceptions during configuration parsing and applies defaults
+ */
+void SouthService::getResourceLimit()
+{
+	auto discardPolicyToString = [](DiscardPolicy policy) -> std::string 
+	{
+		switch (policy) 
+		{
+			case DiscardPolicy::DISCARD_OLDEST:   return "Discard Oldest";
+			case DiscardPolicy::REDUCE_FIDELITY: return "Reduce Fidelity";
+			case DiscardPolicy::DISCARD_NEWEST:  return "Discard Newest";
+			default: throw std::invalid_argument("Invalid DiscardPolicy enum value");
+		}
+	};
+
+	auto serviceBufferingTypeToString = [](ServiceBufferingType type) -> std::string 
+	{
+		switch (type) 
+		{
+			case ServiceBufferingType::UNLIMITED: return "Unlimited";
+			case ServiceBufferingType::LIMITED:   return "Limited";
+			default: throw std::invalid_argument("Invalid ServiceBufferingType enum value");
+		}
+	};
+
+	// Update the resource limit configuration
+	try 
+	{
+		// Parse the service buffering type
+		std::string serviceBuffering = m_configResourceLimit.getValue("serviceBuffering");
+		if (serviceBuffering == "Unlimited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::UNLIMITED;
+		} 
+		else if (serviceBuffering == "Limited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::LIMITED;
+		} 
+		else
+		{
+			m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Service Buffering Type' configuration value: '%s'. Default value '%s' has been applied.", serviceBuffering.c_str(), serviceBufferingTypeToString(m_serviceBufferingType).c_str());
+		}
+
+		// Parse and validate the service buffer size
+		try 
+		{
+			std::string bufferSizeStr = m_configResourceLimit.getValue("serviceBufferSize");
+			m_serviceBufferSize = (unsigned int)std::stoi(bufferSizeStr); // Convert to integer
+
+			if (m_serviceBufferSize < SERVICE_BUFFER_SIZE_MIN)
+			{
+				m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+				Logger::getLogger()->error("Invalid 'Service Buffer Size' value: '%s'. The value must be at least %d. Default value of %d has been applied.", bufferSizeStr.c_str(), SERVICE_BUFFER_SIZE_MIN, m_serviceBufferSize);
+			}
+		} 
+		catch (const std::exception& e)
+		{
+			// Handle conversion errors and out-of-range values
+			m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+			Logger::getLogger()->error("Failed to parse 'serviceBufferSize': %s. Default value '%d' has been applied.", e.what(), m_serviceBufferSize);
+		}
+
+		// Parse the discard policy
+		std::string discardPolicy = m_configResourceLimit.getValue("discardPolicy");
+		if (discardPolicy == "Discard Oldest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_OLDEST;
+		} 
+		else if (discardPolicy == "Discard Newest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_NEWEST;
+		} 
+		else if (discardPolicy == "Reduce Fidelity") 
+		{
+			m_discardPolicy = DiscardPolicy::REDUCE_FIDELITY;
+		} 
+		else 
+		{
+			m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Discard Policy' configuration value: '%s'. Default value '%s' has been applied.", discardPolicy.c_str(), discardPolicyToString(m_discardPolicy).c_str());
+		}
+
+		Logger::getLogger()->info("Resource Limit configuration applied successfully: "
+			"Service Buffering Type: '%s', "
+			"Service Buffer Size: '%d', "
+			"Discard Policy: '%s'.",
+			serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+			m_serviceBufferSize,
+			discardPolicyToString(m_discardPolicy).c_str());
+
+	} 
+	catch (const std::exception& e) 
+	{
+		// Catch any other exceptions and log the error
+		Logger::getLogger()->error("Failed to update resource limit configuration due to an exception: %s. Default values will be applied to ensure system stability.", e.what());
+
+		// Set default values to ensure the system can continue running
+		m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT;
+		m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT;
+		m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT;
+
+		Logger::getLogger()->info("Default configuration applied: "
+								"Service Buffering Type: '%s', "
+								"Service Buffer Size: '%d', "
+								"Discard Policy: '%s'.",
+								serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+								m_serviceBufferSize,
+								discardPolicyToString(m_discardPolicy).c_str());
+	}
 }
 
 /**
@@ -1093,6 +1230,19 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+
+	// Deal with changes to the features settings
+	if (categoryName.compare("FEATURES") == 0)
+	{
+		this->updateFeatures(ConfigCategory("FEATURES", category));
+	}
+
+	if(categoryName.compare(RESOURCE_LIMIT_CATEGORY) == 0)
+	{
+		m_configResourceLimit = ConfigCategory(RESOURCE_LIMIT_CATEGORY, category);
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
 	}
 }
 
@@ -1781,6 +1931,30 @@ void SouthService::checkPendingReconfigure()
 }
 
 /**
+ * Process the setting of allowed features
+ *
+ * @param category	The configuration category
+ */
+void SouthService::updateFeatures(const ConfigCategory& category)
+{
+	if (category.itemExists("control"))
+	{
+		string s = category.getValue("control");
+		m_controlEnabled = s.compare("true") == 0 ? true : false;
+	}
+	if (category.itemExists("debugging"))
+	{
+		string s = category.getValue("debugging");
+		m_debuggerEnabled = s.compare("true") == 0 ? true : false;
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_debuggerEnabled == false)
+		{
+			// Detach the debugger
+			detachDebugger();
+		}
+	}
+}
+
+/**
  * Return the state of the pipeline debugger
  *
  * @return string	JSON document reporting the state of the pipeline debugger
@@ -1804,9 +1978,13 @@ string SouthService::debugState()
 		else
 			rval += "\"Storage\"";
 	}
-	else
+	else if (allowDebugger())
 	{
 		rval += "\"Detached\"";
+	}
+	else
+	{
+		rval += "\"Disabled\"";
 	}
 	rval += "}";
 	return rval;

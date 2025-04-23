@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -625,6 +625,48 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 		return false;
 	}
 	return true;
+}
+
+/**
+ * Clear selected Reading and Datapoint information from the linked asset state map
+ *
+ * @param readings		Vector of Readings
+ * @param startIndex	Start index into Readings
+ * @param numReadings	Number of Readings to clear
+ * @return				Number of asset and datapoint entries cleared
+ */
+std::size_t OMFLinkedData::clearLALookup(const std::vector<Reading *> &readings, std::size_t startIndex, std::size_t numReadings, std::string &delimiter)
+{
+	std::size_t numCleared = 0;
+	LALookup empty;
+
+	for (std::size_t i = startIndex; (i < numReadings) && (i < readings.size()); i++)
+	{
+		Reading *reading = readings[i];
+		std::string assetNameDelim = OMF::ApplyPIServerNamingRulesObj(reading->getAssetName(), NULL) + delimiter;
+
+		// Check if the asset key is present in the linked asset state map
+		auto assetIterator = m_linkedAssetState->find(assetNameDelim);
+		if (assetIterator != m_linkedAssetState->end())
+		{
+			assetIterator->second = empty;
+			numCleared++;
+		}
+
+		// Check if datapoint keys are present in the linked asset state map
+		for (Datapoint *datapoint : reading->getReadingData())
+		{
+			std::string dpName = OMF::ApplyPIServerNamingRulesObj(datapoint->getName(), NULL);
+			auto datappointIterator = m_linkedAssetState->find(assetNameDelim + dpName);
+			if (datappointIterator != m_linkedAssetState->end())
+			{
+				datappointIterator->second = empty;
+				numCleared++;
+			}
+		}
+	}
+
+	return numCleared;
 }
 
 /**

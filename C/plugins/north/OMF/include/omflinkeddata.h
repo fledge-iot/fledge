@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -57,6 +57,7 @@ class OMFLinkedData
 					m_doubleFormat = doubleFormat;
 					m_integerFormat = integerFormat;
 				};
+		std::size_t	clearLALookup(const std::vector<Reading *>& reading, std::size_t startIndex, std::size_t numReadings, std::string &delimiter);
 	private:
 		std::string	getBaseType(Datapoint *dp, const std::string& format);
 		void		sendContainer(std::string& link, Datapoint *dp, OMFHints * hints, const std::string& baseType);

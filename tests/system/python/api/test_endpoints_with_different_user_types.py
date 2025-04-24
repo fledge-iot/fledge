@@ -110,13 +110,13 @@ class TestAPIEndpointsWithViewUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=3", 200), ("GET", "/fledge/user?id=2", 403),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=4", 200), ("GET", "/fledge/user?id=2", 403),
         ("GET", "/fledge/user?username={}".format(VIEW_USERNAME), 200),
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 403),
-        ("GET", "/fledge/user?id={}&username={}".format(3, VIEW_USERNAME), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(4, VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 4), 200),
         ("GET", "/fledge/user?username=admin&id=1", 403),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/3/password", 500),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
@@ -280,12 +280,12 @@ class TestAPIEndpointsWithDataViewUserType:
         # health
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
-        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=4", 200), ("GET", "/fledge/user?id=1", 403),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=5", 200), ("GET", "/fledge/user?id=1", 403),
         ("GET", "/fledge/user?username={}".format(DATA_VIEW_USERNAME), 200), ("GET", "/fledge/user?username=user", 403),
-        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(5, DATA_VIEW_USERNAME), 200),
         ("GET", "/fledge/user?id=1&username=admin", 403),
-        ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 4), 200),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
+        ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 5), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/5/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
@@ -448,13 +448,13 @@ class TestAPIEndpointsWithControlUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=5", 200), ("GET", "/fledge/user?id=1", 200),
+        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=6", 200), ("GET", "/fledge/user?id=1", 200),
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 200), ("GET", "/fledge/user?username=admin", 200),
-        ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
-        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/5/password", 500),
+        ("GET", "/fledge/user?id={}&username={}".format(6, CONTROL_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 6), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 4), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(5, DATA_VIEW_USERNAME), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/6/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),

@@ -535,6 +535,7 @@ bool allDone = true;
 	if (allDone)
 	{
 		// No registrations for individual assets, no need to parse payload
+		processAssetRefusals();
 		return;
 	}
 	for (REGISTRY::const_iterator it = m_registrations.cbegin(); it != m_registrations.cend(); it++)
@@ -548,6 +549,8 @@ bool allDone = true;
 			}
 		}
 	}
+	// Remove any registrations that are no longer listening
+	processAssetRefusals();
 }
 
 
@@ -568,7 +571,21 @@ StorageRegistry::sendPayload(const string& url, const char *payload)
 	try {
 		client.request("POST", resource, payload);
 	} catch (const exception& e) {
-		Logger::getLogger()->error("sendPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
+		string why = e.what();
+		if (why.compare("Connection refused") == 0)
+		{
+			// The registered service is no longer listening
+			// Log this for potential removal if the issue persists
+			auto it = m_refusals.find(url);
+			if (it != m_refusals.end())
+				m_refusals[url]++;
+			else
+				m_refusals[url] = 1;
+		}
+		else
+		{
+			Logger::getLogger()->error("sendPayload: exception %s sending reading data to interested party %s", why.c_str(), url.c_str());
+		}
 	}
 }
 
@@ -647,7 +664,21 @@ ostringstream convert;
 	try {
 		client.request("POST", resource, convert.str());
 	} catch (const exception& e) {
-		Logger::getLogger()->error("filterPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
+		string why = e.what();
+		if (why.compare("Connection refused") == 0)
+		{
+			// The registered sewrvice is no longer listening
+			// Log this for potential removal if the issue persists
+			auto it = m_refusals.find(url);
+			if (it != m_refusals.end())
+				m_refusals[url]++;
+			else
+				m_refusals[url] = 1;
+		}
+		else
+		{
+			Logger::getLogger()->error("filterPayload: exception %s sending reading data to interested party %s", why.c_str(), url.c_str());
+		}
 	}
 }
 
@@ -729,6 +760,7 @@ StorageRegistry::processInsert(char *tableName, char *payload)
 			}
 		}
 	}
+	processTableRefusals();
 }
 
 /**
@@ -931,6 +963,92 @@ StorageRegistry::processDelete(char *tableName, char *payload)
 			}
 		}
 	}
+}
+
+/**
+ * Unregister a registration of interest in assets after a number of refusals.
+ * Called holding the m_registrationsMutex
+ *
+ * A certian number of refused connections is tolerated to allow for
+ * transient faults.
+ */
+void StorageRegistry::processAssetRefusals()
+{
+REGISTRY newRegistry;
+
+	if (m_refusals.empty())
+	{
+		return;
+	}
+	for (auto& item : m_registrations)
+	{
+		string url = *item.second;
+		auto refusal = m_refusals.find(url);
+		if (refusal != m_refusals.end())
+		{
+			int cnt = m_refusals[url];
+			if (cnt < MAX_REFUSALS)
+			{
+				newRegistry.push_back(item);
+			}
+			else
+			{
+				Logger::getLogger()->info("Removing registration for %s with URL %s. Service has probably failed", item.first->c_str(), url);
+				m_refusals.erase(refusal);
+				delete item.first;
+				delete item.second;
+			}
+		}
+		else
+		{
+			newRegistry.push_back(item);
+		}
+	}
+	m_registrations.clear();
+	m_registrations = newRegistry;
+}
+
+/**
+ * Unregister a registration for interest in tables after a number of refusals.
+ * Called holding the m_tableRegistrationsMutex
+ *
+ * A certian number of refused connections is tolerated to allow for
+ * transient faults.
+ */
+void StorageRegistry::processTableRefusals()
+{
+REGISTRY_TABLE newRegistry;
+
+	if (m_refusals.empty())
+	{
+		return;
+	}
+	for (auto& item : m_tableRegistrations)
+	{
+		string url = item.second->url;
+		auto refusal = m_refusals.find(url);
+		if (refusal != m_refusals.end())
+		{
+			int cnt = m_refusals[url];
+			if (cnt < MAX_REFUSALS)
+			{
+				newRegistry.push_back(item);
+			}
+			else
+			{
+				Logger::getLogger()->info("Removing registration for table %s with URL %s. Service has probably failed", item.first->c_str(), url);
+				m_refusals.erase(refusal);
+				delete item.first;
+				delete item.second;
+			}
+		}
+		else
+		{
+			newRegistry.push_back(item);
+		}
+	}
+	m_tableRegistrations.clear();
+	m_tableRegistrations = newRegistry;
 }
 
 /**

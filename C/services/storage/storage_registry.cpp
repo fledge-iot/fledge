@@ -969,7 +969,7 @@ StorageRegistry::processDelete(char *tableName, char *payload)
  * Unregister a registration of interest in assets after a number of refusals.
  * Called holding the m_registrationsMutex
  *
- * A certian number of refused connections is tolerated to allow for
+ * A certain number of refused connections is tolerated to allow for
  * transient faults.
  */
 void StorageRegistry::processAssetRefusals()
@@ -1012,7 +1012,7 @@ REGISTRY newRegistry;
  * Unregister a registration for interest in tables after a number of refusals.
  * Called holding the m_tableRegistrationsMutex
  *
- * A certian number of refused connections is tolerated to allow for
+ * A certain number of refused connections is tolerated to allow for
  * transient faults.
  */
 void StorageRegistry::processTableRefusals()

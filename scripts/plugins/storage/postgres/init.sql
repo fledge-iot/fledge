@@ -982,11 +982,10 @@ INSERT INTO fledge.roles ( name, description )
 
 -- Users
 DELETE FROM fledge.users;
-INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
-     VALUES ('admin', 'Admin user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 1, 'admin user'),
-            ('user', 'Normal user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 2, 'normal user');
 INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description, access_method)
-     VALUES ('systemctl', 'Systemctl user', '', 6, 'User used by the systemctl scripts', 'cert');
+     VALUES ('admin', 'Admin user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 1, 'admin user', 'any'),
+            ('user', 'Normal user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 2, 'normal user', 'any'),
+            ('systemctl', 'Systemctl user', '', 6, 'User used by the systemctl scripts', 'cert');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;

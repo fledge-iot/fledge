@@ -607,7 +607,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_reset_user_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -617,7 +617,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<5> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<6> has been updated successfully.'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
@@ -955,7 +955,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_login_with_resetted_password(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1240,7 +1240,7 @@ class TestAuthCertificateWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1713,7 +1713,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_reset_user_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1723,7 +1723,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<5> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<6> has been updated successfully.'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
@@ -2061,7 +2061,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_login_with_resetted_password(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2353,7 +2353,7 @@ class TestAuthCertificateWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_delete_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)

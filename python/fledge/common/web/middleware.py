@@ -200,6 +200,10 @@ async def validate_requests(request):
            - same as normal user can do
            - All CRUD's privileges for control scripts
            - All CRUD's privileges for control pipelines
+        e) With "systemctl" based user role id = 6 only
+           - login and log out
+           - ping, health, audit, service, profile (GET call)
+           - shutdown (PUT call)
     """
     user_id = request.user['id']
     # Only URL's which are specific meant for Admin user
@@ -207,6 +211,15 @@ async def validate_requests(request):
         # Special case: Allowed GET user for Control user
         if int(request.user["role_id"]) != 5 and str(request.rel_url) == '/fledge/user':
             raise web.HTTPForbidden
+    # Admin restrictions
+    if int(request.user["role_id"]) == 1:
+        # Admin cannot delete and update the systemctl user (userid = 3)
+        if request.method == 'DELETE':
+            if str(request.rel_url).startswith('/fledge/admin/3/delete'):
+                raise web.HTTPForbidden
+        elif request.method == 'PUT':
+            if str(request.rel_url).startswith('/fledge/admin/3'):
+                raise web.HTTPForbidden
     # Normal/Editor user
     if int(request.user["role_id"]) == 2 and request.method != 'GET':
         # Special case: Allowed control entrypoint update request and handling of rejection in its handler
@@ -237,7 +250,23 @@ async def validate_requests(request):
                 raise web.HTTPForbidden
         else:
             raise web.HTTPForbidden
-
+    # Systemctl user
+    elif int(request.user["role_id"]) == 6:
+        if request.method == 'GET':
+            supported_endpoints = ['/fledge/ping', '/fledge/health/logging', '/fledge/health/storage',
+                                   '/fledge/user?id=3', '/fledge/audit?source=SRVFL']
+            if not (str(request.rel_url).startswith(tuple(supported_endpoints)) or
+                    str(request.rel_url).endswith('/fledge/service')):
+                raise web.HTTPForbidden
+        elif request.method == 'PUT':
+            supported_endpoints = ['/fledge/shutdown', '/logout']
+            if not str(request.rel_url).endswith(tuple(supported_endpoints)):
+                raise web.HTTPForbidden
+        elif request.method == 'post':
+            if not str(request.rel_url).startswith('fledge/login'):
+                raise web.HTTPForbidden
+        else:
+            raise web.HTTPForbidden
 
 def check_firewall(req: web.Request) -> None:
     # FIXME: Need to check on other environments like AWS, docker; May be ideal with socket

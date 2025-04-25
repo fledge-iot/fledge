@@ -181,7 +181,7 @@ fledge_reset() {
     find "$FLEDGE_DATA/etc/kerberos" -depth -type f -not -name "README.rst" -exec rm {} \;
   fi
   # Remove user etc/certs: extras, with exclusions
-  find "$FLEDGE_DATA/etc/certs" -depth -type f -not -name user.* -not -name fledge.* -not -name ca.* -not -name admin.* -exec rm {} \;
+  find "$FLEDGE_DATA/etc/certs" -depth -type f -not -name user.* -not -name fledge.* -not -name ca.* -not -name admin.* -not -name systemctl.* -exec rm {} \;
   # Remove user etc/ files: extras, with one exclusion
   find "$FLEDGE_DATA/etc/" -maxdepth 1 -type f -not -name storage.json -exec rm {} \;
   echo "Removed user data from $FLEDGE_DATA/etc"

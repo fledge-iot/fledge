@@ -110,13 +110,13 @@ class TestAPIEndpointsWithViewUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=3", 200), ("GET", "/fledge/user?id=2", 403),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=4", 200), ("GET", "/fledge/user?id=2", 403),
         ("GET", "/fledge/user?username={}".format(VIEW_USERNAME), 200),
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 403),
-        ("GET", "/fledge/user?id={}&username={}".format(3, VIEW_USERNAME), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(4, VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 4), 200),
         ("GET", "/fledge/user?username=admin&id=1", 403),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/3/password", 500),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
@@ -280,12 +280,12 @@ class TestAPIEndpointsWithDataViewUserType:
         # health
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
-        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=4", 200), ("GET", "/fledge/user?id=1", 403),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=5", 200), ("GET", "/fledge/user?id=1", 403),
         ("GET", "/fledge/user?username={}".format(DATA_VIEW_USERNAME), 200), ("GET", "/fledge/user?username=user", 403),
-        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(5, DATA_VIEW_USERNAME), 200),
         ("GET", "/fledge/user?id=1&username=admin", 403),
-        ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 4), 200),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
+        ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 5), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/5/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
@@ -448,13 +448,13 @@ class TestAPIEndpointsWithControlUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=5", 200), ("GET", "/fledge/user?id=1", 200),
+        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=6", 200), ("GET", "/fledge/user?id=1", 200),
         ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 200), ("GET", "/fledge/user?username=admin", 200),
-        ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),
-        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
-        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
-        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/5/password", 500),
+        ("GET", "/fledge/user?id={}&username={}".format(6, CONTROL_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 6), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 4), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(5, DATA_VIEW_USERNAME), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/6/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),
@@ -581,6 +581,176 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/service/name/debug?action=buffer", 404),
         ("PUT", "/fledge/service/name/debug?action=buffer", 404),
         ("PUT", "/fledge/service/{name}/debug?action=attach", 404)
+    ])
+    def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request(method, route_path, headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert http_status_code == r.status
+        r.read().decode()
+
+    def test_logout_me(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("PUT", '/fledge/logout', headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert jdoc['logout']
+
+class TestAPIEndpointsWithSystemctlUserType:
+    def test_login(self, fledge_url, wait_time):
+        import os
+        time.sleep(wait_time * 2)
+        conn = http.client.HTTPConnection(fledge_url)
+        cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/systemctl.cert')
+        with open(cert_file_path, 'r') as f:
+            conn.request("POST", "/fledge/login", body=f)
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert "Logged in successfully." == jdoc['message']
+            assert "token" in jdoc
+            assert not jdoc['admin']
+            global TOKEN
+            TOKEN = jdoc["token"]
+
+    @pytest.mark.parametrize(("method", "route_path", "http_status_code"), [
+        # common
+        ("GET", "/fledge/ping", 200),  # ("PUT", "/fledge/shutdown", 200),
+        # health
+        ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
+        # user & roles
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=3", 200), ("GET", "/fledge/user?id=1", 403),
+        ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 403), ("GET", "/fledge/user?username=admin", 403),
+        ("GET", "/fledge/user?id={}&username={}".format(6, CONTROL_USERNAME), 403),
+        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 6), 403),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 4), 403),
+        ("GET", "/fledge/user?id={}&username={}".format(5, DATA_VIEW_USERNAME), 403),
+        ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/6/password", 403),
+        ("GET", "/fledge/user/role", 403),
+        # auth
+        ("GET", "/fledge/auth/ott", 403), # login and logout tests separately
+        # admin
+        ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
+        ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
+        # category
+        ("GET", "/fledge/category", 403), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 403),
+        ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
+        ("POST", "/fledge/category/General/children", 403), ("GET", "/fledge/category/General/children", 403),
+        ("DELETE", "/fledge/category/General/children/Advanced", 403),
+        ("DELETE", "/fledge/category/General/parent", 403),
+        ("GET", "/fledge/category/rest_api/allowPing", 403), ("PUT", "/fledge/category/rest_api/allowPing", 403),
+        ("DELETE", "/fledge/category/rest_api/allowPing/value", 403),
+        ("POST", "/fledge/category/rest_api/allowPing/upload", 403),
+        # schedule processes & schedules
+        ("GET", "/fledge/schedule/process", 403), ("POST", "/fledge/schedule/process", 403),
+        ("GET", "/fledge/schedule/process/purge", 403),
+        ("GET", "/fledge/schedule", 403), ("POST", "/fledge/schedule", 403), ("GET", "/fledge/schedule/type", 403),
+        ("GET", "/fledge/schedule/2176eb68-7303-11e7-8cf7-a6006ad3dba0", 403),
+        ("PUT", "/fledge/schedule/2176eb68-7303-11e7-8cf7-a6006ad3dba0/enable", 403),
+        ("PUT", "/fledge/schedule/2176eb68-7303-11e7-8cf7-a6006ad3dba0/disable", 403),
+        ("PUT", "/fledge/schedule/enable", 403), ("PUT", "/fledge/schedule/disable", 403),
+        ("POST", "/fledge/schedule/start/2176eb68-7303-11e7-8cf7-a6006ad3dba0", 403),
+        ("PUT", "/fledge/schedule/2176eb68-7303-11e7-8cf7-a6006ad3dba0", 403),
+        ("DELETE", "/fledge/schedule/d1631422-9ec6-11e7-abc4-cec278b6b50a", 403),
+        # tasks
+        ("GET", "/fledge/task", 403), ("GET", "/fledge/task/state", 403), ("GET", "/fledge/task/latest", 403),
+        ("GET", "/fledge/task/123", 403), ("PUT", "/fledge/task/123/cancel", 403),
+        ("POST", "/fledge/scheduled/task", 403), ("DELETE", "/fledge/scheduled/task/blah", 403),
+        # service
+        ("POST", "/fledge/service", 403), ("GET", "/fledge/service", 200), ("DELETE", "/fledge/service/blah", 403),
+        # ("GET", "/fledge/service/available", 200), -- checked manually and commented out only to avoid apt-update
+        ("GET", "/fledge/service/installed", 403),
+        ("PUT", "/fledge/service/Southbound/blah/update", 403), ("POST", "/fledge/service/blah/otp", 403),
+        # south & north
+        ("GET", "/fledge/south", 403), ("GET", "/fledge/north", 403),
+        # asset browse
+        ("GET", "/fledge/asset", 403), ("GET", "/fledge/asset/sinusoid", 403),
+        ("GET", "/fledge/asset/sinusoid/latest", 403),
+        ("GET", "/fledge/asset/sinusoid/summary", 403), ("GET", "/fledge/asset/sinusoid/sinusoid", 403),
+        ("GET", "/fledge/asset/sinusoid/sinusoid/summary", 403), ("GET", "/fledge/asset/sinusoid/sinusoid/series", 403),
+        ("GET", "/fledge/asset/sinusoid/bucket/1", 403), ("GET", "/fledge/asset/sinusoid/sinusoid/bucket/1", 403),
+        ("GET", "/fledge/structure/asset", 403), ("DELETE", "/fledge/asset", 403),
+        ("DELETE", "/fledge/asset/sinusoid", 403),
+        # asset tracker
+        ("GET", "/fledge/track", 403), ("GET", "/fledge/track/storage/assets", 403),
+        ("PUT", "/fledge/track/service/foo/asset/bar/event/Ingest", 403),
+        # statistics
+        ("GET", "/fledge/statistics", 403), ("GET", "/fledge/statistics/history", 403),
+        ("GET", "/fledge/statistics/rate?periods=1&statistics=FOO", 403),
+        # audit trail
+        ("POST", "/fledge/audit", 403), ("GET", "/fledge/audit", 403), ("GET", "/fledge/audit?source=SRVFL", 200),
+        ("GET", "/fledge/audit/logcode", 403), ("GET", "/fledge/audit/severity", 403),
+        # backup & restore
+        ("GET", "/fledge/backup", 403), ("POST", "/fledge/backup", 403),
+        ("POST", "/fledge/backup/upload", 403),
+        ("GET", "/fledge/backup/status", 403), ("GET", "/fledge/backup/123", 403),
+        ("DELETE", "/fledge/backup/123", 403), ("GET", "/fledge/backup/123/download", 403),
+        ("PUT", "/fledge/backup/123/restore", 403),
+        # package update
+        ("GET", "/fledge/update", 403), ("PUT", "/fledge/update", 403),
+        # certs store
+        ("GET", "/fledge/certificate", 403), ("POST", "/fledge/certificate", 403),
+        ("DELETE", "/fledge/certificate/user", 403),
+        # support bundle
+        ("GET", "/fledge/support", 403), ("GET", "/fledge/support/foo", 403), ("POST", "/fledge/support", 403),
+        # syslogs & package logs
+        ("GET", "/fledge/syslog", 403), ("GET", "/fledge/package/log", 403), ("GET", "/fledge/package/log/foo", 403),
+        ("GET", "/fledge/package/install/status", 403),
+        # plugins
+        ("GET", "/fledge/plugins/installed", 403), ("GET", "/fledge/plugins/available", 403),
+        ("PUT", "/fledge/plugins/south/sinusoid/update", 403), ("DELETE", "/fledge/plugins/south/sinusoid", 403),
+        ("POST", "/fledge/plugins", 403), ("GET", "/fledge/service/foo/persist", 403),
+        ("GET", "/fledge/service/foo/plugin/omf/data", 403), ("POST", "/fledge/service/foo/plugin/omf/data", 403),
+        ("DELETE", "/fledge/service/foo/plugin/omf/data", 403),
+        # filters
+        ("POST", "/fledge/filter", 403), ("PUT", "/fledge/filter/foo/pipeline", 403),
+        ("GET", "/fledge/filter/foo/pipeline", 403), ("GET", "/fledge/filter/bar", 403), ("GET", "/fledge/filter", 403),
+        ("DELETE", "/fledge/filter/foo/pipeline", 403), ("DELETE", "/fledge/filter/bar", 403),
+        # snapshots
+        ("GET", "/fledge/snapshot/plugins", 403), ("POST", "/fledge/snapshot/plugins", 403),
+        ("PUT", "/fledge/snapshot/plugins/1", 403), ("DELETE", "/fledge/snapshot/plugins/1", 403),
+        ("GET", "/fledge/snapshot/category", 403), ("POST", "/fledge/snapshot/category", 403),
+        ("PUT", "/fledge/snapshot/category/1", 403), ("DELETE", "/fledge/snapshot/category/1", 403),
+        ("GET", "/fledge/snapshot/schedule", 403), ("POST", "/fledge/snapshot/schedule", 403),
+        ("PUT", "/fledge/snapshot/schedule/1", 403), ("DELETE", "/fledge/snapshot/schedule/1", 403),
+        # repository
+        ("POST", "/fledge/repository", 403),
+        # ACL
+        ("POST", "/fledge/ACL", 403), ("GET", "/fledge/ACL", 403), ("GET", "/fledge/ACL/foo", 403),
+        ("PUT", "/fledge/ACL/foo", 403), ("DELETE", "/fledge/ACL/foo", 403), ("PUT", "/fledge/service/foo/ACL", 403),
+        ("DELETE", "/fledge/service/foo/ACL", 403),
+        # control script
+        ("POST", "/fledge/control/script", 403), ("GET", "/fledge/control/script", 403),
+        ("GET", "/fledge/control/script/foo", 403), ("PUT", "/fledge/control/script/foo", 403),
+        ("DELETE", "/fledge/control/script/foo", 403), ("POST", "/fledge/control/script/foo/schedule", 403),
+        # control pipeline
+        ("POST", "/fledge/control/pipeline", 403), ("GET", "/fledge/control/lookup", 403),
+        ("GET", "/fledge/control/pipeline", 403), ("GET", "/fledge/control/pipeline/1", 403),
+        ("PUT", "/fledge/control/pipeline/1", 403), ("DELETE", "/fledge/control/pipeline/1", 403),
+        # python packages
+        ("GET", "/fledge/python/packages", 403), ("POST", "/fledge/python/package", 403),
+        # notification
+        ("GET", "/fledge/notification", 403), ("GET", "/fledge/notification/plugin", 403),
+        ("GET", "/fledge/notification/type", 403), ("GET", "/fledge/notification/N1", 403),
+        ("POST", "/fledge/notification", 403), ("PUT", "/fledge/notification/N1", 403),
+        ("DELETE", "/fledge/notification/N1", 403), ("GET", "/fledge/notification/N1/delivery", 403),
+        ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 403),
+        ("DELETE", "/fledge/notification/N1/delivery/C1", 403),
+        # performance monitors
+        ("GET", "/fledge/monitors", 403), ("GET", "/fledge/monitors/SVC", 403),
+        ("GET", "/fledge/monitors/Svc/Counter", 403), ("DELETE", "/fledge/monitors", 403),
+        ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
+        # alerts
+        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 403),
+        ("GET", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/{name}/debug?action=attach", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)

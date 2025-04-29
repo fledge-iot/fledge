@@ -29,12 +29,26 @@ inline long getCurrTimeUsec()
 	return m_timestamp.tv_usec;
 }
 
+/**
+ * The singleton pointer
+ */
 Logger *Logger::instance = 0;
 
-Logger::Logger(const string& application) : m_running(true)
+/**
+ * Constructor for the Logger class.
+ *
+ * @param application	The application name
+ */
+Logger::Logger(const string& application) : m_runWorker(true), m_workerThread(NULL)
 {
 static char ident[80];
 
+	if (instance)
+	{
+		// Prevent two instances of a logger class
+		instance->error("An attempt is beign made to create a second logger class");
+		throw runtime_error("A singleton logger instance has already been created");
+	}
 	/* Prepend "Fledge " in all cases other than Fledge itself and Fledge Storage.
 	 */
 	if (application.compare("Fledge") != 0 && application.compare("Fledge Storage") != 0)
@@ -48,32 +62,52 @@ static char ident[80];
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
 	m_level = LOG_WARNING;
-	m_workerThread = std::thread(&Logger::workerThread, this);
 }
 
+/**
+ * Destructor for the logger class.
+ */
 Logger::~Logger()
 {
-	m_running = false;
-	m_condition.notify_one();
-	if (m_workerThread.joinable())
-	{
-		m_workerThread.join();
-	}
-
-	closelog();
 	// Stop the getLogger() call returning a deleted instance
 	if (instance == this)
 		instance = NULL;
+	else if (!instance)
+		return;	// Already destroyed
+	m_condition.notify_one();
+	if (m_workerThread && m_workerThread->joinable())
+	{
+		m_runWorker = false;
+		m_workerThread->join();
+		m_workerThread = NULL;
+	}
+
+	closelog();
 }
 
+/**
+ * Return the singleton instance of the logger class.
+ */
 Logger *Logger::getLogger()
 {
 	if (!instance)
-		instance = new Logger("fledge");
+	{
+		// Any service should have already created the logger
+		// for the service. If not then create the deault logger
+		// and clearly identify this. We should ideally avoid
+		// the use of a default as this will not identify the
+		// source of the log message.
+		instance = new Logger("fledge (default)");
+	}
 
 	return instance;
 }
 
+/**
+ * Set the minimum level of logging to write to syslog.
+ *
+ * @param level	The minimum, inclusive, level of logging to write
+ */
 void Logger::setMinLevel(const string& level)
 {
 	if (level.compare("info") == 0)
@@ -102,6 +136,20 @@ void Logger::setMinLevel(const string& level)
 	}
 }
 
+/**
+ * Register a callback function to be called when
+ * a log message is written that matches the secification
+ * given.
+ *
+ * Note: The callback functions are called on a seperate thread.
+ * This worker thread is only created when the first callback is
+ * registered.
+ *
+ * @param level		The level that must be matched
+ * @param callback	The funtion to be called
+ * @param userData	User date to pass to the callback function
+ * @return bool		Return true if the callback was registered
+ */
 bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* userData)
 {
 	// Do not register the interceptor if callback function is null
@@ -111,6 +159,10 @@ bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* 
 	}
 
 	std::lock_guard<std::mutex> lock(m_interceptorMapMutex);
+	if (m_workerThread == NULL)
+	{
+		m_workerThread = new std::thread(&Logger::workerThread, this);
+	}
 	auto it = m_interceptors.emplace(level, InterceptorData{callback, userData});
 	if (it != m_interceptors.end())
 	{
@@ -119,6 +171,13 @@ bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* 
 	return false;
 }
 
+/**
+ * Remove the registration of a previosuly registered callback
+ *
+ * @param level		The matching log loevel for the callback
+ * @param callback	The callback to unregister
+ * @return bool		True if the callback was unregistered.
+ */
 bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 {
 	std::lock_guard<mutex> lock(m_interceptorMapMutex);
@@ -134,6 +193,13 @@ bool Logger::unregisterInterceptor(LogLevel level, LogInterceptor callback)
 	return false;
 }
 
+/**
+ * Queue the execution of a callback when a log message is received
+ * that matches a registered callback
+ *
+ * @param level		The log level
+ * @param message	The log message
+ */
 void Logger::executeInterceptor(LogLevel level, const std::string& message)
 {
 	std::lock_guard<mutex> lock(m_interceptorMapMutex);
@@ -146,16 +212,20 @@ void Logger::executeInterceptor(LogLevel level, const std::string& message)
 	m_condition.notify_one();
 }
 
+/**
+ * The worker thread that processes intercepted log messages and
+ * calls the callback function to handle them
+ */
 void Logger::workerThread()
 {
-	while (m_running)
+	while (m_runWorker)
 	{
 		std::unique_lock<mutex> lock(m_queueMutex);
-		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_running; });
+		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_runWorker; });
 
 		while (!m_taskQueue.empty())
 		{
-			if(!m_running) //Exit immediately during shutdown
+			if(!m_runWorker) //Exit immediately during shutdown
 			{
 				return;
 			}
@@ -174,7 +244,12 @@ void Logger::workerThread()
 	}
 }
 
-
+/**
+ * Log a message at the level debug
+ *
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
 void Logger::debug(const string& msg, ...)
 {
 	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
@@ -193,15 +268,48 @@ void Logger::debug(const string& msg, ...)
 	va_end(args);
 }
 
-void Logger::printLongString(const string& s)
+/**
+ * Log a long string across multiple syslog entries
+ *
+ * @param s	The string to log
+ * @param level	level to log the string at
+ */
+void Logger::printLongString(const string& s, LogLevel level)
 {
 	const int charsPerLine = 950;
 	int len = s.size();
 	const char *cstr = s.c_str();
-	for(int i=0; i<(len+charsPerLine-1)/charsPerLine; i++)
-		Logger::getLogger()->debug("%s:%d: cstr[%d]=%s", __FUNCTION__, __LINE__, i*charsPerLine, cstr+i*charsPerLine);
+	for (int i=0; i<(len+charsPerLine-1)/charsPerLine; i++)
+	{
+		switch (level)
+		{
+			case LogLevel::FATAL:
+				this->fatal("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				break;
+			case LogLevel::ERROR:
+				this->error("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				break;
+			case LogLevel::WARNING:
+				this->warn("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				break;
+			case LogLevel::INFO:
+				this->info("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				break;
+			case LogLevel::DEBUG:
+			default:
+				this->debug("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				break;
+		}
+	}
 }
 
+
+/**
+ * Log a message at the level info
+ *
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
 void Logger::info(const string& msg, ...)
 {
 	if (m_level == LOG_ERR || m_level == LOG_WARNING)
@@ -224,6 +332,13 @@ void Logger::info(const string& msg, ...)
 	va_end(args);
 }
 
+
+/**
+ * Log a message at the level warn
+ *
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
 void Logger::warn(const string& msg, ...)
 {
 	va_list args;
@@ -238,6 +353,13 @@ void Logger::warn(const string& msg, ...)
 	va_end(args);
 }
 
+
+/**
+ * Log a message at the level error
+ *
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
 void Logger::error(const string& msg, ...)
 {
 	va_list args;
@@ -256,6 +378,13 @@ void Logger::error(const string& msg, ...)
 	va_end(args);
 }
 
+
+/**
+ * Log a message at the level fatal
+ *
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
 void Logger::fatal(const string& msg, ...)
 {
 	va_list args;
@@ -270,6 +399,13 @@ void Logger::fatal(const string& msg, ...)
 	va_end(args);
 }
 
+/**
+ * Apply the formatting to the error message
+ * 
+ * @param format	The printf format string
+ * @param args		The printf argument list
+ * @return string	The formatted string
+ */
 string *Logger::format( const std::string& format, va_list args)
 {
 char	buf[1000];

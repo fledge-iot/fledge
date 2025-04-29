@@ -45,9 +45,8 @@ static char ident[80];
 
 	if (instance)
 	{
-		// Prevent two instances of a logger class
-		instance->error("An attempt is beign made to create a second logger class");
-		throw runtime_error("A singleton logger instance has already been created");
+		instance->error("Attempt to create second singleton instance, original application name %s, current attempt made by %s", ident, application.c_str());
+		throw runtime_error("Attempt to create secnd Logger instance");
 	}
 	/* Prepend "Fledge " in all cases other than Fledge itself and Fledge Storage.
 	 */
@@ -98,7 +97,7 @@ Logger *Logger::getLogger()
 		// and clearly identify this. We should ideally avoid
 		// the use of a default as this will not identify the
 		// source of the log message.
-		instance = new Logger("fledge (default)");
+		instance = new Logger("(default)");
 	}
 
 	return instance;

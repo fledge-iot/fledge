@@ -79,6 +79,7 @@ Logger::~Logger()
 	{
 		m_runWorker = false;
 		m_workerThread->join();
+		delete m_workerThread;
 		m_workerThread = NULL;
 	}
 

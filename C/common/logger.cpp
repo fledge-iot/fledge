@@ -284,20 +284,35 @@ void Logger::printLongString(const string& s, LogLevel level)
 		switch (level)
 		{
 			case LogLevel::FATAL:
-				this->fatal("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				this->fatal("%.*s%s",
+						charsPerLine,
+						cstr+i*charsPerLine,
+						len - i > charsPerLine ? "..." : "");
 				break;
 			case LogLevel::ERROR:
-				this->error("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				this->error("%.*s%s",
+						charsPerLine,
+						cstr+i*charsPerLine,
+						len - i > charsPerLine ? "..." : "");
 				break;
 			case LogLevel::WARNING:
-				this->warn("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				this->warn("%.*s%s",
+						charsPerLine,
+						cstr+i*charsPerLine,
+						len - i > charsPerLine ? "..." : "");
 				break;
 			case LogLevel::INFO:
-				this->info("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				this->info("%.*s%s",
+						charsPerLine,
+						cstr+i*charsPerLine,
+						len - i > charsPerLine ? "..." : "");
 				break;
 			case LogLevel::DEBUG:
 			default:
-				this->debug("%s%s", cstr+i*charsPerLine, len - i > charsPerLine ? "..." : "");
+				this->debug("%.*s%s",
+						charsPerLine,
+						cstr+i*charsPerLine,
+						len - i > charsPerLine ? "..." : "");
 				break;
 		}
 	}

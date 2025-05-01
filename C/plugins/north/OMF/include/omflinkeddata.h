@@ -57,6 +57,11 @@ class OMFLinkedData
 					m_doubleFormat = doubleFormat;
 					m_integerFormat = integerFormat;
 				};
+		void		setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
+				{
+					m_staticData = staticData;
+				};
+
 	private:
 		std::string	getBaseType(Datapoint *dp, const std::string& format);
 		void		sendContainer(std::string& link, Datapoint *dp, OMFHints * hints, const std::string& baseType);
@@ -89,6 +94,11 @@ class OMFLinkedData
 		 * The endpoint to which we are sending data
 		 */
 		OMF_ENDPOINT				m_endpoint;
+
+		/**
+		 * Static data to send to OMF
+		 */
+		std::vector<std::pair<std::string, std::string>> *m_staticData;
 
 
 		/**

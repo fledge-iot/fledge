@@ -125,8 +125,18 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 		// Send the data message to create the asset instance
 		payload.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
 		payload.append(assetName + "\",\"Name\":\"");
-            	payload.append(assetName + "\"");
-         	payload.append("} ] }");
+		payload.append(assetName + "\"");
+
+		for (std::pair<std::string, std::string> &sData : *m_staticData)
+		{
+			payload.append(",\"");
+			payload.append(sData.first);
+			payload.append("\":\"");
+			payload.append(sData.second);
+			payload.append('\"');
+		}
+
+		payload.append("} ] }");
 		rval = true;
 		needDelim = true;
 		assetLookup->second.assetSent(assetName);

@@ -14,6 +14,7 @@
 .. |OMF_Default| image:: images/OMF_Default.jpg
 .. |OMF_Format| image:: images/OMF_Format.jpg
 .. |OMF_Endpoints| image:: images/OMF_Endpoints.jpg
+.. |OMF_StaticData| image:: images/OMF_StaticData.jpg
 .. |ADH_Regions| image:: images/ADH_Regions.jpg
 
 .. Links
@@ -149,7 +150,9 @@ The *Basic* tab contains the most commonly modified items
      
     - *statistics* - Fledge's internal statistics.
 
-  - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+  - **Static Data**: Data to include in every Container created by OMF.
+    For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+    See the :ref:`Static Data` section.
 
   - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
     The default delimiter is a dot (".").
@@ -817,6 +820,47 @@ Further Troubleshooting
 If you are unable to locate your problematic PI Points using the PI System Explorer, or if there are simply too many of them, there are advanced techniques available to troubleshoot
 and repair your system.
 Contact Technical Support for assistance.
+
+.. _Static Data:
+
+Static Data
+-----------
+
+This feature allows you specify static string values that will be included in OMF Containers created by OMF North.
+Containers appear in the target AF Database as AF Elements that own AF Attributes which are mapped to PI Points.
+For example, this AF Element named *Calvin2* has two AF Attributes that map PI Points: *random* and *random2*.
+The AF Element also has three static data values named *Company*, *Domain* and *Location*:
+
++------------------+
+| |OMF_StaticData| |
++------------------+
+
+Static Data values are always strings.
+Static Data values are set when a Container is created.
+OMF North cannot change the values later.
+This means that if you change the Static Data values when you edit your configuration with the Fledge GUI, your change will apply only to new Containers.
+
+Static Data values are included in AF Templates which are then used by OMF to create Containers.
+The design of the AF Templates depends on whether Linked Types or Complex Types are configured:
+
+Linked Types
+~~~~~~~~~~~~
+
+OMF creates a single AF Template called *FledgeAsset*.
+Besides the essential *id*, *index* and *name* OMF attributes, the *FledgeAsset* template has attributes defined by your Static Data properties configuration.
+The first OMF North instance to start will create the *FledgeAsset* AF Template.
+Any subsequent OMF North instance that starts will not detect an error but the *FledgeAsset* template will remain unchanged.
+The best practice is to decide early which Static Data properties should be added to all OMF North configurations.
+Each OMF North configuration can have its own values for these Static Data properties.
+Each OMF North instance will assign its own Static Data values to the Containers it creates.
+
+Complex Types
+~~~~~~~~~~~~~
+
+OMF creates multiple AF Templates, one per asset.
+These AF Templates own the Static Data properties and have names that end in "...\ *assetname*\ _typename_sensor."
+Each template is used to create a Container for one asset.
+Because of this, the risk of overlapping definitions is lower.
 
 .. _Linked_Types:
 

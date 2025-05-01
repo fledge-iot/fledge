@@ -227,7 +227,7 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 	size_t start = 0;
 	do {
 		pos = staticData.find(",", start);
-		string item = staticData.substr(start, pos);
+		string item = staticData.substr(start, pos - start);
 		start = pos + 1;
 		size_t pos2 = 0;
 		if ((pos2 = item.find(":")) != string::npos)
@@ -238,8 +238,11 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 			string value = item.substr(pos2 + 1);
 			while (value[0] == ' ')
 				value = value.substr(1);
-			pair<string, string> sData = make_pair(name, value);
-			m_staticData.push_back(sData);
+			if (!name.empty() && !value.empty())
+			{
+				pair<string, string> sData = make_pair(name, value);
+				m_staticData.push_back(sData);
+			}
 		}
 	} while (pos != string::npos);
 

@@ -1375,7 +1375,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	if (m_linkedProperties && m_baseTypesSent == false)
 	{
-		if (!sendBaseTypes())
+		if (!sendBaseTypes() || !sendFledgeAssetType())
 		{
 			if (!m_connected || !m_PIstable)
 			{
@@ -1390,6 +1390,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			m_baseTypesSent = true;
 		}
 	}
+
 	// TODO We do not need the superset stuff if we are using linked data types,
 	// this would save us iterating over the data an extra time and reduce our
 	// memory footprint
@@ -1436,6 +1437,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	linkedData.setSendFullStructure(m_sendFullStructure);
 	linkedData.setDelimiter(m_delimiter);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
+	linkedData.setStaticData(m_staticData);
 
 	// Create the lookup data for this block of readings
 	linkedData.buildLookup(readings);
@@ -5286,6 +5288,83 @@ bool OMF::sendBaseTypes()
 	}
 	Logger::getLogger()->debug("Base types successfully sent");
 	return true;
+}
+
+/**
+ * Create the FledgeAsset OMF Type which will define an AF Template.
+ * The AF Template will be used to create AF Elements to represent Containers for Linked Types.
+ *
+ * @return true If the FledgeAsset Type was sent correctly
+ */
+bool OMF::sendFledgeAssetType()
+{
+	OMFBuffer writer;
+
+	writer.append('[');
+	writer.append('{');
+
+	writer.append("\"id\":\"FledgeAsset\",");
+	writer.append("\"type\":\"object\",");
+	writer.append("\"classification\":\"static\",");
+
+	writer.append("\"properties\":{");
+
+	writer.append("\"AssetId\":{");
+	writer.append("\"type\":\"string\",");
+	writer.append("\"isindex\":true");
+	writer.append("},");
+
+	for (std::pair<std::string, std::string> &sData : *m_staticData)
+	{
+		writer.append('\"');
+		writer.append(sData.first);
+		writer.append("\":{");
+		writer.append("\"type\":\"string\"");
+		writer.append("},");
+	}
+
+	writer.append("\"Name\":{");
+	writer.append("\"type\":\"string\",");
+	writer.append("\"isname\":true");
+	writer.append('}');
+
+	writer.append('}');
+	writer.append('}');
+	writer.append(']');
+
+	const char *payload = writer.coalesce();
+	Logger::getLogger()->debug("%s: %s", __FUNCTION__, payload);
+
+	bool retCode = false;
+	try
+	{
+		vector<pair<string, string>> resType = OMF::createMessageHeader("Type");
+		int res = m_sender.sendRequest("POST",
+					   m_path,
+					   resType,
+					   payload);
+					   
+		Logger::getLogger()->info((res == 201) ? "Created FledgeAsset Type" : "Confirmed FledgeAsset Type");
+		retCode = true;
+	}
+	catch (const Unauthorized &e)
+	{
+		Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
+		
+	}
+	catch (const Conflict& e)
+	{
+		handleRESTException(e, "The OMF endpoint reported a Conflict when sending FledgeAsset Type");
+		Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
+		m_PIstable = false;
+	}
+	catch (const std::exception &e)
+	{
+		handleRESTException(e, "Sending FledgeAsset Type error");
+	}
+
+	delete [] payload;
+	return retCode;
 }
 
 /**

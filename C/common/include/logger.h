@@ -27,8 +27,16 @@
  * At startup this class should be constructed
  * using the standard constructor. To log a message
  * call debug, info, warn etc. using the instance
- * of the class. TO get that instance call the static
+ * of the class.
+ *
+ * To obtain that singleton instance call the static
  * method getLogger.
+ *
+ * It is generally unsafe to delete the logger class
+ * as it may be called asynchronouly from multiple
+ * threads and single handlers. The destructor has
+ * hence been made private to prevent the destruction
+ * of the class.
  */
 class Logger {
 	public:
@@ -45,7 +53,7 @@ class Logger {
 		~Logger();
 		static Logger *getLogger();
 		void debug(const std::string& msg, ...);
-		void printLongString(const std::string&);
+		void printLongString(const std::string&, LogLevel = LogLevel::DEBUG);
 		void info(const std::string& msg, ...);
 		void warn(const std::string& msg, ...);
 		void error(const std::string& msg, ...);
@@ -83,11 +91,11 @@ class Logger {
 			void* userData;
 		};
 
-		std::queue<LogTask> m_taskQueue;
-		std::mutex m_queueMutex;
+		std::queue<LogTask>	m_taskQueue;
+		std::mutex		m_queueMutex;
 		std::condition_variable m_condition;
-		std::atomic<bool> m_running;
-		std::thread m_workerThread;
+		std::atomic<bool>	m_runWorker;
+		std::thread 		*m_workerThread;
 
 		void executeInterceptor(LogLevel level, const std::string& message);
 		void workerThread();

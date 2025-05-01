@@ -15,8 +15,6 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-	Logger *logger = new Logger(LOG_NAME);
-
 	try
 	{
 		CheckUpdates check(argc, argv);
@@ -32,7 +30,7 @@ int main(int argc, char** argv)
                 }
                 catch(const std::exception& e)
                 {
-                        logger->error("An error occurred during the execution : %s", e.what());
+			Logger::getLogger()->error("An error occurred during the execution : %s", e.what());
                 }
 
 		exit(1);

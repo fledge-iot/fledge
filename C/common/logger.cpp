@@ -15,12 +15,16 @@
 #include <memory>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #include <exception>
+#include <arpa/inet.h>
 
 using namespace std;
 
 // uncomment line below to get uSec level timestamps
 // #define ADD_USEC_TS
+const char * DEFALUT_LOG_IP = "127.0.0.1";
+const int DEFAULT_LOG_PORT = 5140;
 
 inline long getCurrTimeUsec()
 {
@@ -28,6 +32,20 @@ inline long getCurrTimeUsec()
 	gettimeofday(&m_timestamp, NULL);
 	return m_timestamp.tv_usec;
 }
+
+/**
+ * Compare two strings in a case insensitive manner
+ *
+ * @param str1		The first string
+ * @param str2		The second string
+ * @return bool		True if the strings are equal, false otherwise
+ */
+bool caseInsensitiveCompare(const std::string& str1, const std::string& str2) {
+    if (str1.size() != str2.size()) return false;
+    return std::equal(str1.begin(), str1.end(), str2.begin(),
+        [](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); });
+}
+
 
 /**
  * The singleton pointer
@@ -58,9 +76,53 @@ static char ident[80];
 	{
 		strncpy(ident, application.c_str(), sizeof(ident));
 	}
-	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
+
+	//openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
+	// Check if SYSLOG_UDP_ENABLED is set via environment variable
+	const char* udpEnabledEnv = std::getenv("SYSLOG_UDP_ENABLED");
+
+	if (udpEnabledEnv != nullptr && std::string(udpEnabledEnv) == "true") 
+	{
+		m_SyslogUdpEnabled = true;
+	}
+
+	if(m_SyslogUdpEnabled)
+	{
+		// Check LOG_IP and LOG_PORT from environment variables with default values
+		const char* logIpEnv = std::getenv("LOG_IP");
+		const char* logPortEnv = std::getenv("LOG_PORT");
+
+		std::string logIp = logIpEnv ? logIpEnv : DEFALUT_LOG_IP; // Default to 127.0.0.1
+		int logPort = logPortEnv ? std::atoi(logPortEnv) : DEFAULT_LOG_PORT; // Default to port 5140
+		// Initialize the UDP socket
+		m_UdpSockFD = socket(AF_INET, SOCK_DGRAM, 0);
+		if (m_UdpSockFD >= 0) 
+		{
+			memset(&m_UdpServerAddr, 0, sizeof(m_UdpServerAddr));
+			m_UdpServerAddr.sin_family = AF_INET;
+			m_UdpServerAddr.sin_port = htons(logPort); // Use the port from LOG_PORT or default
+			if (inet_pton(AF_INET, logIp.c_str(), &m_UdpServerAddr.sin_addr) <= 0)
+			{
+				throw std::runtime_error("Invalid LOG_IP address");
+			}
+		} 
+		else 
+		{
+			throw std::runtime_error("Failed to create UDP socket");
+		}
+	}
+	else
+	{
+		openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
+	}
+
 	instance = this;
 	m_level = LOG_WARNING;
+
+#ifdef ADD_USEC_TS
+    // Optionally log to syslog with timestamp
+    m_logTS = true;
+#endif
 }
 
 /**
@@ -82,7 +144,26 @@ Logger::~Logger()
 		m_workerThread = NULL;
 	}
 
-	closelog();
+	if(!m_SyslogUdpEnabled)
+	{
+		closelog();
+	}
+	else
+	{
+		if (m_UdpSockFD >= 0) 
+		{
+			close(m_UdpSockFD);
+			m_UdpSockFD = -1;
+		}
+	}
+}
+
+void Logger::sendToUdpSink(const std::string& msg) 
+{
+    if (m_UdpSockFD >= 0) 
+	{
+        sendto(m_UdpSockFD, msg.c_str(), msg.size(), 0, (struct sockaddr*)&m_UdpServerAddr, sizeof(m_UdpServerAddr));
+    }
 }
 
 /**
@@ -252,20 +333,13 @@ void Logger::workerThread()
  */
 void Logger::debug(const string& msg, ...)
 {
-	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
-	{
-		return;
-	}
-	va_list args;
-	va_start(args, msg);
-	string *fmt = format(msg, args);
-	syslog(LOG_DEBUG, "DEBUG: %s", fmt->c_str());
-	if (!m_interceptors.empty())
-	{
-		executeInterceptor(LogLevel::DEBUG, fmt->c_str());
-	}
-	delete fmt;
-	va_end(args);
+    va_list args;
+    va_start(args, msg);
+
+    // Use the unified log function with the "DEBUG" level
+    log(LOG_DEBUG, "DEBUG", msg, args);
+
+    va_end(args);
 }
 
 /**
@@ -318,35 +392,22 @@ void Logger::printLongString(const string& s, LogLevel level)
 	}
 }
 
-
 /**
  * Log a message at the level info
  *
  * @param msg		A printf format string
  * @param ...		The variable arguments required by the printf format
  */
-void Logger::info(const string& msg, ...)
+void Logger::info(const std::string& msg, ...)
 {
-	if (m_level == LOG_ERR || m_level == LOG_WARNING)
-	{
-		return;
-	}
-	va_list args;
-	va_start(args, msg);
-	string *fmt = format(msg, args);
-#ifdef ADD_USEC_TS
-	syslog(LOG_INFO, "[.%06ld] INFO: %s", getCurrTimeUsec(), fmt->c_str());
-#else
-	syslog(LOG_INFO, "INFO: %s", fmt->c_str());
-#endif
-	if (!m_interceptors.empty())
-	{
-		executeInterceptor(LogLevel::INFO, fmt->c_str());
-	}
-	delete fmt;
-	va_end(args);
-}
+    va_list args;
+    va_start(args, msg);
 
+    // Use the unified log function with the "INFO" level
+    log(LOG_INFO, "INFO", msg, args);
+
+    va_end(args);
+}
 
 /**
  * Log a message at the level warn
@@ -356,18 +417,14 @@ void Logger::info(const string& msg, ...)
  */
 void Logger::warn(const string& msg, ...)
 {
-	va_list args;
-	va_start(args, msg);
-	string *fmt = format(msg, args);
-	syslog(LOG_WARNING, "WARNING: %s", fmt->c_str());
-	if (!m_interceptors.empty())
-	{
-		executeInterceptor(LogLevel::WARNING, fmt->c_str());
-	}
-	delete fmt;
-	va_end(args);
-}
+    va_list args;
+    va_start(args, msg);
 
+    // Use the unified log function with the "WARNING" level
+    log(LOG_WARNING, "WARNING", msg, args);
+
+    va_end(args);
+}
 
 /**
  * Log a message at the level error
@@ -377,20 +434,13 @@ void Logger::warn(const string& msg, ...)
  */
 void Logger::error(const string& msg, ...)
 {
-	va_list args;
-	va_start(args, msg);
-	string *fmt = format(msg, args);
-#ifdef ADD_USEC_TS
-		syslog(LOG_ERR, "[.%06ld] ERROR: %s", getCurrTimeUsec(), fmt->c_str());
-#else
-		syslog(LOG_ERR, "ERROR: %s", fmt->c_str());
-#endif
-	if (!m_interceptors.empty())
-	{
-		executeInterceptor(LogLevel::ERROR, fmt->c_str());
-	}
-	delete fmt;
-	va_end(args);
+    va_list args;
+    va_start(args, msg);
+
+    // Use the unified log function with the "ERROR" level
+    log(LOG_ERR, "ERROR", msg, args);
+
+    va_end(args);
 }
 
 
@@ -402,30 +452,55 @@ void Logger::error(const string& msg, ...)
  */
 void Logger::fatal(const string& msg, ...)
 {
-	va_list args;
-	va_start(args, msg);
-	string *fmt = format(msg, args);
-	syslog(LOG_CRIT, "FATAL: %s", fmt->c_str());
-	if (!m_interceptors.empty())
-	{
-		executeInterceptor(LogLevel::FATAL, fmt->c_str());
-	}
-	delete fmt;
-	va_end(args);
+    va_list args;
+    va_start(args, msg);
+
+    // Use the unified log function with the "FATAL" level
+    log(LOG_CRIT, "FATAL", msg, args);
+
+    va_end(args);
 }
 
-/**
- * Apply the formatting to the error message
- * 
- * @param format	The printf format string
- * @param args		The printf argument list
- * @return string	The formatted string
- */
-string *Logger::format( const std::string& format, va_list args)
+
+void Logger::log(int lvl, const char * lvlName, const string& msg, ...)
 {
-char	buf[1000];
+    // Check if the current log level allows messages
+    if (m_level < lvl) 
+    {
+        return;
+    }
+	
+    constexpr size_t MAX_BUFFER_SIZE = 1024; // Maximum allowed log size
+    char buffer[MAX_BUFFER_SIZE]; // Stack-allocated buffer for formatting
 
-	  vsnprintf(buf, sizeof(buf), format.c_str(), args);
-	  return new string(buf);
+    va_list args;
+    va_start(args, msg);
+
+	int copied = 0;
+
+#ifdef ADD_USEC_TS
+	copied = snprintf(buffer, sizeof(buffer), "[.%06ld] %s: ", getCurrTimeUsec(), lvlName);
+#else
+	copied = snprintf(buffer, sizeof(buffer), "%s: ", lvlName);
+#endif
+
+    // Format the log message using vsnprintf
+    vsnprintf(buffer + copied, sizeof(buffer) - copied, msg.c_str(), args);
+    va_end(args); // Ensure `va_list` is cleaned up immediately after usage
+
+	if(m_SyslogUdpEnabled)
+	{
+		// Send the message to the UDP sink
+		sendToUdpSink(buffer);
+	}
+	else
+	{
+		syslog(lvl, buffer);
+	}
+
+    // Execute interceptors if any are present
+    if (!m_interceptors.empty())
+    {
+        executeInterceptor(LogLevel::INFO, buffer);
+    }
 }
-

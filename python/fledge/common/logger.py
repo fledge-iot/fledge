@@ -31,6 +31,24 @@ FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'
 default_destination = SYSLOG
 """Default destination of logger"""
 
+def get_syslog_handler():
+    """Defines a syslog handler
+
+    Returns:
+         logging handler object : the syslog handler
+    """
+    # Retrieve LOG_PORT and LOG_IP from environment variables
+    log_udp = os.getenv('SYSLOG_UDP_ENABLED', 'False')
+    if log_udp.lower() == 'true':
+        log_port = os.getenv('SYSLOG_PORT', '5140')
+        log_ip = os.getenv('SYSLOG_IP', '127.0.0.1') 
+        syslog_address = (log_ip, int(log_port))
+        syslog_handler = SysLogHandler(address=syslog_address)
+    else:
+        syslog_handler = SysLogHandler(address='/dev/log')
+
+    return syslog_handler
+
 
 def set_default_destination(destination: int):
     """ set_default_destination - allow a global default to be set, once, for all fledge modules
@@ -102,7 +120,7 @@ def setup(logger_name: str = None,
         destination = default_destination
 
     if destination == SYSLOG:
-        handler = SysLogHandler(address='/dev/log')
+        handler = get_syslog_handler()
     elif destination == CONSOLE:
         handler = logging.StreamHandler()  # stderr
     else:
@@ -188,7 +206,7 @@ class FLCoreLogger:
         Returns:
              logging handler object : the syslog handler
         """
-        syslog_handler = SysLogHandler(address='/dev/log')
+        syslog_handler = get_syslog_handler()
         syslog_handler.setFormatter(self.formatter)
         syslog_handler.name = "syslogHandler"
         return syslog_handler

@@ -388,6 +388,7 @@ private:
 
 		// Start of support for using linked containers
 		bool sendBaseTypes();
+		bool sendFledgeAssetType();
 		bool sendAFLinks(Reading& reading, OMFHints *hints);
 		// End of support for using linked containers
 		//

@@ -16,6 +16,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <exception>
+#include <stdexcept>
 
 using namespace std;
 

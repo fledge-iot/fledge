@@ -21,3 +21,4 @@ target_link_libraries(syslog_intercept -ldl)
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION fledge/extras/C)
 install(TARGETS cmdutil DESTINATION fledge/extras/C)
+install(TARGETS syslog_intercept DESTINATION fledge/extras/C)

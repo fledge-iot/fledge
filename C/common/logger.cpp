@@ -34,20 +34,6 @@ inline long getCurrTimeUsec()
 }
 
 /**
- * Compare two strings in a case insensitive manner
- *
- * @param str1		The first string
- * @param str2		The second string
- * @return bool		True if the strings are equal, false otherwise
- */
-bool caseInsensitiveCompare(const std::string& str1, const std::string& str2) {
-    if (str1.size() != str2.size()) return false;
-    return std::equal(str1.begin(), str1.end(), str2.begin(),
-        [](char c1, char c2) { return std::tolower(c1) == std::tolower(c2); });
-}
-
-
-/**
  * The singleton pointer
  */
 Logger *Logger::instance = 0;
@@ -59,7 +45,7 @@ Logger *Logger::instance = 0;
  */
 Logger::Logger(const string& application) : m_runWorker(true), m_workerThread(NULL)
 {
-static char ident[80];
+	static char ident[80];
 
 	if (instance)
 	{
@@ -77,9 +63,9 @@ static char ident[80];
 		strncpy(ident, application.c_str(), sizeof(ident));
 	}
 
-	//openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	// Check if SYSLOG_UDP_ENABLED is set via environment variable
 	const char* udpEnabledEnv = std::getenv("SYSLOG_UDP_ENABLED");
+	m_SyslogUdpEnabled = false;
 
 	if (udpEnabledEnv != nullptr && std::string(udpEnabledEnv) == "true") 
 	{
@@ -118,11 +104,6 @@ static char ident[80];
 
 	instance = this;
 	m_level = LOG_WARNING;
-
-#ifdef ADD_USEC_TS
-    // Optionally log to syslog with timestamp
-    m_logTS = true;
-#endif
 }
 
 /**
@@ -158,12 +139,17 @@ Logger::~Logger()
 	}
 }
 
+/**
+ * Send a message to the UDP sink if enabled
+ *
+ * @param msg		The message to send
+ */
 void Logger::sendToUdpSink(const std::string& msg) 
 {
-    if (m_UdpSockFD >= 0) 
+	if (m_UdpSockFD >= 0) 
 	{
-        sendto(m_UdpSockFD, msg.c_str(), msg.size(), 0, (struct sockaddr*)&m_UdpServerAddr, sizeof(m_UdpServerAddr));
-    }
+		sendto(m_UdpSockFD, msg.c_str(), msg.size(), 0, (struct sockaddr*)&m_UdpServerAddr, sizeof(m_UdpServerAddr));
+	}
 }
 
 /**
@@ -333,13 +319,13 @@ void Logger::workerThread()
  */
 void Logger::debug(const string& msg, ...)
 {
-    va_list args;
-    va_start(args, msg);
+	va_list args;
+	va_start(args, msg);
 
-    // Use the unified log function with the "DEBUG" level
-    log(LOG_DEBUG, "DEBUG", msg, args);
+	// Use the unified log function with the "DEBUG" level
+	log(LOG_DEBUG, "DEBUG", LogLevel::DEBUG, msg, args);
 
-    va_end(args);
+	va_end(args);
 }
 
 /**
@@ -400,13 +386,13 @@ void Logger::printLongString(const string& s, LogLevel level)
  */
 void Logger::info(const std::string& msg, ...)
 {
-    va_list args;
-    va_start(args, msg);
+	va_list args;
+	va_start(args, msg);
 
-    // Use the unified log function with the "INFO" level
-    log(LOG_INFO, "INFO", msg, args);
+	// Use the unified log function with the "INFO" level
+	log(LOG_INFO, "INFO", LogLevel::INFO, msg, args);
 
-    va_end(args);
+	va_end(args);
 }
 
 /**
@@ -417,13 +403,13 @@ void Logger::info(const std::string& msg, ...)
  */
 void Logger::warn(const string& msg, ...)
 {
-    va_list args;
-    va_start(args, msg);
+	va_list args;
+	va_start(args, msg);
 
-    // Use the unified log function with the "WARNING" level
-    log(LOG_WARNING, "WARNING", msg, args);
+	// Use the unified log function with the "WARNING" level
+	log(LOG_WARNING, "WARNING", LogLevel::WARNING, msg, args);
 
-    va_end(args);
+	va_end(args);
 }
 
 /**
@@ -434,13 +420,13 @@ void Logger::warn(const string& msg, ...)
  */
 void Logger::error(const string& msg, ...)
 {
-    va_list args;
-    va_start(args, msg);
+	va_list args;
+	va_start(args, msg);
 
-    // Use the unified log function with the "ERROR" level
-    log(LOG_ERR, "ERROR", msg, args);
+	// Use the unified log function with the "ERROR" level
+	log(LOG_ERR, "ERROR", LogLevel::ERROR, msg, args);
 
-    va_end(args);
+	va_end(args);
 }
 
 
@@ -452,29 +438,37 @@ void Logger::error(const string& msg, ...)
  */
 void Logger::fatal(const string& msg, ...)
 {
-    va_list args;
-    va_start(args, msg);
+	va_list args;
+	va_start(args, msg);
 
-    // Use the unified log function with the "FATAL" level
-    log(LOG_CRIT, "FATAL", msg, args);
+	// Use the unified log function with the "FATAL" level
+	log(LOG_CRIT, "FATAL", LogLevel::FATAL, msg, args);
 
-    va_end(args);
+	va_end(args);
 }
 
-
-void Logger::log(int lvl, const char * lvlName, const string& msg, ...)
+/**
+ * Log a message at the specified level
+ *
+ * @param sysLogLvl	The syslog level to use
+ * @param lvlName		The name of the log level
+ * @param appLogLvl	The application log level
+ * @param msg		A printf format string
+ * @param ...		The variable arguments required by the printf format
+ */
+void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, ...)
 {
-    // Check if the current log level allows messages
-    if (m_level < lvl) 
-    {
-        return;
-    }
-	
-    constexpr size_t MAX_BUFFER_SIZE = 1024; // Maximum allowed log size
-    char buffer[MAX_BUFFER_SIZE]; // Stack-allocated buffer for formatting
+	// Check if the current log level allows messages
+	if (m_level < sysLogLvl) 
+	{
+		return;
+	}
 
-    va_list args;
-    va_start(args, msg);
+	constexpr size_t MAX_BUFFER_SIZE = 1024; // Maximum allowed log size
+	char buffer[MAX_BUFFER_SIZE]; // Stack-allocated buffer for formatting
+
+	va_list args;
+	va_start(args, msg);
 
 	int copied = 0;
 
@@ -484,9 +478,9 @@ void Logger::log(int lvl, const char * lvlName, const string& msg, ...)
 	copied = snprintf(buffer, sizeof(buffer), "%s: ", lvlName);
 #endif
 
-    // Format the log message using vsnprintf
-    vsnprintf(buffer + copied, sizeof(buffer) - copied, msg.c_str(), args);
-    va_end(args); // Ensure `va_list` is cleaned up immediately after usage
+	// Format the log message using vsnprintf
+	vsnprintf(buffer + copied, sizeof(buffer) - copied, msg.c_str(), args);
+	va_end(args); // Ensure `va_list` is cleaned up immediately after usage
 
 	if(m_SyslogUdpEnabled)
 	{
@@ -495,12 +489,12 @@ void Logger::log(int lvl, const char * lvlName, const string& msg, ...)
 	}
 	else
 	{
-		syslog(lvl, buffer);
+		syslog(sysLogLvl, buffer);
 	}
 
-    // Execute interceptors if any are present
-    if (!m_interceptors.empty())
-    {
-        executeInterceptor(LogLevel::INFO, buffer);
-    }
+	// Execute interceptors if any are present
+	if (!m_interceptors.empty())
+	{
+		executeInterceptor(appLogLvl, buffer);
+	}
 }

@@ -98,14 +98,13 @@ class Logger {
 		std::atomic<bool>	m_runWorker;
 		std::thread 		*m_workerThread;
 
-		void log(int lvl, const char * lvlName, const std::string& msg, ...);
+		void log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, ...);
 		void sendToUdpSink(const std::string& msg);
 		void executeInterceptor(LogLevel level, const std::string& message);
 		void workerThread();
 		int m_UdpSockFD = -1;
 		struct sockaddr_in m_UdpServerAddr;
 		bool m_SyslogUdpEnabled = false;
-		bool m_logTS = false;
 };
 
 #endif

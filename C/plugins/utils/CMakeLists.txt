@@ -14,6 +14,10 @@ target_link_libraries(${PROJECT_NAME} -ldl)
 
 add_executable(cmdutil cmdutil.cpp)
 
+
+add_library(syslog_intercept SHARED preload_syslog.cpp)
+target_link_libraries(syslog_intercept -ldl)
+
 # Install library
 install(TARGETS ${PROJECT_NAME} DESTINATION fledge/extras/C)
 install(TARGETS cmdutil DESTINATION fledge/extras/C)

@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 #include <exception>
 #include <arpa/inet.h>
+#include <stdexcept>
 
 using namespace std;
 

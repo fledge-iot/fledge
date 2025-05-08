@@ -98,7 +98,7 @@ class Logger {
 		std::atomic<bool>	m_runWorker;
 		std::thread 		*m_workerThread;
 
-		void log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, ...);
+		void log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, va_list args);
 		void sendToUdpSink(const std::string& msg);
 		void executeInterceptor(LogLevel level, const std::string& message);
 		void workerThread();

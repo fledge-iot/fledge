@@ -457,7 +457,7 @@ void Logger::fatal(const string& msg, ...)
  * @param msg		A printf format string
  * @param ...		The variable arguments required by the printf format
  */
-void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, ...)
+void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, va_list args)
 {
 	// Check if the current log level allows messages
 	if (m_level < sysLogLvl) 
@@ -467,9 +467,6 @@ void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const 
 
 	constexpr size_t MAX_BUFFER_SIZE = 1024; // Maximum allowed log size
 	char buffer[MAX_BUFFER_SIZE]; // Stack-allocated buffer for formatting
-
-	va_list args;
-	va_start(args, msg);
 
 	int copied = 0;
 
@@ -481,7 +478,6 @@ void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const 
 
 	// Format the log message using vsnprintf
 	vsnprintf(buffer + copied, sizeof(buffer) - copied, msg.c_str(), args);
-	va_end(args); // Ensure `va_list` is cleaned up immediately after usage
 
 	if(m_SyslogUdpEnabled)
 	{
@@ -490,7 +486,7 @@ void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const 
 	}
 	else
 	{
-		syslog(sysLogLvl, buffer);
+		syslog(sysLogLvl, "%s", buffer);
 	}
 
 	// Execute interceptors if any are present

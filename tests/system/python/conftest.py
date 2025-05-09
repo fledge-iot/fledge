@@ -1396,7 +1396,7 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None):
     start_time = time.time()
     max_retries = 5
     jdoc = {}
-    for attempt in range(1, max_retries):
+    for attempt in range(max_retries):
         try:
             with closing(http.client.HTTPConnection(fledge_url)) as connection:
                 connection.request("GET", "/fledge/ping", headers=headers)

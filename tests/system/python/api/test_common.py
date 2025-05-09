@@ -98,7 +98,19 @@ class TestCommon:
         assert len(jdoc), "No data found"
         assert 'Fledge shutdown has been scheduled. Wait for few seconds for process cleanup.' == jdoc['message']
 
-        time.sleep(wait_time * 2)
+        from contextlib import closing
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                with closing(http.client.HTTPConnection(fledge_url)) as connection:
+                    connection.request("GET", "/fledge/ping")
+            except (ConnectionRefusedError, socket.error) as ex:
+                break
+            finally:
+                time.sleep(wait_time * 8)
+        else:
+            raise AssertionError("Fledge did not shut down after maximum retries.")
+
         stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
         assert "Fledge not running." == stat.stderr.decode("utf-8").replace("\n", "").strip()

@@ -225,16 +225,8 @@ class TestService:
         assert (SVC_NAME_4, 'shutdown') in [(s['name'], s['status']) for s in jdoc['services']]
 
     def test_service_on_restart(self, fledge_url, wait_time):
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", '/fledge/restart')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert len(jdoc), "No data found"
-        assert 'Fledge restart has been scheduled.' == jdoc['message']
-
-        time.sleep(wait_time * 7)
+        from conftest import restart_and_wait_for_fledge
+        restart_and_wait_for_fledge(fledge_url, wait_time)
         jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 4 == len(jdoc['services'])
@@ -313,4 +305,4 @@ class TestService:
                 not jdoc['filters']), "Unexpected filters found after service deletion. Filters should be empty."
 
     def test_notification_service(self):
-        assert 1, "Already verified in test_e2e_notification_service_with_plugins.py"
+        assert True, "Already verified in test_e2e_notification_service_with_plugins.py"

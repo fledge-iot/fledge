@@ -389,16 +389,13 @@ async def put_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            url = str(request.url)
-            url_parts = url.split("/fledge/notification")
-            url = '{}/fledge/notification/plugin'.format(url_parts[0])
             try:
-                # When authentication is mandatory we need to pass token in request header
-                auth_token = request.token
-            except AttributeError:
-                auth_token = None
+                list_plugins = await get_plugin_data()
+            except Exception as ex:
+                msg = str(ex)
+                _logger.error(ex, "Failed to get notification plugin list.")
+                raise ValueError(msg)
 
-            list_plugins = json.loads(await _hit_get_url(url, auth_token))
             search_rule = rule if rule_changed else current_config['rule']['value']
             r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
             if len(r) == 0:

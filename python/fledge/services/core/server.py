@@ -339,6 +339,38 @@ class Server:
         }
     }
 
+    _RESOURCE_LIMIT_DEFAULT_CONFIG = {
+        'serviceBuffering': {
+            'description': 'Buffering level for the South Service',
+            'type': 'enumeration',
+            'displayName': 'South Service Buffering',
+            'options': ['Unlimited', 'Limited'],
+            'default': 'Unlimited',
+            'order': '1',
+            'permissions': ['admin']
+        },
+        'serviceBufferSize': {
+            'description': 'Buffer size for the South Service',
+            'type': 'integer',
+            'displayName': 'South Service Buffer Size',
+            'minimum': '1000',
+            'default': '1000',
+            'order': '2',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
+        },
+        'discardPolicy': {
+            'description': 'The different discard policies for the South Service',
+            'type': 'enumeration',
+            'displayName': 'Discard Policy',
+            'options': ['Discard Oldest', 'Reduce Fidelity', 'Discard Newest'],
+            'default': 'Discard Oldest',
+            'order': '3',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
+        }
+    }
+
     _log_level = _LOGGING_DEFAULT_CONFIG['logLevel']['default']
     """ Common logging level for Core """
 
@@ -681,6 +713,21 @@ class Server:
             raise
 
     @classmethod
+    async def core_south_service_resource_limit_setup(cls):
+        """ Get the south service resource limit configuration """
+        try:
+            config = cls._RESOURCE_LIMIT_DEFAULT_CONFIG
+            category = 'RESOURCE_LIMIT'
+            description = "Resource Limit of South Service"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Resource Limit')
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
     async def setup_config_manager(cls):
         """ Configuration manager category """
         try:
@@ -950,7 +997,7 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING", "RESOURCE_LIMIT",
                                                                                 "CONFIGURATION","FEATURES"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
@@ -1006,6 +1053,7 @@ class Server:
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())
+            loop.run_until_complete(cls.core_south_service_resource_limit_setup())
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -1243,7 +1291,7 @@ class Server:
                 return
 
             tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
-            await asyncio.wait(tasks)
+            await asyncio.gather(*tasks)
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:

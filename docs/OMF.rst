@@ -835,32 +835,44 @@ The AF Element also has three static data values named *Company*, *Domain* and *
 | |OMF_StaticData| |
 +------------------+
 
+Each Static Data item in the Fledge configuration consists of a key/value pair separated by a colon(":").
+You can specify multiple Static Data items separated by commas (",").
+Static Data keys and values are applied when a Container is created.
 Static Data values are always strings.
-Static Data values are set when a Container is created.
-OMF North cannot change the values later.
-This means that if you change the Static Data values when you edit your configuration with the Fledge GUI, your change will apply only to new Containers.
+OMF North cannot easily change the keys or add new keys after OMF North has started the first time.
+You can, however, edit the values of the Static Data keys.
 
-Static Data values are included in AF Templates which are then used by OMF to create Containers.
+Static Data values are included in AF Element Templates which are then used by OMF to create Containers.
 The design of the AF Templates depends on whether Linked Types or Complex Types are configured:
 
 Linked Types
 ~~~~~~~~~~~~
 
-OMF creates a single AF Template called *FledgeAsset*.
-Besides the essential *id*, *index* and *name* OMF attributes, the *FledgeAsset* template has attributes defined by your Static Data properties configuration.
-The first OMF North instance to start will create the *FledgeAsset* AF Template.
-Any subsequent OMF North instance that starts will not detect an error but the *FledgeAsset* template will remain unchanged.
-The best practice is to decide early which Static Data properties should be added to all OMF North configurations.
-Each OMF North configuration can have its own values for these Static Data properties.
-Each OMF North instance will assign its own Static Data values to the Containers it creates.
+OMF creates a single AF Element Template called *FledgeAsset*.
+Besides the essential *__id*, *__indexProperty* and *__nameProperty* OMF attributes, the *FledgeAsset* template will have attributes defined by your Static Data configuration.
+The first OMF North instance to start will create the *FledgeAsset* AF Element Template.
+Any subsequent OMF North instance that starts will not change the *FledgeAsset* template.
+The best practice is to decide early which Static Data keys should be added to all OMF North configurations.
+Each OMF North instance can have its own values for these Static Data items which will be applied to any Container it creates.
+Updated Static Data values in your configuration will be applied to both new and existing Containers.
 
 Complex Types
 ~~~~~~~~~~~~~
 
-OMF creates multiple AF Templates, one per asset.
-These AF Templates own the Static Data properties and have names that end in "...\ *assetname*\ _typename_sensor."
+OMF creates multiple AF Element Templates, one per asset.
+These AF Element Templates own the Static Data items and have names that end in "...\ *assetname*\ _typename_sensor."
 Each template is used to create a Container for one asset.
 Because of this, the risk of overlapping definitions is lower.
+Once Containers are created, editing the Static Data values in your configuration does not update any existing AF Elements.
+
+.. note::
+
+    When OMF North starts, you may see this warning in */var/log/syslog*::
+
+        WARNING: FledgeAsset Type exists with a different definition
+
+    This warning does not affect the normal flow of data.
+    A detailed explanation of this warning and how to address it can be found in the |OMF North Troubleshooting| guide.
 
 .. _Linked_Types:
 

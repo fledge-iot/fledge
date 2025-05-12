@@ -5350,13 +5350,11 @@ bool OMF::sendFledgeAssetType()
 	catch (const Unauthorized &e)
 	{
 		Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
-		
 	}
 	catch (const Conflict& e)
 	{
-		handleRESTException(e, "The OMF endpoint reported a Conflict when sending FledgeAsset Type");
-		Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
-		m_PIstable = false;
+		Logger::getLogger()->warn("FledgeAsset Type exists with a different definition");
+		retCode = true;
 	}
 	catch (const std::exception &e)
 	{

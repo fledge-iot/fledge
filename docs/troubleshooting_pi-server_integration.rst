@@ -27,6 +27,16 @@ You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
 - `Log files`_
 - `How to confirm that PI Web API is installed and running`_
 - `Error Messages and Causes`_
+
+  - `Loss of Connection to the PI Web API Server`_
+  - `HTTP Code 409: Processing cannot continue until data archive errors are corrected`_
+  - `HTTP Code 409: The supplied container overlaps with a different existing container`_
+  - `HTTP Code 409:  One or more PI Points could not be created`_
+  - `PI License Expired or Limit Exceeded`_
+  - `HTTP Code 409: AF Element could not be created`_
+  - `HTTP Code 413: Payload Too Large`_
+  - `WARNING: FledgeAsset Type exists with a different definition`_
+  - `Changing the Tag Name OMF Hint`_
 - `Possible Solutions to Common Problems`_
 
 Complex Types vs. Linked Types
@@ -558,6 +568,60 @@ See the `AVEVA Documentation page <https://docs.aveva.com/bundle/pi-web-api/page
     This will result in fewer Readings being processed by OMF North at once.
     In general, a *Data Block Size* setting of 2000 offers the best performance so this solution is not ideal.
     It may be necessary if OMF Container messages generate the HTTP 413 error and the PI Web API *MaxRequestContentLength* cannot be increased.
+
+WARNING: FledgeAsset Type exists with a different definition
+------------------------------------------------------------
+
+This warning can appear in Fledge systems that have already had one or more instances of OMF North running.
+The first OMF North instance to start will create the *FledgeAsset* AF Element Template which is used by OMF to create AF Elements that represent Containers in Linked Type configurations.
+The warning means that the OMF North Static Data parameters have changed since the *FledgeAsset* template was created.
+The flow of data to the PI System will not stop.
+However, any new AF Elements created by OMF North will have AF Attributes defined by the existing definition of *FledgeAsset*, not the Static Data parameter in your configuration.
+
+.. note::
+
+    Support for Static Data in Linked Types was introduced in Fledge 3.1.0.
+    Any instance of the *FledgeAsset* AF Element Template created before Fledge 3.1.0 will have only the minimum AF Attribute Templates: *__id*, *__indexProperty* and *__nameProperty*.
+    The presence of the even the default value of the Static Data parameter ("*Location: Palo Alto, Company: Dianomic*") will generate this warning.
+
+.. note::
+
+    The *FledgeAsset* AF Element Template is not used for Complex Types.
+    If all of your configurations use Complex Types, this warning is benign.
+
+Eliminating the Warning
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Techniques for eliminating the warning depend on your requirements for Static Data in your Containers.
+
+Clearing the Static Data
+########################
+
+If you are upgrading to Fledge 3.1.0 and don't need to add Static Data values to your OMF Containers, clear the Static Data configuration using the Fledge GUI.
+The OMF message that attempts to create the *FledgeAsset* AF Element Template will then match the existing definition of *FledgeAsset* so there will be no warning.
+You will see only the message "*Confirmed FledgeAsset Type.*"
+
+Recreating FledgeAsset to include Static Data
+#############################################
+
+If you want to use your Static Data configuration in your Containers, you can delete all AF Elements that derive from *FledgeAsset* and then the *FledgeAsset* AF Element Template itself.
+OMF North will recreate the *FledgeAsset* AF Element Template and AF Elements when readings are processed.
+Before doing any work on your AF Database, shut down any OMF North instance that is sending data to it.
+After deleting AF Elements and AF Templates, you must check in your changes.
+Restart PI Web API and then your OMF North instance.
+
+Finding AF Elements that derive from FledgeAsset
+################################################
+
+The PI System Explorer allows you to search for all AF Elements that derive from the *FledgeAsset* AF Template:
+
+- In the *Elements* tab, locate *Element Searches* in the upper-left pane.
+- Right-click *Element Searches* and choose *New Search*.
+- In the *Element Search* dialog, click the *Template* drop-down and select *FledgeAsset*.
+- Click *OK* to invoke the search.
+- Select all items in the list of matching AF Elements.
+- Right-click and choose *Delete…*
+- In the resulting dialog box, choose "*Delete these objects and all references to them. Check in is required to complete this action.*"
 
 Changing the Tag Name OMF Hint
 ------------------------------

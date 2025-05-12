@@ -156,7 +156,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Data Source"
 		},
 		"StaticData": {
-			"description": "Static data to include in each sensor reading sent to the PI Server.",
+			"description": "Static data to include in every Container created by OMF",
 			"type": "string",
 			"default": "Location: Palo Alto, Company: Dianomic",
 			"order": "9",

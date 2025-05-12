@@ -83,7 +83,7 @@ write_log() {
       tag="Fledge ${1}[${BASHPID}] ${severity}: ${2}"
       if [[ "${SYSLOG_UDP_ENABLED,,}" == "true" ]]; then
           # Send log to remote syslog server using logger
-          logger --server "${LOG_IP}" --port "${LOG_PORT}" "${tag} ${4}"
+          logger --server "${LOG_IP}" --port "${LOG_PORT}" -t ${tag} "${4}"
       else
           # Log locally
           logger -t "${tag}" "${4}"

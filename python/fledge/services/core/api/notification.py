@@ -36,7 +36,7 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
-async def get_plugin_data():
+async def fetch_plugins():
     """ Fetch all rule and delivery plugins from notification service
     """
     try:
@@ -53,21 +53,14 @@ async def get_plugin_data():
         delivery_plugins = json.loads(await _hit_get_url(url))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to get notification plugin list.")
+        _logger.error(ex, "Error while fetching plugins.")
         raise ValueError(msg)
     else:
         resp = {}
         if rule_plugins is not None:
-            if 'rules' not in rule_plugins:
-                resp['rules'] = rule_plugins
-            else:
-                resp['rules'] = rule_plugins['rules']
-
+            resp['rules'] = rule_plugins.get('rules', rule_plugins)
         if delivery_plugins is not None:
-            if 'delivery' not in delivery_plugins:
-                resp['delivery'] = delivery_plugins
-            else:
-                resp['delivery'] = delivery_plugins['delivery']
+            resp['delivery'] = delivery_plugins.get('delivery', delivery_plugins)
         return resp
 
 async def get_plugin(request):
@@ -77,7 +70,7 @@ async def get_plugin(request):
         curl -X GET http://localhost:8081/fledge/notification/plugin
     """
     try:
-        list_plugins = await get_plugin_data()
+        list_plugins = await fetch_plugins()
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get notification plugin list.")
@@ -252,7 +245,7 @@ async def post_notification(request):
         try:
             # Get default config for rule and channel plugins
             try:
-                list_plugins_r = await get_plugin_data()
+                list_plugins_r = await fetch_plugins()
             except Exception as ex:
                 msg = str(ex)
                 _logger.error(ex, "Failed to get notification plugin list.")
@@ -390,7 +383,7 @@ async def put_notification(request):
         try:
             # Get default config for rule and channel plugins
             try:
-                list_plugins = await get_plugin_data()
+                list_plugins = await fetch_plugins()
             except Exception as ex:
                 msg = str(ex)
                 _logger.error(ex, "Failed to get notification plugin list.")

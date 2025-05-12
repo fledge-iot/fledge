@@ -19,6 +19,7 @@
 #include <exception>
 #include <arpa/inet.h>
 #include <stdexcept>
+#include <algorithm>
 
 using namespace std;
 
@@ -68,7 +69,14 @@ Logger::Logger(const string& application) : m_runWorker(true), m_workerThread(NU
 	const char* udpEnabledEnv = std::getenv("SYSLOG_UDP_ENABLED");
 	m_SyslogUdpEnabled = false;
 
-	if (udpEnabledEnv != nullptr && std::string(udpEnabledEnv) == "true") 
+	auto toLower = [](const std::string& s) {
+        std::string out = s;
+        std::transform(out.begin(), out.end(), out.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+        return out;
+    };
+
+	if (udpEnabledEnv != nullptr && toLower(std::string(udpEnabledEnv)) == "true") 
 	{
 		m_SyslogUdpEnabled = true;
 	}
@@ -97,14 +105,31 @@ Logger::Logger(const string& application) : m_runWorker(true), m_workerThread(NU
 		{
 			throw std::runtime_error("Failed to create UDP socket");
 		}
+
+		if(m_SyslogUdpEnabled)
+		{
+			char hostname[256]; // Buffer to store the hostname
+	
+			// Retrieve the hostname (localhost name)
+			if (gethostname(hostname, sizeof(hostname)) != 0)
+			{
+				// Fallback in case of failure to retrieve hostname
+				strncpy(hostname, "localhost", sizeof(hostname) - 1);
+				hostname[sizeof(hostname) - 1] = '\0';
+			}
+			
+			m_hostname = hostname;
+		}
 	}
 	else
 	{
+		// Warning: these flags should be updated with caution because the `m_identifier` used in UDP when `m_SyslogUdpEnabled` is `true` may break
 		openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	}
 
 	instance = this;
 	m_level = LOG_WARNING;
+	m_identifier = ident;
 }
 
 /**
@@ -470,10 +495,16 @@ void Logger::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const 
 
 	int copied = 0;
 
+	if(m_SyslogUdpEnabled)
+	{
+		// Add the identifier to the message in case udp
+		copied = snprintf(buffer, sizeof(buffer), "%s %s[%d]: ", m_hostname.c_str(), m_identifier.c_str(), getpid());
+	}
+
 #ifdef ADD_USEC_TS
-	copied = snprintf(buffer, sizeof(buffer), "[.%06ld] %s: ", getCurrTimeUsec(), lvlName);
+	copied += snprintf(buffer + copied, sizeof(buffer) - copied, "[.%06ld] %s: ", getCurrTimeUsec(), lvlName);
 #else
-	copied = snprintf(buffer, sizeof(buffer), "%s: ", lvlName);
+	copied += snprintf(buffer + copied, sizeof(buffer) - copied, "%s: ", lvlName);
 #endif
 
 	// Format the log message using vsnprintf

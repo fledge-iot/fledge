@@ -105,6 +105,8 @@ class Logger {
 		int m_UdpSockFD = -1;
 		struct sockaddr_in m_UdpServerAddr;
 		bool m_SyslogUdpEnabled = false;
+		std::string m_identifier;
+		std::string m_hostname;
 };
 
 #endif

@@ -58,9 +58,15 @@ async def fetch_plugins():
     else:
         resp = {}
         if rule_plugins is not None:
-            resp['rules'] = rule_plugins.get('rules', rule_plugins)
+            if 'rules' not in rule_plugins:
+                resp['rules'] = rule_plugins
+            else:
+                resp['rules'] = rule_plugins['rules']
         if delivery_plugins is not None:
-            resp['delivery'] = delivery_plugins.get('delivery', delivery_plugins)
+            if 'delivery' not in delivery_plugins:
+                resp['delivery'] = delivery_plugins
+            else:
+                resp['delivery'] = delivery_plugins['delivery']
         return resp
 
 async def get_plugin(request):

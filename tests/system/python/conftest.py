@@ -1366,6 +1366,60 @@ def pytest_configure():
     pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
 
+
+def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None):
+    """ Restarts the Fledge service and waits until it becomes responsive
+
+    Args:
+        fledge_url (str): base fledge url
+        wait_time (int): Seconds between retries
+        auth_token (str): Authorization Token (Optional)
+    Raises:
+        AssertionError: If Fledge failed to restart
+
+    Returns:
+        JSON Document
+    """
+    from contextlib import closing
+    headers = {"authorization": auth_token} if auth_token else {}
+
+    with closing(http.client.HTTPConnection(fledge_url)) as connection:
+        connection.request("PUT", '/fledge/restart', headers=headers, body=json.dumps({}))
+        r = connection.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert "Fledge restart has been scheduled." == jdoc['message']
+
+    print(f"Waiting for Fledge to restart... (Initial wait: {wait_time}s)")
+    time.sleep(wait_time)
+    start_time = time.time()
+    max_retries = 5
+    jdoc = {}
+    for attempt in range(max_retries):
+        try:
+            with closing(http.client.HTTPConnection(fledge_url)) as connection:
+                connection.request("GET", "/fledge/ping", headers=headers)
+                response = connection.getresponse()
+                if response.status == 200:
+                    r = response.read().decode()
+                    jdoc = json.loads(r)
+                    break
+                elif response.status == 401:
+                    jdoc = {"message": "Unauthorized"}
+                    break
+        except:
+            pass  # Continue trying
+        time.sleep(wait_time * 5)
+    if not jdoc:
+        elapsed = round(time.time() - start_time, 2)
+        raise AssertionError(f"Failed to restart Fledge after {elapsed} seconds.")
+    else:
+        # Additional time is necessary to ensure that other endpoints are prepared
+        time.sleep(wait_time * 5)
+    return jdoc
+
+
 @pytest.fixture
 def fogbench_host(request):
     return request.config.getoption("--fogbench-host")
@@ -1375,30 +1429,38 @@ def fogbench_host(request):
 def fogbench_port(request):
     return request.config.getoption("--fogbench-port")
 
+
 @pytest.fixture
 def azure_host(request):
     return request.config.getoption("--azure-host")
+
 
 @pytest.fixture
 def azure_device(request):
     return request.config.getoption("--azure-device")
 
+
 @pytest.fixture
 def azure_key(request):
     return request.config.getoption("--azure-key")
+
 
 @pytest.fixture
 def azure_storage_account_url(request):
     return request.config.getoption("--azure-storage-account-url")
 
+
 @pytest.fixture
 def azure_storage_account_key(request):
     return request.config.getoption("--azure-storage-account-key")
+
 
 @pytest.fixture
 def azure_storage_container(request):
     return request.config.getoption("--azure-storage-container")
 
+
 @pytest.fixture
 def run_time(request):
     return request.config.getoption("--run-time")
+

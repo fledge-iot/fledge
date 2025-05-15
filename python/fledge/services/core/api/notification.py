@@ -77,6 +77,9 @@ async def get_plugin(request):
     """
     try:
         list_plugins = await fetch_plugins()
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get notification plugin list.")

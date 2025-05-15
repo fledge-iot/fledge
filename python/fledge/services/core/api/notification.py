@@ -36,9 +36,14 @@ _logger = FLCoreLogger().get_logger(__name__)
 
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
+
+class PluginFetchError(Exception):
+    def __init__(self, message="Failed to fetch notification plugins."):
+        super().__init__(message)
+
+
 async def fetch_plugins():
-    """ Fetch all rule and delivery plugins from notification service
-    """
+    """ Fetch all rule and delivery plugins from notification service """
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._port
@@ -48,26 +53,26 @@ async def fetch_plugins():
     try:
         url = 'http://{}:{}/notification/rules'.format(_address, _port)
         rule_plugins = json.loads(await _hit_get_url(url))
-
         url = 'http://{}:{}/notification/delivery'.format(_address, _port)
         delivery_plugins = json.loads(await _hit_get_url(url))
-    except Exception as ex:
-        msg = str(ex)
-        _logger.error(ex, "Error while fetching plugins.")
-        raise ValueError(msg)
+    except Exception:
+        raise PluginFetchError()
     else:
         resp = {}
         if rule_plugins is not None:
-            if 'rules' not in rule_plugins:
-                resp['rules'] = rule_plugins
-            else:
+            if isinstance(rule_plugins, dict) and 'rules' in rule_plugins:
                 resp['rules'] = rule_plugins['rules']
-        if delivery_plugins is not None:
-            if 'delivery' not in delivery_plugins:
-                resp['delivery'] = delivery_plugins
             else:
+                resp['rules'] = rule_plugins
+
+        if delivery_plugins is not None:
+            if isinstance(delivery_plugins, dict) and 'delivery' in delivery_plugins:
                 resp['delivery'] = delivery_plugins['delivery']
+            else:
+                resp['delivery'] = delivery_plugins
+
         return resp
+
 
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
@@ -80,12 +85,13 @@ async def get_plugin(request):
     except ValueError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except Exception as ex:
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get notification plugin list.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(list_plugins)
+
 
 async def get_type(request):
     """ GET the list of available notification types
@@ -253,13 +259,7 @@ async def post_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            try:
-                list_plugins_r = await fetch_plugins()
-            except Exception as ex:
-                msg = str(ex)
-                _logger.error(ex, "Failed to get notification plugin list.")
-                raise ValueError(msg)
-
+            list_plugins_r = await fetch_plugins()
             r = list(filter(lambda rules: rules['name'] == rule, list_plugins_r['rules']))
             c = list(filter(lambda channels: channels['name'] == channel, list_plugins_r['delivery']))
             if len(r) == 0 or len(c) == 0: raise KeyError
@@ -306,7 +306,7 @@ async def post_notification(request):
         await audit.information('NTFAD', {"name": name})
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except Exception as ex:
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to create notification instance.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -391,13 +391,7 @@ async def put_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            try:
-                list_plugins = await fetch_plugins()
-            except Exception as ex:
-                msg = str(ex)
-                _logger.error(ex, "Failed to get notification plugin list.")
-                raise ValueError(msg)
-
+            list_plugins = await fetch_plugins()
             search_rule = rule if rule_changed else current_config['rule']['value']
             r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
             if len(r) == 0:
@@ -457,7 +451,7 @@ async def put_notification(request):
         raise web.HTTPBadRequest(reason=str(e))
     except NotFoundError as e:
         raise web.HTTPNotFound(reason=str(e))
-    except Exception as ex:
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to update {} notification instance.".format(notif))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

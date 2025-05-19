@@ -123,7 +123,26 @@ class SnapshotPluginBuilder:
             try:
                 with tarfile.open(pyz, "r:gz") as tar:
                     # Since we are storing full path of the files, we need to specify "/" as the path to restore
-                    tar.extractall(path=_FLEDGE_ROOT, members=tar.getmembers())
+                    def is_within_directory(directory, target):
+                        
+                        abs_directory = os.path.abspath(directory)
+                        abs_target = os.path.abspath(target)
+                    
+                        prefix = os.path.commonprefix([abs_directory, abs_target])
+                        
+                        return prefix == abs_directory
+                    
+                    def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                    
+                        for member in tar.getmembers():
+                            member_path = os.path.join(path, member.name)
+                            if not is_within_directory(path, member_path):
+                                raise Exception("Attempted Path Traversal in Tar File")
+                    
+                        tar.extractall(path, members, numeric_owner=numeric_owner) 
+                        
+                    
+                    safe_extract(tar, path=_FLEDGE_ROOT, members=tar.getmembers())
             except Exception as ex:
                 raise RuntimeError("Extraction error for snapshot {}. {}".format(pyz, str(ex)))
             else:

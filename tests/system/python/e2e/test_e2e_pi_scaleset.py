@@ -39,7 +39,7 @@ READ_KEY = "temperature"
 SENSOR_VALUE = 21
 
 # scale(set) factor
-SCALE = "9/5"
+SCALE = "1.8"
 OFFSET = "32"
 OUTPUT = (SENSOR_VALUE * eval(SCALE)) + int(OFFSET)
 

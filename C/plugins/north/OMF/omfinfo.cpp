@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2023 Dianomic Systems
+ * Copyright (c) 2023-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -22,6 +22,7 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 
 	m_logger = Logger::getLogger();
 	m_name = config->getName();
+	m_numBlocks = 1;
 
 	int endpointPort = 0;
 
@@ -641,8 +642,10 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	}
 	// Send the readings data to the PI Server
 	m_omf->setPIconnected(m_connected);
+	m_omf->setNumBlocks(m_numBlocks);
 	uint32_t ret = m_omf->sendToServer(readings, m_compression);
 	m_connected = m_omf->isPIconnected();
+	m_numBlocks = m_omf->getNumBlocks();
 
 	// Detect typeId change in OMF class
 	if (m_omf->getTypeId() != m_typeId)

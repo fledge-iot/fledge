@@ -18,7 +18,8 @@
 #include <thread>
 #include <condition_variable>
 #include <atomic>
-
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 /**
@@ -97,8 +98,15 @@ class Logger {
 		std::atomic<bool>	m_runWorker;
 		std::thread 		*m_workerThread;
 
+		void log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, const std::string& msg, va_list args);
+		void sendToUdpSink(const std::string& msg);
 		void executeInterceptor(LogLevel level, const std::string& message);
 		void workerThread();
+		int m_UdpSockFD = -1;
+		struct sockaddr_in m_UdpServerAddr;
+		bool m_SyslogUdpEnabled = false;
+		std::string m_identifier;
+		std::string m_hostname;
 };
 
 #endif

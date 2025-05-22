@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2023 Dianomic Systems
+ * Copyright (c) 2023-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -186,5 +186,6 @@ class OMFInformation {
 		string		m_name;
 		bool		m_connected;
         bool        m_tracingEnabled;
+		std::size_t	m_numBlocks;
 };
 #endif

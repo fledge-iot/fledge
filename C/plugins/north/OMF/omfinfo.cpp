@@ -656,7 +656,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	m_omf->setOMFVersion(m_omfversion);
 	m_omf->setDataActionCode(m_dataActionCode);
 	m_omf->setPIconnected(m_connected);
-  m_omf->setNumBlocks(m_numBlocks);
+	m_omf->setNumBlocks(m_numBlocks);
   
 	uint32_t ret = m_omf->sendToServer(readings, m_compression);
   

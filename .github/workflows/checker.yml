@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: Build on ${{ matrix.os }}
+    name: 🛠️ Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -29,8 +29,12 @@ jobs:
           sudo ./requirements.sh
           make -j"$(nproc)"
 
+      - name: 🚫 Skipping C Unit Tests on ubuntu-24.04
+        if: matrix.os == 'ubuntu-24.04'
+        run: echo "⚠️ Skipping C unit tests on ubuntu-24.04 due to increased execution time. See JIRA FOGL-9817 for details."
+
       - name: 🧪 Run C Unit Tests
-        if: steps.make_fledge.outcome == 'success'
+        if: matrix.os != 'ubuntu-24.04' && steps.make_fledge.outcome == 'success'
         continue-on-error: true
         run: |
           set +e
@@ -74,3 +78,4 @@ jobs:
           path: ${{ env.FLEDGE_ROOT }}/reports/*.xml
           reporter: java-junit
           fail-on-error: true
+

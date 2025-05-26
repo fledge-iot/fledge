@@ -112,10 +112,11 @@ class OMFInformation {
 		void 		loadSentDataTypes(rapidjson::Document& JSONData);
 		long		getMaxTypeId();
 		int		PIWebAPIGetVersion(bool logMessage = true);
-		int		EDSGetVersion();
+		int		EDSGetVersion(bool logMessage = true);
+		int		IsADHConnected(bool logMessage = true);
 		void		SetOMFVersion();
 		void		CheckDataActionCode();
-		std::string	OCSRetrieveAuthToken();
+		std::string	OCSRetrieveAuthToken(bool logMessage = true);
 		OMF_ENDPOINT	identifyPIServerEndpoint();
 		std::string	saveSentDataTypes();
 		unsigned long	calcTypeShort(const std::string& dataTypes);
@@ -124,7 +125,7 @@ class OMFInformation {
 		std::string	AuthBasicCredentialsGenerate(std::string& userId, std::string& password);
 		void		AuthKerberosSetup(std::string& keytabEnv, std::string& keytabFileName);
 		double		GetElapsedTime(struct timeval *startTime);
-		bool		IsPIWebAPIConnected();
+		bool		IsDataArchiveConnected();
         void handleOMFTracing();
 		
 	private:

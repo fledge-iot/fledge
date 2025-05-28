@@ -133,16 +133,16 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * Parse "index" and "containerid" values from JSON containing link "source" and "target"
  *
- * @param json    JSON text
+ * @param json    JSON text as char string
  * @param links   Vector of source-target name pairs
  */
-static void parseLinkData(const std::string &json, std::vector<std::pair<std::string, std::string>> &links)
+static void parseLinkData(const char *json, std::vector<std::pair<std::string, std::string>> &links)
 {
     Document doc;
 	
-    if (doc.Parse(json.c_str()).HasParseError())
+    if (doc.Parse(json).HasParseError())
     {
-		Logger::getLogger()->error("parseLinkData error %d: failed to parse %s", (int)doc.GetParseError(), json.c_str());
+		Logger::getLogger()->error("parseLinkData error %d: failed to parse %s", (int)doc.GetParseError(), json);
     }
     else if (doc.IsArray()) // top level of the document should be an array
     {
@@ -1869,18 +1869,30 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		catch (const Unauthorized &e)
 		{
 			Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
+			delete[] omfData;
 			return 0;
 		}
 		catch (const Conflict& e)
 		{
 			handleRESTException(e, "Conflict sending Data");
+
+			std::vector<std::pair<std::string, std::string>> links;
+			parseLinkData(omfData, links);
+			LogLinks(409, "creating Link", links);
+
 			Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
 			m_PIstable = false;
+			delete[] omfData;
 			return 0;
 		}
 		catch (const std::exception &e)
 		{
 			handleRESTException(e, "Error sending Data");
+
+			std::vector<std::pair<std::string, std::string>> links;
+			parseLinkData(omfData, links);
+			LogLinks(0, "creating Link", links);
+
 			linkedData.clearLALookup(readings, i, i + blockSize, m_delimiter);
 			delete[] omfData;
 			return 0;

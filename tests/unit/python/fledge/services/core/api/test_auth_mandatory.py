@@ -1213,6 +1213,60 @@ class TestAuthMandatory:
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/reset')
 
+    @pytest.mark.parametrize("request_data, ret_val", [
+        ({"username": "admin", "password": "fledge"}, (1, "token1", True)),
+        ({"username": "user", "password": "fledge"}, (2, "token2", False))
+    ])
+    async def test_login_auth_password(self, client, request_data, ret_val):
+        async def async_mock():
+            return ret_val
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
+                with patch.object(auth._logger, 'info') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data))
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert ret_val[0] == actual['uid']
+                    assert ret_val[1] == actual['token']
+                    assert ret_val[2] == actual['admin']
+                patch_auth_logger.assert_called_once_with('User with username:<{}> logged in successfully.'.format(
+                    request_data['username']))
+            # TODO: host arg patch transport.request.extra_info
+            args, kwargs = patch_user_login.call_args
+            assert request_data['username'] == args[0]
+            assert request_data['password'] == args[1]
+            # patch_user_login.assert_called_once_with()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
+    @pytest.mark.parametrize("exception_name, status_code, msg", [
+        (User.PasswordNotSetError, 400, 'Password is not set for this user.'),
+        (User.DoesNotExist, 404, 'User does not exist'),
+        (User.PasswordDoesNotMatch, 404, 'Username or Password do not match'),
+        (Exception, 500, 'Internal Server Error')
+    ])
+    async def test_login_fails_when_password_auth_used_but_password_not_set(self, client, exception_name,
+                                                                            status_code, msg):
+        request_data_payload = {"username": "ranveer", "password": "Singh@123"}
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', side_effect=exception_name(msg)):
+                with patch.object(auth._logger, 'error') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data_payload))
+                    assert status_code == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                patch_auth_logger.assert_not_called() if status_code != 500 else patch_auth_logger.assert_called()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
     @pytest.mark.parametrize("auth_method, request_data, ret_val", [
         ("certificate", "-----BEGIN CERTIFICATE----- Test -----END CERTIFICATE-----", (2, "token2", False))
     ])

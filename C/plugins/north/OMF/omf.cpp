@@ -183,6 +183,17 @@ static void parseLinkData(const char *json, std::vector<std::pair<std::string, s
 }
 
 /**
+ * Parse "index" and "containerid" values from JSON containing link "source" and "target"
+ *
+ * @param json    JSON text as std::string
+ * @param links   Vector of source-target name pairs
+ */
+static void parseLinkData(const std::string &json, std::vector<std::pair<std::string, std::string>> &links)
+{
+	parseLinkData(json.c_str(), links);
+}
+
+/**
  * Parse "Name" from JSON containing a Data message with element definitions
  *
  * @param json	JSON text

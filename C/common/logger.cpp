@@ -186,7 +186,7 @@ Logger *Logger::getLogger()
 	if (!instance)
 	{
 		// Any service should have already created the logger
-		// for the service. If not then create the deault logger
+		// for the service. If not then create the default logger
 		// and clearly identify this. We should ideally avoid
 		// the use of a default as this will not identify the
 		// source of the log message.
@@ -231,10 +231,10 @@ void Logger::setMinLevel(const string& level)
 
 /**
  * Register a callback function to be called when
- * a log message is written that matches the secification
+ * a log message is written that matches the specification
  * given.
  *
- * Note: The callback functions are called on a seperate thread.
+ * Note: The callback functions are called on a separate thread.
  * This worker thread is only created when the first callback is
  * registered.
  *
@@ -265,9 +265,9 @@ bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* 
 }
 
 /**
- * Remove the registration of a previosuly registered callback
+ * Remove the registration of a previously registered callback
  *
- * @param level		The matching log loevel for the callback
+ * @param level		The matching log level for the callback
  * @param callback	The callback to unregister
  * @return bool		True if the callback was unregistered.
  */
@@ -314,7 +314,9 @@ void Logger::workerThread()
 	while (m_runWorker)
 	{
 		std::unique_lock<mutex> lock(m_queueMutex);
-		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_runWorker; });
+		m_condition.wait_for(lock, std::chrono::seconds(1), [this] {
+			return !m_taskQueue.empty() || !m_runWorker;
+		});
 
 		while (!m_taskQueue.empty())
 		{

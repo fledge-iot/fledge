@@ -570,7 +570,7 @@ See the `AVEVA Documentation page <https://docs.aveva.com/bundle/pi-web-api/page
     It may be necessary if OMF Container messages generate the HTTP 413 error and the PI Web API *MaxRequestContentLength* cannot be increased.
 
 WARNING: FledgeAsset Type exists with a different definition
-------------------------------------------------------------
+-------------------------------------------------------------
 
 This warning can appear in Fledge systems that have already had one or more instances of OMF North running.
 The first OMF North instance to start will create the *FledgeAsset* AF Element Template which is used by OMF to create AF Elements that represent Containers in Linked Type configurations.
@@ -602,7 +602,7 @@ The OMF message that attempts to create the *FledgeAsset* AF Element Template wi
 You will see only the message "*Confirmed FledgeAsset Type.*"
 
 Recreating FledgeAsset to include Static Data
-#############################################
+##############################################
 
 If you want to use your Static Data configuration in your Containers, you can delete all AF Elements that derive from *FledgeAsset* and then the *FledgeAsset* AF Element Template itself.
 OMF North will recreate the *FledgeAsset* AF Element Template and AF Elements when readings are processed.
@@ -611,7 +611,7 @@ After deleting AF Elements and AF Templates, you must check in your changes.
 Restart PI Web API and then your OMF North instance.
 
 Finding AF Elements that derive from FledgeAsset
-################################################
+#################################################
 
 The PI System Explorer allows you to search for all AF Elements that derive from the *FledgeAsset* AF Template:
 

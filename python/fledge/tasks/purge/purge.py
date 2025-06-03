@@ -29,6 +29,7 @@ Statistics reported by Purge process are:
     All these statistics are inserted into the log table
 """
 import time
+import pytz
 from datetime import datetime, timedelta
 
 from fledge.common import statistics
@@ -133,7 +134,8 @@ class Purge(FledgeProcess):
         unsent_retained = 0
         duration = 0
         method = None
-        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+        timezone = pytz.timezone('UTC')  # You can replace 'UTC' with your desired timezone
+        start_time = datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S.%f %Z%z')
 
         if config['retainUnsent']['value'].lower() == "purge unsent":
             flag = "purge"
@@ -239,7 +241,7 @@ class Purge(FledgeProcess):
             # skip logging as its already done in details for this operation in case of error
             # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
-        end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+        end_time = datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S.%f %Z%z')
 
         if total_rows_removed > 0:
             """ Only write an audit log entry when rows are removed """

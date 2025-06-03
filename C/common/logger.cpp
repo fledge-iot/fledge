@@ -142,10 +142,10 @@ Logger::~Logger()
 		instance = NULL;
 	else if (!instance)
 		return;	// Already destroyed
+	m_runWorker = false;
 	m_condition.notify_one();
 	if (m_workerThread && m_workerThread->joinable())
 	{
-		m_runWorker = false;
 		m_workerThread->join();
 		delete m_workerThread;
 		m_workerThread = NULL;
@@ -314,9 +314,7 @@ void Logger::workerThread()
 	while (m_runWorker)
 	{
 		std::unique_lock<mutex> lock(m_queueMutex);
-		m_condition.wait_for(lock, std::chrono::seconds(1), [this] {
-			return !m_taskQueue.empty() || !m_runWorker;
-		});
+		m_condition.wait(lock, [this] { return !m_taskQueue.empty() || !m_runWorker; });
 
 		while (!m_taskQueue.empty())
 		{

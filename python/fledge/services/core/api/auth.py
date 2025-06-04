@@ -110,7 +110,6 @@ async def login(request):
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
-
     try:
         # Check ott inside request payload.
         _data = json.loads(data)
@@ -175,14 +174,22 @@ async def login(request):
             host, port = peername
         try:
             uid, token, is_admin = await User.Objects.login(username, password, host)
-        except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+        except User.PasswordNotSetError as err:
+            msg = str(err)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
         except User.PasswordExpired as ex:
             # delete all user token for this user
             await User.Objects.delete_user_tokens(str(ex))
             msg = 'Your password has been expired. Please set your password again.'
             _logger.warning(msg)
             raise web.HTTPUnauthorized(reason=msg)
+        except Exception as exc:
+            msg = str(exc)
+            _logger.error(exc, "Failed to login.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     _logger.info("User with username:<{}> logged in successfully.".format(username))
     return web.json_response({"message": "Logged in successfully.", "uid": uid, "token": token, "admin": is_admin})

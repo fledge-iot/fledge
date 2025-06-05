@@ -316,12 +316,9 @@ class TestPythonNorthService:
                                       remote_south_plugin, remote_north_service_name, remote_north_plugin,
                                       verify_asset_tracking_details)
 
-        put_url = "/fledge/restart"
-        utils.put_request(fledge_url, urllib.parse.quote(put_url))
-        utils.put_request(fledge_url_remote, urllib.parse.quote(put_url))
-
-        # Wait for fledge to restart
-        time.sleep(wait_time * 2)
+        from conftest import restart_and_wait_for_fledge
+        restart_and_wait_for_fledge(fledge_url, wait_time)
+        restart_and_wait_for_fledge(fledge_url_remote, wait_time)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)

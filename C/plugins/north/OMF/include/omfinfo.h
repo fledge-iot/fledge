@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2023 Dianomic Systems
+ * Copyright (c) 2023-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -112,10 +112,11 @@ class OMFInformation {
 		void 		loadSentDataTypes(rapidjson::Document& JSONData);
 		long		getMaxTypeId();
 		int		PIWebAPIGetVersion(bool logMessage = true);
-		int		EDSGetVersion();
+		int		EDSGetVersion(bool logMessage = true);
+		int		IsADHConnected(bool logMessage = true);
 		void		SetOMFVersion();
 		void		CheckDataActionCode();
-		std::string	OCSRetrieveAuthToken();
+		std::string	OCSRetrieveAuthToken(bool logMessage = true);
 		OMF_ENDPOINT	identifyPIServerEndpoint();
 		std::string	saveSentDataTypes();
 		unsigned long	calcTypeShort(const std::string& dataTypes);
@@ -124,7 +125,7 @@ class OMFInformation {
 		std::string	AuthBasicCredentialsGenerate(std::string& userId, std::string& password);
 		void		AuthKerberosSetup(std::string& keytabEnv, std::string& keytabFileName);
 		double		GetElapsedTime(struct timeval *startTime);
-		bool		IsPIWebAPIConnected();
+		bool		IsDataArchiveConnected();
         void handleOMFTracing();
 		
 	private:
@@ -185,5 +186,6 @@ class OMFInformation {
 		string		m_name;
 		bool		m_connected;
         bool        m_tracingEnabled;
+		std::size_t	m_numBlocks;
 };
 #endif

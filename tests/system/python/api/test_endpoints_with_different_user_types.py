@@ -38,16 +38,11 @@ def change_to_auth_mandatory(fledge_url, wait_time):
     jdoc = json.loads(r)
     assert "mandatory" == jdoc['authentication']['value']
 
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
+    from conftest import restart_and_wait_for_fledge
+    restart_and_wait_for_fledge(fledge_url, wait_time)
 
 
-def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 3)
+def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url):
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))

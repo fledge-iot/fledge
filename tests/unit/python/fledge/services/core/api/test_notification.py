@@ -7,11 +7,13 @@
 
 import asyncio
 import uuid
+
+import aiohttp.web_exceptions
 import pytest
 import json
 import sys
 from aiohttp import web
-from unittest.mock import MagicMock, call
+from unittest.mock import call, patch
 
 from fledge.services.core import routes
 from fledge.services.core import connect
@@ -271,6 +273,7 @@ async def mock_post_url(post_url):
     if post_url.endswith("/notification/Test Notification/delivery/email"):
         return json.dumps({"result": "OK"})
 
+
 async def mock_delete_url(delete_url):
     return json.dumps({"result": "OK"})
 
@@ -326,6 +329,25 @@ class TestNotification:
         app = web.Application(loop=loop)
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
+
+    @pytest.mark.parametrize("side_effect_exception, expected_http_exception, expected_message, expected_log_calls", [
+        (ValueError, aiohttp.web_exceptions.HTTPNotFound, "", 0),
+        (notification.PluginFetchError, aiohttp.web_exceptions.HTTPInternalServerError,
+         "Failed to fetch notification plugins.", 1),
+        (Exception, aiohttp.web_exceptions.HTTPInternalServerError, "", 1)
+    ])
+    async def test_bad_get_plugin(self, mocker, side_effect_exception, expected_http_exception, expected_message,
+                                  expected_log_calls):
+        with patch.object(notification, 'fetch_plugins', side_effect=side_effect_exception):
+            with patch.object(notification._logger, 'error') as patch_logger:
+                with pytest.raises(Exception) as exc_info:
+                    await notification.get_plugin(mocker)
+                assert isinstance(exc_info.value, expected_http_exception)
+                assert expected_message == str(exc_info.value)
+            assert expected_log_calls == patch_logger.call_count
+            if expected_log_calls > 0:
+                args, kwargs = patch_logger.call_args
+                assert 'Failed to get notification plugin list.' == args[1]
 
     async def test_get_plugin(self, mocker, client):
         rules_and_delivery = {'rules': rule_config, 'delivery': delivery_config}
@@ -657,7 +679,6 @@ class TestNotification:
         result = await resp.text()
         assert result.endswith('Invalid notification_type property in payload.')
 
-
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": fals}'
         resp = await client.post("/fledge/notification", data=mock_payload)
@@ -672,6 +693,28 @@ class TestNotification:
         result = await resp.text()
         assert result.endswith(
             "Invalid rule plugin {} and/or delivery plugin {} supplied.".format("threshol", "emai"))
+
+    async def test_post_notification_plugin_fetch_error(self, mocker, client):
+        expected_message = "Failed to fetch notification plugins."
+        _rv = await mock_check_category() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_check_category()))
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv)
+        with patch.object(notification, 'fetch_plugins', side_effect=notification.PluginFetchError):
+            with patch.object(notification._logger, 'error') as patch_logger:
+                mock_payload = ('{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", '
+                                '"channel": "email", "notification_type": "one shot", "enabled": false}')
+                resp = await client.post("/fledge/notification", data=mock_payload)
+                assert 500 == resp.status
+                assert expected_message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"message": expected_message} == json_response
+            assert 1 == patch_logger.call_count
+            args, kwargs = patch_logger.call_args
+            assert 'Failed to create notification instance.' == args[1]
 
     async def test_put_notification(self, mocker, client):
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -706,7 +749,6 @@ class TestNotification:
                                                 call('ruleTest Notification', {'asset': 'temperature', 'trigger': '70', 'tolerance': '4', 'window': '60'}),
                                                 call('deliveryTest Notification', {'number': '07812 343830'})]
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
-
 
     async def test_put_notification_exception(self, mocker, client):
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -784,6 +826,32 @@ class TestNotification:
         result = await resp.text()
         assert result.endswith(
             "Invalid rule plugin:{} and/or delivery plugin:{} supplied.".format("threshol", "sm"))
+
+    async def test_put_notification_plugin_fetch_error(self, mocker, client):
+        name = "Test Notification"
+        expected_message = "Failed to fetch notification plugins."
+
+        _rv2 = await mock_read_category_val(name) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
+            asyncio.ensure_future(mock_read_category_val(name)))
+        mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv2)
+        with patch.object(notification, 'fetch_plugins', side_effect=notification.PluginFetchError):
+            with patch.object(notification._logger, 'error') as patch_logger:
+                mock_payload = ('{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", '
+                                '"channel": "sm", "notification_type": "one shot", "enabled": false, '
+                                '"rule_config": {"asset": "temperature", "trigger": "70", "window": "60", '
+                                '"tolerance": "4"}, "delivery_config": {"number": "07812 343830"} }')
+                resp = await client.put("/fledge/notification/{}".format(name), data=mock_payload)
+                assert 500 == resp.status
+                assert expected_message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"message": expected_message} == json_response
+            assert 1 == patch_logger.call_count
+            args, kwargs = patch_logger.call_args
+            assert 'Failed to update {} notification instance.'.format(name) == args[1]
 
     async def test_delete_notification(self, mocker, client):
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.

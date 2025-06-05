@@ -14,6 +14,7 @@
 .. |OMF_Default| image:: images/OMF_Default.jpg
 .. |OMF_Format| image:: images/OMF_Format.jpg
 .. |OMF_Endpoints| image:: images/OMF_Endpoints.jpg
+.. |OMF_StaticData| image:: images/OMF_StaticData.jpg
 .. |ADH_Regions| image:: images/ADH_Regions.jpg
 
 .. Links
@@ -149,7 +150,9 @@ The *Basic* tab contains the most commonly modified items
      
     - *statistics* - Fledge's internal statistics.
 
-  - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+  - **Static Data**: Data to include in every Container created by OMF.
+    For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+    See the :ref:`Static Data` section.
 
   - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
     The default delimiter is a dot (".").
@@ -817,6 +820,59 @@ Further Troubleshooting
 If you are unable to locate your problematic PI Points using the PI System Explorer, or if there are simply too many of them, there are advanced techniques available to troubleshoot
 and repair your system.
 Contact Technical Support for assistance.
+
+.. _Static Data:
+
+Static Data
+-----------
+
+This feature allows you specify static string values that will be included in OMF Containers created by OMF North.
+Containers appear in the target AF Database as AF Elements that own AF Attributes which are mapped to PI Points.
+For example, this AF Element named *Calvin2* has two AF Attributes that map PI Points: *random* and *random2*.
+The AF Element also has three static data values named *Company*, *Domain* and *Location*:
+
++------------------+
+| |OMF_StaticData| |
++------------------+
+
+Each Static Data item in the Fledge configuration consists of a key/value pair separated by a colon(":").
+You can specify multiple Static Data items separated by commas (",").
+Static Data keys and values are applied when a Container is created.
+Static Data values are always strings.
+OMF North cannot easily change the keys or add new keys after OMF North has started the first time.
+You can, however, edit the values of the Static Data keys.
+
+Static Data values are included in AF Element Templates which are then used by OMF to create Containers.
+The design of the AF Templates depends on whether Linked Types or Complex Types are configured:
+
+Linked Types
+~~~~~~~~~~~~
+
+OMF creates a single AF Element Template called *FledgeAsset*.
+Besides the essential *__id*, *__indexProperty* and *__nameProperty* OMF attributes, the *FledgeAsset* template will have attributes defined by your Static Data configuration.
+The first OMF North instance to start will create the *FledgeAsset* AF Element Template.
+Any subsequent OMF North instance that starts will not change the *FledgeAsset* template.
+The best practice is to decide early which Static Data keys should be added to all OMF North configurations.
+Each OMF North instance can have its own values for these Static Data items which will be applied to any Container it creates.
+Updated Static Data values in your configuration will be applied to both new and existing Containers.
+
+Complex Types
+~~~~~~~~~~~~~
+
+OMF creates multiple AF Element Templates, one per asset.
+These AF Element Templates own the Static Data items and have names that end in "...\ *assetname*\ _typename_sensor."
+Each template is used to create a Container for one asset.
+Because of this, the risk of overlapping definitions is lower.
+Once Containers are created, editing the Static Data values in your configuration does not update any existing AF Elements.
+
+.. note::
+
+    When OMF North starts, you may see this warning in */var/log/syslog*::
+
+        WARNING: FledgeAsset Type exists with a different definition
+
+    This warning does not affect the normal flow of data.
+    A detailed explanation of this warning and how to address it can be found in the |OMF North Troubleshooting| guide.
 
 .. _Linked_Types:
 

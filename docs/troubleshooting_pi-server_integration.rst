@@ -27,6 +27,17 @@ You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
 - `Log files`_
 - `How to confirm that PI Web API is installed and running`_
 - `Error Messages and Causes`_
+
+  - `Loss of Connection to the PI Web API Server`_
+  - `HTTP Code 409: Processing cannot continue until data archive errors are corrected`_
+  - `HTTP Code 409: The supplied container overlaps with a different existing container`_
+  - `HTTP Code 409:  One or more PI Points could not be created`_
+  - `PI License Expired or Limit Exceeded`_
+  - `HTTP Code 409: AF Element could not be created`_
+  - `HTTP Code 409: An existing LINK includes an AF Attribute that overlaps`_
+  - `HTTP Code 413: Payload Too Large`_
+  - `WARNING: FledgeAsset Type exists with a different definition`_
+  - `Changing the Tag Name OMF Hint`_
 - `Possible Solutions to Common Problems`_
 
 Complex Types vs. Linked Types
@@ -43,6 +54,8 @@ In the initial release of the OMF North plugin, all Types were Complex Types.
 This means the Type would include data streams that represent all Datapoints in the Reading.
 If a Reading arrived later with the same asset name but with additional Datapoints, OMF would be forced to create a new Type and new Containers.
 Previously defined Containers would be abandoned.
+
+.. _Linked Types Description:
 
 Linked Types
 ------------
@@ -513,6 +526,145 @@ If you have the `Tracing File`_ enabled, you may see supporting information labe
 This Suggestion is evidence that the OMF message sent by OMF North included an item that conflicted with an item in the OMF cache
 even though the item had been deleted from the AF Database manually and checked in.
 To address this, restart the PI Web API.
+
+HTTP Code 409: An existing LINK includes an AF Attribute that overlaps
+----------------------------------------------------------------------
+
+The full text of this error message is much longer.
+The context is:
+
+.. code-block:: bash
+
+    ERROR: HTTP 409: Conflict sending Data: 1 message
+    ERROR: Message 0 HTTP 409: Error, An existing LINK includes an AF Attribute that overlaps with the name of an AF Attribute that would be created for the specified LINK.,
+    ERROR: Error 409 creating Link random to random.randomwalk
+    ERROR: Error 409 creating Link random to random.temperature
+    ERROR: Error 409 creating Link random to random.units
+    ERROR: Error 409 creating Link random to random.location
+    WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
+
+A complete description of a OMF LINKs can be found in the :ref:`Linked Types<Linked Types Description>` section.
+In this case, an OMF message is attempting to create a new AF Attribute in an AF Element that already has an AF Attribute with the same name.
+OMF North logs all links that were attempted when this OMF Data message failed.
+
+Unfortunately, OMF does not return the name of the conflicting AF Attribute.
+You should compare the list of attempted links against the existing AF Attributes of the AF Element.
+The AF Element name is the first item in each *Error 409 creating Link* message.
+The AF Attribute name is the text after the dot (".") in the second item of the message.
+
+The solution to this problem depends on the situation.
+It is possible that an AF user manually added an AF Attribute to the AF Element.
+If this is the case, remove or rename the conflicting AF Attribute.
+
+Take note of the *Static Data* parameter in the OMF North configuration.
+Items in *Static Data* are added to every AF Element that represents an OMF Container.
+In this example, *Static Data* was left at its default which is:
+
+.. code-block:: bash
+
+    Location: Palo Alto, Company: Dianomic
+
+This creates AF Attributes *Location* and *Company* in every AF Element.
+Since comparisons in AF are case-insensitive, the name of the static AF Attribute *Location* conflicted with the *location* datapoint in the OMF Data message.
+
+HTTP Code 413: Payload Too Large
+--------------------------------
+
+This error means that a message POSTed to the PI Web API server is larger than the server will accept.
+This can occur if Readings have large numbers of Datapoints or if the data rates into OMF North are high.
+OMF North will work around this error for Data messages but you should be aware of its method for doing this.
+If this error occurs, you will see the following in */var/log/syslog*:
+
+.. code-block:: bash
+
+    ERROR: Error sending Data, 413 Payload Too Large - mypiserver:443 /piwebapi/omf
+    WARNING: Next POST of Readings will take place in 2 blocks
+
+The HTTP code of 413 (Payload Too Large) is returned by PI Web API.
+If this occurs, OMF North will divide the number of Readings it has received into 2 blocks and try to send its Data message again.
+If HTTP 413 is returned again, OMF North will divide the Readings into 3 blocks and so on.
+The block count will increase until the OMF Data message size is under the PI Web API limit.
+
+Once the block count has been set, OMF North will use continue to use this value.
+It will not be reduced automatically.
+If you believe that OMF Data message sizes will be significantly lower as processing continues, restart your OMF North instance.
+The block count will be reset to 1.
+
+If you have enabled the `Tracing File`_, you will see more detail:
+
+.. code-block:: bash
+
+    Code: 413 Request Entity Too Large
+    Content: {"Errors":["Request content exceeds the maximum allowed length 4194304"]}
+
+The integer 4194304 in the Content message is the PI Web API default value for the maximum inbound message size which is 4 Gigabytes.
+
+OMF North will divide its Readings into blocks for OMF Data messages only.
+Error logs for OMF Data messages begin with "*ERROR: Error sending Data.*"
+If you encounter the HTTP 413 error for any other type of OMF message, you must increase the maximum inbound message size in the PI Web API.
+The PI Web API parameter name for this message size limit is *MaxRequestContentLength*.
+See the `AVEVA Documentation page <https://docs.aveva.com/bundle/pi-web-api/page/1023031.html>`_ for instructions on how to edit this limit.
+
+.. note::
+
+    Another way to reduce OMF message size is to reduce the *Data Block Size* on the *Advanced* tab of the Fledge GUI.
+    This will result in fewer Readings being processed by OMF North at once.
+    In general, a *Data Block Size* setting of 2000 offers the best performance so this solution is not ideal.
+    It may be necessary if OMF Container messages generate the HTTP 413 error and the PI Web API *MaxRequestContentLength* cannot be increased.
+
+WARNING: FledgeAsset Type exists with a different definition
+-------------------------------------------------------------
+
+This warning can appear in Fledge systems that have already had one or more instances of OMF North running.
+The first OMF North instance to start will create the *FledgeAsset* AF Element Template which is used by OMF to create AF Elements that represent Containers in Linked Type configurations.
+The warning means that the OMF North Static Data parameters have changed since the *FledgeAsset* template was created.
+The flow of data to the PI System will not stop.
+However, any new AF Elements created by OMF North will have AF Attributes defined by the existing definition of *FledgeAsset*, not the Static Data parameter in your configuration.
+
+.. note::
+
+    Support for Static Data in Linked Types was introduced in Fledge 3.1.0.
+    Any instance of the *FledgeAsset* AF Element Template created before Fledge 3.1.0 will have only the minimum AF Attribute Templates: *__id*, *__indexProperty* and *__nameProperty*.
+    The presence of the even the default value of the Static Data parameter ("*Location: Palo Alto, Company: Dianomic*") will generate this warning.
+
+.. note::
+
+    The *FledgeAsset* AF Element Template is not used for Complex Types.
+    If all of your configurations use Complex Types, this warning is benign.
+
+Eliminating the Warning
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Techniques for eliminating the warning depend on your requirements for Static Data in your Containers.
+
+Clearing the Static Data
+########################
+
+If you are upgrading to Fledge 3.1.0 and don't need to add Static Data values to your OMF Containers, clear the Static Data configuration using the Fledge GUI.
+The OMF message that attempts to create the *FledgeAsset* AF Element Template will then match the existing definition of *FledgeAsset* so there will be no warning.
+You will see only the message "*Confirmed FledgeAsset Type.*"
+
+Recreating FledgeAsset to include Static Data
+##############################################
+
+If you want to use your Static Data configuration in your Containers, you can delete all AF Elements that derive from *FledgeAsset* and then the *FledgeAsset* AF Element Template itself.
+OMF North will recreate the *FledgeAsset* AF Element Template and AF Elements when readings are processed.
+Before doing any work on your AF Database, shut down any OMF North instance that is sending data to it.
+After deleting AF Elements and AF Templates, you must check in your changes.
+Restart PI Web API and then your OMF North instance.
+
+Finding AF Elements that derive from FledgeAsset
+#################################################
+
+The PI System Explorer allows you to search for all AF Elements that derive from the *FledgeAsset* AF Template:
+
+- In the *Elements* tab, locate *Element Searches* in the upper-left pane.
+- Right-click *Element Searches* and choose *New Search*.
+- In the *Element Search* dialog, click the *Template* drop-down and select *FledgeAsset*.
+- Click *OK* to invoke the search.
+- Select all items in the list of matching AF Elements.
+- Right-click and choose *Delete…*
+- In the resulting dialog box, choose "*Delete these objects and all references to them. Check in is required to complete this action.*"
 
 Changing the Tag Name OMF Hint
 ------------------------------

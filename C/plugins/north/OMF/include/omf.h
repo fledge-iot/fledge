@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2018-2022 Dianomic Systems
+ * Copyright (c) 2018-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -240,6 +240,10 @@ class OMF
 		// Set PI connection status
 		void setPIconnected(bool connectionStatus) { m_connected = connectionStatus; };
 
+		// Get and Set number of blocks of Readings
+		std::size_t getNumBlocks() { return m_numBlocks; };
+		void setNumBlocks(std::size_t numBlocks) { m_numBlocks = numBlocks; };
+
 		// Map object types found in input data
 		void setMapObjectTypes(const std::vector<Reading *>& data,
 					std::map<std::string, Reading*>& dataSuperSet);
@@ -388,6 +392,7 @@ private:
 
 		// Start of support for using linked containers
 		bool sendBaseTypes();
+		bool sendFledgeAssetType();
 		bool sendAFLinks(Reading& reading, OMFHints *hints);
 		// End of support for using linked containers
 		//
@@ -558,7 +563,12 @@ private:
 		 * If true, plugin is connected to the PI Server
 		 */
 		bool			m_connected;
-};
+
+		/**
+		 * Number of blocks of Readings from which to send Data at once
+		 */
+		std::size_t		m_numBlocks;
+	};
 
 /**
  * The OMFData class.

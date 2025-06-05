@@ -142,10 +142,10 @@ Logger::~Logger()
 		instance = NULL;
 	else if (!instance)
 		return;	// Already destroyed
+	m_runWorker = false;
 	m_condition.notify_one();
 	if (m_workerThread && m_workerThread->joinable())
 	{
-		m_runWorker = false;
 		m_workerThread->join();
 		delete m_workerThread;
 		m_workerThread = NULL;
@@ -186,7 +186,7 @@ Logger *Logger::getLogger()
 	if (!instance)
 	{
 		// Any service should have already created the logger
-		// for the service. If not then create the deault logger
+		// for the service. If not then create the default logger
 		// and clearly identify this. We should ideally avoid
 		// the use of a default as this will not identify the
 		// source of the log message.
@@ -231,10 +231,10 @@ void Logger::setMinLevel(const string& level)
 
 /**
  * Register a callback function to be called when
- * a log message is written that matches the secification
+ * a log message is written that matches the specification
  * given.
  *
- * Note: The callback functions are called on a seperate thread.
+ * Note: The callback functions are called on a separate thread.
  * This worker thread is only created when the first callback is
  * registered.
  *
@@ -265,9 +265,9 @@ bool Logger::registerInterceptor(LogLevel level, LogInterceptor callback, void* 
 }
 
 /**
- * Remove the registration of a previosuly registered callback
+ * Remove the registration of a previously registered callback
  *
- * @param level		The matching log loevel for the callback
+ * @param level		The matching log level for the callback
  * @param callback	The callback to unregister
  * @return bool		True if the callback was unregistered.
  */

@@ -40,6 +40,7 @@
 #   $4 - State
 #   $5 - Country
 #   $6 - Email
+#   $7 - Key Size
 #
 # The script is executed from the project directory
 #
@@ -85,32 +86,19 @@ else
 fi
 
 # Organization
-if [ -z ${3+x} ]; then
-  SSL_ORGANIZATION="OSIsoft"
-else
-  SSL_ORGANIZATION="$3"
-fi
+SSL_ORGANIZATION="${3:-OSIsoft}"
 
 # State
-if [ -z ${4+x} ]; then
-  SSL_STATE="California"
-else
-  SSL_STATE="$4"
-fi
+SSL_STATE="${4:-California}"
 
 # Country
-if [ -z ${5+x} ]; then
-  SSL_COUNTRY="US"
-else
-  SSL_COUNTRY="$5"
-fi
+SSL_COUNTRY="${5:-US}"
 
 # Email
-if [ -z ${6+x} ]; then
-  SSL_EMAIL="fledge@googlegroups.com"
-else
-  SSL_EMAIL="$6"
-fi
+SSL_EMAIL="${6:-fledge@googlegroups.com}"
+
+# Key Size
+KEY_SIZE="${7:-2048}"
 
 # OpenSSL command
 if ! [ -x "$(command -v openssl)" ]; then
@@ -127,7 +115,7 @@ certificate_log "info"  "Creating a self signed SSL certificate ..." "outonly" "
 # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
 SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
 
-openssl genpkey -out "${SSL_LOCATION}/fledge.pass.key" -pass pass:fledge -algorithm RSA 2> /dev/null
+openssl genpkey -out "${SSL_LOCATION}/fledge.pass.key" -pass pass:fledge -algorithm RSA -pkeyopt rsa_keygen_bits:${KEY_SIZE} 2> /dev/null
 openssl rsa -passin pass:fledge -in "${SSL_LOCATION}/fledge.pass.key" -out "${SSL_LOCATION}/${SSL_NAME}.key" 2> /dev/null
 rm "${SSL_LOCATION}/fledge.pass.key"
 openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null

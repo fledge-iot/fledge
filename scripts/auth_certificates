@@ -41,6 +41,7 @@
 #   $5 - State
 #   $6 - Country
 #   $7 - Email
+#   $8 - Key Size
 #
 # The script is executed from the project directory
 #
@@ -104,31 +105,26 @@ else
 fi
 
 # Organization
-if [ -z ${4+x} ]; then
-  SSL_ORGANIZATION="OSIsoft"
-else
-  SSL_ORGANIZATION="$4"
-fi
+SSL_ORGANIZATION="${4:-OSIsoft}"
 
 # State
-if [ -z ${5+x} ]; then
-  SSL_STATE="California"
-else
-  SSL_STATE="$5"
-fi
+SSL_STATE="${5:-California}"
 
 # Country
-if [ -z ${6+x} ]; then
-  SSL_COUNTRY="US"
-else
-  SSL_COUNTRY="$6"
-fi
+SSL_COUNTRY="${6:-US}"
 
 # Email
-if [ -z ${7+x} ]; then
-  SSL_EMAIL="fledge@googlegroups.com"
+SSL_EMAIL="${7:-fledge@googlegroups.com}"
+
+# Key size
+if [ -z ${8+x} ]; then
+  if [[ "$AUTH_TYPE" = "ca" ]]; then
+    KEY_SIZE="4096"
+  else
+    KEY_SIZE="2048"
+  fi
 else
-  SSL_EMAIL="$7"
+  KEY_SIZE="$8"
 fi
 
 # OpenSSL command
@@ -147,7 +143,7 @@ if [[ "$AUTH_TYPE" = "ca" ]]; then
   # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
   SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${AUTH_NAME}/emailAddress=${SSL_EMAIL}"
 
-  openssl genrsa -out "${SSL_LOCATION}/${AUTH_NAME}.key" 4096 2> /dev/null
+  openssl genrsa -out "${SSL_LOCATION}/${AUTH_NAME}.key" "${KEY_SIZE}" 2> /dev/null
   openssl req -new -x509 -days "${SSL_EXPIRATION_DAYS}" -key "${SSL_LOCATION}/${AUTH_NAME}.key" -out "${SSL_LOCATION}/${AUTH_NAME}.cert" -subj '/C=US/CN=MY-CA' 2> /dev/null
 
   certificate_log "info" "${AUTH_TYPE} certificate created successfully, and placed in ${SSL_LOCATION}" "outonly" "pretty"
@@ -155,7 +151,7 @@ else
   # Add more info /C=$country/ST=$state/L=$locality/O=$organization/OU=$organizational_unit/CN=$common_name/emailAddress=$email
   SUBJ="/C=${SSL_COUNTRY}/ST=${SSL_STATE}/O=${SSL_ORGANIZATION}/CN=${SSL_NAME}/emailAddress=${SSL_EMAIL}"
 
-  openssl genrsa -out "${SSL_LOCATION}/${SSL_NAME}.key" 1024 2> /dev/null
+  openssl genrsa -out "${SSL_LOCATION}/${SSL_NAME}.key" "${KEY_SIZE}" 2> /dev/null
   openssl req -new -key "${SSL_LOCATION}/${SSL_NAME}.key" -subj "${SUBJ}" -out "${SSL_LOCATION}/${SSL_NAME}.csr" 2> /dev/null
   openssl x509 -req -days "${SSL_EXPIRATION_DAYS}" -in "${SSL_LOCATION}/${SSL_NAME}.csr" -CA "${SSL_LOCATION}/${AUTH_NAME}.cert" -CAkey "${SSL_LOCATION}/${AUTH_NAME}.key" -set_serial 01 -out "${SSL_LOCATION}/${SSL_NAME}.cert" 2> /dev/null
 

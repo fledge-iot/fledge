@@ -34,6 +34,7 @@ You should be running PI Web API 2019 SP1 (1.13.0.6518) or later.
   - `HTTP Code 409:  One or more PI Points could not be created`_
   - `PI License Expired or Limit Exceeded`_
   - `HTTP Code 409: AF Element could not be created`_
+  - `HTTP Code 409: An existing LINK includes an AF Attribute that overlaps`_
   - `HTTP Code 413: Payload Too Large`_
   - `WARNING: FledgeAsset Type exists with a different definition`_
   - `Changing the Tag Name OMF Hint`_
@@ -53,6 +54,8 @@ In the initial release of the OMF North plugin, all Types were Complex Types.
 This means the Type would include data streams that represent all Datapoints in the Reading.
 If a Reading arrived later with the same asset name but with additional Datapoints, OMF would be forced to create a new Type and new Containers.
 Previously defined Containers would be abandoned.
+
+.. _Linked Types Description:
 
 Linked Types
 ------------
@@ -524,6 +527,46 @@ This Suggestion is evidence that the OMF message sent by OMF North included an i
 even though the item had been deleted from the AF Database manually and checked in.
 To address this, restart the PI Web API.
 
+HTTP Code 409: An existing LINK includes an AF Attribute that overlaps
+----------------------------------------------------------------------
+
+The full text of this error message is much longer.
+The context is:
+
+.. code-block:: bash
+
+    ERROR: HTTP 409: Conflict sending Data: 1 message
+    ERROR: Message 0 HTTP 409: Error, An existing LINK includes an AF Attribute that overlaps with the name of an AF Attribute that would be created for the specified LINK.,
+    ERROR: Error 409 creating Link random to random.randomwalk
+    ERROR: Error 409 creating Link random to random.temperature
+    ERROR: Error 409 creating Link random to random.units
+    ERROR: Error 409 creating Link random to random.location
+    WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
+
+A complete description of a OMF LINKs can be found in the :ref:`Linked Types<Linked Types Description>` section.
+In this case, an OMF message is attempting to create a new AF Attribute in an AF Element that already has an AF Attribute with the same name.
+OMF North logs all links that were attempted when this OMF Data message failed.
+
+Unfortunately, OMF does not return the name of the conflicting AF Attribute.
+You should compare the list of attempted links against the existing AF Attributes of the AF Element.
+The AF Element name is the first item in each *Error 409 creating Link* message.
+The AF Attribute name is the text after the dot (".") in the second item of the message.
+
+The solution to this problem depends on the situation.
+It is possible that an AF user manually added an AF Attribute to the AF Element.
+If this is the case, remove or rename the conflicting AF Attribute.
+
+Take note of the *Static Data* parameter in the OMF North configuration.
+Items in *Static Data* are added to every AF Element that represents an OMF Container.
+In this example, *Static Data* was left at its default which is:
+
+.. code-block:: bash
+
+    Location: Palo Alto, Company: Dianomic
+
+This creates AF Attributes *Location* and *Company* in every AF Element.
+Since comparisons in AF are case-insensitive, the name of the static AF Attribute *Location* conflicted with the *location* datapoint in the OMF Data message.
+
 HTTP Code 413: Payload Too Large
 --------------------------------
 
@@ -570,7 +613,7 @@ See the `AVEVA Documentation page <https://docs.aveva.com/bundle/pi-web-api/page
     It may be necessary if OMF Container messages generate the HTTP 413 error and the PI Web API *MaxRequestContentLength* cannot be increased.
 
 WARNING: FledgeAsset Type exists with a different definition
-------------------------------------------------------------
+-------------------------------------------------------------
 
 This warning can appear in Fledge systems that have already had one or more instances of OMF North running.
 The first OMF North instance to start will create the *FledgeAsset* AF Element Template which is used by OMF to create AF Elements that represent Containers in Linked Type configurations.
@@ -602,7 +645,7 @@ The OMF message that attempts to create the *FledgeAsset* AF Element Template wi
 You will see only the message "*Confirmed FledgeAsset Type.*"
 
 Recreating FledgeAsset to include Static Data
-#############################################
+##############################################
 
 If you want to use your Static Data configuration in your Containers, you can delete all AF Elements that derive from *FledgeAsset* and then the *FledgeAsset* AF Element Template itself.
 OMF North will recreate the *FledgeAsset* AF Element Template and AF Elements when readings are processed.
@@ -611,7 +654,7 @@ After deleting AF Elements and AF Templates, you must check in your changes.
 Restart PI Web API and then your OMF North instance.
 
 Finding AF Elements that derive from FledgeAsset
-################################################
+#################################################
 
 The PI System Explorer allows you to search for all AF Elements that derive from the *FledgeAsset* AF Template:
 

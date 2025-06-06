@@ -59,6 +59,9 @@ class User:
     class UserAlreadyExists(Exception):
         pass
 
+    class PasswordNotSetError(Exception):
+        pass
+
     class PasswordDoesNotMatch(Exception):
         pass
 
@@ -382,7 +385,8 @@ class User:
                 raise User.DoesNotExist('User does not exist')
 
             found_user = result['rows'][0]
-
+            if not found_user.get('pwd'):
+                raise User.PasswordNotSetError("Password is not set for this user.")
             # check age of password
             t1 = datetime.now()
             t2 = datetime.strptime(found_user['pwd_last_changed'], "%Y-%m-%d %H:%M:%S.%f")
@@ -475,7 +479,6 @@ class User:
             # Clear failed_attempts on successful login
             if int(found_user['failed_attempts']) > 0:
                 await cls.update(found_user['id'],{'failed_attempts': 0})
-
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin
 

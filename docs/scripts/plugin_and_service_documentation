@@ -228,6 +228,7 @@ do
             if [[ -n "$result" ]]; then
                 cat >> $plugins_path/$dir_name/index.rst << EOFPLUGINS
 
+
 See Also
 --------
 EOFPLUGINS

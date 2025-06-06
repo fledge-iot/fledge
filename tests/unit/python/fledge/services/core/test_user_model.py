@@ -604,6 +604,45 @@ class TestUserModel:
                 assert payload == p
             mock_get_cat_patch.assert_called_once_with('password', 'expiration')
 
+    async def test_login_with_empty_password(self):
+        async def mock_get_category_item():
+            return {"value": "0"}
+
+        pwd_result = {'count': 1, 'rows': [{'pwd': '', 'id': 3, 'role_id': 2, 'access_method': 'cert',
+                                            'pwd_last_changed': '', 'real_name': 'AJ', 'description': '',
+                                            'hash_algorithm': 'SHA512', 'block_until': '', 'failed_attempts': 0}]}
+        payload = {"return": ["pwd", "id", "role_id", "access_method",
+                              {"column": "pwd_last_changed", "format": "YYYY-MM-DD HH24:MI:SS.MS", "alias":
+                                  "pwd_last_changed"}, "real_name", "description", "hash_algorithm", "block_until",
+                              "failed_attempts"],
+                   "where": {"column": "uname", "condition": "=", "value": "user",
+                             "and": {"column": "enabled", "condition": "=", "value": "t"}}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_category_item()
+            _rv2 = await mock_coro(pwd_result)
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_category_item())
+            _rv2 = asyncio.ensure_future(mock_coro(pwd_result))
+
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(ConfigurationManager, "get_category_item",
+                              return_value=_rv1) as mock_get_cat_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  return_value=_rv2) as query_tbl_patch:
+                    with pytest.raises(Exception) as excinfo:
+                        await User.Objects.login('user', 'blah', '0.0.0.0')
+                    assert str(excinfo.value) == 'Password is not set for this user.'
+                    assert excinfo.type is User.PasswordNotSetError
+                    assert issubclass(excinfo.type, Exception)
+                args, kwargs = query_tbl_patch.call_args
+                assert 'users' == args[0]
+                p = json.loads(args[1])
+                assert payload == p
+            mock_get_cat_patch.assert_called_once_with('password', 'expiration')
+
     async def test_login_age_pwd_expiration(self):
         async def mock_get_category_item():
             return {"value": "30"}

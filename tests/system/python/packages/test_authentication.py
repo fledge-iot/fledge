@@ -28,6 +28,8 @@ HTTP_SOUTH_SVC_NAME_1 = "SOUTH_HTTP_1"
 ASSET_NAME = "auth"
 PASSWORD_TOKEN = None
 CERT_TOKEN = None
+KEY_SIZE = 2048
+
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
@@ -324,7 +326,7 @@ class TestAuthAnyWithoutTLS:
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -1060,7 +1062,7 @@ class TestAuthCertificateWithoutTLS:
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -1419,7 +1421,7 @@ class TestAuthAnyWithTLS:
     def test_login_with_custom_certificate(self, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -2156,7 +2158,7 @@ class TestAuthCertificateWithTLS:
     def test_login_with_custom_certificate(self, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "

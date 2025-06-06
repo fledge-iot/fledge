@@ -620,7 +620,7 @@ void OMFInformation::start(const string& storedData)
 		{
 			m_ocs = new OCS(true);
 		}
-		else
+		else if (m_PIServerEndpoint == ENDPOINT_OCS)
 		{
 			m_ocs = new OCS(false);
 		}

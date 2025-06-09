@@ -37,7 +37,7 @@ class OCS
 		// Destructor
 		~OCS();
 
-		string  retrieveToken(const string& clientId, const string& clientSecret);
+		string  retrieveToken(const string& clientId, const string& clientSecret, bool logMessage = true);
 		string  extractToken(const string& response);
 	private:
 		bool	m_adh;

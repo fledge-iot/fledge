@@ -14,6 +14,7 @@
 .. |OMF_Default| image:: images/OMF_Default.jpg
 .. |OMF_Format| image:: images/OMF_Format.jpg
 .. |OMF_Endpoints| image:: images/OMF_Endpoints.jpg
+.. |OMF_StaticData| image:: images/OMF_StaticData.jpg
 .. |ADH_Regions| image:: images/ADH_Regions.jpg
 
 .. Links
@@ -21,6 +22,9 @@
 
    <a href="../fledge-filter-omfhint/index.html">OMFHint filter plugin</a>
 
+.. |OMF North Troubleshooting| raw:: html
+
+   <a href="../../troubleshooting_pi-server_integration.html">Troubleshooting the PI Server integration</a>
 
 OMF End Points
 --------------
@@ -146,7 +150,9 @@ The *Basic* tab contains the most commonly modified items
      
     - *statistics* - Fledge's internal statistics.
 
-  - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+  - **Static Data**: Data to include in every Container created by OMF.
+    For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+    See the :ref:`Static Data` section.
 
   - **Data Stream Name Delimiter**: The plugin creates Container names by concatenating Asset and Datapoint names separated by this single-character delimiter.
     The default delimiter is a dot (".").
@@ -290,12 +296,12 @@ The OMF plugin names objects in the Asset Framework based upon the asset
 name in the reading within Fledge. Asset names are typically added to
 the readings in the south plugins, however they may be altered by filters
 between the south ingest and the north egress points in the data
-pipeline. Asset names can be overridden using the `OMF Hints` mechanism
+pipeline. Asset names can be overridden using the :ref:`OMF Hints` mechanism
 described below.
 
 The attribute names used within the objects in the PI System are based
 on the names of the datapoints within each Reading within Fledge. Again
-`OMF Hints` can be used to override this mechanism.
+:ref:`OMF Hints` can be used to override this mechanism.
 
 The naming used within the objects in the Asset Framework is controlled
 by the *Naming Scheme* option:
@@ -355,7 +361,7 @@ one for name-based rules and the other for metadata based rules.
 			    "nonexist" :
 				    {
 					    "unit"          : "Uncalibrated"
-				    }
+				    },
 			    "equal" :
 				    {
 					    "room"          :
@@ -363,7 +369,7 @@ one for name-based rules and the other for metadata based rules.
 							    "4" : "ElecticalLab",
 							    "6" : "FluidLab"
 						    }
-				    }
+				    },
 			    "notequal" :
 				    {
 					    "building"      :
@@ -465,21 +471,26 @@ use our original location */BuildingA/${room}* and we have the reading
 .. code-block:: console
 
   "reading" : {
-       "temperature" : 22.8,
+       "temperature" : 22.8
        }
 
 this reading would be stored in */BuildingA*.
+
+.. _OMF Hints:
 
 OMF Hints
 ---------
 
 The OMF plugin also supports the concept of hints in the actual data
 that determine how the data should be treated by the plugin. Hints are
-encoded in a specially name datapoint within the asset, *OMFHint*. The
-hints themselves are encoded as JSON within a string.
+encoded in a specially named datapoint within a reading called *OMFHint*.
+The hints themselves are encoded as JSON within a string.
 
-Number Format Hints
-~~~~~~~~~~~~~~~~~~~
+An *OMFHint* can be added at any point in the processing of the data.
+A specific plugin called the |OMFHint filter plugin| is available for adding hints.
+
+Number Format Hint
+~~~~~~~~~~~~~~~~~~
 
 A number format hint tells the plugin what number format to use when inserting data
 into the PI Server. The following will cause all numeric data within
@@ -490,10 +501,12 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "number" : "float32" }
 
-The value of the *number* hint may be any numeric format that is supported by the PI Server.
+The value of the *number* hint may be any numeric format that is supported by the PI Server: float64, float32 or float16.
+This hint applies to all numeric datapoints in the asset.
+To apply a Number Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
-Integer Format Hints
-~~~~~~~~~~~~~~~~~~~~
+Integer Format Hint
+~~~~~~~~~~~~~~~~~~~
 
 An integer format hint tells the plugin what integer format to use when inserting
 data into the PI Server. The following will cause all integer data
@@ -504,10 +517,12 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "integer" : "integer32" }
 
-The value of the *number* hint may be any numeric format that is supported by the PI Server.
+The value of the *integer* hint may be any integer format that is supported by the PI Server: int64, int32, int16, uint64, uint32 or uint16.
+This hint applies to all integer datapoints in the asset.
+To apply a Integer Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
-Type Name Hints
-~~~~~~~~~~~~~~~
+Type Name Hint
+~~~~~~~~~~~~~~
 
 A type name hint specifies that a particular name should be used when
 defining the name of the type that will be created to store the object
@@ -535,14 +550,25 @@ that adds this hint to ensure this is the case.
 
    This hint only has meaning when using the complex type legacy mode with this plugin.
 
-Tag Name Hint
-~~~~~~~~~~~~~
+Tag Name Hint for a Container
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Specifies that a specific tag name should be used when storing data in the PI Server.
+The default name of an OMF Container is the reading's asset name.
+The *tagName* hint allows you to override this and specify the OMF Container name.
+In the AF Database, the *tagName* hint becomes the name of the AF Element that owns the AF Attributes that map the reading's datapoints.
+This hint does not influence the names of individual PI Points.
+If you need to specify PI Point names, see :ref:`Datapoint Specific Hints`.
 
 .. code-block:: console
 
-   "OMFHint"  : { "tagName" : "AC1246" }
+   "OMFHint"  : { "tagName" : "Reactor42" }
+
+.. note::
+
+   If you configure a *tagName* hint to specify the name of the OMF Container, you must do so before you start your OMF North instance for the first time.
+   After that, you must include the *tagName* hint for every reading without changing it.
+   If you don't, the OMF North plugin will create a new OMF Container with the default name along with new PI Points.
+   If this happens, there is a procedure for restoring your configuration in the |OMF North Troubleshooting| guide.
 
 Source Hint
 ~~~~~~~~~~~
@@ -552,38 +578,6 @@ The default data source that is associated with tags in the PI Server is Fledge,
 .. code-block:: console
 
    "OMFHint" : { "source" : "Fledge23" }
-
-
-Datapoint Specific Hint
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Hints may also be targeted to specific data points within an asset by
-using the datapoint hint. A *datapoint* hint takes a JSON object as
-its value; the object defines the name of the datapoint and the hint
-to apply.
-
-.. code-block:: console
-
-   "OMFHint"  : { "datapoint" : { "name" : "voltage:, "number" : "float32" } }
-
-The above hint applies to the datapoint *voltage* in the asset and
-applies a *number format* hint to that datapoint.
-
-If more than one datapoint within a reading is required to have OMF hints
-attached to them this may be done by using an array as a child of the
-datapoint item.
-
-.. code-block:: console
-
-   "OMFHint"  : { "datapoint" : [
-        { "name" : "voltage:, "number" : "float32", "uom" : "volt" },
-        { "name" : "current:, "number" : "uint32", "uom" : "milliampere }
-        ]
-   }
-
-The example above attaches a number hint to both the voltage and current
-datapoints and to the current datapoint. It assigns a unit of measure
-of milliampere. The unit of measure for the voltage is set to be volts.
 
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -622,8 +616,74 @@ Note the following when defining an *AFLocation* hint:
     - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
     - No references are created.
 
+.. _Datapoint Specific Hints:
+
+Datapoint Specific Hints
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Hints may also be targeted to specific data points within an asset by
+using the *datapoint* hint. A *datapoint* hint takes a JSON object as its value.
+The object must have the *name* key to identify the datapoint to which to apply the hint.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "voltage", "number" : "float32" } }
+
+The above hint applies to the datapoint *voltage* in the asset and
+applies a *number format* hint to that datapoint.
+
+If more than one datapoint within a reading is required to have OMF hints
+attached to them, this may be done by using an array as a child of the
+datapoint item.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : [
+        { "name" : "voltage", "number" : "float32", "uom" : "volt" },
+        { "name" : "current", "number" : "uint32", "uom" : "milliampere" }
+        ]
+   }
+
+The example above attaches a number hint to both the voltage and current
+datapoints and to the current datapoint. It assigns a unit of measure
+of milliampere. The unit of measure for the voltage is set to be volts.
+
+This is a list of hints that can be applied to a datapoint:
+
+- Number
+- Integer
+- Unit of Measure
+- Minimum
+- Maximum
+- Interpolation
+- Tag Name
+
+The following sub-sections outlines each datapoint hint.
+
+Number Format Hint
+##################
+
+A number format hint tells the plugin what number format to use when inserting numeric data into the PI Server.
+The following will cause all numeric data for the *flow* datapoint within the asset to be written using the format *float32*.
+See the section :ref:`Numeric Data Types`.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "flow", "number" : "float32" } }
+
+Integer Format Hint
+###################
+
+A integer format hint tells the plugin what number format to use when inserting integer data into the PI Server.
+The following will cause all integer data for the *height* datapoint within the asset to be written using the format *integer32*.
+See the section :ref:`Numeric Data Types`.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height", "integer" : "integer32" } }
+
 Unit Of Measure Hint
-~~~~~~~~~~~~~~~~~~~~
+####################
 
 A unit of measure, or uom hint is used to associate one of the units of
 measurement defined within your PI Server with a particular data point
@@ -631,43 +691,71 @@ within an asset.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "uom" : "meter" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "uom" : "meter" } }
 
 Minimum Hint
-~~~~~~~~~~~~
+############
 
 A minimum hint is used to associate a minimum value in the PI Point created for a data point.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "minimum" : "0" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "minimum" : "0" } }
 
 Maximum Hint
-~~~~~~~~~~~~
+############
 
 A maximum hint is used to associate a maximum value in the PI Point created for a data point.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "maximum" : "100000" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "maximum" : "100000" } }
 
 Interpolation
-~~~~~~~~~~~~~
+#############
 
 The interpolation hint sets the interpolation value used within the PI Server, interpolation values supported are continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing.
 
 .. code-block:: console
 
-   "OMFHint"  : { "datapoint" : { "name" : "height:, "interpolation" : "continuous" } }
+   "OMFHint"  : { "datapoint" : { "name" : "height", "interpolation" : "continuous" } }
 
+Tag Name Hint for a Datapoint (Linked Types only)
+#################################################
 
-Adding OMF Hints
-~~~~~~~~~~~~~~~~
+The default name of a datapoint's PI Point is the reading's asset name concatenated with the datapoint name, separated by a dot (".").
+The datapoint *tagName* hint allows you to override this and specify the name of the PI Point.
+For example:
 
-An OMF Hint is implemented as a string data point on a reading with
-the data point name of *OMFHint*. It can be added at any point in the
-processing of the data, however a specific plugin is available for adding
-the hints, the |OMFHint filter plugin|.
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "temperature", "tagName" : "T105.PV" } }
+
+If you wish to set PI Point names for multiple datapoints in the same asset, use the datapoint hint array format:
+
+.. code-block:: JSON
+
+   "OMFHint": [
+      {
+         "name":"temperature",
+         "tagName":"T105.PV"
+      },
+      {
+         "name":"pressure",
+         "tagName":"P105.PV"
+      },
+      {
+         "name":"status",
+         "tagName":"Stat105.bool"
+      }
+   ]
+
+.. note::
+
+   If you configure a *tagName* hint to specify a PI Point name, you must do so before you start your OMF North instance for the first time.
+   After that, you must include the *tagName* hint for every reading without changing it.
+   If you don't, the OMF North plugin will report errors and stop processing.
+   If this happens, there is a procedure for restoring your configuration in the |OMF North Troubleshooting| guide.
 
 .. _Numeric Data Types:
 
@@ -732,6 +820,59 @@ Further Troubleshooting
 If you are unable to locate your problematic PI Points using the PI System Explorer, or if there are simply too many of them, there are advanced techniques available to troubleshoot
 and repair your system.
 Contact Technical Support for assistance.
+
+.. _Static Data:
+
+Static Data
+-----------
+
+This feature allows you specify static string values that will be included in OMF Containers created by OMF North.
+Containers appear in the target AF Database as AF Elements that own AF Attributes which are mapped to PI Points.
+For example, this AF Element named *Calvin2* has two AF Attributes that map PI Points: *random* and *random2*.
+The AF Element also has three static data values named *Company*, *Domain* and *Location*:
+
++------------------+
+| |OMF_StaticData| |
++------------------+
+
+Each Static Data item in the Fledge configuration consists of a key/value pair separated by a colon(":").
+You can specify multiple Static Data items separated by commas (",").
+Static Data keys and values are applied when a Container is created.
+Static Data values are always strings.
+OMF North cannot easily change the keys or add new keys after OMF North has started the first time.
+You can, however, edit the values of the Static Data keys.
+
+Static Data values are included in AF Element Templates which are then used by OMF to create Containers.
+The design of the AF Templates depends on whether Linked Types or Complex Types are configured:
+
+Linked Types
+~~~~~~~~~~~~
+
+OMF creates a single AF Element Template called *FledgeAsset*.
+Besides the essential *__id*, *__indexProperty* and *__nameProperty* OMF attributes, the *FledgeAsset* template will have attributes defined by your Static Data configuration.
+The first OMF North instance to start will create the *FledgeAsset* AF Element Template.
+Any subsequent OMF North instance that starts will not change the *FledgeAsset* template.
+The best practice is to decide early which Static Data keys should be added to all OMF North configurations.
+Each OMF North instance can have its own values for these Static Data items which will be applied to any Container it creates.
+Updated Static Data values in your configuration will be applied to both new and existing Containers.
+
+Complex Types
+~~~~~~~~~~~~~
+
+OMF creates multiple AF Element Templates, one per asset.
+These AF Element Templates own the Static Data items and have names that end in "...\ *assetname*\ _typename_sensor."
+Each template is used to create a Container for one asset.
+Because of this, the risk of overlapping definitions is lower.
+Once Containers are created, editing the Static Data values in your configuration does not update any existing AF Elements.
+
+.. note::
+
+    When OMF North starts, you may see this warning in */var/log/syslog*::
+
+        WARNING: FledgeAsset Type exists with a different definition
+
+    This warning does not affect the normal flow of data.
+    A detailed explanation of this warning and how to address it can be found in the |OMF North Troubleshooting| guide.
 
 .. _Linked_Types:
 

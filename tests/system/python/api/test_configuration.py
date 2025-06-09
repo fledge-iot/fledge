@@ -98,9 +98,21 @@ class TestConfiguration:
                       'children': []
                   },
                   {
+                      "key": "RESOURCE_LIMIT",
+                      "description": "Resource Limit of South Service",
+                      "displayName": "Resource Limit",
+                      "children": []
+                  },
+                  {
                       'key': 'CONFIGURATION',
                       'description': 'Core Configuration Manager',
                       'displayName': 'Configuration Manager',
+                      'children': []
+                  },
+                  {
+                      'key': 'FEATURES',
+                      'description': 'Control the inclusion of system features',
+                      'displayName': 'Features',
                       'children': []
                   }
               ]

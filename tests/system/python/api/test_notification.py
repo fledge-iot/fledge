@@ -45,7 +45,9 @@ class TestNotificationServiceAPI:
         msg = "No Notification service available."
         assert msg == r.reason
         r = r.read().decode()
-        assert "404: {}".format(msg) == r
+        jdoc = json.loads(r)
+        assert 'message' in jdoc
+        assert {"message": msg} == jdoc
 
         conn.request("GET", '/fledge/notification/type')
         r = conn.getresponse()

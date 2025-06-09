@@ -164,7 +164,10 @@ class TestAuthOptional:
         ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
         ({"username": "user", "password": "fledge"}, 401, User.PasswordExpired,
-         'Your password has been expired. Please set your password again.')
+         'Your password has been expired. Please set your password again.'),
+        ({"username": "user1", "password": "blah"}, 400, User.PasswordNotSetError,
+         'Password is not set for this user.')
+
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         

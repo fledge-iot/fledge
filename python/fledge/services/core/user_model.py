@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 """Fledge user entity class with CRUD operations to Storage layer"""
+import os
 import json
 import uuid
 import hashlib
@@ -56,6 +57,9 @@ class User:
         pass
 
     class UserAlreadyExists(Exception):
+        pass
+
+    class PasswordNotSetError(Exception):
         pass
 
     class PasswordDoesNotMatch(Exception):
@@ -183,9 +187,20 @@ class User:
             if not user_data:
                 return False
             old_data = await cls.get(uid=user_id)
+            storage_client = connect.get_storage_async()
+
             new_kwargs = {}
             old_kwargs = {}
             if 'access_method' in user_data:
+                if user_data['access_method'] == 'pwd':
+                    # Validate that the password is not empty; if it is, reject the client request with a bad request
+                    payload = PayloadBuilder().SELECT("pwd").WHERE(['id', '=', user_id]).AND_WHERE(
+                        ['enabled', '=', 't']).payload()
+                    result = await storage_client.query_tbl_with_payload("users", payload)
+                    if not result['rows'][0]['pwd']:
+                        msg = ('No password has been set for this user. Please create one before switching '
+                               'the authentication method to "Password".')
+                        raise ValueError(msg)
                 old_kwargs["access_method"] = old_data['access_method']
                 new_kwargs.update({"access_method": user_data['access_method']})
             if 'real_name' in user_data:
@@ -204,7 +219,6 @@ class User:
                 old_kwargs["block_until"] = old_data['block_until']
                 new_kwargs.update({"block_until": str(user_data['block_until'])})
 
-            storage_client = connect.get_storage_async()
             hashed_pwd = None
             pwd_history_list = []
             if 'password' in user_data:
@@ -371,7 +385,8 @@ class User:
                 raise User.DoesNotExist('User does not exist')
 
             found_user = result['rows'][0]
-
+            if not found_user.get('pwd'):
+                raise User.PasswordNotSetError("Password is not set for this user.")
             # check age of password
             t1 = datetime.now()
             t2 = datetime.strptime(found_user['pwd_last_changed'], "%Y-%m-%d %H:%M:%S.%f")
@@ -464,7 +479,6 @@ class User:
             # Clear failed_attempts on successful login
             if int(found_user['failed_attempts']) > 0:
                 await cls.update(found_user['id'],{'failed_attempts': 0})
-
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin
 
@@ -596,6 +610,18 @@ class User:
         async def verify_certificate(cls, cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
 
+            # TODO: we may require and additional configuration item in the REST API for user input regarding
+            #  intermediates or chain certs.
+
+            # Define possible filenames
+            possible_files = ["intermediate.cert", "intermediate.pem"]
+            intermediate_cert_file = ""
+            for filename in possible_files:
+                full_path = os.path.join(certs_dir, filename)
+                if os.path.isfile(full_path):
+                    intermediate_cert_file = full_path
+                    break
+
             storage_client = connect.get_storage_async()
             cfg_mgr = ConfigurationManager(storage_client)
             ca_cert_item = await cfg_mgr.get_category_item('rest_api', 'authCertificateName')
@@ -603,6 +629,9 @@ class User:
 
             SSLVerifier.set_ca_cert(ca_cert_file)
             SSLVerifier.set_user_cert(cert)
+            SSLVerifier.set_intermediate_cert(None)
+            if intermediate_cert_file:
+                SSLVerifier.set_intermediate_cert(intermediate_cert_file)
             SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
 
     class Sessions:

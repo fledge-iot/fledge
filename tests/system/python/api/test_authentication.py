@@ -230,7 +230,7 @@ class TestAuthenticationAPI:
         jdoc = json.loads(r)
         assert {'message': 'User with ID:<{}> has been updated successfully.'.format(uid)} == jdoc
 
-    def test_create_user_cert(self, fledge_url):
+    def test_create_user_cert(self, fledge_url, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
         # Get users
         conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
@@ -239,6 +239,8 @@ class TestAuthenticationAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         user = jdoc["users"][6]
+        if storage_plugin == 'postgres':
+            user = jdoc["users"][4]
         assert 8 == user["userId"]
         assert "control" == user["userName"]
 
@@ -259,6 +261,8 @@ class TestAuthenticationAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         user = jdoc["users"][6]
+        if storage_plugin == 'postgres':
+            user = jdoc["users"][4]
         assert 8 == user["userId"]
         assert "control" == user["userName"]
 
@@ -399,7 +403,7 @@ class TestAuthenticationAPI:
 
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign
-        subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+        subprocess.run(["openssl genrsa -out custom.key 2048 2> /dev/null"], shell=True)
         subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                        shell=True)
         subprocess.run(["openssl x509 -req -days 1 -in custom.csr "

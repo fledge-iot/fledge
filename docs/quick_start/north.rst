@@ -3,6 +3,11 @@
 .. |pi_plugin_config| image:: ../images/pi_plugin_config.JPG
 .. |NorthFailure| image:: ../images/NorthFailure.jpg
 
+.. Links
+.. |OMF| raw:: html
+
+   <a href="../plugins/fledge-north-OMF/index.html">OMF</a>
+
 Sending Data to Other Systems
 =============================
 +------------------+
@@ -65,5 +70,4 @@ AVEVA PI (formerly OSISoft PI) data historians are one of the most common destin
 
 .. note::
 
-   The AVEVA Data Hub is now known as CONNECT
-
+   The AVEVA Data Hub is now known as CONNECT. See the |OMF| Plugin.

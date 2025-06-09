@@ -37,7 +37,9 @@ Fledge Dashboard
 | |dashboard| |
 +-------------+
 
-This screen provides an overview of Fledge operations. You can customize the information and time frames displayed on this screen using the drop-down menus in the upper right corner. The information you select will be displayed in a series of graphs.
+This screen provides an overview of Fledge operations. You may view various graphs of the statistics that are gathered as part of the operation of Fledge. Using these statistical displays it is possible to ascertain the operational state of Fledge and the services it is running.
+
+You can customize the information and time frames displayed on this screen using the drop-down menus in the upper right corner. The information you select will be displayed in a series of graphs.
 
 You can choose to view a graph of any of the statistics for sensor readings being collected by the Fledge system or the ingest rates for any of the Fledge services. In addition, you can view graphs of the following system-wide statistics:
 

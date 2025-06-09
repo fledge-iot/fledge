@@ -21,6 +21,7 @@ std::condition_variable cv2;
 
 std::mutex log_mutex1;
 std::mutex log_mutex2;
+std::mutex test_case_mutex;
 
 bool log_interceptor_executed = false;
 
@@ -76,7 +77,7 @@ void fatalInterceptor(Logger::LogLevel level, const std::string& message, void* 
 // Test Case : Check registration and unregistration of Interceptor
 TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
 {
-    std::unique_lock<std::mutex> lock1(log_mutex1);
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
     intercepted_message = ""; // Reset the intercepted message
     // LogLevel Debug
     log1->setMinLevel("debug");
@@ -84,11 +85,13 @@ TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
     
     EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1->debug("Testing REGISTER_UNREGISTER");
-    cv1.wait(lock1, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
-  
-    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing REGISTER_UNREGISTER");
+    {
+        std::unique_lock<std::mutex> lock1(log_mutex1);
+        log1->debug("Testing REGISTER_UNREGISTER");
+        cv1.wait(lock1, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+        ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing REGISTER_UNREGISTER");
+    }
     
     EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
 }
@@ -97,6 +100,7 @@ TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
 // Test Case : Check registration with null callback
 TEST(TEST_LOG_INTERCEPTOR, REGISTER_NULL_CALLBACK)
 {
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
     // LogLevel Debug
     log1->setMinLevel("debug");
     Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
@@ -107,6 +111,7 @@ TEST(TEST_LOG_INTERCEPTOR, REGISTER_NULL_CALLBACK)
 // Test Case: Unregister Non-Registered Interceptor
 TEST(TEST_LOG_INTERCEPTOR, UNREGISTER_NON_REGISTERED)
 {
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
     // LogLevel Debug
     log1->setMinLevel("debug");
 
@@ -118,9 +123,8 @@ TEST(TEST_LOG_INTERCEPTOR, UNREGISTER_NON_REGISTERED)
 // Test Case: Multiple Interceptors for the Same Log Level
 TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_INTERCEPTORS_SAME_LEVEL)
 {
-    std::unique_lock<std::mutex> lock1(log_mutex1);
-    std::unique_lock<std::mutex> lock2(log_mutex2);
-    
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
+       
     intercepted_message = ""; // Reset the intercepted message
     // LogLevel Debug
     log1->setMinLevel("debug");
@@ -129,14 +133,19 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_INTERCEPTORS_SAME_LEVEL)
     EXPECT_TRUE(log1->registerInterceptor(level, debugInterceptor_1, nullptr));
     EXPECT_TRUE(log1->registerInterceptor(level, debugInterceptor_2, nullptr));
     
-    log1->debug("Multiple interceptors test");
-    cv1.wait(lock1, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
+    {
+        std::unique_lock<std::mutex> lock1(log_mutex1);
+        std::unique_lock<std::mutex> lock2(log_mutex2);
 
-    cv2.wait(lock2, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
-    ASSERT_TRUE(intercepted_message.find("INTERCEPTED DEBUG #1 : DEBUG: Multiple interceptors test") != std::string::npos || 
-                intercepted_message.find("INTERCEPTED DEBUG #2 : DEBUG: Multiple interceptors test") != std::string::npos);
+        log1->debug("Multiple interceptors test");
+        cv1.wait(lock1, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+
+        cv2.wait(lock2, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+        ASSERT_TRUE(intercepted_message.find("INTERCEPTED DEBUG #1 : DEBUG: Multiple interceptors test") != std::string::npos || 
+                    intercepted_message.find("INTERCEPTED DEBUG #2 : DEBUG: Multiple interceptors test") != std::string::npos);
+    }
 
     EXPECT_TRUE(log1->unregisterInterceptor(level, debugInterceptor_1));
     EXPECT_TRUE(log1->unregisterInterceptor(level, debugInterceptor_2));
@@ -145,8 +154,8 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_INTERCEPTORS_SAME_LEVEL)
 // Test Case : Check multiple registration for same log level
 TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
 {
-    std::unique_lock<std::mutex> lock1(log_mutex1);
-    std::unique_lock<std::mutex> lock2(log_mutex2);
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
+    
     intercepted_message = ""; // Reset the intercepted message
     // LogLevel Debug
     log1->setMinLevel("debug");
@@ -154,19 +163,25 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
     
     EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1->debug("Register Debug Logger");
-    cv1.wait(lock1, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
-    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Register Debug Logger");
+    {
+        std::unique_lock<std::mutex> lock1(log_mutex1);
+        
+        log1->debug("Register Debug Logger");
+        cv1.wait(lock1, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+        ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Register Debug Logger");
+    }
     
     EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
-    //std::unique_lock<std::mutex> lock(debug2_mutex);
     EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_2, nullptr));
     
-    log1->debug("Register Debug Logger");
-    cv2.wait(lock2, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
-    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #2 : DEBUG: Register Debug Logger");
+    {
+        std::unique_lock<std::mutex> lock2(log_mutex2);
+        log1->debug("Register Debug Logger");
+        cv2.wait(lock2, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+        ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #2 : DEBUG: Register Debug Logger");
+    }
     
     EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_2));
   
@@ -175,7 +190,7 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
 // Test Case : Check multiple unregister 
 TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_UNREGISTER)
 {
-    std::unique_lock<std::mutex> lock1(log_mutex1);
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
     intercepted_message = ""; // Reset the intercepted message
     // LogLevel Debug
     log1->setMinLevel("debug");
@@ -183,10 +198,13 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_UNREGISTER)
     
     EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
     
-    log1->debug("Testing First UNREGISTER");
-    cv1.wait(lock1, [this] { return log_interceptor_executed; });
-    log_interceptor_executed = false; // Reset the flag for next test case
-    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing First UNREGISTER");
+    {
+        std::unique_lock<std::mutex> lock1(log_mutex1);
+        log1->debug("Testing First UNREGISTER");
+        cv1.wait(lock1, [this] { return log_interceptor_executed; });
+        log_interceptor_executed = false; // Reset the flag for next test case
+        ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing First UNREGISTER");
+    }
     
     EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
     EXPECT_FALSE(log1->unregisterInterceptor(level1, debugInterceptor_1)); // return false because interceptor already unregistered
@@ -196,6 +214,7 @@ TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_UNREGISTER)
 // Test Case : Check registration and unregistration of Interceptor for all the supported log levels
 TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
 {
+    std::unique_lock<std::mutex> test_case_lock(test_case_mutex);
     std::unique_lock<std::mutex> lock1(log_mutex1);
     intercepted_message = ""; // Reset the intercepted message
     // LogLevel Error

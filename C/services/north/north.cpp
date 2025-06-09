@@ -310,7 +310,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_auditLogger(NULL),
 	m_perfMonitor(NULL),
 	m_debugState(0),
-	m_provider(NULL)
+	m_provider(NULL),
+	m_allowDebugger(true)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -408,9 +409,14 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				management.stop();
 				return;
 			}
+
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
+			updateFeatures(features);
+
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, "FEATURES");
 		}
 
 		// Get a handle on the storage layer
@@ -818,6 +824,10 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
+		if (m_dataSender)
+		{
+			m_dataSender->configChange();
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -907,6 +917,11 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+	if (categoryName.compare("FEATURES") == 0)
+	{
+		ConfigCategory conf("FEATURES", category);
+		this->updateFeatures(conf);
 	}
 }
 
@@ -1383,10 +1398,34 @@ string NorthService::debugState()
 		else
 			rval += "\"Storage\"";
 	}
-	else
+	else if (m_allowDebugger)
 	{
 		rval += "\"Detached\"";
+	}
+	else
+	{
+		rval += "\"Disabled\"";
 	}
 	rval += "}";
 	return rval;
 }
+
+/**
+ * Process the setting of allowed features
+ *
+ * @param category	The configuration category
+ */
+void NorthService::updateFeatures(const ConfigCategory& category)
+{
+	if (category.itemExists("debugging"))
+	{
+		string s = category.getValue("debugging");
+		m_allowDebugger = s.compare("true") == 0 ? true : false;
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_allowDebugger == false)
+		{
+			// Detach the debugger in case there is an active session
+			detachDebugger();
+		}
+	}
+}
+

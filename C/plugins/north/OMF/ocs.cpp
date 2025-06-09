@@ -65,14 +65,15 @@ std::string OCS::extractToken(const string& response)
 }
 
 /**
- * Calls the OCS API to retrieve the authentication token related to the the clientId and clientSecret
+ * Calls the OCS/ADH API to retrieve the authentication token related to the the clientId and clientSecret
  *
- * @param clientId      Client Id code assigned by OCS using its GUI to the specific connection
- * @param clientSecret  Client Secret code assigned by OCS using its gui to the specific connection
- * @return              The OCS token to be used for authentication in API calls
+ * @param clientId      Client Id code assigned by OCS/ADH using its GUI to the specific connection
+ * @param clientSecret  Client Secret code assigned by OCS/ADH using its GUI to the specific connection
+ * @param logMessage    If true, log error messages (default: true)
+ * @return              The OCS/ADH token to be used for authentication in API calls
  *
  */
-std::string OCS::retrieveToken(const string& clientId, const string& clientSecret)
+std::string OCS::retrieveToken(const string& clientId, const string& clientSecret, bool logMessage)
 {
 	string token;
 	string response;
@@ -86,7 +87,7 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 							   TIMEOUT_CONNECT,
 							   TIMEOUT_REQUEST,
 							   RETRY_SLEEP_TIME,
-							   MAX_RETRY);
+							   0);
 
 	header.push_back( std::make_pair("Content-Type", "application/x-www-form-urlencoded"));
 	header.push_back( std::make_pair("Accept", " text/plain"));
@@ -112,17 +113,24 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 		if (httpCode >= 200 && httpCode <= 399)
 		{
 			token = extractToken(response);
-			Logger::getLogger()->debug("OCS authentication token :%s:" ,token.c_str() );
+			Logger::getLogger()->debug("ADH authentication token :%s:" ,token.c_str() );
 		}
-		else
+		else if (logMessage)
 		{
-			Logger::getLogger()->warn("Error in retrieving the authentication token from OCS - http :%d: :%s: ", httpCode, response.c_str());
+			Logger::getLogger()->warn("Error in retrieving the authentication token from ADH - http :%d: :%s: ", httpCode, response.c_str());
 		}
-
+	}
+	catch (const Unauthorized &e)
+	{
+		// Log authentication failures regardless of 'logMessage'
+		Logger::getLogger()->error("Unable to authenticate with AVEVA Data Hub");
 	}
 	catch (exception &ex)
 	{
-		Logger::getLogger()->warn("Error in retrieving the authentication token from OCS - error :%s: ", ex.what());
+		if (logMessage)
+		{
+			Logger::getLogger()->warn("Error in retrieving the authentication token from ADH - error :%s: ", ex.what());
+		}
 	}
 
 	delete endPoint;

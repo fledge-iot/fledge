@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -87,14 +87,14 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF TagName hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF Tag hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
@@ -125,8 +125,18 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 		// Send the data message to create the asset instance
 		payload.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
 		payload.append(assetName + "\",\"Name\":\"");
-            	payload.append(assetName + "\"");
-         	payload.append("} ] }");
+		payload.append(assetName + "\"");
+
+		for (std::pair<std::string, std::string> &sData : *m_staticData)
+		{
+			payload.append(",\"");
+			payload.append(sData.first);
+			payload.append("\":\"");
+			payload.append(sData.second);
+			payload.append('\"');
+		}
+
+		payload.append("} ] }");
 		rval = true;
 		needDelim = true;
 		assetLookup->second.assetSent(assetName);
@@ -162,6 +172,8 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 				needDelim = true;
 			}
 			string format;
+			string tagNameHintRaw, tagNameHint;
+			bool tagNameHintchanged = false;
 			if (hints)
 			{
 				const vector<OMFHint *> omfHints = hints->getHints(dpName);
@@ -177,12 +189,17 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 						format = (*hit)->getHint();
 						break;
 					}
-
+					if (typeid(**hit) == typeid(OMFTagNameDatapointHint))
+					{
+						tagNameHintRaw = (*hit)->getHint();
+						tagNameHint = OMF::ApplyPIServerNamingRulesObj(tagNameHintRaw, &tagNameHintchanged);
+						break;
+					}
 				}
 			}
 
 			// Create the link for the asset if not already created
-			string link = assetName + m_delimiter + dpName;
+			string link = tagNameHint.empty() ? assetName + m_delimiter + dpName : tagNameHint;
 			string dpLookupName = originalAssetName + m_delimiter + dpName;
 			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
@@ -195,6 +212,15 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			{
 				sendContainer(link, dp, hints, baseType);
 				dpLookup->second.containerSent(assetName, baseType);
+
+				if (tagNameHintchanged)
+				{
+					Logger::getLogger()->warn("Datapoint %s.%s tagName Hint %s is not a valid PI name. Changed to %s",
+						assetName.c_str(),
+						dpName.c_str(),
+						tagNameHintRaw.c_str(),
+						tagNameHint.c_str());
+				}
 			}
 			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
 			{
@@ -609,6 +635,48 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 		return false;
 	}
 	return true;
+}
+
+/**
+ * Clear selected Reading and Datapoint information from the linked asset state map
+ *
+ * @param readings		Vector of Readings
+ * @param startIndex	Start index into Readings
+ * @param numReadings	Number of Readings to clear
+ * @return				Number of asset and datapoint entries cleared
+ */
+std::size_t OMFLinkedData::clearLALookup(const std::vector<Reading *> &readings, std::size_t startIndex, std::size_t numReadings, std::string &delimiter)
+{
+	std::size_t numCleared = 0;
+	LALookup empty;
+
+	for (std::size_t i = startIndex; (i < numReadings) && (i < readings.size()); i++)
+	{
+		Reading *reading = readings[i];
+		std::string assetNameDelim = OMF::ApplyPIServerNamingRulesObj(reading->getAssetName(), NULL) + delimiter;
+
+		// Check if the asset key is present in the linked asset state map
+		auto assetIterator = m_linkedAssetState->find(assetNameDelim);
+		if (assetIterator != m_linkedAssetState->end())
+		{
+			assetIterator->second = empty;
+			numCleared++;
+		}
+
+		// Check if datapoint keys are present in the linked asset state map
+		for (Datapoint *datapoint : reading->getReadingData())
+		{
+			std::string dpName = OMF::ApplyPIServerNamingRulesObj(datapoint->getName(), NULL);
+			auto datappointIterator = m_linkedAssetState->find(assetNameDelim + dpName);
+			if (datappointIterator != m_linkedAssetState->end())
+			{
+				datappointIterator->second = empty;
+				numCleared++;
+			}
+		}
+	}
+
+	return numCleared;
 }
 
 /**

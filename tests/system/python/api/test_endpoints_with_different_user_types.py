@@ -38,16 +38,11 @@ def change_to_auth_mandatory(fledge_url, wait_time):
     jdoc = json.loads(r)
     assert "mandatory" == jdoc['authentication']['value']
 
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
+    from conftest import restart_and_wait_for_fledge
+    restart_and_wait_for_fledge(fledge_url, wait_time)
 
 
-def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 3)
+def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url):
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
@@ -124,6 +119,7 @@ class TestAPIEndpointsWithViewUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -292,6 +288,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 403), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 403),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -460,6 +457,7 @@ class TestAPIEndpointsWithControlUserType:
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 400), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 400), ("DELETE", "/fledge/category/General", 400),

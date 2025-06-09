@@ -3,7 +3,7 @@
    <br />
 
 .. Links
-.. _OMF: https://omf-docs.osisoft.com/
+.. _OMF: https://docs.aveva.com/bundle/omf/page/1283981.html
 
 OMF Kerberos Authentication
 ***************************

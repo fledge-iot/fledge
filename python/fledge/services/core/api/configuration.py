@@ -189,7 +189,8 @@ async def delete_category(request):
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         await cf_mgr.delete_category_and_children_recursively(category_name)
     except (ValueError, TypeError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        msg = str(ex)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to delete {} category.".format(category_name))

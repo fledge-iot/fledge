@@ -7,213 +7,255 @@
  *
  * Author: Devki Nandan Ghildiyal
  */
-
 #include <gtest/gtest.h>
 #include <logger.h>
 #include <mutex>
 #include <condition_variable>
-#include <map>
-#include <string>
-#include <vector>
-
 using namespace std;
+std::string intercepted_message = "";
 
-std::string intercepted_message;
-Logger* logger = Logger::getLogger();
+Logger* log1 = Logger::getLogger();
 
-const char* logLevelToString(Logger::LogLevel level) {
-    switch (level) {
-        case Logger::LogLevel::ERROR:   return "ERROR";
-        case Logger::LogLevel::WARNING: return "WARNING";
-        case Logger::LogLevel::INFO:    return "INFO";
-        case Logger::LogLevel::DEBUG:   return "DEBUG";
-        case Logger::LogLevel::FATAL:   return "FATAL";
-        default:                        return "UNKNOWN";
-    }
+std::condition_variable cv1;
+std::condition_variable cv2;
+
+std::mutex log_mutex1;
+std::mutex log_mutex2;
+
+bool log_interceptor_executed = false;
+
+// Callback Interceptor functions
+void errorInterceptor(Logger::LogLevel level, const std::string& message, void* userData)
+{
+    std::unique_lock<std::mutex> lock(log_mutex1);
+    intercepted_message = "INTERCEPTED ERROR : " + message;
+    log_interceptor_executed = true;
+    cv1.notify_one();
 }
 
-
-enum InterceptType { ERROR, WARNING, INFO, DEBUG1, DEBUG2, FATAL };
-
-// Shared sync control
-struct InterceptControl {
-    std::mutex mtx;
-    std::condition_variable cv;
-    bool triggered = false;
-};
-
-std::map<InterceptType, InterceptControl> interceptControls;
-
-// Utilities
-void signalInterceptor(InterceptType type, const std::string& label, const std::string& message) {
-    intercepted_message = "INTERCEPTED " + label + " : " + message;
-    InterceptControl& ctrl = interceptControls[type];
-    {
-        std::lock_guard<std::mutex> lk(ctrl.mtx);
-        ctrl.triggered = true;
-    }
-    ctrl.cv.notify_one();
+void warningInterceptor(Logger::LogLevel level, const std::string& message, void* userData)
+{
+    std::unique_lock<std::mutex> lock(log_mutex1);
+    intercepted_message = "INTERCEPTED WARNING : " + message;
+    log_interceptor_executed = true;
+    cv1.notify_one();
 }
 
-void waitForInterceptor(InterceptType type) {
-    InterceptControl& ctrl = interceptControls[type];
-    std::unique_lock<std::mutex> lk(ctrl.mtx);
-    ctrl.cv.wait(lk, [&ctrl] { return ctrl.triggered; });
-    ctrl.triggered = false;
+void infoInterceptor(Logger::LogLevel level, const std::string& message, void* userData)
+{
+    std::unique_lock<std::mutex> lock(log_mutex1);
+    intercepted_message = "INTERCEPTED INFO : " + message;
+    log_interceptor_executed = true;
+    cv1.notify_one();
 }
 
-// Interceptor functions
-void interceptor_ERROR(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(ERROR, "ERROR", msg);
-}
-void interceptor_WARNING(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(WARNING, "WARNING", msg);
-}
-void interceptor_INFO(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(INFO, "INFO", msg);
-}
-void interceptor_DEBUG1(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(DEBUG1, "DEBUG #1", msg);
-}
-void interceptor_DEBUG2(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(DEBUG2, "DEBUG #2", msg);
-}
-void interceptor_FATAL(Logger::LogLevel, const std::string& msg, void*) {
-    signalInterceptor(FATAL, "FATAL", msg);
+void debugInterceptor_1(Logger::LogLevel level, const std::string& message, void* userData)
+{
+   std::unique_lock<std::mutex> lock(log_mutex1);
+   intercepted_message = "INTERCEPTED DEBUG #1 : " + message;
+   log_interceptor_executed = true;
+   cv1.notify_one();
 }
 
-// ===========================
-// Test Cases
-// ===========================
+void debugInterceptor_2(Logger::LogLevel level, const std::string& message, void* userData)
+{
+    std::unique_lock<std::mutex> lock(log_mutex2);
+    intercepted_message = "INTERCEPTED DEBUG #2 : " + message;
+    log_interceptor_executed = true;
+    cv2.notify_one();
+}
+
+void fatalInterceptor(Logger::LogLevel level, const std::string& message, void* userData)
+{
+    std::unique_lock<std::mutex> lock(log_mutex1);
+    intercepted_message = "INTERCEPTED FATAL : " + message;
+    log_interceptor_executed = true;
+    cv1.notify_one();
+}
 
 // Test Case : Check registration and unregistration of Interceptor
-TEST(LOG_INTERCEPTOR_TEST, RegisterUnregister) {
-    logger->setMinLevel("debug");
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1, nullptr));
-
-    logger->debug("Testing REGISTER_UNREGISTER");
-    waitForInterceptor(DEBUG1);
+TEST(TEST_LOG_INTERCEPTOR, REGISTER_UNREGISTER)
+{
+    std::unique_lock<std::mutex> lock1(log_mutex1);
+    intercepted_message = ""; // Reset the intercepted message
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+    Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
+    
+    log1->debug("Testing REGISTER_UNREGISTER");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+  
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing REGISTER_UNREGISTER");
-
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
+    
+    EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
 }
 
+
 // Test Case : Check registration with null callback
-TEST(LOG_INTERCEPTOR_TEST, RegisterNullCallback) {
-    logger->setMinLevel("debug");
-    // Interceptor is not registered with null callback
-    EXPECT_FALSE(logger->registerInterceptor(Logger::LogLevel::DEBUG, nullptr, nullptr));
+TEST(TEST_LOG_INTERCEPTOR, REGISTER_NULL_CALLBACK)
+{
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+    Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
+    log1->debug("Register NULL Callback");
+    EXPECT_FALSE(log1->registerInterceptor(level1, nullptr, nullptr)); // Interceptor is not registered with null callback
 }
 
 // Test Case: Unregister Non-Registered Interceptor
-TEST(LOG_INTERCEPTOR_TEST, UnregisterNonRegistered) {
-    logger->setMinLevel("debug");
-    // Trying to unregister before it's registered
-    EXPECT_FALSE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
+TEST(TEST_LOG_INTERCEPTOR, UNREGISTER_NON_REGISTERED)
+{
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+
+    Logger::LogLevel level = Logger::LogLevel::DEBUG; 
+    EXPECT_FALSE(log1->unregisterInterceptor(level, debugInterceptor_1));  // Trying to unregister before it's registered
 }
 
+
 // Test Case: Multiple Interceptors for the Same Log Level
-TEST(LOG_INTERCEPTOR_TEST, MultipleInterceptorsSameLevel) {
-    logger->setMinLevel("debug");
+TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_INTERCEPTORS_SAME_LEVEL)
+{
+    std::unique_lock<std::mutex> lock1(log_mutex1);
+    std::unique_lock<std::mutex> lock2(log_mutex2);
+    
+    intercepted_message = ""; // Reset the intercepted message
+    // LogLevel Debug
+    log1->setMinLevel("debug");
 
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1, nullptr));
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG2, nullptr));
+    Logger::LogLevel level = Logger::LogLevel::DEBUG; 
+    EXPECT_TRUE(log1->registerInterceptor(level, debugInterceptor_1, nullptr));
+    EXPECT_TRUE(log1->registerInterceptor(level, debugInterceptor_2, nullptr));
+    
+    log1->debug("Multiple interceptors test");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
 
-    logger->debug("Multiple interceptors test");
+    cv2.wait(lock2, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_TRUE(intercepted_message.find("INTERCEPTED DEBUG #1 : DEBUG: Multiple interceptors test") != std::string::npos || 
+                intercepted_message.find("INTERCEPTED DEBUG #2 : DEBUG: Multiple interceptors test") != std::string::npos);
 
-    waitForInterceptor(DEBUG1);
-    waitForInterceptor(DEBUG2);
-
-    EXPECT_TRUE(intercepted_message.find("DEBUG: Multiple interceptors test") != std::string::npos);
-
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG2));
+    EXPECT_TRUE(log1->unregisterInterceptor(level, debugInterceptor_1));
+    EXPECT_TRUE(log1->unregisterInterceptor(level, debugInterceptor_2));
 }
 
 // Test Case : Check multiple registration for same log level
-TEST(LOG_INTERCEPTOR_TEST, MultipleRegister) {
-    logger->setMinLevel("debug");
-
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1, nullptr));
-    logger->debug("Register Debug Logger");
-    waitForInterceptor(DEBUG1);
+TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_REGISTER)
+{
+    std::unique_lock<std::mutex> lock1(log_mutex1);
+    std::unique_lock<std::mutex> lock2(log_mutex2);
+    intercepted_message = ""; // Reset the intercepted message
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+    Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
+    
+    log1->debug("Register Debug Logger");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Register Debug Logger");
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
-
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG2, nullptr));
-    logger->debug("Register Debug Logger");
-    waitForInterceptor(DEBUG2);
+    
+    EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
+    //std::unique_lock<std::mutex> lock(debug2_mutex);
+    EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_2, nullptr));
+    
+    log1->debug("Register Debug Logger");
+    cv2.wait(lock2, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
     ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #2 : DEBUG: Register Debug Logger");
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG2));
+    
+    EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_2));
+  
 }
 
 // Test Case : Check multiple unregister 
-TEST(LOG_INTERCEPTOR_TEST, MultipleUnregister) {
-    logger->setMinLevel("debug");
-    EXPECT_TRUE(logger->registerInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1, nullptr));
-
-    logger->debug("Testing First UNREGISTER");
-    waitForInterceptor(DEBUG1);
-    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing First UNREGISTER");
-
-    EXPECT_TRUE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
+TEST(TEST_LOG_INTERCEPTOR, MULTIPLE_UNREGISTER)
+{
+    std::unique_lock<std::mutex> lock1(log_mutex1);
+    intercepted_message = ""; // Reset the intercepted message
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+    Logger::LogLevel level1 = Logger::LogLevel::DEBUG; 
     
-    // return false because interceptor already unregistered
-    EXPECT_FALSE(logger->unregisterInterceptor(Logger::LogLevel::DEBUG, interceptor_DEBUG1));
+    EXPECT_TRUE(log1->registerInterceptor(level1, debugInterceptor_1, nullptr));
+    
+    log1->debug("Testing First UNREGISTER");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing First UNREGISTER");
+    
+    EXPECT_TRUE(log1->unregisterInterceptor(level1, debugInterceptor_1));
+    EXPECT_FALSE(log1->unregisterInterceptor(level1, debugInterceptor_1)); // return false because interceptor already unregistered
+
 }
 
 // Test Case : Check registration and unregistration of Interceptor for all the supported log levels
-TEST(LOG_INTERCEPTOR_TEST, AllLogLevels) {
-    struct Case {
-        Logger::LogLevel level;
-        InterceptType type;
-        const char* label;
-        const char* msg;
-        Logger::LogInterceptor callback;
+TEST(TEST_LOG_INTERCEPTOR, ALL_LOG_LEVELS)
+{
+    std::unique_lock<std::mutex> lock1(log_mutex1);
+    intercepted_message = ""; // Reset the intercepted message
+    // LogLevel Error
+    log1->setMinLevel("error");
+    Logger::LogLevel level1 = Logger::LogLevel::ERROR; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level1, errorInterceptor, nullptr));
+    
+    log1->error("Testing error interceptor");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED ERROR : ERROR: Testing error interceptor");
+    EXPECT_TRUE(log1->unregisterInterceptor(level1, errorInterceptor));
 
-        Case(Logger::LogLevel l, InterceptType t, const char* lbl, const char* m, Logger::LogInterceptor cb)
-        : level(l), type(t), label(lbl), msg(m), callback(cb) {}
-    };
+    // LogLevel Warning
+    log1->setMinLevel("warning");
+    Logger::LogLevel level2 = Logger::LogLevel::WARNING; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level2, warningInterceptor, nullptr));
+    
+    log1->warn("Testing warning interceptor");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED WARNING : WARNING: Testing warning interceptor");
+    EXPECT_TRUE(log1->unregisterInterceptor(level2, warningInterceptor));
 
-    std::vector<Case> tests;
-    tests.push_back(Case(Logger::LogLevel::ERROR,   ERROR,  "ERROR",   "Testing error interceptor",  interceptor_ERROR));
-    tests.push_back(Case(Logger::LogLevel::WARNING, WARNING, "WARNING", "Testing warning interceptor", interceptor_WARNING));
-    tests.push_back(Case(Logger::LogLevel::INFO,    INFO,    "INFO",    "Testing info interceptor",   interceptor_INFO));
-    tests.push_back(Case(Logger::LogLevel::DEBUG,   DEBUG1,  "DEBUG #1","Testing debug interceptor",  interceptor_DEBUG1));
-    tests.push_back(Case(Logger::LogLevel::FATAL,   FATAL,   "FATAL",   "Testing fatal interceptor",  interceptor_FATAL));
+    // LogLevel Info
+    log1->setMinLevel("info");
+    Logger::LogLevel level3 = Logger::LogLevel::INFO; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level3, infoInterceptor, nullptr));
+    
+    log1->info("Testing info interceptor");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED INFO : INFO: Testing info interceptor");
+    EXPECT_TRUE(log1->unregisterInterceptor(level3, infoInterceptor));
 
-    logger->setMinLevel("debug");
+    // LogLevel Debug
+    log1->setMinLevel("debug");
+    Logger::LogLevel level4 = Logger::LogLevel::DEBUG; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level4, debugInterceptor_1, nullptr));
+    
+    log1->debug("Testing debug interceptor");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED DEBUG #1 : DEBUG: Testing debug interceptor");
+    EXPECT_TRUE(log1->unregisterInterceptor(level4, debugInterceptor_1));
 
-    for (size_t i = 0; i < tests.size(); ++i) {
-        const Case& test = tests[i];
-        EXPECT_TRUE(logger->registerInterceptor(test.level, test.callback, nullptr));
-
-        // Dispatch the appropriate logger function manually
-        switch (test.level) {
-            case Logger::LogLevel::ERROR:
-                logger->error(test.msg);
-                break;
-            case Logger::LogLevel::WARNING:
-                logger->warn(test.msg);
-                break;
-            case Logger::LogLevel::INFO:
-                logger->info(test.msg);
-                break;
-            case Logger::LogLevel::DEBUG:
-                logger->debug(test.msg);
-                break;
-            case Logger::LogLevel::FATAL:
-                logger->fatal(test.msg);
-                break;
-            default:
-                FAIL() << "Unknown log level!";
-        }
-
-        waitForInterceptor(test.type);
-        std::string expected = std::string("INTERCEPTED ") + test.label + " : " + logLevelToString(test.level) + ": " + test.msg;
-        ASSERT_EQ(intercepted_message, expected);
-
-        EXPECT_TRUE(logger->unregisterInterceptor(test.level, test.callback));
-    }
+    // LogLevel Debug takes care of FATAL error as well
+    log1->setMinLevel("debug");
+    Logger::LogLevel level5 = Logger::LogLevel::FATAL; 
+    
+    EXPECT_TRUE(log1->registerInterceptor(level5, fatalInterceptor, nullptr));
+    
+    log1->fatal("Testing fatal interceptor");
+    cv1.wait(lock1, [this] { return log_interceptor_executed; });
+    log_interceptor_executed = false; // Reset the flag for next test case
+    ASSERT_EQ(intercepted_message, "INTERCEPTED FATAL : FATAL: Testing fatal interceptor");
+    EXPECT_TRUE(log1->unregisterInterceptor(level5, fatalInterceptor));
 }
 

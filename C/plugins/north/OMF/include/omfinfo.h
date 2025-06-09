@@ -116,7 +116,6 @@ class OMFInformation {
 		int		IsADHConnected(bool logMessage = true);
 		void		SetOMFVersion();
 		void		CheckDataActionCode();
-		std::string	OCSRetrieveAuthToken(bool logMessage = true);
 		OMF_ENDPOINT	identifyPIServerEndpoint();
 		std::string	saveSentDataTypes();
 		unsigned long	calcTypeShort(const std::string& dataTypes);
@@ -132,6 +131,7 @@ class OMFInformation {
 		Logger		*m_logger;
 		HttpSender	*m_sender;              // HTTPS connection
 		OMF 		*m_omf;                 // OMF data protocol
+		OCS			*m_ocs;					// ADH and OCS authorization
 		bool		m_sendFullStructure;    // It sends the minimum OMF structural messages to load data into PI Data Archive if disabled
 		bool		m_compression;          // whether to compress readings' data
 		string		m_protocol;             // http / https

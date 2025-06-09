@@ -17,7 +17,7 @@ using namespace SimpleWeb;
 /**
  * Constructor for the OMFInformation class
  */
-OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false)
+OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_ocs(NULL), m_connected(false)
 {
 
 	m_logger = Logger::getLogger();
@@ -380,10 +380,9 @@ void OMFInformation::handleOMFTracing()
  */
 OMFInformation::~OMFInformation()
 {
-	if (m_sender)
-		delete m_sender;
-	if (m_omf)
-		delete m_omf;
+	delete m_sender;
+	delete m_omf;
+	delete m_ocs;
 	// TODO cleanup the allocated member variables
 }
 
@@ -613,6 +612,19 @@ void OMFInformation::start(const string& storedData)
 			m_omf->setLegacyMode(m_legacy);
 		}
 	}
+
+	// Allocate the OCS class that implements ADH and OCS authentication
+	if (!m_ocs)
+	{
+		if (m_PIServerEndpoint == ENDPOINT_ADH)
+		{
+			m_ocs = new OCS(true);
+		}
+		else if (m_PIServerEndpoint == ENDPOINT_OCS)
+		{
+			m_ocs = new OCS(false);
+		}
+	}
 }
 
 /**
@@ -634,11 +646,10 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		return 0;
 	}
 
-	// OCS or ADH - retrieves the authentication token
-	// It is retrieved at every send as it can expire and the configuration is only in OCS and ADH
-	if (m_PIServerEndpoint == ENDPOINT_OCS || m_PIServerEndpoint == ENDPOINT_ADH)
+	// For OCS and ADH, retrieve the authentication token
+	if (m_ocs)
 	{
-		std::string token = OCSRetrieveAuthToken();
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret);
 		if (!token.empty())
 		{
 			m_OCSToken = token;
@@ -1119,7 +1130,7 @@ int OMFInformation::IsADHConnected(bool logMessage)
 {
 	if (m_OCSToken.empty())
 	{
-		std::string token = OCSRetrieveAuthToken(false);
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret, false);
 		if (!token.empty())
 		{
 			m_OCSToken = token;
@@ -1248,29 +1259,6 @@ void OMFInformation::CheckDataActionCode()
 			m_dataActionCode = "create";
 		}
 	}
-}
-
-/**
- * Calls the OCS API to retrieve the authentication token
- * 
- * @param    logMessage	If true, log error messages (default: true)
- * @return   token      Authorization token
- */
-string OMFInformation::OCSRetrieveAuthToken(bool logMessage)
-{
-	string token;
-	OCS *ocs;
-
-	if (m_PIServerEndpoint == ENDPOINT_OCS)
-		ocs = new OCS();
-	else if (m_PIServerEndpoint == ENDPOINT_ADH)
-		ocs = new OCS(true);
-
-	token = ocs->retrieveToken(m_OCSClientId , m_OCSClientSecret, logMessage);
-
-	delete ocs;
-
-	return token;
 }
 
 /**

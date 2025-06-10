@@ -1,9 +1,9 @@
 #ifndef _OCS_H
 #define _OCS_H
 /*
- * Fledge OSI Soft OCS integration.
+ * Fledge OSIsoft ADH and OCS integration.
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -11,6 +11,7 @@
  */
 
 #include <string>
+#include <chrono>
 
 using namespace std;
 
@@ -37,9 +38,13 @@ class OCS
 		// Destructor
 		~OCS();
 
-		string  retrieveToken(const string& clientId, const string& clientSecret, bool logMessage = true);
-		string  extractToken(const string& response);
+		std::string	OCSRetrieveAuthToken(const string& clientId, const string& clientSecret, bool logMessage = true);
+		int  retrieveToken(const string& clientId, const string& clientSecret, bool logMessage = true);
+		void  extractToken(const string& response);
 	private:
 		bool	m_adh;
+		std::string m_token;
+		unsigned int m_expiresIn;
+		std::chrono::steady_clock::time_point m_nextAuthentication;
 };
 #endif

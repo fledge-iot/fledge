@@ -204,9 +204,24 @@ class SupportBuilder:
                 pyz.add(temp_file, arcname='logs/sys/{}'.format(filename))
 
     async def add_db_content(self, pyz, file_spec, tbl_name, file_name):
+        def mask_passwords(data):
+            def sanitize_dict(d):
+                for key, val in d.items():
+                    if isinstance(val, dict):
+                        if val.get("type") == "password" and "value" in val:
+                            val["default"] = "****"
+                            val["value"] = "****"
+                        sanitize_dict(val)
+
+            if "rows" in data:
+                for row in data["rows"]:
+                    if isinstance(row.get("value"), dict):
+                        sanitize_dict(row["value"])
+            return data
         temp_file = "{}/{}-{}".format(self._interim_file_path, file_name, file_spec)
-        data = await self._storage.query_tbl(tbl_name)
-        self.write_to_tar(pyz, temp_file, data)
+        raw_data = await self._storage.query_tbl(tbl_name)
+        sanitized_data = mask_passwords(raw_data) if tbl_name == 'configuration' else raw_data
+        self.write_to_tar(pyz, temp_file, sanitized_data)
 
     async def add_table_statistics_history(self, pyz, file_spec):
         # The contents of the statistics history from the storage layer

@@ -7,7 +7,7 @@
 .. Links
 .. |average| raw:: html
 
-   <a href="../plugins/fledge-rule-average/index.html">Moving Average Rule plugin</a>
+   <a href="../plugins/fledge-rule-Average/index.html">Moving Average Rule plugin</a>
 
 .. |code| raw:: html
 
@@ -19,11 +19,10 @@ Notification Rule Plugins
 
 Notification rule  plugins are used by the notification system to
 evaluate a rule and trigger a notification based on the result of
-that evaluation. They are the logic that allows the event to be
-notified to that other system or device.
+that evaluation. They are where the decisions are made that results
+in event notification to other systems or devices.
 
-
-Notification delivery plugins may be written in C or C++ and have a very
+Notification rule plugins may be written in C or C++ and have a very
 simple interface. The plugin mechanism and a subset of the API is common
 between all types of plugins including notification rules.  This documentation
 is based on the |code|. The |average| calculates a moving average of the values
@@ -35,9 +34,9 @@ Configuration
 -------------
 
 Notification Rule  plugins use the same configuration mechanism as the rest of
-Fledge, using a JSON document to describe the configuration parameters. As
-with any other plugin the structure is defined by the plugin and retrieve
-by the *plugin_info* entry point. This is then matched with the database
+Fledge, using a JSON document to describe the configuration parameters. In
+common with all other plugins the structure is defined by the plugin and retrieved
+via the *plugin_info* entry point. This is then merged with the database
 content to pass the configured values to the *plugin_init* entry point.
 
 Notification Rule Plugin API
@@ -84,8 +83,9 @@ The second call that is made to the plugin is the *plugin_init* call, that is us
 
 The *config* parameter is the configuration category with the user supplied
 values inserted, these values are used to configure the behavior of the
-plugin. In the case of our moving average example we use this to call the constructor
-of our Average class and then call the configure method of that class.
+plugin. In the case of our moving average example we use this to construct
+an instance of our AverageRule class and then call the configure method of that
+newly constructed instance of the class.
 
 .. code-block:: C
 
@@ -104,7 +104,7 @@ of our Average class and then call the configure method of that class.
     notification rule. This does some common initialisation required for all
     notification rules.
 
-The *configure* method for out Average class is shown below.
+The *configure* method for our AverageRule class is shown below.
 
 .. code-block:: C
 
@@ -150,7 +150,7 @@ The *configure* method for out Average class is shown below.
             }
     }
 
-We return the pointer to our Average class as the handle for the plugin. This
+We return the pointer to our AverageRule class as the handle for the plugin. This
 allows subsequent calls to the plugin to reference the instance created
 by the *plugin_init* call.
 
@@ -274,7 +274,7 @@ The code for the Moving Average rule plugin's *plugin_trigger* entry point is sh
 Plugin Evaluation
 ~~~~~~~~~~~~~~~~~
 
-The *plugin_eval* API call is called with the plugin handle and the data, as a string, which holds the values to be evaluated. The return value is a boolean that is the result of the evaluation. True is returned if the rules conditions are met, otherwise the entry point will return false.
+The *plugin_eval* API entry point is called with the plugin handle and the data, as a string, which holds the values to be evaluated. The return value of this call is a boolean that is the result of the evaluation. A value of true is returned if conditions the conditions of the rule are met. Otherwise the entry point will return false.
 
 Below is the code for the Moving Average plugin.
 
@@ -326,7 +326,7 @@ Below is the code for the Moving Average plugin.
                                             eval |= rule->evaluate(assetName, itr->name.GetString(), itr->value.GetDouble());
                                     }
                             }
-                            // Add evalution timestamp
+                            // Add evaluation timestamp
                             if (doc.HasMember(assetTimestamp.c_str()))
                             {
                                     const Value& assetTime = doc[assetTimestamp.c_str()];
@@ -342,7 +342,7 @@ Below is the code for the Moving Average plugin.
             return eval;
     }
 
-In this case the code iterates through the trigger names and calls the *evaluate* method in the *Average* class for each trigger and with each value in the incoming data stream.
+In this case the code iterates through the trigger names and calls the *evaluate* method in the *AverageRule* class for each trigger and with each value in the incoming data stream.
 
 Various calls are made that will set the state of the evaluation, namely the *setValTimestamp* and *setState*. These states may later be used in the *plugin_reason* API.
 
@@ -410,12 +410,12 @@ for the plugin.
         return;
    }
 
-In the case of the Moving Average plugin this calls the same *configure* method that was called in the *plugin_init* call and is shown above.
+In the case of the Moving Average plugin this calls the same *configure* method that was called by the *plugin_init* entry point during initialisation and is shown above.
 
 Plugin Shutdown
 ~~~~~~~~~~~~~~~
 
-As with other plugins a shutdown call exists which may be used by
+In common with all Fledge plugins a shutdown call exists which is used by
 the plugin to perform any cleanup that is required when the plugin is
 shut down.
 
@@ -427,6 +427,6 @@ shut down.
         delete average;
    }
 
-In the case of our Average example we merely destroy the instance of the
-Average class and allow the destructor of that class to do any cleanup that
+In the case of our Moving Average example we merely destroy the instance of the
+AverageRule class and allow the destructor of that class to do any cleanup that
 is required.

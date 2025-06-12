@@ -23,11 +23,7 @@
 using namespace std;
 using namespace rapidjson;
 
-OCS::OCS() : m_adh(false), m_nextAuthentication(std::chrono::steady_clock::time_point())
-{
-}
-
-OCS::OCS(bool adh) : m_adh(adh), m_nextAuthentication(std::chrono::steady_clock::time_point())
+OCS::OCS(const std::string &authorizationUrl) : m_authUrl(authorizationUrl), m_nextAuthentication(std::chrono::steady_clock::time_point())
 {
 }
 
@@ -89,7 +85,7 @@ int OCS::retrieveToken(const string& clientId, const string& clientSecret, bool 
 	vector<pair<string, string>> header;
 	int httpCode = 400;
 
-	endPoint = new SimpleHttps(m_adh ? ADH_HOST : OCS_HOST,
+	endPoint = new SimpleHttps(m_authUrl,
 							   TIMEOUT_CONNECT,
 							   TIMEOUT_REQUEST,
 							   RETRY_SLEEP_TIME,

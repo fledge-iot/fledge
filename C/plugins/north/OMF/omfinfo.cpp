@@ -58,12 +58,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 		m_PIServerEndpoint = ENDPOINT_ADH;
 		url 		   = ENDPOINT_URL_ADH;
+		m_authUrl 	   = AUTHORIZATION_URL_ADH;
 		std::string region = "uswe";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "euno";
 		else if(ADHRegions.compare("Australia") == 0)
 			region = "auea";
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_ADH;
 	}
 	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
@@ -71,12 +73,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 		m_PIServerEndpoint = ENDPOINT_OCS;
 		url                = ENDPOINT_URL_OCS;
+		m_authUrl          = AUTHORIZATION_URL_OCS;
 		std::string region = "dat-b";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "dat-d";
 		else if(ADHRegions.compare("Australia") == 0)
 			Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_OCS;
 	}
 	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
@@ -616,13 +620,9 @@ void OMFInformation::start(const string& storedData)
 	// Allocate the OCS class that implements ADH and OCS authentication
 	if (!m_ocs)
 	{
-		if (m_PIServerEndpoint == ENDPOINT_ADH)
+		if ((m_PIServerEndpoint == ENDPOINT_ADH) || (m_PIServerEndpoint == ENDPOINT_OCS))
 		{
-			m_ocs = new OCS(true);
-		}
-		else if (m_PIServerEndpoint == ENDPOINT_OCS)
-		{
-			m_ocs = new OCS(false);
+			m_ocs = new OCS(m_authUrl);
 		}
 	}
 }

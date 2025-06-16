@@ -15,12 +15,9 @@
 
 using namespace std;
 
-#define OCS_HOST          "dat-b.osisoft.com:443"
-#define ADH_HOST	  "uswe.datahub.connect.aveva.com"
 #define TIMEOUT_CONNECT   10
 #define TIMEOUT_REQUEST   10
 #define RETRY_SLEEP_TIME  1
-#define MAX_RETRY         3
 
 #define URL_RETRIEVE_TOKEN "/identity/connect/token"
 
@@ -32,8 +29,7 @@ using namespace std;
 class OCS
 {
 	public:
-		OCS();
-		OCS(bool adh);
+		OCS(const std::string &authorizationUrl);
 
 		// Destructor
 		~OCS();
@@ -42,8 +38,8 @@ class OCS
 		int  retrieveToken(const string& clientId, const string& clientSecret, bool logMessage = true);
 		void  extractToken(const string& response);
 	private:
-		bool	m_adh;
 		std::string m_token;
+		std::string m_authUrl;
 		unsigned int m_expiresIn;
 		std::chrono::steady_clock::time_point m_nextAuthentication;
 };

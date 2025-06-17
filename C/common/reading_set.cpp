@@ -19,6 +19,7 @@
 #include <base64dpimage.h>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <algorithm>  // for std::inplace_merge
 
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
@@ -211,6 +212,46 @@ ReadingSet::append(vector<Reading *>& readings)
 		m_count++;
 	}
 	readings.clear();
+}
+
+/**
+ * merge the readings in a vector with the set of readings in the reading set.
+ * @param readings	A vector of Reading pointers to merge with the ReadingSet
+*/
+void ReadingSet::merge(std::vector<Reading *> *readings)
+{
+	if (!readings || readings->empty())
+	{
+		return;
+	}
+
+	// Remember original size of m_readings
+	auto orig_size = m_readings.size();
+
+	// Extend m_readings with the new readings
+	for (auto it = readings->begin(); it != readings->end(); ++it)
+	{
+		if ((*it)->hasId() && (*it)->getId() > m_last_id)
+		{
+			m_last_id = (*it)->getId();
+		}
+		m_readings.push_back(*it);
+		m_count++;
+	}
+
+	// In-place merge, assuming both halves are sorted
+	std::inplace_merge(
+		m_readings.begin(),
+		m_readings.begin() + orig_size,
+		m_readings.end(),
+		[](Reading* a, Reading* b) {
+			struct timeval ta; a->getUserTimestamp(&ta);
+			struct timeval tb; b->getUserTimestamp(&tb);
+			return timercmp(&ta, &tb, <) || timercmp(&ta, &tb, ==);
+		});
+
+	// Clear input vector
+	readings->clear();
 }
 
 /**

@@ -362,6 +362,57 @@ const char *kvlistObjectConfig = "{ \"name\": {"
 		"\"value\" : \"{ \\\"a\\\" : { \\\"one\\\" : \\\"first\\\"}, \\\"b\\\" : { \\\"two\\\" :\\\"second\\\" } }\","
                 "\"description\": \"A simple list\"} }";
 
+const std::string DefaultConfigJson = R"({
+	"bool_true":     { "type": "boolean", "default": "true", "value": "true" },
+	"bool_false":    { "type": "boolean", "default": "false", "value": "false" },
+	"int_val":       { "type": "integer", "default": "10", "value": "42" },
+	"long_val":      { "type": "integer", "default": "1000", "value": "10000000000" },
+	"double_val":    { "type": "float",   "default": "3.14", "value": "2.718" },
+	"invalid_bool":  { "type": "boolean", "default": "true", "value": "maybe" },
+	"invalid_int":   { "type": "integer", "default": "5", "value": "not_a_number" },
+	"invalid_double":{ "type": "float", "default": "1.0", "value": "oops" }
+})";
+
+TEST(CategoriesTest, GetValueWithDefault)
+{
+	ConfigCategory cat("test", DefaultConfigJson);
+	EXPECT_EQ(cat.getValue("non_existing", "TestVal"), "TestVal");
+	EXPECT_EQ(cat.getValue("bool_true", "nope"), "true");
+}
+
+TEST(CategoriesTest, GetBoolValue)
+{
+	ConfigCategory cat("test", DefaultConfigJson);
+	EXPECT_TRUE(cat.getBoolValue("bool_true"));
+	EXPECT_FALSE(cat.getBoolValue("bool_false"));
+	EXPECT_TRUE(cat.getBoolValue("non_existing_bool", true)); // fallback
+	EXPECT_FALSE(cat.getBoolValue("invalid_bool", false)); // wrong type fallback
+}
+
+TEST(CategoriesTest, GetIntegerValue)
+{
+	ConfigCategory cat("test", DefaultConfigJson);
+	EXPECT_EQ(cat.getIntegerValue("int_val"), 42);
+	EXPECT_EQ(cat.getIntegerValue("non_existing_int", 123), 123); // fallback
+	EXPECT_EQ(cat.getIntegerValue("invalid_int", -1), -1); // wrong type fallback
+}
+
+TEST(CategoriesTest, GetLongValue)
+{
+	ConfigCategory cat("test", DefaultConfigJson);
+	EXPECT_EQ(cat.getLongValue("long_val"), 10000000000L);
+	EXPECT_EQ(cat.getLongValue("non_existing_long", 55555L), 55555L); // fallback
+	EXPECT_EQ(cat.getLongValue("invalid_int", 99L), 99L); // wrong type fallback
+}
+
+TEST(CategoriesTest, GetDoubleValue)
+{
+	ConfigCategory cat("test", DefaultConfigJson);
+	EXPECT_DOUBLE_EQ(cat.getDoubleValue("double_val"), 2.718);
+	EXPECT_DOUBLE_EQ(cat.getDoubleValue("non_existing_double", 1.618), 1.618); // fallback
+	EXPECT_DOUBLE_EQ(cat.getDoubleValue("invalid_double", 0.0), 0.0); // wrong type fallback
+}
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);

@@ -100,9 +100,9 @@ newly constructed instance of the class.
 
 .. note::
 
-    We call the base class *BuiltinRule* as part of the construction of a
-    notification rule. This does some common initialisation required for all
-    notification rules.
+    The constructor for the base class *BuiltinRule* is called as part of the
+    construction of a notification rule. This does common initialisation
+    required for all notification rules.
 
 The *configure* method for our AverageRule class is shown below.
 
@@ -169,7 +169,7 @@ The return from the *plugin_triggers* API call is a string that contains a JSON 
       - Description
       - Example
     * - asset
-      - Readings for the specified asset. The value of the *asset* key is the name of the asset
+      - Readings for the specified asset. The value of the *asset* key is the name of the asset.
       - { "triggers" : [ { "asset" : "sinusoid" } ] }
     * - statistic
       - The cumulative statistics counter.
@@ -182,7 +182,7 @@ The return from the *plugin_triggers* API call is a string that contains a JSON 
       - { "triggers" : [ { "audit" : "SRVFL" } ] }
     * - interval
       - The interval between which calls are made to the evaluate entry point. The *interval* type takes an additional *evaluate* parameter that determines if evaluation is called if any data arrives or only if the interval expires.
-      - { "triggers" : [ { "interval" : 500, "evaluate" "any" } ] }
+      - { "triggers" : [ { "interval" : 500, "evaluate" : "any" } ] }
 
 
 Multiple trigger source may be combined, to request that the evaluate entry point be called at a particular interval and for a particular asset, the document below would be returned.
@@ -274,7 +274,7 @@ The code for the Moving Average rule plugin's *plugin_trigger* entry point is sh
 Plugin Evaluation
 ~~~~~~~~~~~~~~~~~
 
-The *plugin_eval* API entry point is called with the plugin handle and the data, as a string, which holds the values to be evaluated. The return value of this call is a boolean that is the result of the evaluation. A value of true is returned if conditions the conditions of the rule are met. Otherwise the entry point will return false.
+The *plugin_eval* API entry point is called with the plugin handle and the data, as a string, which holds the values to be evaluated. The return value of this call is a boolean that is the result of the evaluation. A value of true is returned if the conditions of the rule are met. Otherwise the entry point will return false.
 
 Below is the code for the Moving Average plugin.
 

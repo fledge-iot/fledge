@@ -247,7 +247,7 @@ void ReadingSet::merge(std::vector<Reading *> *readings)
 		[](Reading* a, Reading* b) {
 			struct timeval ta; a->getUserTimestamp(&ta);
 			struct timeval tb; b->getUserTimestamp(&tb);
-			return timercmp(&ta, &tb, <) || timercmp(&ta, &tb, ==);
+			return timercmp(&ta, &tb, <);
 		});
 
 	// Clear input vector

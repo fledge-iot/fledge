@@ -18,7 +18,8 @@ Plugin Developer Guide
     04_north_plugins
     05_storage_plugins
     06_filter_plugins
-    08_notify_plugins.rst
+    07_rules_plugins
+    08_notify_plugins
     08_storage.rst
     09_packaging.rst
     10_testing

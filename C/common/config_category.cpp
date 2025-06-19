@@ -473,8 +473,8 @@ string ConfigCategory::getValue(const std::string& name, const std::string& defa
 	}
 	catch (ConfigItemNotFound* e)
 	{
-		delete e;
 		Logger::getLogger()->info("'%s' %s , returning default value '%s'", name.c_str(), e->what(), defaultValue.c_str());
+		delete e;
 		return defaultValue;
 	}
 }
@@ -500,8 +500,8 @@ bool ConfigCategory::getBoolValue(const std::string& name, bool defaultValue) co
 	}
 	catch (ConfigItemNotFound* e)
 	{
-		delete e;
 		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
 		return defaultValue;
 	}
 }
@@ -518,8 +518,8 @@ int ConfigCategory::getIntegerValue(const std::string& name, int defaultValue) c
 	}
 	catch (ConfigItemNotFound* e)
 	{
-		delete e;
 		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)
@@ -548,8 +548,8 @@ long ConfigCategory::getLongValue(const std::string& name, long defaultValue) co
 	}
 	catch (ConfigItemNotFound* e)
 	{
-		delete e;
 		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)
@@ -578,8 +578,8 @@ double ConfigCategory::getDoubleValue(const std::string& name, double defaultVal
 	}
 	catch (ConfigItemNotFound* e)
 	{
-		delete e;
 		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)

@@ -471,14 +471,10 @@ string ConfigCategory::getValue(const std::string& name, const std::string& defa
 	{
 		return getValue(name);
 	}
-	catch (ConfigItemNotFound& e)
+	catch (ConfigItemNotFound* e)
 	{
-		Logger::getLogger()->info("'%s' %s , returning default value '%s'", name.c_str(), e.what(), defaultValue.c_str());
-		return defaultValue;
-	}
-	catch(...)
-	{
-		Logger::getLogger()->info("Unkown exception occured returning default value %s", defaultValue.c_str());
+		delete e;
+		Logger::getLogger()->info("'%s' %s , returning default value '%s'", name.c_str(), e->what(), defaultValue.c_str());
 		return defaultValue;
 	}
 }
@@ -502,14 +498,10 @@ bool ConfigCategory::getBoolValue(const std::string& name, bool defaultValue) co
 		Logger::getLogger()->info("Config item '%s' expected to be boolean but got '%s'", name.c_str(), val.c_str());
 		return defaultValue;
 	}
-	catch (ConfigItemNotFound& e)
+	catch (ConfigItemNotFound* e)
 	{
-		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e.what(), defaultValue);
-		return defaultValue;
-	}
-	catch(...)
-	{
-		Logger::getLogger()->info("Unkown exception occured returning default value '%d'", defaultValue);
+		delete e;
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
 		return defaultValue;
 	}
 }
@@ -524,9 +516,10 @@ int ConfigCategory::getIntegerValue(const std::string& name, int defaultValue) c
 		string val = getValue(name);
 		return stoi(val);
 	}
-	catch (ConfigItemNotFound& e)
+	catch (ConfigItemNotFound* e)
 	{
-		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e.what(), defaultValue);
+		delete e;
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)
@@ -541,11 +534,6 @@ int ConfigCategory::getIntegerValue(const std::string& name, int defaultValue) c
 			name.c_str(), e.what(), defaultValue);
 		return defaultValue;
 	}
-	catch(...)
-	{
-		Logger::getLogger()->info("Unkown exception occured returning default value '%d'", defaultValue);
-		return defaultValue;
-	}
 }
 
 /**
@@ -558,9 +546,10 @@ long ConfigCategory::getLongValue(const std::string& name, long defaultValue) co
 		string val = getValue(name);
 		return stol(val);
 	}
-	catch (ConfigItemNotFound& e)
+	catch (ConfigItemNotFound* e)
 	{
-		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e.what(), defaultValue);
+		delete e;
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)
@@ -575,11 +564,6 @@ long ConfigCategory::getLongValue(const std::string& name, long defaultValue) co
 			name.c_str(), e.what(), defaultValue);
 		return defaultValue;
 	}
-	catch(...)
-	{
-		Logger::getLogger()->info("Unkown exception occured returning default value '%ld'", defaultValue);
-		return defaultValue;
-	}
 }
 
 /**
@@ -592,9 +576,10 @@ double ConfigCategory::getDoubleValue(const std::string& name, double defaultVal
 		string val = getValue(name);
 		return stod(val);
 	}
-	catch (ConfigItemNotFound& e)
+	catch (ConfigItemNotFound* e)
 	{
-		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e.what(), defaultValue);
+		delete e;
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
 		return defaultValue;
 	}
 	catch (std::invalid_argument& e)
@@ -607,11 +592,6 @@ double ConfigCategory::getDoubleValue(const std::string& name, double defaultVal
 	{
 		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%lf'", 
 			name.c_str(), e.what(), defaultValue);
-		return defaultValue;
-	}
-	catch(...)
-	{
-		Logger::getLogger()->info("Unkown exception occured returning default value '%lf'", defaultValue);
 		return defaultValue;
 	}
 }

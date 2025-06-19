@@ -19,7 +19,6 @@
 #include <base64dpimage.h>
 
 #include <boost/algorithm/string/replace.hpp>
-#include <algorithm>  // for std::inplace_merge
 
 #define ASSET_NAME_INVALID_READING "error_invalid_reading"
 
@@ -220,37 +219,47 @@ ReadingSet::append(vector<Reading *>& readings)
 */
 void ReadingSet::merge(std::vector<Reading *> *readings)
 {
-	if (!readings || readings->empty())
-	{
+	if (!readings || readings->empty()) {
 		return;
 	}
 
-	// Remember original size of m_readings
-	auto orig_size = m_readings.size();
+	size_t totalSize = m_readings.size() + readings->size();
+	std::vector<Reading*> merged;
+	merged.reserve(totalSize);
+	merged.resize(totalSize);  // make sure we can assign via operator[]
 
-	// Extend m_readings with the new readings
-	for (auto it = readings->begin(); it != readings->end(); ++it)
-	{
-		if ((*it)->hasId() && (*it)->getId() > m_last_id)
-		{
-			m_last_id = (*it)->getId();
+	size_t i = 0;
+	auto p1 = m_readings.begin();
+	auto p2 = readings->begin();
+
+	while (p1 != m_readings.end() || p2 != readings->end()) {
+		if (p1 != m_readings.end() && p2 != readings->end()) {
+			struct timeval ta, tb;
+			(*p1)->getUserTimestamp(&ta);
+			(*p2)->getUserTimestamp(&tb);
+
+			// stable ordering: if equal, p1 wins
+			if (timercmp(&ta, &tb, <=)) {
+				merged[i++] = *p1++;
+			} else {
+				if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+					m_last_id = (*p2)->getId();
+				}
+				merged[i++] = *p2++;
+			}
+		} else if (p1 != m_readings.end()) {
+			merged[i++] = *p1++;
+		} else if (p2 != readings->end()) {
+			if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+				m_last_id = (*p2)->getId();
+			}
+			merged[i++] = *p2++;
 		}
-		m_readings.push_back(*it);
-		m_count++;
 	}
 
-	// In-place merge, assuming both halves are sorted
-	std::inplace_merge(
-		m_readings.begin(),
-		m_readings.begin() + orig_size,
-		m_readings.end(),
-		[](Reading* a, Reading* b) {
-			struct timeval ta; a->getUserTimestamp(&ta);
-			struct timeval tb; b->getUserTimestamp(&tb);
-			return timercmp(&ta, &tb, <);
-		});
-
-	// Clear input vector
+	m_readings = std::move(merged);
+	m_count = m_readings.size();
+	//Clear input readings vector
 	readings->clear();
 }
 

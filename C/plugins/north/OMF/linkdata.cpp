@@ -267,8 +267,20 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 
 			// Base type we are using for this data point
 			payload.append("\"" + baseType + "\": ");
-			// Add datapoint Value
-		       	payload.append(dp->getData().toString());
+
+			// Add datapoint Value as a string to the payload.
+			// Coerce floating point numbers to integers if requested.
+			// OMF will not accept floating point numbers sent to integer Containers.
+			// OMF will accept integers sent to floating point Containers so no need to explicitly coerce.
+			if ((dp->getData().getType() == DatapointValue::T_FLOAT) && (baseType.compare(0, 7, "Integer") == 0))
+			{
+				payload.append(std::to_string((long)dp->getData().toDouble()));
+			}
+			else
+			{
+				payload.append(dp->getData().toString());
+			}
+
 			payload.append(", ");
 			// Append Z to getAssetDateTime(FMT_STANDARD)
 			payload.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
@@ -379,6 +391,10 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "UInteger32";
 			else if (intFormat.compare("uint16") == 0)
 				baseType = "UInteger16";
+			else if (intFormat.compare("float64") == 0)
+				baseType = "Double64";
+			else if (intFormat.compare("float32") == 0)
+				baseType = "Double32";
 			break;
 		}
 		case DatapointValue::T_FLOAT:
@@ -392,14 +408,26 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "Double64";
 			else if (doubleFormat.compare("float32") == 0)
 				baseType = "Double32";
+			else if (doubleFormat.compare("int64") == 0)
+				baseType = "Integer64";
+			else if (doubleFormat.compare("int32") == 0)
+				baseType = "Integer32";
+			else if (doubleFormat.compare("int16") == 0)
+				baseType = "Integer16";
+			else if (doubleFormat.compare("uint64") == 0)
+				baseType = "UInteger64";
+			else if (doubleFormat.compare("uint32") == 0)
+				baseType = "UInteger32";
+			else if (doubleFormat.compare("uint16") == 0)
+				baseType = "UInteger16";
 			break;
 		}
 		default:
-			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr(),
+			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr().c_str(),
 					dp->getName().c_str());
-			// Not supported
-			return baseType;
+			break;
 	}
+
 	return baseType;
 }
 

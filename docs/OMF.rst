@@ -501,7 +501,7 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "number" : "float32" }
 
-The value of the *number* hint may be two of the numeric formats supported by the PI Server: float64 or float32.
+The value of the *number* hint may be two of the numeric formats supported by the PI Server: *float64* or *float32*.
 This hint applies to all numeric datapoints in the asset.
 For Linked Types, you can also use this hint to coerce numeric data to integer: *int64*, *int32*, *int16*, *uint64*, *uint32* or *uint16*.
 To apply a Number Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
@@ -518,7 +518,7 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "integer" : "integer32" }
 
-The value of the *integer* hint may be any integer format that is supported by the PI Server: int64, int32, int16, uint64, uint32 or uint16.
+The value of the *integer* hint may be any integer format that is supported by the PI Server: *int64*, *int32*, *int16*, *uint64*, *uint32* or *uint16*.
 This hint applies to all integer datapoints in the asset.
 For Linked Types, you can also use this hint to coerce integer data to numeric: *float64* or *float32*.
 To apply a Integer Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.

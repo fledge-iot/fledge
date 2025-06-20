@@ -215,6 +215,7 @@ ReadingSet::append(vector<Reading *>& readings)
 
 /**
  * merge the readings in a vector with the set of readings in the reading set.
+ * The input reading vector must be ordered as per timestamp and cleared at the end of the operation.
  * @param readings	A vector of Reading pointers to merge with the ReadingSet
 */
 void ReadingSet::merge(std::vector<Reading *> *readings)

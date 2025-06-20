@@ -97,6 +97,11 @@ class ConfigCategory {
 		bool				itemExists(const std::string& name) const;
 		bool				setItemDisplayName(const std::string& name, const std::string& displayName);
 		std::string			getValue(const std::string& name) const;
+		std::string			getValue(const std::string& name, const std::string& defaultValue) const;
+		bool				getBoolValue(const std::string& name, bool defaultValue = false) const;
+		int				getIntegerValue(const std::string& name, int defaultValue = 0) const;
+		long				getLongValue(const std::string& name, long defaultValue = 0) const;
+		double				getDoubleValue(const std::string& name, double defaultValue = 0) const;
 		std::vector<std::string>	getValueList(const std::string& name) const;
 		std::map<std::string, std::string>	getValueKVList(const std::string& name) const;
 		std::string			getType(const std::string& name) const;

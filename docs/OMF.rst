@@ -837,8 +837,9 @@ OMF North will allow you to coerce integers to numeric values, and numeric value
 
 .. note::
 
-   Complex Type configurations do support coercion of data types.
-   Data type mismatch issues are less likely, however, because all datapoint integer values are used to create *float64* PI Points.
+   Complex Type configurations do not support coercion of data types, that is, coercion of *number* to *integer*, or *integer* to *number*.
+   Data type mismatch issues are less likely, however, because integer datapoint values are used to create *float64* PI Points.
+   This reduces the likelihood of errors since both numbers and integers can be written to *float64* PI Points.
 
 Further Troubleshooting
 ~~~~~~~~~~~~~~~~~~~~~~~

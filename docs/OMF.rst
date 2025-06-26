@@ -501,8 +501,9 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "number" : "float32" }
 
-The value of the *number* hint may be any numeric format that is supported by the PI Server: float64, float32 or float16.
+The value of the *number* hint may be two of the numeric formats supported by the PI Server: *float64* or *float32*.
 This hint applies to all numeric datapoints in the asset.
+For Linked Types, you can also use this hint to coerce numeric data to integer: *int64*, *int32*, *int16*, *uint64*, *uint32* or *uint16*.
 To apply a Number Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
 Integer Format Hint
@@ -517,8 +518,9 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "integer" : "integer32" }
 
-The value of the *integer* hint may be any integer format that is supported by the PI Server: int64, int32, int16, uint64, uint32 or uint16.
+The value of the *integer* hint may be any integer format that is supported by the PI Server: *int64*, *int32*, *int16*, *uint64*, *uint32* or *uint16*.
 This hint applies to all integer datapoints in the asset.
+For Linked Types, you can also use this hint to coerce integer data to numeric: *float64* or *float32*.
 To apply a Integer Format hint to a specific datapoint only, see the section :ref:`Datapoint Specific Hints`.
 
 Type Name Hint
@@ -671,6 +673,8 @@ See the section :ref:`Numeric Data Types`.
 
    "OMFHint"  : { "datapoint" : { "name" : "flow", "number" : "float32" } }
 
+For Linked Types, you can also use this hint to coerce numeric data to integer: *int64*, *int32*, *int16*, *uint64*, *uint32* or *uint16*.
+
 Integer Format Hint
 ###################
 
@@ -681,6 +685,8 @@ See the section :ref:`Numeric Data Types`.
 .. code-block:: console
 
    "OMFHint"  : { "datapoint" : { "name" : "height", "integer" : "integer32" } }
+
+For Linked Types, you can also use this hint to coerce integer data to numeric: *float64* or *float32*.
 
 Unit Of Measure Hint
 ####################
@@ -783,17 +789,22 @@ Editing your data type choices in OMF North will cause the following messages to
 
 .. code-block:: console
 
-   WARNING: The OMF endpoint reported a conflict when sending containers: 1 messages
-   WARNING: Message 0: Error, A container with the supplied ID already exists, but does not match the supplied container.,
+   ERROR: HTTP 409: The OMF endpoint reported a Conflict when sending Containers: 1 message
+   ERROR: Message 0 HTTP 409: Error, A container with the supplied ID already exists, but does not match the supplied container.,
+   WARNING: Containers attempted: Calvin1.random
+   WARNING: HTTP Code 409: Processing cannot continue until data archive errors are corrected
 
-These errors will cause the plugin to retry sending container information a number of times determined the *Maximum Retry* count on the *Connection* tab in the Fledge GUI.
-The default is 3.
-The plugin will then send numeric data values to PI continuously.
-Unfortunately, the PI Web API returns no HTTP error when this happens so no messages are logged.
-In PI, you will see that timestamps are correct but all numeric values are zero.
+The HTTP Code 409 (Conflict) means that OMF North has encountered a problem that cannot be resolved automatically.
+OMF North will not attempt to send data again.
+You must shut down the OMF North instance and address the problem.
 
 Recovering from the Data Type Mismatch Problem
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are two techniques for recovering from the data type mismatch problem:
+
+Reset the PI Point
+##################
 
 As you experiment with configurations, you may discover that your original assumptions about your data types were not correct and need to be changed.
 It is possible to repair your PI Server so that you do not need to discard your AF Database and start over.
@@ -801,18 +812,42 @@ This is the procedure:
 
 - Shut down your OMF North instance.
 - Using PI System Explorer, locate the problematic PI Points.
-  These are points with a value of zero.
+  Their names will be listed in the *Containers attempted* warning message.
   The PI Points are mapped to AF Attributes using the PI Point Data Reference.
   For each AF Attribute, you can see the name of the PI Point in the Settings pane.
+  While editing the AF Attribute, change the *Value Type* to your intended data type and check in your change.
 - Using PI System Management Tools (PI SMT), open the Point Builder tool (under Points) and locate the problematic PI Points.
 - In the General tab in the Point Builder, locate the Extended Descriptor (*Exdesc*).
   It will contain a long character string with several OMF tokens such as *OmfPropertyIndexer*, *OmfContainerId* and *OmfTypeId*.
-  Clear the *Excdesc* field completely and save your change.
+  Clear the *Excdesc* field completely.
+  Set the *Point Source* to *L*.
+  Save your changes.
 - Start up your OMF North instance.
 
 Clearing the Extended Descriptor will cause OMF to "adopt" the PI Point.
 OMF will update the Extended Descriptor with new values of the OMF tokens.
 Watch the System Log during startup to see if any problems occur.
+
+Apply an OMFHint
+################
+
+You can create a OMFHint of type *number* or *integer* to coerce the datapoint values to the data type of the PI Points already created.
+The |OMFHint filter plugin| can be used to add these hints to your OMF North configuration.
+OMF North will allow you to coerce integers to numeric values, and numeric values to integers for Linked Type configurations.
+
+.. note::
+
+   Be careful when configuring an OMFHint to coerce floating point datapoint values to any form of unsigned integer (*uint64*, *uint32* or *uint16*).
+   Negative numbers cannot be coerced to unsigned integers.
+   If OMF North encounters this, it will write *null* as the unsigned integer value.
+   AVEVA Data Hub and Edge Data Store represent a *null* value from OMF as *null*.
+   For PI Web API, an *null* value from OMF is represented in the PI Data Archive as the Digital State value *No Data*.
+
+.. note::
+
+   Complex Type configurations do not support coercion of data types, that is, coercion of *number* to *integer*, or *integer* to *number*.
+   Data type mismatch issues are less likely, however, because integer datapoint values are used to create *float64* PI Points.
+   This reduces the likelihood of errors since both numbers and integers can be written to *float64* PI Points.
 
 Further Troubleshooting
 ~~~~~~~~~~~~~~~~~~~~~~~

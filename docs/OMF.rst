@@ -837,6 +837,14 @@ OMF North will allow you to coerce integers to numeric values, and numeric value
 
 .. note::
 
+   Be careful when configuring an OMFHint to coerce floating point datapoint values to any form of unsigned integer (*uint64*, *uint32* or *uint16*).
+   Negative numbers cannot be coerced to unsigned integers.
+   If OMF North encounters this, it will write *null* as the unsigned integer value.
+   AVEVA Data Hub and Edge Data Store represent a *null* value from OMF as *null*.
+   For PI Web API, an *null* value from OMF is represented in the PI Data Archive as the Digital State value *No Data*.
+
+.. note::
+
    Complex Type configurations do not support coercion of data types, that is, coercion of *number* to *integer*, or *integer* to *number*.
    Data type mismatch issues are less likely, however, because integer datapoint values are used to create *float64* PI Points.
    This reduces the likelihood of errors since both numbers and integers can be written to *float64* PI Points.

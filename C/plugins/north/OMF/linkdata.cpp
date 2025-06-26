@@ -102,6 +102,17 @@ static std::string DatapointValueToOMFString(Datapoint *dp, std::string &format)
 			omfValueString = dp->getData().toString();
 		}
 	}
+	else if ((dp->getData().getType() == DatapointValue::T_INTEGER) && (format.compare(0, 8, "UInteger") == 0))
+	{
+		if (dp->getData().toInt() < 0)
+		{
+			omfValueString = std::string("null");
+		}
+		else
+		{
+			omfValueString = dp->getData().toString();
+		}
+	}
 	else
 	{
 		omfValueString = dp->getData().toString();

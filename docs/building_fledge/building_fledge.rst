@@ -26,7 +26,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 Fledge Platforms
 =================
 
-Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu 18.04 LTS, Ubuntu 20.04 LTS and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu 20.04 LTS, Ubuntu 22.04 LTS and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
 
 
 Requirements
@@ -140,7 +140,7 @@ You are now ready to build your first Fledge project.
 
       $ sudo ./requirements.sh
       [sudo] password for john:
-      Platform is Ubuntu, Version: 18.04
+      Platform is Ubuntu, Version: 20.04
       apt 1.6.14 (amd64)
       Reading package lists...
       Building dependency tree...
@@ -341,7 +341,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 13 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 to newer version work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 13 is the version available for Ubuntu 20.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 to newer version work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 

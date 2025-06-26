@@ -264,5 +264,5 @@ Here, The GUI is forwarded to port 8082 on the host machine, it can be any port 
     docker exec -it fledge bash
 
 .. note::
-    To set up Ubuntu 18.04, simply replace ubuntu2004 with ubuntu1804.
-    Currently, images are only available for Ubuntu versions 18.04 and 20.04, and are compatible with both Intel and AMD architectures.
+    To set up Ubuntu 22.04, simply replace ubuntu2004 with ubuntu2204.
+    Currently, images are only available for Ubuntu versions 20.04 and are compatible with both Intel and AMD architectures.

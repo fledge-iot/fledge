@@ -26,8 +26,4 @@ Fledge can be built or installed in one of the following Linux distributions:
       - aarch64 |br| armv7l
       - http://archives.fledge-iot.org/latest/bullseye/aarch64 |br| http://archives.fledge-iot.org/latest/bullseye/armv7l
       - N/A |br| N/A
-    * - Raspberry Pi OS (buster)
-      - armv7l
-      - http://archives.fledge-iot.org/latest/buster/armv7l
-      - N/A |br| N/A
 

@@ -227,6 +227,27 @@ Fledge provides a mechanism to limit the age of passwords in use within the syst
 
 Whenever a user logs into Fledge the age of their password is checked against the maximum allowed password age. If their password has reached that age then the user is not logged in, but is instead forced to enter a new password. They must then login with that new password. In addition the system maintains a history of the last three passwords the user has used and prevents them being reused.
 
+Management Script Login
+-----------------------
+
+Fledge supports a number of mechanisms for user authentication when using the *fledge* script to manage startup, shutdown and other operations.
+
+  - The default authentication mechanism will prompt the entry of user name and password interactively.
+
+  - The user may set one or both of the FLEDGE_USER and FLEDGE_PASSWORD environment variables to automate the entry of the username or password.
+
+  - The user may pass either or both of the *-u* and *-p* flags to set the username and password on the command line.
+
+  - The user may pass the *-c* flag and a path to a certificate file that is used to authenticate the user.
+
+  - The user creates an authentication file that contains the username and password
+
+.. note::
+
+   In all cases where a password is stored or passed to the script this is done in plain text. Care should be taken to protect these plain text passwords. In the case of the authentication file, the file permissions must be such that only the Linux user is able to read the file.
+
+   Using a certificate to authenticate rather than username and password, alleviates the need to have plain text passwords stored on the system. However access to the certificate must be protected. The ability to access the certificate provides the ability to authenticate wit the Fledge instance without need for any further information.
+
 
 User Management
 ===============
@@ -346,7 +367,6 @@ To add a new certificate select the *Import* icon in the top right of the certif
 
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
 
-
 Custom Certificate Authority (CA)
 ---------------------------------
 
@@ -370,12 +390,16 @@ After obtaining the certificates, modify the **Root CA Certificate** setting (cu
 
     If there are any intermediate certificates forming a chain, consolidate them into a single file named **intermediate.cert or intermediate.pem** and store it in the same directory specified earlier.
 
-Generate a new auth certificates for user login
------------------------------------------------
+Generate a new certificates for user login
+------------------------------------------
 
-Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as ca.cert. Also default admin and non-admin certs are available in the same location which will be used for Login with Certificate in Fledge i.e admin.cert, user.cert. See |Require User Login|
+A default certificate authority (CA) certificate is available inside $FLEDGE_DATA/etc/certs and named as ca.cert. Also default admin, systemctl and non-admin certificates are available in the same location which will be used for Login with Certificate in Fledge i.e admin.cert, systemctl.cert and user.cert. See |Require User Login|
 
-Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
+.. note::
+
+   The systemctl.cert certificate is used by the Linux systemctl scripts to start, stop and monitor the state of the Fledge instance, using the status command, and should not be removed.
+
+Below are the steps to create custom certificates along with existing Fledge based CA signed for authentication certificates.
 
 **Using cURL**
 
@@ -408,7 +432,7 @@ You may also refer the documentation of |REST API| cURL commands. If you are not
 
 .. note::
 
-   Steps a (cert creation) and b (create user) can be executed in any order.
+   Steps a (cert creation) and b (create user) can be executed in either order.
 
 c) Now you can login with the newly created user **test**, with the following cURL
 

@@ -74,7 +74,7 @@ Linux distributions
 Fledge can be built or installed in one of the following Linux distributions :
 
 - Ubuntu 20.04, 22.04
-- Raspbian Stretch, Buster and Bullseye
+- Raspbian Bullseye
 - Coral Mendel
 
 Install the prerequisites

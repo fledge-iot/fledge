@@ -16,9 +16,9 @@
 
    <a href="https://fledge-iot.readthedocs.io/en/develop/building_fledge/building_fledge.html#building-fledge">Building Fledge</a>
 
-*******
+******
 Fledge
-*******
+******
 
 This is the Fledge project.
 

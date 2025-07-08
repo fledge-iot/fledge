@@ -3,17 +3,14 @@
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
 
 # debian for bullseye aarch64
-if [[ ${ID} == "raspbian" || ${ID} == "debian" ]]
-then
-  echo
-else
+if [[ ${ID} != @("raspbian" | "debian") ]]; then
   echo "Please test with Raspberry Pi OS."; exit 1;
 fi
 
 VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
-if [[ ${VERSION_CODENAME} == "bullseye" || ${VERSION_CODENAME} == "buster" ]]
+if [[ "${VERSION_CODENAME}" = @("bullseye" | "buster" | "bookworm") ]]
  then
   echo "Running test on ${VERSION_CODENAME}"
  else
-  echo "This test is specific to RPi bullseye & buster only!"; exit 1;
+  echo "This test is specific to RPi bullseye, buster & bookworm only!"; exit 1;
 fi

@@ -1245,7 +1245,17 @@ class Server:
         # Delete all user tokens
         await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
-        await cls.service_server.wait_closed()
+
+        # Python 3.12 + aiohttp 3.10.11 specific fix: wait_closed() can hang indefinitely
+        # if there are active connections, so we add a timeout
+        if sys.version_info >= (3, 12):
+            try:
+                await asyncio.wait_for(cls.service_server.wait_closed(), timeout=5.0)
+            except asyncio.TimeoutError:
+                _logger.debug("REST server wait_closed() timeout - continuing with shutdown")
+        else:
+            await cls.service_server.wait_closed()
+
         await cls.service_app.shutdown()
         await cls.service_server_handler.shutdown(60.0)
         await cls.service_app.cleanup()
@@ -1697,29 +1707,32 @@ class Server:
         :Example:
             curl -X POST http://localhost:<core mgt port>/fledge/service/shutdown
         """
-        try:
-            await cls._stop()
-            loop = request.loop
-            # allow some time
+        async def _stop_event_loop(loop):
             await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for process cleanup.'})
+        try:
+            await cls._stop()
+            await _stop_event_loop(request.loop)
+        except asyncio.TimeoutError as err:
+            await _stop_event_loop(request.loop)
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
             raise web.HTTPInternalServerError(reason=str(ex))
+        else:
+            return web.json_response({'message': 'Fledge stopped successfully. Wait for few seconds for process cleanup.'})
 
     @classmethod
     async def restart(cls, request):
         """ Restart the core microservice and its components """
-        try:
-            await cls._stop()
+
+        async def _restart_process():
             loop = request.loop
             # allow some time
             await async_sleep(2.0)
+
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
@@ -1728,10 +1741,13 @@ class Server:
                 sys.argv.append('')
 
             python3 = sys.executable
-            os.execl(python3, python3, *sys.argv)
+            os.execl(python3, python3, *sys.argv)  # Replaces current process, no return
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for restart.'})
+        try:
+            await cls._stop()
+            await _restart_process()
+        except asyncio.TimeoutError as err:
+            await _restart_process()
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

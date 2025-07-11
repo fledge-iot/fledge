@@ -1252,7 +1252,7 @@ class Server:
             try:
                 await asyncio.wait_for(cls.service_server.wait_closed(), timeout=5.0)
             except asyncio.TimeoutError:
-                _logger.warning("REST server wait_closed() timeout - continuing with shutdown")
+                _logger.debug("REST server wait_closed() timeout - continuing with shutdown")
         else:
             await cls.service_server.wait_closed()
 
@@ -1707,16 +1707,16 @@ class Server:
         :Example:
             curl -X POST http://localhost:<core mgt port>/fledge/service/shutdown
         """
-        async def _shutdown_event_loop(loop):
+        async def _stop_event_loop(loop):
             await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
         try:
             await cls._stop()
-            await _shutdown_event_loop(request.loop)
+            await _stop_event_loop(request.loop)
         except asyncio.TimeoutError as err:
-            await _shutdown_event_loop(request.loop)
+            await _stop_event_loop(request.loop)
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
@@ -1729,7 +1729,6 @@ class Server:
         """ Restart the core microservice and its components """
 
         async def _restart_process():
-            """ Handle the logic for restarting the current process """
             loop = request.loop
             # allow some time
             await async_sleep(2.0)

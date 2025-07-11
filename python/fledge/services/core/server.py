@@ -1707,20 +1707,22 @@ class Server:
         :Example:
             curl -X POST http://localhost:<core mgt port>/fledge/service/shutdown
         """
-        try:
-            await cls._stop()
-            loop = request.loop
-            # allow some time
+        async def _shutdown_event_loop(loop):
             await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for process cleanup.'})
+        try:
+            await cls._stop()
+            await _shutdown_event_loop(request.loop)
+        except asyncio.TimeoutError as err:
+            await _shutdown_event_loop(request.loop)
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
             raise web.HTTPInternalServerError(reason=str(ex))
+        else:
+            return web.json_response({'message': 'Fledge stopped successfully. Wait for few seconds for process cleanup.'})
 
     @classmethod
     async def restart(cls, request):

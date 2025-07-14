@@ -44,7 +44,7 @@ Release Date: 2025-07-10
        - Increased minimum key size requirement to 2048 bits for all authentication and encryption keys.
        - Updated plugin developers guide with notification rule plugin development documentation.
        - Updated quick start guide with improved formatting and content accuracy.
-
+       - The newly supported platforms include Ubuntu 24.04 and Raspberry Pi OS (bookworm).
 
     - Bug Fix:
 
@@ -104,7 +104,7 @@ Release Date: 2025-07-10
     - Bug Fix:
 
        - Fixed scale-set filter bug affecting data scaling.
-       - Resolved resource leaks in foglamp-filter-asset, foglamp-filter-python35, and several other filters.
+       - Resolved resource leaks in fledge-filter-asset, fledge-filter-python35, and several other filters.
        - OMF North Plugin Fixes:
 
          * Fixed parsing of Static Data values when more than 2 values configured.

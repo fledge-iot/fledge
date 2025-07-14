@@ -33,115 +33,92 @@ Release Date: 2025-07-10
 
     - New Features:
 
-       - Some new convenience methods have been added the ConfigCategory class to make the interactions more streamlined for those developing plugins in C++.
-       - Support has been added to allow execution within a container without requiring root user privilege.
-       - A resource leak in the asset filter has been resolved.
-       - A command line interface has been added to allow users with sufficient privilege to debug processing pipelines in both south and north services.
-       - A small resource leak in the Python35 filter has been fixed. This only impacts the filter when a specific error condition is encountered and is unlikely to impact most users.
-       - Improvements have been made to unit tests that have resulted in some minor resource leaks being resolved.
-       - The user interface for displaying lists of users has been improved such that it is clearly displayed if there is a problem with the associated certificate that is used for login by each user.
-       - A new configuration category has been added tat allows features to be turned on or off selectively for an entire instance. Currently only two features can be controlled using these options, the control features and the pipeline debugger.
-       - Optimisations have been added to the north service such that if a connection fails the service uses less system resources while trying to establish the connection.
-       - An issue with extraneous log messages during shutdown when using a Python version of 3.11 or higher has been resolved.
-       - An issue that allowed users to be changed from certificate based authentication to password based authentication without that user having a password configured has been resolved.
-       - New features have been added to the north and south services to allow debugging options for tracing data as it flows through the pipelines in those services.
-       - It is now possible to set a hard limit on the number of readings that a south service will buffer in situations when the storage service is unable to process the data being sent to it. This results in predictable failure behaviour when the system is under extreme load.
-       - An issue with stale registrations of interest in objects in the storage system causing the log to be flooded with error messages has been resolved.
-       - The plugin developers guide has been updated to include a discussion of building notification rule plugins.
-       - All keys used for authentication and encryption must now use at least 2048 bit private keys.
+       - Added new convenience methods to the ConfigCategory class to streamline plugin development in C++.
+       - Added support for running in containers without root privileges.
+       - Added command line interface for debugging processing pipelines in south and north services.
+       - Added new configuration category for selectively enabling/disabling features instance-wide (currently supports control features and pipeline debugger).
+       - Added pipeline debugging capabilities to trace data flow in north and south services.
+       - Added configurable buffer size limit for south services to handle storage service overload scenarios.
+       - Added certificate-based authentication support to Fledge management script.
+       - Improved north service resource usage during connection failures.
+       - Increased minimum key size requirement to 2048 bits for all authentication and encryption keys.
+       - Updated plugin developers guide with notification rule plugin development documentation.
+       - Updated quick start guide with improved formatting and content accuracy.
 
 
     - Bug Fix:
 
-       - The OMF north plugin documentation has been improved.
-       - A bug that resulted in a service not being added when using the sinusoid plugin and you named the asset either true or false has been resolved.
-       - The quick start guide has been updated to resolve some formatting and other issues in the text.
-       - User were incorrectly given the option for south services to be the source of control pipelines and for north services to be the destination. This has now been corrected.
-       - An issue related to chains of trust in certificates used for authentication has been resolved.
-       - A resource leak issue has been fixed in this reales. It is *required* that all plugins used against this version have been built for this version to avoid an issue with passing binary objects through the plugin interface. This is recommended practice for all releases, however it is vital that it is done for this release.
-       - The fledge script used to start, stop and monitor a Fledge instance has been updated to allow certificate based authentication to be used when authenticating the script with the Fledge instance.
-       - An issue that caused a message containing invalid characters into the log has been resolved. This issue caused the display of log data within Fledge to fail.
-       - A security issue that could result in plain text passwords appearing in support bundles has been resolved.
+       - Fixed storage system issue that was causing log flooding due to stale object registrations.
+       - Fixed service registration issue with sinusoid plugin when using reserved asset names.
+       - Fixed critical resource leak in plugin interface. **Note:** All plugins must be rebuilt against this version to ensure binary object handling compatibility.
+       - Fixed log display corruption caused by invalid character handling.
+       - Corrected service pipeline configuration to properly restrict control pipeline source/destination options.
+       - Resolved shutdown logging anomalies when running with Python 3.11+.
+       - Resolved certificate chain of trust validation issues in authentication system.
+       - Addressed security vulnerability that allowed unauthorized authentication method changes without proper password configuration.
+       - Addressed security vulnerability that exposed plaintext passwords in support bundles.
 
 
 - **GUI**
 
     - New Features:
 
-       - A missing tooltip has been added to the notification log page to show the description of the source column in the display.
-       - A search option has been added to the graph selection pulldown in the dashboard. This filters the potential statistics to graph based on the search criteria entered.
-       - The default mode of the menubar has been changed to be narrow mode.
-
+       - Added tooltip to notification log page showing source column description.
+       - Added search functionality to dashboard graph selection dropdown to filter statistics.
+       - Added persistence for menubar collapsed/expanded state between sessions.
+       - Changed default menubar mode to narrow view for improved space utilization.
+       - Enhanced user list display to clearly indicate certificate login issues.
 
     - Bug Fix:
 
-       - A number of cosmetic changes have been made to improve the appearance of the user interface.
-       - A bug that caused the icon that shows the state of a service to incorrectly change colour to grey has been fixed.
-       - An issue that could cause the menu sidebar to have incorrect behaviour with some screen sizes has been resolved.
-       - The collapsed or expanded state of the menubar is now retained between sessions.
-       - An issue that could cause the scroll arrows on the configuration page of a south service to be incorrectly disabled has been resolved.
-       - An issue that could case the Machine Learning Models page to initially display incorrectly has been resolved.
-       - An issue that caused the icons to appear incorrectly in a data pipeline when long names are used for filter names or service names has been resolved.
-       - An issue with the entire screen not being hidden during restart if the side menu is collapsed has been resolved.
-       - The use of the Delete key on connections, as a keyboard shortcut, has been made consistent with the delete operation when using the mouse.
-       - The operation of the submenus in the menu has been improved to reduce the occurrence of accidental selection of incorrect menu items.
-
+       - Fixed service status icon incorrectly showing grey state.
+       - Fixed menu sidebar layout issues on different screen sizes.
+       - Fixed disabled scroll arrows on south service configuration page.
+       - Fixed pipeline icon display with long filter/service names.
+       - Fixed screen visibility during restart with collapsed menu.
+       - Standardized Delete key behavior for connections across keyboard and mouse operations.
+       - Improved submenu interaction to prevent accidental selections.
+       - Improved overall UI appearance and consistency.
 
 - **Plugins**
 
     - New Features:
 
-       - An issue has been found that prevents multiple instances of the BACnet plugin from running on the same instance. This has been documented as a restriction in the current release.
-       - A new north plugin has been added to send data to Databricks SQL tables. This can be used to populate the medallion tables in the Databricks product.
-       - A new asset conformance filter has been added that can be used to check the type values of datapoints for an asset in a data pipeline.
-       - The documentation for the asset-join filter has been updated.
-       - OMF North: when writing data to AVEVA Data Hub (ADH), the frequency of authentication calls has been reduced by taking advantage of the token expiration time returned by ADH. Previously, OMF North would authenticate with every REST call.
-       - A new BACnet south plugin has been added to FogLAMP.
-       - A new north plugin has been added that sends data to Snowflake using the Snowflake ODBC interface. A corresponding hint filter is also available to control the naming of the tables created in Snowflake.
-       - Error handling in the Simple-REST south login has been improved to reduce the number of messages logged during a period when the REST endpoint is not available.
-       - A number of resource leak fixes ave been made to a collection of filters.
-       - An issue in the change filter that could result in incorrect initial values has been resolved.
-       - The Asset filter has been updated with a number of enhancements:\r\n\r\n* A new _nest_ rule that can add nesting to datapoints. \r\n* More of the rules can now take lists of datapoints rather than single datapoints. \r\n* The _select_ rule can now take a the in the same was that the _remove_ rule does.\r\n* The use of regular expressions has been improved such that substitution patterns can be used in _rename_, _datapoint_ _map_ and _split_ rules.\r\n* The performance of the filter has been improved.\r\n* The documentation has been restructured to describe each rule more fully and extra examples have been added.
-       - A pair of filters have been added that signs readings and validates readings with an SHA-2 hash of the reading values has been added. This allows for tampering of data in the data pipelines or at rest in the storage layer to be detected.
-       - A pair of filters have been added that signs readings and validates readings with a MD5 hash of the reading values has been added. This allows for tampering of data in the data pipelines or at rest in the storage layer to be detected.
-       - A resource leak in the asset filter has been fixed.
-       - OMF North had a mechanism for confirming the connection to PI Web API every 60 seconds. Connectivity checks for AVEVA Data Hub and Edge Data Store have been added.
-       - A new filter plugin has been added that can reduce the precession of reading timestamps.
-       - The Siemens S7 plugin now supports reading string data from S7 PLCs.
-       - Not for release notes. We have the access to AVEVA's cloud services that we need.
-       - Not for release notes. Addressed by other Jiras.
-       - Not for release notes. This has been addressed by later Jiras.
-       - Not for release notes. Not needed.
-       - Not for release notes. This relates to Complex Types which are deprecated.
-       - Not for release notes. Not needed.
-       - Not for release notes. We will implement a different Jira instead.
-       - A new data smoothing plugin has been added based on the Savitzky-Golay smoothing algorithm.
-       - Not for release notes. This was implemented in other Jiras.
-       - Not for release notes. This was implemented in other Jiras.
-       - A new notification rule plugin has been added that will trigger when a threshold is crossed for a sustained period of time. This is in addition to the existing plugin which triggers when a threshold is crossed.
-       - Not for release notes. This is about Complex Types which are deprecated.
-       - Not for release notes. Addressed by other Jiras.
-       - Not for release notes. This is about Complex Types which are deprecated.
-       - Not for release notes. Not implementable because of OMF and PI limitations.
-       - Not for release notes. Not needed.
+       - Asset Filter Enhancements:
 
+         * Added new *nest* rule for adding nesting to datapoints.
+         * Added list support to *select* rule similar to *remove* rule.
+         * Improved regular expression support with substitution patterns in *rename*, *datapoint map* and *split* rules.
+         * Improved filter performance.
+         * Extended rules to handle lists of datapoints instead of single datapoints.
+         * Restructured documentation with better rule descriptions and additional examples.
+
+       - OMF North Plugin Enhancements:
+
+         * Optimized authentication for AVEVA Data Hub (ADH) by leveraging token expiration time.
+         * Added connectivity checks for AVEVA Data Hub and Edge Data Store (similar to existing PI Web API checks).
+         * Added logging of attempted links when OMF Data message fails to help troubleshoot AF Attribute conflicts.
+         * Added data type coercion support for *number* and *integer* OMFHints to handle filter-induced data type changes.
+         * Added support for Static Data values in Linked Types.
 
     - Bug Fix:
 
-       - Not a problem
-       - (NOTE: this solution is not related to the title of the Jira) OMF North may log the error message \An existing LINK includes an AF Attribute that overlaps with the name of an AF Attribute that would be created for the specified LINK.\ This means that an OMF Data message for Linked Types is attempting to create an AF Attribute with the same name as an existing attribute. OMF does not report the name of the conflicting AF Attribute. To help with troubleshooting, OMF North now logs the links that were attempted if the OMF Data message fails. The Troubleshooting the PI Server Integration page has been updated with a detailed explanation.
-       - A bug in the scale-set filter that could cause data not to be correctly scaled in all cases has been resolved.
-       - Not for Release Notes. This was a bug introduced by [https://scaledb.atlassian.net/browse/FOGL-9056|http://example.com] and was fixed before release.
-       - An issue on Ubuntu 22 that resulted in the CSV writer plugin not compressing files correctly has been resolved.
-       - A issue that required the S7 south plugin to need a restart when changing the name of the asset it was ingesting has now been resolved. The name change will now take immediate affect.
-       - An issue with deploying FogLAMP configurations that have resulted in new templates being required during a previous import from the FogLAMP has now been resolved.
-       - OMF North: introducing filters to a northbound stream of Readings can sometimes change the data type of the Datapoints. For example, the Scale Filter always emits floating point values. If the Scale Filter was added to a stream of integers, the destination AVEVA data historians were unable to process the new stream of floating point values. This problem has been addressed by introducing data type coercion to the _number _and _integer _OMFHints. An OMFHint Filter can now be introduced that will coerce the floating point numbers to integers. Coercion from integers to floating point is also supported. Note that coercing negative numbers to unsigned integers is not possible. If OMF North encounters this, it will send a _null_ value to the data historian.
-       - An issue that could cause the failure of the dispatcher service when deploying from a FogLAMP Manage to a FogLAMP has been resolved.
-       - Not a problem
-       - OMF North: It is possible for the plugin to create OMF Data messages that are larger than PI Web API's size limit for inbound data messages. The plugin has been updated to respond to this by splitting the OMF data messages into blocks.
-       - OMF North: If more than 2 Static Data values were configured, the keys and string values would be parsed incorrectly. This has been fixed. Support has been added for including Static Data values in Linked Types. Previously, only Complex Types supported Static Data values.
-       - OMF North plugin: the Tag Name OMF Hint (\tagName\) can now appear in two places in the OMFHint configuration JSON. The original implementation renames an OMF Container to a custom name. A second syntax has been added which allows you to provide a custom name for a PI Point. Both \tagName\ placements can be applied at the same time.
-       - OMF North requires the system manager to chose the Region that hosts the target ADH Namespace. The Region choice is used to generate the endpoint for POSTing OMF messages. This path was not used for the authentication call; all authentication requests were directed to AVEVA's US-West data center. This has been fixed. Authentication now takes place in the Region that hosts the Namespace.
+       - Fixed scale-set filter bug affecting data scaling.
+       - Resolved CSV writer plugin compression issue on Ubuntu 22.
+
+       - Resource Leak Fixes:
+
+         * Fixed resource leak in asset filter.
+         * Fixed resource leak in Python35 filter during specific error conditions.
+         * Fixed resource leaks across multiple filters.
+
+       - OMF North Plugin Fixes:
+
+         * Fixed parsing of Static Data values when more than 2 values configured.
+         * Fixed large OMF Data message handling by implementing message splitting.
+         * Fixed authentication endpoint to use correct Region hosting the Namespace.
+         * Updated Tag Name OMFHint to support both Container and PI Point naming.
+         * Enhanced plugin documentation for better clarity.
 
 
 v3.0.0

@@ -104,14 +104,7 @@ Release Date: 2025-07-10
     - Bug Fix:
 
        - Fixed scale-set filter bug affecting data scaling.
-       - Resolved CSV writer plugin compression issue on Ubuntu 22.
-
-       - Resource Leak Fixes:
-
-         * Fixed resource leak in asset filter.
-         * Fixed resource leak in Python35 filter during specific error conditions.
-         * Fixed resource leaks across multiple filters.
-
+       - Resolved resource leaks in foglamp-filter-asset, foglamp-filter-python35, and several other filters.
        - OMF North Plugin Fixes:
 
          * Fixed parsing of Static Data values when more than 2 values configured.

@@ -54,8 +54,8 @@ class Monitor(object):
 
         self.restarted_services = []
         self._acl_handler = None
-        self._auto_support_bundle = None
-        self._support_bundle_retain_count = None
+        self._auto_support_bundle = True # type: bool
+        self._support_bundle_retain_count = 1 # type: int
 
     async def _sleep(self, sleep_time):
         await asyncio.sleep(sleep_time)
@@ -169,21 +169,25 @@ class Monitor(object):
             # Raise alert about support bundle creation
             await self.raise_support_bundle_alert(service_name, bundle_name)
             
-            self._logger.info("Automated support bundle created: %s for failed service: %s",
+            self._logger.info("Support bundle created: %s for failed service: %s",
                             bundle_name, service_name)
         except Exception as ex:
-            self._logger.error("Failed to create automated support bundle for %s: %s",
+            self._logger.error("Failed to create support bundle for %s: %s",
                             service_name, str(ex))
     
     async def raise_support_bundle_alert(self, service_name, bundle_name):
         """Raise alert for automated support bundle creation"""
         from fledge.services.core import server
-        param = {
-            "key": f"{bundle_name}",
-            "message": f"Automated support bundle {bundle_name} created for failed service '{service_name}'",
-            "urgency": "3"  # Normal urgency
-        }
-        await server.Server._alert_manager.add(param)
+        try:
+            param = {
+                "key": f"{bundle_name}",
+                "message": f"Support bundle {bundle_name} created for failed service '{service_name}'",
+                "urgency": "3"  # Normal urgency
+            }
+            await server.Server._alert_manager.add(param)
+        except Exception as ex:
+            self._logger.error(ex, "Failed to raise an alert on support bundle creation for {} service.".format(service_name))
+
     
     async def _read_config(self):
         """Reads configuration"""

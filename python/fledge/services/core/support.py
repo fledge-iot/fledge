@@ -46,8 +46,11 @@ class SupportBuilder:
     _interim_file_path = None
     _storage = None
 
-    def __init__(self, support_dir):
+    def __init__(self, support_dir, no_of_files_to_retain=None):
         try:
+            global _NO_OF_FILES_TO_RETAIN
+            _NO_OF_FILES_TO_RETAIN = no_of_files_to_retain if no_of_files_to_retain else _NO_OF_FILES_TO_RETAIN
+            
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
             else:
@@ -146,9 +149,9 @@ class SupportBuilder:
         files = glob.glob(support_dir + "/" + "support*.tar.gz")
         files.sort(key=os.path.getmtime)
         if len(files) >= _NO_OF_FILES_TO_RETAIN:
-            for f in files[:-2]:
-                if os.path.isfile(f):
-                    os.remove(os.path.join(support_dir, f))
+            for i in range(len(files) - (_NO_OF_FILES_TO_RETAIN-1)):
+                if os.path.isfile(files[i]):
+                    os.remove(os.path.join(support_dir, files[i]))
 
     def check_and_delete_temp_files(self, support_dir):
         # Delete all non *.tar.gz files

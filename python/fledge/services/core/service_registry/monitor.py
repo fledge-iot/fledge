@@ -54,6 +54,8 @@ class Monitor(object):
 
         self.restarted_services = []
         self._acl_handler = None
+        self._auto_support_bundle = None
+        self._support_bundle_retain_count = None
 
     async def _sleep(self, sleep_time):
         await asyncio.sleep(sleep_time)
@@ -145,6 +147,10 @@ class Monitor(object):
                 if check_count[service_record._id] > self._max_attempts:
                     ServiceRegistry.mark_as_failed(service_record._id)
                     check_count[service_record._id] = 0
+                    if self._auto_support_bundle:
+                        self._logger.info("Service %s failed, creating automated support bundle",
+                                          service_record._name)
+                        asyncio.ensure_future(self.create_automated_support_bundle(service_record._name))
                     try:
                         audit = AuditLogger(connect.get_storage_async())
                         await audit.failure('SRVFL', {'name':service_record._name})
@@ -152,6 +158,33 @@ class Monitor(object):
                         self._logger.info("Failed to audit service failure %s", str(ex))
             await self._sleep(self._sleep_interval)
 
+    async def create_automated_support_bundle(self, service_name):
+        """Create support bundle asynchronously when service fails"""
+        try:
+            from fledge.services.core.support import SupportBuilder
+            from fledge.common.common import _FLEDGE_DATA
+            support_dir = _FLEDGE_DATA + "/support" if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/support"
+            builder = SupportBuilder(support_dir, self._support_bundle_retain_count)
+            bundle_name = await builder.build()
+            # Raise alert about support bundle creation
+            await self.raise_support_bundle_alert(service_name, bundle_name)
+            
+            self._logger.info("Automated support bundle created: %s for failed service: %s",
+                            bundle_name, service_name)
+        except Exception as ex:
+            self._logger.error("Failed to create automated support bundle for %s: %s",
+                            service_name, str(ex))
+    
+    async def raise_support_bundle_alert(self, service_name, bundle_name):
+        """Raise alert for automated support bundle creation"""
+        from fledge.services.core import server
+        param = {
+            "key": f"{bundle_name}",
+            "message": f"Automated support bundle {bundle_name} created for failed service '{service_name}'",
+            "urgency": "3"  # Normal urgency
+        }
+        await server.Server._alert_manager.add(param)
+    
     async def _read_config(self):
         """Reads configuration"""
         default_config = {
@@ -191,11 +224,14 @@ class Monitor(object):
         await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
 
         config = await cfg_manager.get_category_all_items('SMNTR')
+        support_bundle_config = await cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
 
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])
         self._max_attempts = int(config['max_attempts']['value'])
         self._restart_failed = config['restart_failed']['value']
+        self._auto_support_bundle = support_bundle_config['auto_support_bundle']['value'] == 'true'
+        self._support_bundle_retain_count = max(1, int(support_bundle_config['support_bundle_retain_count']['value']))
 
     async def restart_service(self, service_record):
         from fledge.services.core import server  # To avoid cyclic import as server also imports monitor

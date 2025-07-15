@@ -69,7 +69,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'keywords/README.rst']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'keywords/README.rst', 'OMF.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -178,4 +178,4 @@ html_context = {
 
 # Pass Plugin DOCBRANCH argument in Makefile ; by default develop
 # NOTE: During release time we need to replace DOCBRANCH with actual released version
-subprocess.run(["make generated DOCBRANCH='3.0.0RC'"], shell=True, check=True)
+subprocess.run(["make generated DOCBRANCH='3.1.0RC'"], shell=True, check=True)

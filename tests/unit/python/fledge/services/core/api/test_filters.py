@@ -94,8 +94,7 @@ class TestFilters:
             query_tbl_patch.assert_called_once_with('filters')
 
     async def test_get_filter_by_name(self, client):
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -436,8 +435,7 @@ class TestFilters:
             assert 2 == get_cat_info_patch.call_count
 
     async def test_delete_filter(self, client):
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -519,10 +517,10 @@ class TestFilters:
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1):
                 resp = await client.delete('/fledge/filter/{}'.format(filter_name))
                 assert 400 == resp.status
-                assert message == resp.reason
+                assert message in resp.reason
                 r = await resp.text()
                 json_response = json.loads(r)
-                assert message == json_response['message']
+                assert message in json_response['message']
 
     async def test_delete_filter_conflict_error(self, client):
         filter_name = "AssetFilter"
@@ -1224,8 +1222,7 @@ class TestFilters:
             },
         }
 
-        @asyncio.coroutine
-        def get_cat(category_name):
+        async def get_cat(category_name):
             category = category_name
             if category == "random1_scale1":
                 return mock_cat
@@ -1234,12 +1231,7 @@ class TestFilters:
             if category == 'meta2':
                 return mock_cat
 
-        @asyncio.coroutine
-        def create_cat():
-            return {}
-
-        @asyncio.coroutine
-        def create_child_cat():
+        async def mock():
             return {}
 
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -1248,16 +1240,16 @@ class TestFilters:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await asyncio.sleep(.1)
+            _rv2 = await mock()
         else:
-            _rv = asyncio.ensure_future(asyncio.sleep(.1))        
-        
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))
+            _rv2 = asyncio.ensure_future(mock())
+
         connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
         get_category_mock = mocker.patch.object(c_mgr_mock, 'get_category_all_items', side_effect=get_cat)
-        create_category_mock = mocker.patch.object(c_mgr_mock, 'create_category', return_value=create_cat())
-        create_child_category_mock = mocker.patch.object(c_mgr_mock, 'create_child_category',
-                                                         return_value=create_child_cat())
-        update_config_bulk_mock = mocker.patch.object(c_mgr_mock, 'update_configuration_item_bulk',
-                                                      return_value=_rv)
+        create_category_mock = mocker.patch.object(c_mgr_mock, 'create_category', return_value=_rv2)
+        create_child_category_mock = mocker.patch.object(c_mgr_mock, 'create_child_category', return_value=_rv2)
+        update_config_bulk_mock = mocker.patch.object(c_mgr_mock, 'update_configuration_item_bulk', return_value=_rv)
         cache_manager = mocker.patch.object(c_mgr_mock, '_cacheManager')
         cache_remove = mocker.patch.object(cache_manager, 'remove', return_value=MagicMock())
         insert_tbl_patch = mocker.patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv)

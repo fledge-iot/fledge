@@ -164,6 +164,27 @@ class Server:
         }
     }
 
+    _FEATURES_DEFAULT_CONFIG = {
+        'control': {
+            'description': 'Allow the use of control features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Control',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        },
+        'debugging': {
+            'description': 'Allow the use of pipeline debugging features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Pipeline Debugging',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        }
+    }
+
     _MANAGEMENT_SERVICE = '_fledge-manage._tcp.local.'
     """ The management service we advertise """
 
@@ -315,6 +336,38 @@ class Server:
             'order': '1',
             'minimum': '1',
             'maximum': '1000'
+        }
+    }
+
+    _RESOURCE_LIMIT_DEFAULT_CONFIG = {
+        'serviceBuffering': {
+            'description': 'Buffering level for the South Service',
+            'type': 'enumeration',
+            'displayName': 'South Service Buffering',
+            'options': ['Unlimited', 'Limited'],
+            'default': 'Unlimited',
+            'order': '1',
+            'permissions': ['admin']
+        },
+        'serviceBufferSize': {
+            'description': 'Buffer size for the South Service',
+            'type': 'integer',
+            'displayName': 'South Service Buffer Size',
+            'minimum': '1000',
+            'default': '1000',
+            'order': '2',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
+        },
+        'discardPolicy': {
+            'description': 'The different discard policies for the South Service',
+            'type': 'enumeration',
+            'displayName': 'Discard Policy',
+            'options': ['Discard Oldest', 'Reduce Fidelity', 'Discard Newest'],
+            'default': 'Discard Oldest',
+            'order': '3',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
         }
     }
 
@@ -578,6 +631,22 @@ class Server:
             raise
 
     @classmethod
+    async def features_config(cls):
+        """ Get the features inclusion configuration """
+        try:
+            config = cls._FEATURES_DEFAULT_CONFIG
+            category = 'FEATURES'
+            description = "Control the inclusion of system features"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Features')
+            config = await cls._configuration_manager.get_category_all_items(category)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
     async def service_config(cls):
         """
         Get the service level configuration
@@ -639,6 +708,21 @@ class Server:
             cls._log_level = config['logLevel']['value']
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def core_south_service_resource_limit_setup(cls):
+        """ Get the south service resource limit configuration """
+        try:
+            config = cls._RESOURCE_LIMIT_DEFAULT_CONFIG
+            category = 'RESOURCE_LIMIT'
+            description = "Resource Limit of South Service"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Resource Limit')
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -913,8 +997,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
-                                                                                "CONFIGURATION"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING", "RESOURCE_LIMIT",
+                                                                                "CONFIGURATION","FEATURES"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -969,6 +1053,7 @@ class Server:
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())
+            loop.run_until_complete(cls.core_south_service_resource_limit_setup())
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -986,6 +1071,7 @@ class Server:
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
             loop.run_until_complete(cls.firewall_config())
+            loop.run_until_complete(cls.features_config())
 
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
@@ -1159,7 +1245,17 @@ class Server:
         # Delete all user tokens
         await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
-        await cls.service_server.wait_closed()
+
+        # Python 3.12 + aiohttp 3.10.11 specific fix: wait_closed() can hang indefinitely
+        # if there are active connections, so we add a timeout
+        if sys.version_info >= (3, 12):
+            try:
+                await asyncio.wait_for(cls.service_server.wait_closed(), timeout=5.0)
+            except asyncio.TimeoutError:
+                _logger.debug("REST server wait_closed() timeout - continuing with shutdown")
+        else:
+            await cls.service_server.wait_closed()
+
         await cls.service_app.shutdown()
         await cls.service_server_handler.shutdown(60.0)
         await cls.service_app.cleanup()
@@ -1205,7 +1301,7 @@ class Server:
                 return
 
             tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
-            await asyncio.wait(tasks)
+            await asyncio.gather(*tasks)
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
@@ -1611,29 +1707,32 @@ class Server:
         :Example:
             curl -X POST http://localhost:<core mgt port>/fledge/service/shutdown
         """
-        try:
-            await cls._stop()
-            loop = request.loop
-            # allow some time
+        async def _stop_event_loop(loop):
             await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for process cleanup.'})
+        try:
+            await cls._stop()
+            await _stop_event_loop(request.loop)
+        except asyncio.TimeoutError as err:
+            await _stop_event_loop(request.loop)
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
             raise web.HTTPInternalServerError(reason=str(ex))
+        else:
+            return web.json_response({'message': 'Fledge stopped successfully. Wait for few seconds for process cleanup.'})
 
     @classmethod
     async def restart(cls, request):
         """ Restart the core microservice and its components """
-        try:
-            await cls._stop()
+
+        async def _restart_process():
             loop = request.loop
             # allow some time
             await async_sleep(2.0)
+
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
@@ -1642,10 +1741,13 @@ class Server:
                 sys.argv.append('')
 
             python3 = sys.executable
-            os.execl(python3, python3, *sys.argv)
+            os.execl(python3, python3, *sys.argv)  # Replaces current process, no return
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for restart.'})
+        try:
+            await cls._stop()
+            await _restart_process()
+        except asyncio.TimeoutError as err:
+            await _restart_process()
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

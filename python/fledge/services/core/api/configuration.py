@@ -189,7 +189,8 @@ async def delete_category(request):
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         await cf_mgr.delete_category_and_children_recursively(category_name)
     except (ValueError, TypeError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+        msg = str(ex)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to delete {} category.".format(category_name))
@@ -282,10 +283,10 @@ async def set_configuration_item(request):
             await cf_mgr.set_category_item_value_entry(category_name, config_item, value, request=request_details)
         else:
             await cf_mgr.set_optional_value_entry(category_name, config_item, list(found_optional.keys())[0], list(found_optional.values())[0])
-    except ValueError as ex:
-        raise web.HTTPNotFound(reason=ex) if not found_optional else web.HTTPBadRequest(reason=ex)
-    except (TypeError, KeyError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+    except ValueError as err:
+        raise web.HTTPNotFound(reason=str(err)) if not found_optional else web.HTTPBadRequest(reason=str(err))
+    except (TypeError, KeyError) as err:
+        raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
         msg = str(ex)
         if 'Forbidden' in msg:
@@ -332,10 +333,10 @@ async def update_configuration_item_bulk(request):
                             raise TypeError(
                                 "Bulk update not allowed for {} item_name as it has readonly attribute set".format(item_name))
         await cf_mgr.update_configuration_item_bulk(category_name, data, request_details)
-    except (NameError, KeyError) as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except (ValueError, TypeError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+    except (NameError, KeyError) as err:
+        raise web.HTTPNotFound(reason=str(err))
+    except (ValueError, TypeError) as err:
+        raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
         msg = str(ex)
         if 'Forbidden' in msg:

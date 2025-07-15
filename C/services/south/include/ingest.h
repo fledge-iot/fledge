@@ -47,6 +47,24 @@
 
 class IngestRate;
 
+// Enum for service buffering type
+enum class ServiceBufferingType {
+	UNLIMITED,
+	LIMITED
+};
+
+// Enum for discard policy
+enum class DiscardPolicy {
+	DISCARD_OLDEST,
+	REDUCE_FIDELITY,
+	DISCARD_NEWEST
+};
+
+#define SERVICE_BUFFER_BUFFER_TYPE_DEFAULT 	ServiceBufferingType::UNLIMITED
+#define SERVICE_BUFFER_DISCARD_POLICY_DEFAULT 	DiscardPolicy::DISCARD_OLDEST
+#define SERVICE_BUFFER_SIZE_DEFAULT		1000
+#define SERVICE_BUFFER_SIZE_MIN		1000
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -98,12 +116,63 @@ public:
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
+	void		setResourceLimit(ServiceBufferingType serviceBufferingType, unsigned long serviceBufferSize, DiscardPolicy discardPolicy);
 	void		flowControl();
 	void		setPerfMon(PerformanceMonitor *mon)
 			{
 				m_performance = mon;
 			};
 	void		configureRateMonitor(long interval, long factor);
+
+	// Debugger entry points
+	bool		attachDebugger()
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerAttached = true;
+					return m_filterPipeline->attachDebugger();
+				}
+				return false;
+			};
+	void		detachDebugger()
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerAttached = false;
+					m_debuggerBufferSize = 1;
+					m_filterPipeline->detachDebugger();
+				}
+			};
+	void		setDebuggerBuffer(unsigned int size)
+			{
+				if (m_filterPipeline)
+				{
+					m_debuggerBufferSize = size;
+					m_filterPipeline->setDebuggerBuffer(size);
+				}
+			};
+	std::string	getDebuggerBuffer()
+			{
+				std::string rval;
+				if (m_filterPipeline)
+					rval = m_filterPipeline->getDebuggerBuffer();
+				return rval;
+			};
+	void		isolate(bool isolate)
+			{
+				std::lock_guard<std::mutex> guard(m_isolateMutex);
+				m_isolate = isolate;
+			};
+	bool		isolated()
+			{
+				std::lock_guard<std::mutex> guard(m_isolateMutex);
+				return m_isolate;
+			};
+	void		replayDebugger()
+			{
+				if (m_filterPipeline)
+					m_filterPipeline->replayDebugger();
+			};
 
 private:
 	void				signalStatsUpdate() {
@@ -117,6 +186,10 @@ private:
 					};
 	long				calculateWaitTime();
 	int 				createServiceStatsDbEntry();
+	void				discardOldest();
+	void				discardNewest();
+	void				reduceFidelity();
+	void				enforceResourceLimits();
 
 	StorageClient&			m_storage;
 	long				m_timeout;
@@ -165,6 +238,15 @@ private:
 	PerformanceMonitor		*m_performance;
 	std::mutex			m_useDataMutex;
 	IngestRate			*m_ingestRate;
+	std::mutex			m_isolateMutex;
+	bool				m_isolate;
+	bool				m_debuggerAttached;
+	unsigned int 			m_debuggerBufferSize;
+	std::atomic<ServiceBufferingType>			m_serviceBufferingType;
+	std::atomic<unsigned int>			m_serviceBufferSize;
+	std::atomic<DiscardPolicy>			m_discardPolicy;
+	bool m_resourceGovernorActive{false}; // Tracks if the resource governor is active
+	time_t m_lastFidelityReductionTimestamp{0}; // Used for "Reduce Fidelity"
 };
 
 #endif

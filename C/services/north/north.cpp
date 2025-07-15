@@ -18,6 +18,7 @@
 #include <cxxabi.h>   // for __cxa_demangle
 #include <unistd.h>
 #include <north_service.h>
+#include <north_api.h>
 #include <management_api.h>
 #include <storage_client.h>
 #include <service_record.h>
@@ -307,7 +308,10 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_dryRun(false),
 	m_requestRestart(),
 	m_auditLogger(NULL),
-	m_perfMonitor(NULL)
+	m_perfMonitor(NULL),
+	m_debugState(0),
+	m_provider(NULL),
+	m_allowDebugger(true)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -337,6 +341,8 @@ NorthService::~NorthService()
 		delete m_auditLogger;
 	if (m_mgtClient)
 		delete m_mgtClient;
+	if (m_provider)
+		delete m_provider;
 	delete logger;
 }
 
@@ -348,15 +354,26 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting north service...");
+	NorthServiceProvider *provider = new NorthServiceProvider(this);
+	management.registerProvider(provider);
 	management.registerService(this);
 
 	// Listen for incomming managment requests
 	management.start();
 
+
+	// Create the south API
+	NorthApi *api = new NorthApi(this);
+	if (!api)
+	{
+		logger->fatal("Unable to create API object");
+		return;
+	}
 	// Allow time for the listeners to start before we register
 	sleep(1);
 	if (! m_shutdown)
 	{
+		unsigned short sport = api->getListenerPort();
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
@@ -364,7 +381,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				SERVICE_TYPE,		// Service type
 				"http",			// Protocol
 				"localhost",		// Listening address
-				0,			// Service port
+				sport,			// Service port
 				managementListener,	// Management port
 				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
@@ -392,9 +409,14 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				management.stop();
 				return;
 			}
+
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
+			updateFeatures(features);
+
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, "FEATURES");
 		}
 
 		// Get a handle on the storage layer
@@ -802,6 +824,10 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
+		if (m_dataSender)
+		{
+			m_dataSender->configChange();
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -891,6 +917,11 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+	if (categoryName.compare("FEATURES") == 0)
+	{
+		ConfigCategory conf("FEATURES", category);
+		this->updateFeatures(conf);
 	}
 }
 
@@ -1342,3 +1373,59 @@ void NorthService::clearFailures()
 	m_mgtClient->clearAlert(key);
 	logger->info("The sending of data has resumed");
 }
+
+/**
+ * Return the state of the pipeline debugger
+ *
+ * @return string	JSON document reporting the state of the pipeline debugger
+ */
+string NorthService::debugState()
+{
+	string rval;
+	rval = "{ ";
+	rval += "\"debugger\" : ";
+	if (m_debugState & DEBUG_ATTACHED)
+	{
+		rval += "\"Attached\",";
+		rval += "\"ingress\" : ";
+		if (m_debugState & DEBUG_SUSPENDED)
+			rval += "\"Suspended\", ";
+		else
+			rval += "\"Running\", ";
+		rval += "\"egress\" : ";
+		if (m_debugState & DEBUG_ISOLATED)
+			rval += "\"Isolated\"";
+		else
+			rval += "\"Storage\"";
+	}
+	else if (m_allowDebugger)
+	{
+		rval += "\"Detached\"";
+	}
+	else
+	{
+		rval += "\"Disabled\"";
+	}
+	rval += "}";
+	return rval;
+}
+
+/**
+ * Process the setting of allowed features
+ *
+ * @param category	The configuration category
+ */
+void NorthService::updateFeatures(const ConfigCategory& category)
+{
+	if (category.itemExists("debugging"))
+	{
+		string s = category.getValue("debugging");
+		m_allowDebugger = s.compare("true") == 0 ? true : false;
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_allowDebugger == false)
+		{
+			// Detach the debugger in case there is an active session
+			detachDebugger();
+		}
+	}
+}
+

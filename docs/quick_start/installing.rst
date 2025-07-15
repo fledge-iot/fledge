@@ -11,6 +11,10 @@
 
    <a href="../storage.html#configuring-the-storage-plugin">Configure Storage Plugin from GUI</a>
 
+.. |Supported Platforms| raw:: html
+
+   <a href="platforms.html">Supported Platforms</a>
+
 
 Installing Fledge
 ==================
@@ -58,36 +62,26 @@ Once complete you can add the repository itself into the apt configuration file 
     
     .. code-block:: console
 
-       deb  http://archives.fledge-iot.org/latest/bullseye/armv7l/ /
+       deb  http://archives.fledge-iot.org/latest/bullseye/aarch64/ /
 
     to the end of the file.
 
-    .. note:: 
-       Replace `bullseye` with  the name of the version of the Raspberry Operating System you have installed.
-
-  - Users with an Intel or AMD system with Ubuntu 18.04 should run
+  - Users utilizing x86_64 or amd64 architectures on Ubuntu versions need to confirm compatibility with their particular platforms and should run the following command:
 
     .. code-block:: console
 
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / "
+       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2204/x86_64/ / "
 
-  - Users with an Intel or AMD system with Ubuntu 20.04 should run
-
-    .. code-block:: console
-
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / "
-
-  - Users with an Arm system with Ubuntu 18.04, such as the Odroid board, should run
+  - Users utilizing aarch64 or arm64 architectures on Ubuntu versions need to confirm compatibility with their particular platforms and should run the following command:
 
     .. code-block:: console
 
-       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / "
+       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2204/aarch64/ / "
 
-  - Users of the Mendel operating system on a Google Coral create the file /etc/apt/sources.list.d/fledge.list and insert the following content
+.. note::
 
-    .. code-block:: console
+       Explore other |Supported Platforms|
 
-       deb http://archives.fledge-iot.org/latest/mendel/aarch64/ /
 
 Once the repository has been added you must inform the package manager to go and fetch a list of the packages it supports. To do this run the command
 
@@ -270,5 +264,5 @@ Here, The GUI is forwarded to port 8082 on the host machine, it can be any port 
     docker exec -it fledge bash
 
 .. note::
-    For Ubuntu 18.04 setup, you just need to replace ubuntu2004 with ubuntu1804.
-    Images are currently only available for Ubuntu version 18.04 and 20.04.
+    To set up Ubuntu 22.04, simply replace ubuntu2004 with ubuntu2204.
+    Currently, images are only available for Ubuntu versions 20.04 and are compatible with both Intel and AMD architectures.

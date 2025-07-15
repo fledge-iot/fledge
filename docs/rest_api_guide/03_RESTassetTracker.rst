@@ -1,7 +1,7 @@
 ..
 
-Asset Tacker
-------------
+Asset Tracker
+-------------
 
 The *asset tracker* API allows the operations that an asset undergoes whilst traversing the data pipeline within Fledge to be tracked as displayed.
 

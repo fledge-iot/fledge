@@ -20,11 +20,19 @@
 #include <condition_variable>
 #include <audit_logger.h>
 #include <perfmonitors.h>
+#include <data_load.h>
+#include <data_sender.h>
 
 #define SERVICE_NAME  "Fledge North"
 
-class DataLoad;
-class DataSender;
+/**
+ * State bits for the south pipeline debugger
+ */
+#define DEBUG_ATTACHED		0x01
+#define DEBUG_SUSPENDED		0x02
+#define DEBUG_ISOLATED		0x04
+
+class NorthServiceProvider;
 
 /**
  * The NorthService class. This class is the core
@@ -57,11 +65,83 @@ class NorthService : public ServiceAuthHandler {
 		bool				getDryRun() { return m_dryRun; };
 		void				alertFailures();
 		void				clearFailures();
+		// Debugger Entry point
+		bool				attachDebugger()
+						{
+							if (m_dataLoad)
+							{
+								m_debugState = DEBUG_ATTACHED;
+								return m_dataLoad->attachDebugger();
+							}
+							return false;
+						};
+		void				detachDebugger()
+						{
+							if (m_dataLoad)
+								m_dataLoad->detachDebugger();
+							suspendDebugger(false);
+							isolateDebugger(false);
+							m_debugState = 0;
+						};
+		void				setDebuggerBuffer(unsigned int size)
+						{
+							if (m_dataLoad)
+								m_dataLoad->setDebuggerBuffer(size);
+						};
+		std::string			getDebuggerBuffer()
+						{
+							if (m_dataLoad)
+								return m_dataLoad->getDebuggerBuffer();
+							return "";
+						};
+		void				suspendDebugger(bool suspend)
+						{
+							if (m_dataLoad)
+							{
+								m_dataLoad->suspendIngest(suspend);
+								if (suspend)
+									m_debugState |= DEBUG_SUSPENDED;
+								else
+									m_debugState &= ~(unsigned int)DEBUG_SUSPENDED;
+							}
+						};
+		void				isolateDebugger(bool isolate)
+						{
+							if (m_dataLoad)
+							{
+								m_dataLoad->isolate(isolate);
+								if (isolate)
+									m_debugState |= DEBUG_ISOLATED;
+								else
+									m_debugState &= ~(unsigned int)DEBUG_ISOLATED;
+							}
+						};
+		void				stepDebugger(unsigned int steps)
+						{
+							if (m_dataLoad)
+								m_dataLoad->stepDebugger(steps);
+						}
+		void				replayDebugger()
+						{
+							if (m_dataLoad)
+								m_dataLoad->replayDebugger();
+						};
+		std::string			debugState();
+		bool				debuggerAttached()
+						{
+							return m_debugState & DEBUG_ATTACHED;
+						}
+		bool				allowDebugger()
+						{
+							return m_allowDebugger;
+						}
+		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 		void				restartPlugin();
+		void				updateFeatures(const ConfigCategory& category);
 	private:
 		std::string			controlSource();
 		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
@@ -86,5 +166,28 @@ class NorthService : public ServiceAuthHandler {
 		bool				m_requestRestart;
 		AuditLogger			*m_auditLogger;
 		PerformanceMonitor		*m_perfMonitor;
+		unsigned int			m_debugState;
+		NorthServiceProvider		*m_provider;
+		bool				m_allowDebugger;
+};
+
+
+/**
+ *
+ * A data provider class to return data in the north service ping response
+ */
+class NorthServiceProvider : public JSONProvider {
+	public:
+		NorthServiceProvider(NorthService *north) : m_north(north) {};
+		virtual ~NorthServiceProvider() {};
+		void 	asJSON(std::string &json) const
+			{
+				if (m_north)
+				{
+					json = "\"debug\" : " + m_north->debugState();
+				}
+			};
+	private:
+		NorthService	*m_north;
 };
 #endif

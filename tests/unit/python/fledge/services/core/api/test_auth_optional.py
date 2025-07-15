@@ -79,7 +79,6 @@ class TestAuthOptional:
             _rv = await mock_coro(ret_val)
         else:
             _rv = asyncio.ensure_future(mock_coro(ret_val))
-        
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'all', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user')
@@ -165,7 +164,10 @@ class TestAuthOptional:
         ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
         ({"username": "user", "password": "fledge"}, 401, User.PasswordExpired,
-         'Your password has been expired. Please set your password again.')
+         'Your password has been expired. Please set your password again.'),
+        ({"username": "user1", "password": "blah"}, 400, User.PasswordNotSetError,
+         'Password is not set for this user.')
+
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         
@@ -317,3 +319,14 @@ class TestAuthOptional:
             actual = await auth.is_valid_role(role_id)
             assert expected is actual
         patch_get_roles.assert_called_once_with()
+
+    async def test_certificate(self, client):
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.post('/fledge/admin/2/authcertificate')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST',
+                                             '/fledge/admin/2/authcertificate')
+

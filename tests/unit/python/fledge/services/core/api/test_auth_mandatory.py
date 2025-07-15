@@ -1213,6 +1213,60 @@ class TestAuthMandatory:
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/reset')
 
+    @pytest.mark.parametrize("request_data, ret_val", [
+        ({"username": "admin", "password": "fledge"}, (1, "token1", True)),
+        ({"username": "user", "password": "fledge"}, (2, "token2", False))
+    ])
+    async def test_login_auth_password(self, client, request_data, ret_val):
+        async def async_mock():
+            return ret_val
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
+                with patch.object(auth._logger, 'info') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data))
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert ret_val[0] == actual['uid']
+                    assert ret_val[1] == actual['token']
+                    assert ret_val[2] == actual['admin']
+                patch_auth_logger.assert_called_once_with('User with username:<{}> logged in successfully.'.format(
+                    request_data['username']))
+            # TODO: host arg patch transport.request.extra_info
+            args, kwargs = patch_user_login.call_args
+            assert request_data['username'] == args[0]
+            assert request_data['password'] == args[1]
+            # patch_user_login.assert_called_once_with()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
+    @pytest.mark.parametrize("exception_name, status_code, msg", [
+        (User.PasswordNotSetError, 400, 'Password is not set for this user.'),
+        (User.DoesNotExist, 404, 'User does not exist'),
+        (User.PasswordDoesNotMatch, 404, 'Username or Password do not match'),
+        (Exception, 500, 'Internal Server Error')
+    ])
+    async def test_login_fails_when_password_auth_used_but_password_not_set(self, client, exception_name,
+                                                                            status_code, msg):
+        request_data_payload = {"username": "ranveer", "password": "Singh@123"}
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', side_effect=exception_name(msg)):
+                with patch.object(auth._logger, 'error') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data_payload))
+                    assert status_code == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                patch_auth_logger.assert_not_called() if status_code != 500 else patch_auth_logger.assert_called()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
     @pytest.mark.parametrize("auth_method, request_data, ret_val", [
         ("certificate", "-----BEGIN CERTIFICATE----- Test -----END CERTIFICATE-----", (2, "token2", False))
     ])
@@ -1393,4 +1447,82 @@ class TestAuthMandatory:
                 msg = await auth.validate_password(pwd)
                 assert "" == msg
             patch_get_cat.assert_called_once_with('password')
+
+
+    @pytest.mark.parametrize("data, error_message", [
+        ("blah", "expiration_days must be an integer."),
+        (0, "expiration_days must be between 1 and 365."),
+        (366, "expiration_days must be between 1 and 365."),
+        (-1, "expiration_days must be between 1 and 365.")
+    ])
+    async def test_bad_certificate(self, client, data, error_message):
+        payload = {"expiration_days": data}
+        valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro(valid_user['id'])
+            _rv2 = await mock_coro(None)
+            _rv3 = await mock_coro(valid_user)
+            _rv4 = await mock_coro([{'id': '1'}])
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro(valid_user))
+            _rv4 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+
+        with patch.object(middleware._logger, 'debug') as patch_logger_debug:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
+                    with patch.object(User.Objects, 'get', return_value=_rv3):
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv4
+                                              ) as patch_role_id:
+                                resp = await client.post('/fledge/admin/3/authcertificate', data=json.dumps(payload),
+                                                         headers=ADMIN_USER_HEADER)
+                                assert 400 == resp.status
+                                assert error_message == resp.reason
+                                actual = json.loads(await resp.text())
+                                assert error_message == actual
+                            patch_role_id.assert_called_once_with('admin')
+                patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+            patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST',
+                                                   '/fledge/admin/3/authcertificate')
+
+    async def test_certificate(self, client):
+        valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
+        get_user = {'id': 3, 'uname': 'dviewer', 'real_name': 'Data Viewer', 'role_id': 4, 'description': 'Test',
+                    'enabled': 'f', 'access_method': 'any'}
+        msg = "An Authentication certificate has been created for user '{}'.".format(get_user['uname'])
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro(valid_user['id'])
+            _rv2 = await mock_coro(None)
+            _rv3 = await mock_coro([{'id': '1'}])
+            _se1 = await mock_coro(valid_user)
+            _se2 = await mock_coro(get_user)
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _se1 = asyncio.ensure_future(mock_coro(valid_user))
+            _se2 = asyncio.ensure_future(mock_coro(get_user))
+
+        with patch.object(middleware._logger, 'debug') as patch_logger_debug:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
+                    with patch.object(User.Objects, 'get', side_effect=[_se1, _se2]):
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                resp = await client.post('/fledge/admin/3/authcertificate', data=None,
+                                                         headers=ADMIN_USER_HEADER)
+                                assert 200 == resp.status
+                                assert "OK" == resp.reason
+                                cert = await resp.text()
+                                assert cert.startswith("-----BEGIN CERTIFICATE-----")
+                                assert cert.endswith("\n-----END CERTIFICATE-----\n")
+                            patch_role_id.assert_called_once_with('admin')
+                patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+            patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST',
+                                                   '/fledge/admin/3/authcertificate')
 

@@ -35,7 +35,6 @@ __version__ = "${VERSION}"
 
 _LOGGER = FLCoreLogger().get_logger(__name__)
 
-_NO_OF_FILES_TO_RETAIN = 1
 _SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
 
@@ -45,11 +44,11 @@ class SupportBuilder:
     _out_file_path = None
     _interim_file_path = None
     _storage = None
-    _no_of_files_to_retain = None
+    _num_of_files_to_retain = None
 
-    def __init__(self, support_dir, no_of_files_to_retain=1):
+    def __init__(self, support_dir, num_of_files_to_retain=1):
         try:
-            self._no_of_files_to_retain = no_of_files_to_retain if no_of_files_to_retain else _NO_OF_FILES_TO_RETAIN
+            self._num_of_files_to_retain = num_of_files_to_retain
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
             else:
@@ -147,8 +146,8 @@ class SupportBuilder:
     def check_and_delete_bundles(self, support_dir):
         files = glob.glob(support_dir + "/" + "support*.tar.gz")
         files.sort(key=os.path.getmtime)
-        if len(files) >= self._no_of_files_to_retain:
-            for i in range(len(files) - (self._no_of_files_to_retain-1)):
+        if len(files) >= self._num_of_files_to_retain:
+            for i in range(len(files) - (self._num_of_files_to_retain-1)):
                 if os.path.isfile(files[i]):
                     os.remove(os.path.join(support_dir, files[i]))
 

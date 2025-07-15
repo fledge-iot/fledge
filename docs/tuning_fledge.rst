@@ -983,14 +983,14 @@ Care should be taken when using performance counters, as with almost any system 
 Support Bundle Configuration
 ============================
 
-The support bundle is a collection of information about the Fledge instance that is useful for diagnosing issues with the system. 
-Following configuration parameters can be set to control the collection of information in the support bundle.
+The support bundle is a collection of diagnostic data about the Fledge instance, used to identify and troubleshoot system issues more effectively. 
+The following configuration parameters control the automatic generation and retention of support bundles:
 
 +--------------------------------+
 | |support_bundle_configuration| |
 +--------------------------------+
 
- - **Auto Generate On Failure**: This option controls whether a support bundle is automatically generated when a service fails. If set to true then a support bundle will be generated and stored in the *support* directory of the Fledge data directory. Also an alert will be generated to notify the user that a support bundle has been created.
+ - **Auto Generate On Failure**: This option controls whether a support bundle is automatically created when a service failure occurs. By default, this is set to **true**. When enabled, a support bundle is generated and saved in the **support** directory within the Fledge data directory. An alert is also triggered to notify the user that the bundle has been created.
 
- - **Bundles To Retain**: This controls the number of support bundles that will be retained in the *support* directory. When a new support bundle is created, if the number of bundles exceeds this value then the oldest bundle will be deleted to make space for the new one.
+ - **Bundles To Retain**: This setting defines how many support bundles should be retained. The default and minimum value is **1**, and the maximum number of bundles that can be retained is **3**. If the number of stored bundles exceeds this limit, the oldest one is automatically deleted to make room for the new bundle.
 

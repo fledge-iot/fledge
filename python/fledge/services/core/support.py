@@ -44,7 +44,7 @@ class SupportBuilder:
     _out_file_path = None
     _interim_file_path = None
     _storage = None
-    _num_of_files_to_retain = None
+    _num_of_files_to_retain = 1
 
     def __init__(self, support_dir, num_of_files_to_retain=1):
         try:

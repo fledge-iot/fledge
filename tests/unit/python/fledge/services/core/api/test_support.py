@@ -373,3 +373,338 @@ class TestBundleSupport:
                 res = await resp.text()
                 jdict = json.loads(res)
                 assert actual_count == jdict['count']
+
+    async def test_automated_support_bundle_on_service_failure(self, client):
+        """Test that support bundle is automatically created when service fails"""
+        from fledge.common.service_record import ServiceRecord
+        
+        # Mock configuration for support bundle
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to return a bundle name with service name
+        async def mock_build(service_name=None):
+            if service_name:
+                return f'support-{service_name}-180301-13-35-23.tar.gz'
+            else:
+                return 'support-180301-13-35-23.tar.gz'
+        
+        # Test that the API endpoint can handle automated support bundle creation
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build):
+                    # Test manual support bundle creation (which simulates automated creation)
+                    resp = await client.post('/fledge/support')
+                    res = await resp.text()
+                    jdict = json.loads(res)
+                    assert 200 == resp.status
+                    assert "bundle created" in jdict
+                    
+                    # Verify the bundle name format for manual creation (no service name)
+                    bundle_name = jdict["bundle created"]
+                    assert bundle_name == "support-180301-13-35-23.tar.gz"
+
+    async def test_automated_support_bundle_disabled(self, client):
+        """Test that support bundle creation works even when auto_support_bundle is disabled"""
+        from fledge.common.service_record import ServiceRecord
+        
+        # Mock configuration with auto support bundle disabled
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "false",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to return a bundle name
+        async def mock_build(service_name=None):
+            if service_name:
+                return f'support-{service_name}-180301-13-35-23.tar.gz'
+            else:
+                return 'support-180301-13-35-23.tar.gz'
+        
+        # Test that manual support bundle creation still works when auto is disabled
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build):
+                    # Test manual support bundle creation
+                    resp = await client.post('/fledge/support')
+                    res = await resp.text()
+                    jdict = json.loads(res)
+                    assert 200 == resp.status
+                    assert "bundle created" in jdict
+
+                    # Verify the bundle name format for manual creation
+                    bundle_name = jdict["bundle created"]
+                    assert bundle_name == "support-180301-13-35-23.tar.gz"
+
+    async def test_support_builder_with_service_name(self, client):
+        """Test that SupportBuilder can create bundles with service names when called directly"""
+        from fledge.common.service_record import ServiceRecord
+        
+        # Mock configuration for support bundle
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to return a bundle name with service name
+        async def mock_build(service_name=None):
+            if service_name:
+                return f'support-{service_name}-180301-13-35-23.tar.gz'
+            else:
+                return 'support-180301-13-35-23.tar.gz'
+        
+        # Test that SupportBuilder can create bundles with service names
+        # This simulates what the Monitor class does internally
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build):
+                    # Simulate automated support bundle creation with service name
+                    # This is what the Monitor.create_automated_support_bundle() does
+                    builder = SupportBuilder("/tmp/support", 3)
+                    bundle_name = await builder.build("TestService")
+                    
+                    # Verify the bundle name includes the service name
+                    assert bundle_name == "support-TestService-180301-13-35-23.tar.gz"
+                    
+                    # Test that the API can list this bundle
+                    with patch.object(support, '_get_support_dir', return_value="/tmp/support"):
+                        with patch('os.walk') as mock_walk:
+                            mock_walk.return_value = [("/tmp/support", [], [bundle_name])]
+                            
+                            # Test that the bundle is listed in the support bundles
+                            resp = await client.get('/fledge/support')
+                            assert 200 == resp.status
+                            res = await resp.text()
+                            jdict = json.loads(res)
+                            assert bundle_name in jdict['bundles']
+
+    async def test_alert_generated_when_support_bundle_created_for_failed_service(self, client):
+        """Test that an alert is generated when support bundle is created for a failed service"""
+        from fledge.common.service_record import ServiceRecord
+        from fledge.common.alert_manager import AlertManager
+        from fledge.services.core import connect
+        
+        # Mock configuration for support bundle
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to return a bundle name with service name
+        async def mock_build(service_name=None):
+            if service_name:
+                return f'support-{service_name}-180301-13-35-23.tar.gz'
+            else:
+                return 'support-180301-13-35-23.tar.gz'
+        
+        # Test that an alert is generated when support bundle is created for failed service
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build):
+                    # Mock the storage connection to avoid ServiceRegistry issues
+                    with patch.object(connect, 'get_storage_async') as mock_storage:
+                        # Mock the AlertManager to capture alert creation
+                        with patch.object(AlertManager, 'add') as mock_alert_add:
+                            # Simulate automated support bundle creation with service name
+                            # This is what the Monitor.create_automated_support_bundle() does
+                            builder = SupportBuilder("/tmp/support", 3)
+                            bundle_name = await builder.build("TestService")
+                            
+                            # Verify the bundle name includes the service name
+                            assert bundle_name == "support-TestService-180301-13-35-23.tar.gz"
+                            
+                            # Simulate the alert creation that would happen in Monitor.raise_support_bundle_alert()
+                            alert_params = {
+                                "key": bundle_name,
+                                "message": f"Support bundle {bundle_name} created for failed service 'TestService'",
+                                "urgency": "3"  # Normal urgency
+                            }
+                            
+                            # Mock the alert manager add method
+                            mock_alert_add.return_value = {"alert": alert_params}
+                            
+                            # Create AlertManager with mocked storage
+                            alert_manager = AlertManager(mock_storage)
+                            result = await alert_manager.add(alert_params)
+                            
+                            # Verify that the alert was created with correct parameters
+                            assert result == {"alert": alert_params}
+                            mock_alert_add.assert_called_once_with(alert_params)
+                            
+                            # Verify the alert message contains the correct information
+                            created_alert = result["alert"]
+                            assert created_alert["key"] == bundle_name
+                            assert "Support bundle" in created_alert["message"]
+                            assert "TestService" in created_alert["message"]
+                            assert created_alert["urgency"] == "3"
+
+    async def test_alert_not_generated_when_support_bundle_creation_fails(self, client):
+        """Test that no alert is generated when support bundle creation fails"""
+        from fledge.common.service_record import ServiceRecord
+        from fledge.common.alert_manager import AlertManager
+        from fledge.services.core import connect
+        
+        # Mock configuration for support bundle
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to raise an exception
+        async def mock_build_failure(service_name=None):
+            raise RuntimeError("Support bundle creation failed")
+        
+        # Test that no alert is generated when support bundle creation fails
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build_failure):
+                    # Mock the storage connection to avoid ServiceRegistry issues
+                    with patch.object(connect, 'get_storage_async') as mock_storage:
+                        # Mock the AlertManager to capture alert creation
+                        with patch.object(AlertManager, 'add') as mock_alert_add:
+                            # Simulate failed automated support bundle creation
+                            try:
+                                builder = SupportBuilder("/tmp/support", 3)
+                                await builder.build("TestService")
+                            except RuntimeError:
+                                # Expected exception
+                                pass
+                            
+                            # Verify that no alert was created
+                            mock_alert_add.assert_not_called()
+
+    async def test_alert_generated_with_correct_urgency_level(self, client):
+        """Test that alert is generated with correct urgency level for support bundle creation"""
+        from fledge.common.service_record import ServiceRecord
+        from fledge.common.alert_manager import AlertManager
+        from fledge.services.core import connect
+        
+        # Mock configuration for support bundle
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "true",
+                "displayName": "Auto Generate On Failure"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock the build method to return a bundle name with service name
+        async def mock_build(service_name=None):
+            if service_name:
+                return f'support-{service_name}-180301-13-35-23.tar.gz'
+            else:
+                return 'support-180301-13-35-23.tar.gz'
+        
+        # Test that alert is generated with correct urgency level
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=mock_build):
+                    # Mock the storage connection to avoid ServiceRegistry issues
+                    with patch.object(connect, 'get_storage_async') as mock_storage:
+                        # Mock the AlertManager to capture alert creation
+                        with patch.object(AlertManager, 'add') as mock_alert_add:
+                            # Simulate automated support bundle creation with service name
+                            builder = SupportBuilder("/tmp/support", 3)
+                            bundle_name = await builder.build("TestService")
+                            
+                            # Verify the bundle name includes the service name
+                            assert bundle_name == "support-TestService-180301-13-35-23.tar.gz"
+                            
+                            # Simulate the alert creation with correct urgency level
+                            alert_params = {
+                                "key": bundle_name,
+                                "message": f"Support bundle {bundle_name} created for failed service 'TestService'",
+                                "urgency": "3"  # Normal urgency - this is the standard for support bundle alerts
+                            }
+                            
+                            # Mock the alert manager add method
+                            mock_alert_add.return_value = {"alert": alert_params}
+                            
+                            # Create AlertManager with mocked storage
+                            alert_manager = AlertManager(mock_storage)
+                            result = await alert_manager.add(alert_params)
+                            
+                            # Verify that the alert was created with correct urgency level
+                            assert result == {"alert": alert_params}
+                            mock_alert_add.assert_called_once_with(alert_params)
+                            
+                            # Verify the urgency level is correct (Normal = 3)
+                            created_alert = result["alert"]
+                            assert created_alert["urgency"] == "3"

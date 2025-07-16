@@ -992,5 +992,5 @@ The following configuration parameters control the automatic generation and rete
 
  - **Auto Generate On Failure**: This option controls whether a support bundle is automatically created when a service failure occurs. By default, this is set to **true**. When enabled, a support bundle is generated and saved in the **support** directory within the Fledge data directory. An alert is also triggered to notify the user that the bundle has been created.
 
- - **Bundles To Retain**: This setting defines how many support bundles should be retained. The default and minimum value is **1**, and the maximum number of bundles that can be retained is **3**. If the number of stored bundles exceeds this limit, the oldest one is automatically deleted to make room for the new bundle.
+ - **Bundles To Retain**: This setting defines how many support bundles should be retained. The minimum value is **1**, and the default number of bundles that can be retained is **3**. If the number of stored bundles exceeds this limit, the oldest one is automatically deleted to make room for the new bundle. Setting this value too high will increase the storage requirements for the Fledge instance.
 

@@ -61,11 +61,12 @@ class SupportBuilder:
             _LOGGER.error(ex, "Error in initializing SupportBuilder class.")
             raise RuntimeError(str(ex))
 
-    async def build(self):
+    async def build(self, service_name=None):
         try:
             today = datetime.datetime.utcnow()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
-            tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
+            support_file_name = "support-{}-{}".format(service_name, file_spec) if service_name else "support-{}".format(file_spec)
+            tar_file_name = self._out_file_path+"/"+support_file_name+".tar.gz"
             pyz = tarfile.open(tar_file_name, "w:gz")
             try:
                 # fledge version and schema info
@@ -147,9 +148,16 @@ class SupportBuilder:
         files = glob.glob(support_dir + "/" + "support*.tar.gz")
         files.sort(key=os.path.getmtime)
         if len(files) >= self._num_of_files_to_retain:
-            for i in range(len(files) - (self._num_of_files_to_retain-1)):
-                if os.path.isfile(files[i]):
-                    os.remove(os.path.join(support_dir, files[i]))
+            num_of_files_to_remove = len(files) - self._num_of_files_to_retain + 1
+            for file in files[:num_of_files_to_remove]:
+                file_path = os.path.join(support_dir, file)
+                if os.path.isfile(file_path):
+                    try:
+                        os.remove(file_path)
+                    except PermissionError:
+                        _LOGGER.error("Permission denied to delete file %s", file_path)
+                    except Exception as ex:
+                        _LOGGER.error(ex, "Error in deleting file %s", file_path)
 
     def check_and_delete_temp_files(self, support_dir):
         # Delete all non *.tar.gz files

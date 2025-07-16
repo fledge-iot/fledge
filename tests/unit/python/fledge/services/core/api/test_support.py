@@ -122,13 +122,24 @@ class TestBundleSupport:
         else:
             _rv = asyncio.ensure_future(mock_build())
             
-        with patch.object(SupportBuilder, "__init__", return_value=None):
-            with patch.object(SupportBuilder, "build", return_value=_rv):
-                resp = await client.post('/fledge/support')
-                res = await resp.text()
-                jdict = json.loads(res)
-                assert 200 == resp.status
-                assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
+        mock_config = {
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", return_value=_rv):
+                    resp = await client.post('/fledge/support')
+                    res = await resp.text()
+                    jdict = json.loads(res)
+                    assert 200 == resp.status
+                    assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
 
     async def test_create_support_bundle_exception(self, client):
         msg = "Failed to create support bundle."

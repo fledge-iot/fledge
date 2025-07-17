@@ -615,6 +615,32 @@ class Server:
         except Exception as ex:
             _logger.exception(ex)
             raise
+    
+    @classmethod
+    async def support_bundle_config(cls):
+        try:
+            config = {
+                "auto_support_bundle": {
+                    "description": "Automatically create support bundle when service fails",
+                    "type": "boolean",
+                    "default": "true",
+                    "displayName": "Auto Generate On Failure"
+                },
+                "support_bundle_retain_count": { "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+                }
+            }
+
+            category = 'SUPPORT_BUNDLE'
+            await cls._configuration_manager.create_category(category, config, 'Support Bundle Configuration', True,
+                                                             display_name="Support Bundle")
+            await cls._configuration_manager.create_child_category("Advanced",["SUPPORT_BUNDLE"])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
 
     @classmethod
     async def firewall_config(cls):
@@ -1063,6 +1089,9 @@ class Server:
             # and only API operations and current state will be accessible (No jobs / processes will be triggered)
             #
             loop.run_until_complete(cls._start_scheduler())
+
+            # Support bundle configuration
+            loop.run_until_complete(cls.support_bundle_config())
 
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())

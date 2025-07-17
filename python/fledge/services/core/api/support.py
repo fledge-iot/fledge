@@ -18,7 +18,7 @@ from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.logger import FLCoreLogger
 from fledge.common.web.middleware import has_permission
 from fledge.services.core.support import SupportBuilder
-
+from fledge.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -110,7 +110,9 @@ async def create_support_bundle(request):
     """
     support_dir = _get_support_dir()
     try:
-        bundle_name = await SupportBuilder(support_dir).build()
+        support_bundle_config = await get_support_bundle_config()
+        num_of_files_to_retain = max(1, int(support_bundle_config['support_bundle_retain_count']['value']))
+        bundle_name = await SupportBuilder(support_dir, num_of_files_to_retain).build()
     except Exception as ex:
         msg = 'Failed to create support bundle.'
         _logger.error(ex, msg)
@@ -237,3 +239,11 @@ def _get_support_dir():
         support_dir = os.path.expanduser(_FLEDGE_ROOT + '/data/support')
 
     return support_dir
+
+async def get_support_bundle_config():
+    """ Get the support bundle configuration from the configuration manager """
+    from fledge.services.core import connect
+    storage_client = connect.get_storage_async()
+    cfg_manager = ConfigurationManager(storage_client)
+    support_bundle_config = await cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
+    return support_bundle_config

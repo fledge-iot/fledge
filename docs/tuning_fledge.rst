@@ -19,6 +19,7 @@
 .. |PurgeSchedules| image:: images/PurgeSchedules.png
 .. |TaskLog| image:: images/TaskLog.png
 .. |resource_limit_south_advanced| image:: images/resource_limit_south_advanced.png
+.. |support_bundle_configuration| image:: images/support_bundle_configuration.png
 
 ***************
 Tuning Fledge
@@ -977,3 +978,19 @@ Care should be taken when using performance counters, as with almost any system 
 .. note::
 
   Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
+
+
+Support Bundle Configuration
+============================
+
+The support bundle is a collection of diagnostic data about the Fledge instance, used to identify and troubleshoot system issues more effectively. 
+The following configuration parameters control the automatic generation and retention of support bundles:
+
++--------------------------------+
+| |support_bundle_configuration| |
++--------------------------------+
+
+ - **Auto Generate On Failure**: This option controls whether a support bundle is automatically created when a service failure occurs. By default, this is set to **true**. When enabled, a support bundle is generated and saved in the **support** directory within the Fledge data directory. An alert is also triggered to notify the user that the bundle has been created.
+
+ - **Bundles To Retain**: This setting defines how many support bundles should be retained. The minimum value is **1**, and the default number of bundles that can be retained is **3**. If the number of stored bundles exceeds this limit, the oldest one is automatically deleted to make room for the new bundle. Setting this value too high will increase the storage requirements for the Fledge instance.
+

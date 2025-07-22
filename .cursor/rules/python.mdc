@@ -2,6 +2,7 @@
 description: "Python development rules for Fledge - covers code style, async patterns, testing, and plugin development"
 globs: "*.py,python/**/*"
 alwaysApply: false
+author: "Ashish Jabble"
 ---
 
 # Fledge Python Development Rules

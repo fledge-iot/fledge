@@ -4,6 +4,7 @@ globs:
   - "docs/**/*"
   - "*.rst"
 alwaysApply: false
+author: "Ashish Jabble"
 ---
 
 # Fledge Documentation Directory Cursor Rules

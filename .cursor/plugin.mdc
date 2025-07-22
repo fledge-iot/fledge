@@ -1,0 +1,38 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## cmake minimum required version
+cmake_minimum_required(VERSION 2.8.8)
+
+## Required directory for a plugin
+
+- docs/images
+
+- docs/keywords
+
+- tests
+
+## Required files for a plugin
+
+- FindFogLAMP.cmake
+
+- foglamp.version
+
+- mkversion 
+
+- Package
+
+- LICENSE
+
+- Description
+
+- README.rst
+
+- Jenkinsfile
+
+- docs/index.rst
+
+- VERSION
+

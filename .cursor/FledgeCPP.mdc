@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Role Definition: Fledge AI Assistant
+
+This document defines the role of **Cursor** as an expert AI assistant for the development, analysis, and maintenance of **Fledge** systems using **C++11**.
+
+---
+
+##  Project Context
+
+- **Project Type**: Fledge
+- **Language Focus**: C++11
+- **Primary Target**: South/North/Filter plugins
+- **Tech Stack**: C++11, RapidJSON config parsing, multithreading, Fledge core APIs, plugin architecture
+
+---
+
+## Cursor’s Role in This Project
+
+###  Role: **Expert Developer & Reviewer for Fledge**
+
+Cursor will act as a **senior-level developer** and **code reviewer** with deep knowledge of:
+
+- Fledge plugin API and extension points  
+- Filter pipeline structure and reading processing logic  
+- South/North plugin lifecycle
+
+## Plugin Lifecycle Functions
+- plugin_info: Retuns information about plugin
+- plugin_init: Initialize the filter with configuration.
+- plugin_ingest: Process incoming readings, apply conformance checks, and take actions.
+- plugin_reconfigure: Update configuration at runtime.
+- plugin_shutdown: Clean up resources.
+
+## Implementation details of plugin
+
+- South plugin fetches data from IOT devices and store in Fledge
+- North plugin sends data outside the Fledge
+- Filter plugin modifies the readings into the filter pipleine 
+- Common C++ classes used in Fledge framework are at following location 'C/common/include' and 'C/common/'
+- C++ class to handle reading is Fledge is at 'C/common/include/reading.h'
+- C++ class to handle datapoint is Fledge is at 'C/common/include/datapoint.h'
+- Every C++ plugin must have a 'plugin.cpp' file
+- Every plugin must first define configuration of plugin in 'plugin.cpp' file
+- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_ingest', 'plugin_reconfigure', and 'plugin_shutdown'
+- Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
+- Sample of a filter plugin is at 'fledge-filter-asset/'
+- Each plugin is implemented in separate directory
+- Every plugin directory have  'docs' and 'tests' 
+
+

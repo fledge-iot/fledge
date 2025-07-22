@@ -15,16 +15,23 @@ alwaysApply: false
 - Always test compatibility across the full supported range
 
 ### Deployment Platforms
-- **Ubuntu**: Primary deployment target (various LTS versions)
+- **Ubuntu**: Primary deployment target (LTS versions, 20.04 onwards)
 - **Raspberry Pi**: Bullseye and Bookworm distributions
 - **Edge Devices**: Resource-constrained environments with limited CPU/memory
 - Consider platform-specific limitations and optimizations
 
+### Supported Architectures
+- **Ubuntu**: x86_64 & aarch64 architectures
+- **Raspberry Pi OS**: aarch64 & armv7l architectures
+- **Cross-Platform Testing**: Ensure compatibility across all supported architectures
+- **Performance Considerations**: ARM-based architectures may have different performance characteristics
+
 ### Compatibility Guidelines
 - Use language features available in Python 3.8+ only
-- Test on both x86_64 (Ubuntu) and ARM (Raspberry Pi) architectures
-- Consider performance implications on ARM-based edge devices
+- Test on all supported architectures: x86_64, aarch64, and armv7l
+- Consider performance implications on ARM-based edge devices (aarch64, armv7l)
 - Handle platform-specific dependencies appropriately
+- Validate package availability across all target architectures
 
 ## Code Style & Standards
 - Follow PEP 8 style guidelines strictly
@@ -34,6 +41,65 @@ alwaysApply: false
 - Import order: standard library, third-party, local imports
 - Use double quotes for strings consistently
 - Use descriptive variable and function names
+
+### Documentation Standards
+- **Docstrings**: Use pydoc-compatible docstrings for all public functions, classes, and modules
+- **Docstring Format**: Follow PEP 257 and Google style for consistency
+- **Mandatory Docstrings**: Required for:
+  - All public functions and methods
+  - All public classes
+  - All modules (module-level docstring)
+  - Complex private functions (use judgment)
+- **Missing Docstrings**: Complain/flag when docstrings are missing for public APIs
+
+### Docstring Examples
+```python
+def get_user_data(user_id: int, include_settings: bool = False) -> dict:
+    """Retrieve user data from the database.
+
+    Args:
+        user_id: The unique identifier for the user
+        include_settings: Whether to include user settings in response
+
+    Returns:
+        dict: User data with keys 'id', 'name', 'email', and optionally 'settings'
+
+    Raises:
+        ValueError: If user_id is not a positive integer
+        DatabaseError: If database connection fails
+
+    Example:
+        >>> user_data = get_user_data(123, include_settings=True)
+        >>> print(user_data['name'])
+        'John Doe'
+    """
+    pass
+
+class DeviceManager:
+    """Manages IoT device connections and data collection.
+
+    This class handles the lifecycle of IoT devices including discovery,
+    connection management, and data retrieval from various sensor types.
+
+    Attributes:
+        device_count: Number of currently connected devices
+        connection_timeout: Timeout in seconds for device connections
+
+    Example:
+        >>> manager = DeviceManager()
+        >>> manager.connect_device("sensor_01")
+        >>> data = manager.get_device_data("sensor_01")
+    """
+    pass
+```
+
+### Docstring Quality Standards
+- **Clear and Concise**: Describe what the function/class does, not how
+- **Parameter Documentation**: Document all parameters with types and descriptions
+- **Return Value Documentation**: Describe return types and structure
+- **Exception Documentation**: List all exceptions that may be raised
+- **Usage Examples**: Include practical examples for complex functions
+- **pydoc Compatibility**: Ensure docstrings render correctly with `python -m pydoc module_name`
 
 ### Naming Conventions
 - **Variables**: Use snake_case for all variable names
@@ -144,11 +210,198 @@ alwaysApply: false
 - Be mindful of blocking operations in async contexts
 
 ## Configuration Management
-- Use the Fledge configuration management system
+
+### Fledge Configuration System
+- Use the Fledge configuration management system consistently
 - Store configuration in JSON format
 - Validate configuration parameters thoroughly
 - Provide sensible defaults for all configuration options
 - Handle configuration changes gracefully
+
+### Configuration Categories & Types
+Fledge configuration manager supports various types with specific formatting requirements:
+
+```python
+# Example configuration category definitions
+config_category = {
+    "string_example": {
+        "description": "A string configuration parameter",
+        "type": "string",
+        "default": "default_value",  # Always wrap in quotes
+        "value": "current_value"     # Always wrap in quotes
+    },
+    "integer_example": {
+        "description": "An integer configuration parameter",
+        "type": "integer",
+        "default": "42",        # Wrap in quotes but validate as integer
+        "value": "100"          # Wrap in quotes but validate as integer
+    },
+    "boolean_example": {
+        "description": "A boolean configuration parameter",
+        "type": "boolean",
+        "default": "false",     # Wrap in quotes: "true" or "false"
+        "value": "true"         # Wrap in quotes: "true" or "false"
+    },
+    "float_example": {
+        "description": "A float configuration parameter",
+        "type": "float",
+        "default": "3.14",      # Wrap in quotes but validate as float
+        "value": "2.71"         # Wrap in quotes but validate as float
+    },
+    "enumeration_example": {
+        "description": "An enumeration configuration parameter",
+        "type": "enumeration",
+        "options": ["option1", "option2", "option3"],
+        "default": "option1",   # Wrap in quotes, must be from options
+        "value": "option2"      # Wrap in quotes, must be from options
+    },
+        "JSON_example": {
+        "description": "A JSON object configuration parameter",
+        "type": "JSON",
+        "default": "{\"key\": \"value\"}",  # JSON string wrapped in quotes
+        "value": "{\"key\": \"updated\"}"   # JSON string wrapped in quotes
+    }
+}
+```
+
+### Supported Configuration Types
+Fledge configuration manager supports the following types:
+
+- **string**: Text values (default type if not specified)
+- **integer**: Whole numbers
+- **float**: Decimal numbers
+- **boolean**: True/false values ("true"/"false" as strings)
+- **enumeration**: Predefined list of options
+- **JSON**: Complex objects or arrays
+- **password**: Encrypted/masked string values
+- **X509 certificate**: Certificate data
+- **code**: Editable code blocks (Python, JavaScript, etc.)
+
+### Optional Configuration Items
+Configuration parameters can include optional properties:
+
+```python
+config_with_optional_items = {
+    "advanced_parameter": {
+        "description": "An advanced configuration parameter",
+        "type": "integer",
+        "default": "100",
+        "value": "150",
+        # Optional items
+        "minimum": "1",           # Minimum allowed value
+        "maximum": "1000",        # Maximum allowed value
+        "length": "10",           # Maximum string length (for string types)
+        "rule": "value > 0",      # Validation rule expression
+        "order": "10",            # Display order in UI
+        "readonly": "false",      # Whether value can be modified
+        "options": ["opt1", "opt2"],  # Available options (for enumeration)
+        "displayName": "Advanced Parameter",  # UI display name
+        "validity": "valid",      # Validation status
+        "group": "advanced"       # Grouping for UI organization
+    }
+}
+```
+
+### Reserved Configuration Categories
+Certain category names are reserved by the Fledge configuration manager:
+
+```python
+# Reserved category names - DO NOT USE for custom configurations
+RESERVED_CATEGORIES = [
+    "General",           # Core system configuration
+    "Advanced",          # Advanced system settings
+    "Utilities",         # System utilities configuration
+    "Security",          # Security-related settings
+    "rest_api",          # REST API configuration
+    "service",           # Service-level configuration
+    "storage",           # Storage plugin configuration
+    "scheduler",         # Task scheduler configuration
+    "dispatcher",        # Dispatcher service configuration
+    "logging",           # Logging configuration
+    "authentication",    # Authentication settings
+    "authorization",     # Authorization settings
+    "certificate_store", # Certificate management
+    "audit",            # Audit logging configuration
+    "performance"       # Performance monitoring settings
+]
+
+# Use descriptive, specific names for plugin/service configurations
+# Good examples:
+GOOD_CATEGORY_NAMES = [
+    "modbus_tcp",        # Specific protocol/plugin name
+    "opcua_client",      # Specific functionality
+    "http_north",        # Service type and direction
+    "pi_web_api",        # Specific target system
+    "temperature_filter", # Specific filter purpose
+]
+```
+
+### Configuration Value Handling Rules
+- **Quote Wrapping**: Always wrap `default` and `value` in double quotes (`""`)
+- **Type Validation**: Explicitly validate values against their declared type
+- **Type Conversion**: Convert string values to appropriate types during processing
+- **Validation Examples**:
+  ```python
+  def validate_config_value(value: str, config_type: str) -> bool:
+      """Validate configuration value against its type."""
+      try:
+          if config_type == "integer":
+              int(value)  # Must be convertible to int
+          elif config_type == "float":
+              float(value)  # Must be convertible to float
+          elif config_type == "boolean":
+              return value.lower() in ["true", "false"]
+          elif config_type == "JSON":
+              json.loads(value)  # Must be valid JSON
+          # string and enumeration are validated separately
+          return True
+      except (ValueError, json.JSONDecodeError):
+          return False
+  ```
+
+### Reading Object Format
+Fledge uses a specific reading object format for sensor data:
+
+```python
+# Standard Fledge reading object structure
+reading_object = {
+    "asset": "sensor_name",           # Asset name (string)
+    "timestamp": "2024-01-01 12:00:00.000",  # ISO timestamp with milliseconds
+    "readings": {                     # Dictionary of sensor readings
+        "temperature": 25.5,          # Numeric values (int/float)
+        "humidity": 60.2,
+        "pressure": 1013.25,
+        "status": "online"            # String values allowed
+    }
+}
+
+# Multiple readings in a single object
+reading_batch = [
+    {
+        "asset": "sensor01",
+        "timestamp": "2024-01-01 12:00:00.000",
+        "readings": {"temperature": 25.5, "humidity": 60.2}
+    },
+    {
+        "asset": "sensor02",
+        "timestamp": "2024-01-01 12:00:01.000",
+        "readings": {"pressure": 1013.25, "wind_speed": 12.3}
+    }
+]
+```
+
+### Configuration Best Practices
+- **Descriptive Names**: Use clear, descriptive configuration parameter names
+- **Validation**: Always validate configuration values against their types
+- **Error Handling**: Provide clear error messages for invalid configurations
+- **Documentation**: Include comprehensive descriptions for all parameters
+- **Defaults**: Provide sensible defaults that work in most environments
+- **Type Safety**: Ensure type conversion is handled safely with proper error checking
+- **Reading Format**: Follow standard Fledge reading object structure for sensor data
+- **Reserved Categories**: Avoid using reserved category names for custom configurations
+- **Optional Items**: Use optional configuration properties for advanced validation and UI control
+- **Type Selection**: Choose appropriate types (use "password" for sensitive data, "code" for scripts)
+- **Validation Rules**: Implement proper minimum/maximum constraints and custom validation rules
 
 ## Plugin Development
 - Implement proper plugin interfaces defined in [python/fledge/plugins/](mdc:python/fledge/plugins/)
@@ -307,10 +560,14 @@ Basic pytest commands (refer to [tests/README.rst](mdc:tests/README.rst) for com
 - **Use version-specific workarounds** when necessary with clear documentation
 
 ### Platform Testing
-- **Ubuntu Testing**: Primary development and deployment platform
+- **Ubuntu Testing**: Primary development and deployment platform (LTS 20.04+)
 - **Raspberry Pi Testing**: ARM architecture and resource constraints
-- **Cross-Architecture**: Ensure code works on both x86_64 and ARM
+- **Cross-Architecture**: Ensure code works on x86_64, aarch64, and armv7l
 - **Performance Validation**: Test on actual Raspberry Pi hardware when possible
+- **Architecture-Specific Testing**: Validate on all supported architectures:
+  - x86_64 (Ubuntu)
+  - aarch64 (Ubuntu & Raspberry Pi OS)
+  - armv7l (Raspberry Pi OS)
 
 ### Compatibility Guidelines
 - Maintain backwards compatibility for APIs across supported Python versions

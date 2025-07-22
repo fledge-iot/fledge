@@ -1,0 +1,320 @@
+---
+description: "Python development rules for Fledge - covers code style, async patterns, testing, and plugin development"
+globs: "*.py,python/**/*"
+alwaysApply: false
+---
+
+# Fledge Python Development Rules
+
+## Python Version & Platform Requirements
+
+### Supported Python Versions
+- **Minimum**: Python 3.8
+- **Maximum**: Python 3.12
+- **Target Range**: Python 3.8 - 3.12 (inclusive)
+- Always test compatibility across the full supported range
+
+### Deployment Platforms
+- **Ubuntu**: Primary deployment target (various LTS versions)
+- **Raspberry Pi**: Bullseye and Bookworm distributions
+- **Edge Devices**: Resource-constrained environments with limited CPU/memory
+- Consider platform-specific limitations and optimizations
+
+### Compatibility Guidelines
+- Use language features available in Python 3.8+ only
+- Test on both x86_64 (Ubuntu) and ARM (Raspberry Pi) architectures
+- Consider performance implications on ARM-based edge devices
+- Handle platform-specific dependencies appropriately
+
+## Code Style & Standards
+- Follow PEP 8 style guidelines strictly
+- Use type hints where appropriate for better code documentation (Python 3.8+ compatible)
+- Maximum line length: 120 characters
+- Use 4 spaces for indentation (never tabs)
+- Import order: standard library, third-party, local imports
+- Use double quotes for strings consistently
+- Use descriptive variable and function names
+
+### Naming Conventions
+- **Variables**: Use snake_case for all variable names
+  ```python
+  user_id = 123
+  device_name = "sensor_01"
+  connection_timeout = 30
+  ```
+- **Functions/Methods**: Use snake_case for all function and method names
+  ```python
+  def get_user_data():
+      pass
+  
+  def process_sensor_reading(reading_value):
+      pass
+  ```
+- **Classes**: Use PascalCase for class names (following PEP 8)
+  ```python
+  class DeviceManager:
+      pass
+  
+  class SensorDataProcessor:
+      pass
+  ```
+- **Constants**: Use UPPER_SNAKE_CASE for constants
+  ```python
+  MAX_RETRY_COUNT = 3
+  DEFAULT_TIMEOUT_SECONDS = 30
+  API_BASE_URL = "https://api.example.com"
+  ```
+
+### API Response Naming
+- **API Response Keys**: Always use camelCase for JSON response keys
+  ```python
+  # Correct API response format
+  response = {
+      "userId": 123,
+      "deviceName": "sensor_01",
+      "lastReadingTime": "2024-01-01T12:00:00Z",
+      "sensorData": {
+          "temperature": 25.5,
+          "humidity": 60.2
+      }
+  }
+  ```
+- **Internal Code**: Use snake_case everywhere else (variables, function names, etc.)
+- **Database Fields**: Use snake_case for database column names and internal data structures
+
+## File Structure & Organization
+- Python code lives in [python/fledge/](mdc:python/fledge/) directory
+- Follow the existing module structure:
+  - [python/fledge/common/](mdc:python/fledge/common/) - shared utilities and common functionality
+  - [python/fledge/services/](mdc:python/fledge/services/) - core services implementation
+  - [python/fledge/tasks/](mdc:python/fledge/tasks/) - background tasks and scheduled operations
+  - [python/fledge/plugins/](mdc:python/fledge/plugins/) - plugin interfaces and base classes
+
+### Core Microservice Architecture
+- **`server.py`**: The heart of the core microservice - central orchestration and service management
+- **Core Service Location**: [python/fledge/services/core/server.py](mdc:python/fledge/services/core/server.py)
+- **Critical Component**: Handles microservice lifecycle, service discovery, and core coordination
+- **Service Entry Point**: Primary entry point for the core Fledge service
+- **Integration Hub**: Coordinates between all other services, plugins, and components
+
+## Error Handling
+- Use specific exception types rather than generic Exception
+- Log errors with appropriate severity levels using Fledge logging framework
+- Handle async operations properly with try/catch blocks
+- Return meaningful error messages for API responses
+- Consider edge computing constraints when handling errors
+
+## Dependencies & Requirements Management
+
+### Requirements Files Structure
+- **[python/requirements.txt](mdc:python/requirements.txt)** - Runtime dependencies for production
+- **[python/requirements-dev.txt](mdc:python/requirements-dev.txt)** - Development dependencies (includes runtime + test)
+- **[python/requirements-test.txt](mdc:python/requirements-test.txt)** - Testing framework dependencies
+
+### Version-Specific Dependencies
+- Use Python version markers for compatibility: `package==version;python_version>="3.12"`
+- Example patterns from existing requirements:
+  ```
+  aiohttp==3.8.6;python_version<"3.12"
+  aiohttp==3.10.11;python_version>="3.12"
+  yarl==1.7.2;python_version<="3.10"
+  yarl==1.9.4;python_version>="3.11" and python_version<"3.12"
+  ```
+
+### Dependency Guidelines
+- **Always specify exact versions** for production dependencies
+- **Use version markers** when different Python versions require different package versions
+- **Test across Python versions** to ensure compatibility
+- **Keep requirements files in sync** - test dependencies should match runtime versions
+- **Document reasoning** for version-specific constraints in comments
+- **Consider ARM compatibility** for Raspberry Pi deployment
+
+### Requirements File Documentation
+- **Add comments** explaining version constraints and Python version markers
+- **Document platform-specific requirements** (e.g., ARM vs x86_64)
+- **Explain version ranges** when multiple versions are supported for different Python versions
+- **Include installation notes** for complex dependencies
+- **Reference upstream issues** when using specific versions due to bugs or compatibility
+
+## Async/Await Patterns
+- Use async/await for I/O operations (database, HTTP, file operations)
+- Properly handle asyncio event loops
+- Use aiohttp for HTTP client operations
+- Follow existing async patterns in the codebase
+- Be mindful of blocking operations in async contexts
+
+## Configuration Management
+- Use the Fledge configuration management system
+- Store configuration in JSON format
+- Validate configuration parameters thoroughly
+- Provide sensible defaults for all configuration options
+- Handle configuration changes gracefully
+
+## Plugin Development
+- Implement proper plugin interfaces defined in [python/fledge/plugins/](mdc:python/fledge/plugins/)
+- Handle plugin lifecycle properly (start, stop, reconfigure)
+- Use the plugin configuration system
+- Follow existing plugin patterns for consistency
+- Consider performance implications for edge devices
+
+## Database Operations
+- Use the storage service abstraction from [python/fledge/common/storage_client/](mdc:python/fledge/common/storage_client/)
+- Handle database connection errors gracefully
+- Use prepared statements for SQL queries
+- Consider performance for large datasets
+- Implement proper connection pooling
+
+## REST API Development
+- Follow existing API patterns in [python/fledge/services/core/api/](mdc:python/fledge/services/core/api/)
+- Use proper HTTP status codes
+- Implement proper authentication/authorization
+- Validate all input parameters
+- Return consistent JSON response formats
+
+## Microservice Communication
+- Use the microservice management client from [python/fledge/common/microservice_management_client/](mdc:python/fledge/common/microservice_management_client/)
+- Handle service discovery properly
+- Implement proper retry logic with exponential backoff
+- Use appropriate timeouts for service calls
+
+## Security Considerations
+- Validate all input parameters to prevent injection attacks
+- Use secure defaults for configuration
+- Handle certificates and keys securely
+- Follow authentication/authorization patterns
+- Sanitize data before database operations
+- Never log sensitive information
+
+## Performance Guidelines
+
+### Edge Computing Optimization
+- **Memory Constraints**: Raspberry Pi and edge devices have limited RAM
+- **CPU Limitations**: ARM processors may be slower than x86_64
+- **Storage Constraints**: Limited disk space on edge devices
+- **Network Considerations**: Potentially unreliable or slow connections
+
+### Performance Best Practices
+- Optimize database queries and use appropriate indexes
+- Use appropriate caching strategies (consider memory limits)
+- Monitor resource usage in production environments
+- Profile performance-critical code paths on target platforms
+- Minimize blocking operations in async code
+- **Test on Raspberry Pi** for realistic performance validation
+- Consider memory-efficient data structures and algorithms
+- Implement graceful degradation under resource pressure
+
+## Logging
+
+### Fledge Logging Framework
+- **Use FLCoreLogger class** for all logging operations
+- **Multi-stacktrace support**: FLCoreLogger handles complex stacktrace scenarios
+- Import from fledge.common.logger: `from fledge.common.logger import FLCoreLogger`
+- Create logger instance: `_logger = FLCoreLogger().get_logger(__name__)`
+
+### Logging Best Practices
+- Use the Fledge logging framework consistently across all components
+- Include appropriate context in log messages for debugging
+- Use proper log levels (DEBUG, INFO, WARNING, ERROR)
+- Avoid logging sensitive information (passwords, tokens, API keys, etc.)
+- Structure log messages for easy parsing and analysis
+
+### FLCoreLogger Usage Examples
+```python
+from fledge.common.logger import FLCoreLogger
+
+_logger = FLCoreLogger().get_logger(__name__)
+
+# Standard logging
+_logger.info("Service started successfully")
+_logger.warning("Configuration parameter missing, using default")
+_logger.error("Failed to connect to database", exc_info=True)
+
+# Multi-stacktrace scenarios (handled automatically by FLCoreLogger)
+try:
+    # Complex operation that might have nested exceptions
+    result = complex_operation()
+except Exception as ex:
+    _logger.error(ex, "Complex operation failed")
+```
+
+### Log Message Guidelines
+- Use descriptive messages that provide context
+- Include relevant data (IDs, names, values) but avoid sensitive information
+- Use consistent formatting for similar log types
+- Consider log aggregation and searching when structuring messages
+
+## Testing Guidelines
+
+### Test Organization & Structure
+- **Unit Tests**: Located in [tests/unit/python/](mdc:tests/unit/python/) 
+- **System Tests**: Located in [tests/system/python/](mdc:tests/system/python/)
+- **Test Instructions**: Follow detailed guidelines in [tests/README.rst](mdc:tests/README.rst)
+- **File Structure**: Tests should mirror the component structure under `tests/unit/python/fledge/<component>`
+
+### Testing Framework & Dependencies
+- **Primary Framework**: pytest (version specified in [python/requirements-test.txt](mdc:python/requirements-test.txt))
+- **Current Version**: pytest==7.0.1 (as defined in requirements-test.txt)
+- **Additional Tools**: 
+  - pytest-asyncio==0.16.0 for async testing
+  - pytest-mock==1.10.3 for mocking
+  - pytest-cov==2.9.0 for code coverage
+  - pytest-aiohttp==0.3.0 for aiohttp testing
+
+### Test File Conventions
+- **Naming**: Test files must begin with `test_` for pytest auto-discovery
+- **Pattern**: `test_<module_name>.py`
+- **Location**: Place tests in correct directory matching component structure
+- **Template**: Use [tests/unit/python/__template__.py](mdc:tests/unit/python/__template__.py) as starting point
+
+### Test Execution
+Basic pytest commands (refer to [tests/README.rst](mdc:tests/README.rst) for complete instructions):
+- `pytest` - Execute all tests in directory and subdirectories
+- `pytest test_filename.py` - Execute all tests in specific file
+- `pytest test_filename.py::TestClass` - Execute specific test class
+- `pytest test_filename.py::TestClass::test_case` - Execute specific test method
+
+### Code Coverage
+- **Tool**: pytest-cov framework
+- **Configuration**: [tests/unit/python/.coveragerc](mdc:tests/unit/python/.coveragerc)
+- **Basic Coverage Command**: 
+  ```bash
+  pytest --cov=. --cov-report html:coverage_html --cov-report xml:coverage.xml
+  ```
+- **Full Coverage Command**:
+  ```bash
+  pytest -s -vv tests/unit/python/fledge/ --cov=. --cov-report=html --cov-config tests/unit/python/.coveragerc
+  ```
+
+### Test Configuration
+- **pytest.ini**: Configuration in [tests/unit/python/.pytest.ini](mdc:tests/unit/python/.pytest.ini)
+- **Minimum Version**: pytest 7.0.1
+- **Excluded Directories**: Some plugin directories excluded from recursion
+
+### Testing Best Practices
+- Mock external dependencies appropriately using pytest-mock
+- Test both success and failure cases
+- Use pytest fixtures for common test setup
+- Focus on critical paths and business logic
+- Test async operations properly with pytest-asyncio
+- Aim for meaningful test coverage, not just high numbers
+
+## Version Compatibility & Testing
+
+### Python Version Testing
+- **Test across full range**: Python 3.8 through 3.12
+- **Use CI/CD matrices** to validate on multiple Python versions
+- **Avoid deprecated features** that may be removed in newer versions
+- **Use version-specific workarounds** when necessary with clear documentation
+
+### Platform Testing
+- **Ubuntu Testing**: Primary development and deployment platform
+- **Raspberry Pi Testing**: ARM architecture and resource constraints
+- **Cross-Architecture**: Ensure code works on both x86_64 and ARM
+- **Performance Validation**: Test on actual Raspberry Pi hardware when possible
+
+### Compatibility Guidelines
+- Maintain backwards compatibility for APIs across supported Python versions
+- Use `sys.version_info` checks for version-specific code paths
+- Document breaking changes clearly in commit messages and documentation
+- Consider dependency availability across Python versions and platforms
+- Test package installation on both Ubuntu and Raspberry Pi OS

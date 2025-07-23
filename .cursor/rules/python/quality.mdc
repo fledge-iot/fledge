@@ -155,7 +155,7 @@ Basic pytest commands (refer to [tests/README.rst](mdc:tests/README.rst) for com
 ## Version Compatibility & Testing
 
 ### Python Version Testing
-- **Test across full range**: Python 3.8 through 3.12
+- **Test across full range**: Python 3.8.10 through 3.12
 - **Use CI/CD matrices** to validate on multiple Python versions
 - **Avoid deprecated features** that may be removed in newer versions
 - **Use version-specific workarounds** when necessary with clear documentation

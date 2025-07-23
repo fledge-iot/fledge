@@ -10,14 +10,24 @@ author: "Ashish Jabble"
 ## Python Version & Platform Requirements
 
 ### Supported Python Versions
-- **Minimum**: Python 3.8
+- **Minimum**: Python 3.8.10
 - **Maximum**: Python 3.12
-- **Target Range**: Python 3.8 - 3.12 (inclusive)
+- **Target Range**: Python 3.8.10 - 3.12 (inclusive)
 - Always test compatibility across the full supported range
 
 ### Deployment Platforms
-- **Ubuntu**: Primary deployment target (LTS versions, 20.04 onwards)
-- **Raspberry Pi**: Bullseye and Bookworm distributions
+- **Ubuntu**: LTS versions, 20.04 onwards
+  - **Architectures**: x86_64 & aarch64
+- **Raspberry Pi OS**: Bullseye and Bookworm distributions
+  - **Architectures**: aarch64 & armv7l
+
+### Dependencies Management
+- **Runtime Dependencies**: [python/requirements.txt](mdc:python/requirements.txt)
+- **Development Dependencies**: [python/requirements-dev.txt](mdc:python/requirements-dev.txt)
+- **Testing Dependencies**: [python/requirements-test.txt](mdc:python/requirements-test.txt)
+- **Use exact versions** for production dependencies
+- **Consider ARM compatibility** for Raspberry Pi deployment
+- **Test across Python versions** and target architectures
 - **Edge Devices**: Resource-constrained environments with limited CPU/memory
 - Consider platform-specific limitations and optimizations
 
@@ -28,7 +38,7 @@ author: "Ashish Jabble"
 - **Performance Considerations**: ARM-based architectures may have different performance characteristics
 
 ### Compatibility Guidelines
-- Use language features available in Python 3.8+ only
+- Use language features available in Python 3.8.10+ only
 - Test on all supported architectures: x86_64, aarch64, and armv7l
 - Consider performance implications on ARM-based edge devices (aarch64, armv7l)
 - Handle platform-specific dependencies appropriately
@@ -36,7 +46,7 @@ author: "Ashish Jabble"
 
 ## Code Style & Standards
 - Follow PEP 8 style guidelines strictly
-- Use type hints where appropriate for better code documentation (Python 3.8+ compatible)
+- Use type hints where appropriate for better code documentation (Python 3.8.10+ compatible)
 - Maximum line length: 120 characters
 - Use 4 spaces for indentation (never tabs)
 - Import order: standard library, third-party, local imports

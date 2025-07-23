@@ -7,6 +7,26 @@ author: "Ashish Jabble"
 
 # Fledge Python Configuration & Data Management Rules
 
+## Python Version & Platform Requirements
+
+### Supported Python Versions
+- **Target Range**: Python 3.8.10 - 3.12 (inclusive)
+- Always test configuration handling across the full supported range
+
+### Deployment Platforms
+- **Ubuntu**: LTS versions, 20.04 onwards
+  - **Architectures**: x86_64 & aarch64
+- **Raspberry Pi OS**: Bullseye and Bookworm distributions
+  - **Architectures**: aarch64 & armv7l
+
+### Dependencies Management
+- **Runtime Dependencies**: [python/requirements.txt](mdc:python/requirements.txt) - Include config validation deps
+- **Development Dependencies**: [python/requirements-dev.txt](mdc:python/requirements-dev.txt)
+- **Testing Dependencies**: [python/requirements-test.txt](mdc:python/requirements-test.txt) - Include config testing tools
+- **Use exact versions** for production dependencies
+- **Consider ARM compatibility** for Raspberry Pi deployment
+- **Test across Python versions** and target architectures
+
 ## Configuration Management
 
 ### Fledge Configuration System

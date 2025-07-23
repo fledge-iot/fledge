@@ -1,5 +1,6 @@
+
 ---
-description: "Cursor AI rules for Fledge documentation - covers reStructuredText, Sphinx, file naming, and content guidelines while minimizing Fledge branding"
+description: "Cursor AI rules for Fledge documentation - covers reStructuredText, Sphinx, file naming, and content guidelines"
 globs: 
   - "docs/**/*"
   - "*.rst"

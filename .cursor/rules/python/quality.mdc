@@ -1,6 +1,6 @@
 ---
-description: "Python quality rules for Fledge - dependencies, logging, testing, performance, and version compatibility"
-globs: "python/requirements*.txt,tests/**/*.py,**/test_*.py"
+description: "Python quality rules for Fledge - dependencies, logging, performance, and version compatibility"
+globs: "python/requirements*.txt"
 alwaysApply: false
 author: "Ashish Jabble"
 ---
@@ -79,60 +79,10 @@ except Exception as ex:
 - Use consistent formatting for similar log types
 - Consider log aggregation and searching when structuring messages
 
-## Testing Guidelines
-
-### Test Organization & Structure
-- **Unit Tests**: Located in [tests/unit/python/](mdc:tests/unit/python/) 
-- **System Tests**: Located in [tests/system/python/](mdc:tests/system/python/)
-- **Test Instructions**: Follow detailed guidelines in [tests/README.rst](mdc:tests/README.rst)
-- **File Structure**: Tests should mirror the component structure under `tests/unit/python/fledge/<component>`
-
-### Testing Framework & Dependencies
-- **Primary Framework**: pytest (version specified in [python/requirements-test.txt](mdc:python/requirements-test.txt))
-- **Current Version**: pytest==7.0.1 (as defined in requirements-test.txt)
-- **Additional Tools**: 
-  - pytest-asyncio==0.16.0 for async testing
-  - pytest-mock==1.10.3 for mocking
-  - pytest-cov==2.9.0 for code coverage
-  - pytest-aiohttp==0.3.0 for aiohttp testing
-
-### Test File Conventions
-- **Naming**: Test files must begin with `test_` for pytest auto-discovery
-- **Pattern**: `test_<module_name>.py`
-- **Location**: Place tests in correct directory matching component structure
-- **Template**: Use [tests/unit/python/__template__.py](mdc:tests/unit/python/__template__.py) as starting point
-
-### Test Execution
-Basic pytest commands (refer to [tests/README.rst](mdc:tests/README.rst) for complete instructions):
-- `pytest` - Execute all tests in directory and subdirectories
-- `pytest test_filename.py` - Execute all tests in specific file
-- `pytest test_filename.py::TestClass` - Execute specific test class
-- `pytest test_filename.py::TestClass::test_case` - Execute specific test method
-
-### Code Coverage
-- **Tool**: pytest-cov framework
-- **Configuration**: [tests/unit/python/.coveragerc](mdc:tests/unit/python/.coveragerc)
-- **Basic Coverage Command**: 
-  ```bash
-  pytest --cov=. --cov-report html:coverage_html --cov-report xml:coverage.xml
-  ```
-- **Full Coverage Command**:
-  ```bash
-  pytest -s -vv tests/unit/python/fledge/ --cov=. --cov-report=html --cov-config tests/unit/python/.coveragerc
-  ```
-
-### Test Configuration
-- **pytest.ini**: Configuration in [tests/unit/python/.pytest.ini](mdc:tests/unit/python/.pytest.ini)
-- **Minimum Version**: pytest 7.0.1
-- **Excluded Directories**: Some plugin directories excluded from recursion
-
-### Testing Best Practices
-- Mock external dependencies appropriately using pytest-mock
-- Test both success and failure cases
-- Use pytest fixtures for common test setup
-- Focus on critical paths and business logic
-- Test async operations properly with pytest-asyncio
-- Aim for meaningful test coverage, not just high numbers
+## Testing Integration
+- **Unit Testing**: Detailed unit testing guidelines are in [python/unit.mdc](mdc:python/unit.mdc)
+- **System Testing**: Located in [tests/system/python/](mdc:tests/system/python/)
+- **Test Documentation**: Follow [tests/README.rst](mdc:tests/README.rst) for complete testing instructions
 
 ## Performance Guidelines
 

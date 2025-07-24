@@ -13,7 +13,11 @@ Rules are organized for Python development and documentation:
 │   ├── core.mdc          # Core Python standards + platform requirements
 │   ├── api.mdc           # REST API + web framework dependencies
 │   ├── config.mdc        # Configuration management + validation deps
-│   └── quality.mdc       # Testing, dependencies, performance + requirements.txt
+│   └── quality.mdc       # Dependencies, logging, performance + requirements.txt
+├── tests/                 # Testing-specific rules
+│   └── python/            # Python testing rules
+│       ├── unit.mdc      # Unit testing rules - pytest, coverage, best practices
+│       └── api.mdc       # System API testing rules - conftest fixtures, http.client patterns
 └── docs.mdc              # Documentation guidelines
 ```
 
@@ -24,7 +28,9 @@ Rules are organized for Python development and documentation:
 | `@python/core` | Core Python standards, naming, imports | `*.py`, `python/**/*` |
 | `@python/api` | REST APIs, routes, middleware | API files, routes.py, web middleware |
 | `@python/config` | Configuration system, data formats | Config files, configuration modules |
-| `@python/quality` | Testing, dependencies, performance | Requirements files, test files |
+| `@python/quality` | Dependencies, logging, performance | Requirements files |
+| `@tests/python/unit` | Unit testing with pytest | Unit test files, test configuration |
+| `@tests/python/api` | System API testing with http.client | System API test files, conftest.py |
 | `@docs` | Documentation writing | `docs/**/*`, `*.rst` |
 
 ## 🏗️ Shared Platform & Dependencies
@@ -80,11 +86,15 @@ docs/quick_start/installing.rst → @docs rules active
 
 ### Multiple Rule References
 ```
-@python/core @python/quality Help me refactor this code with proper error handling and testing
+@python/core @python/quality Help me refactor this code with proper error handling
 
 @python/api @python/config Create an API endpoint for configuration management
 
 @docs @python/api Document this REST API following both documentation and API standards
+
+@python/core @tests/python/unit Create a service class with comprehensive unit tests
+
+@tests/python/api @python/api Create system API tests for new REST endpoints
 ```
 
 ## 💡 Context-Aware Prompts
@@ -137,14 +147,24 @@ Following @python/api rules, create a REST endpoint that:
 - Uses FLCoreLogger for logging
 ```
 
-### Testing
+### Unit Testing
 ```
-Using @python/quality rules, create unit tests that:
+Using @tests/python/unit rules, create unit tests that:
 - Use pytest framework
 - Include proper mocking with pytest-mock
 - Test both success and failure cases
 - Follow the test file naming conventions
 - Include code coverage setup
+```
+
+### System API Testing
+```
+Using @tests/python/api rules, create system API tests that:
+- Use http.client library exclusively (no requests)
+- Leverage conftest.py fixtures like reset_and_start_fledge
+- Test API endpoints with proper authentication
+- Use fledge_url and storage_plugin fixtures
+- Follow system test organization patterns
 ```
 
 ### Documentation
@@ -170,7 +190,8 @@ that includes proper Sphinx directives and avoids excessive Fledge branding.
 I'm creating a new Fledge service that includes:
 - Python backend (@python/core @python/api)
 - Configuration management (@python/config)  
-- Comprehensive testing (@python/quality)
+- Unit testing (@tests/python/unit)
+- System API testing (@tests/python/api)
 - Complete documentation (@docs)
 ```
 
@@ -183,6 +204,12 @@ Review this code against @python/core and @python/quality rules:
 - Ensure type hints are present
 - Validate error handling patterns
 - Check Python version compatibility
+
+Review this test code against @tests/python/unit rules:
+- Validate pytest usage and fixture patterns
+- Check mocking strategies and test isolation
+- Ensure proper test organization and naming
+- Verify code coverage approach
 ```
 
 ## 🚀 Platform-Specific Development
@@ -249,7 +276,17 @@ Does this code follow @python/quality standards for:
 - Dependencies management
 - Logging practices  
 - Performance optimization
-- Testing coverage
+
+Does this testing code follow @tests/python/unit standards for:
+- pytest usage and fixtures
+- Mocking patterns
+- Test coverage
+- Unit testing best practices
+
+Does this API test follow @tests/python/api standards for:
+- http.client usage
+- conftest.py fixture usage
+- API testing patterns
 
 Validate this documentation against @docs standards for:
 - reStructuredText formatting
@@ -300,14 +337,34 @@ Write API documentation that:
 - Includes cross-references to related docs
 ```
 
-### Testing & Quality (@python/quality)
+### Unit Testing (@tests/python/unit)
 ```
-Create comprehensive tests that:
+Create comprehensive unit tests that:
 - Use pytest with proper fixtures
-- Include unit and integration tests
-- Mock external dependencies
-- Achieve good test coverage
-- Follow Fledge testing conventions
+- Mock external dependencies appropriately
+- Achieve meaningful test coverage
+- Follow unit testing best practices
+- Test both success and failure scenarios
+```
+
+### System API Testing (@tests/python/api)
+```
+Create system API tests that:
+- Use http.client library exclusively
+- Leverage conftest.py fixtures for environment setup
+- Test API endpoints with authentication flows
+- Use reset_and_start_fledge for clean test environments
+- Follow system test organization patterns
+```
+
+### Dependencies & Quality (@python/quality)
+```
+Manage dependencies and code quality:
+- Use requirements.txt for dependency management
+- Follow FLCoreLogger patterns for logging
+- Optimize for edge device performance
+- Ensure Python version compatibility
+- Document dependency constraints
 ```
 
 ## 🎯 Best Practices Summary

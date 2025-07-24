@@ -1526,3 +1526,28 @@ class TestAuthMandatory:
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST',
                                                    '/fledge/admin/3/authcertificate')
 
+    async def test_certificate_verification_value_error(self, client):
+        with patch.object(User.Objects, 'verify_certificate', side_effect=ValueError("Invalid certificate format")):
+            cert_data = "-----BEGIN CERTIFICATE-----\ntest certificate data\n-----END CERTIFICATE-----"
+            resp = await client.post('/fledge/login', data=cert_data)
+            assert 401 == resp.status
+            assert "Authentication failed: Invalid certificate format" == resp.reason
+
+    @pytest.mark.parametrize("invalid_data", [
+        "just some text", "", "   ", "{", "{}"
+    ])
+    async def test_various_invalid_data_formats(self, client, invalid_data):
+        resp = await client.post('/fledge/login', data=invalid_data)
+        assert 400 == resp.status
+        assert "Invalid or untrusted certificate or missing credentials in payload." == resp.reason
+
+    @pytest.mark.parametrize("exception_class", [
+        SSLVerifier.VerificationError, User.DoesNotExist, OSError
+    ])
+    async def test_certificate_verification_improved_error_message(self, client, exception_class):
+        with patch.object(User.Objects, 'verify_certificate', side_effect=exception_class("Verification failed")):
+            cert_data = "-----BEGIN CERTIFICATE-----\ntest certificate data\n-----END CERTIFICATE-----"
+            resp = await client.post('/fledge/login', data=cert_data)
+            assert 401 == resp.status
+            assert "Authentication failed: invalid or untrusted certificate." == resp.reason
+

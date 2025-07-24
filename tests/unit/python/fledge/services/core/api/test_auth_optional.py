@@ -141,21 +141,21 @@ class TestAuthOptional:
             assert 'Bad user ID' == resp.reason
         patch_logger.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
-    @pytest.mark.parametrize("request_data", [
-        {},
-        {"username": 12},
-        {"password": 12},
-        {"username": "blah"},
-        {"password": "blah"},
-        {"invalid": "blah"},
-        {"username": "blah", "pwd": "blah"},
-        {"uname": "blah", "password": "blah"},
+    @pytest.mark.parametrize("request_data, error_msg", [
+        ({}, "Invalid or untrusted certificate or missing credentials in payload."),
+        ({"username": 12}, "Username or password is missing"),
+        ({"password": 12}, "Username or password is missing"),
+        ({"username": "blah"}, "Username or password is missing"),
+        ({"password": "blah"}, "Username or password is missing"),
+        ({"invalid": "blah"}, "Username or password is missing"),
+        ({"username": "blah", "pwd": "blah"}, "Username or password is missing"),
+        ({"uname": "blah", "password": "blah"}, "Username or password is missing"),
     ])
-    async def test_bad_login(self, client, request_data):
+    async def test_bad_login(self, client, request_data, error_msg):
         with patch.object(middleware._logger, 'debug') as patch_logger:
             resp = await client.post('/fledge/login', data=json.dumps(request_data))
             assert 400 == resp.status
-            assert 'Username or password is missing' == resp.reason
+            assert error_msg == resp.reason
         patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
 
     @pytest.mark.parametrize("request_data, status_code, exception_name, msg", [

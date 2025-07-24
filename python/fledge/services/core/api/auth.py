@@ -110,6 +110,7 @@ async def login(request):
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
+    _data = {}
     try:
         # Check ott inside request payload.
         _data = json.loads(data)
@@ -118,6 +119,7 @@ async def login(request):
     except json.JSONDecodeError:
         if auth_method == 'password':
             raise web.HTTPBadRequest(reason="Use valid username & password to log in.")
+        # For auth_method 'any' or 'certificate', we might have certificate data
         pass
 
     # Check for appropriate payload per auth_method
@@ -139,11 +141,10 @@ async def login(request):
             # set the token to request
             request.token = token
         except (SSLVerifier.VerificationError, User.DoesNotExist, OSError) as e:
-            raise web.HTTPUnauthorized(reason="Authentication failed")
+            raise web.HTTPUnauthorized(reason="Authentication failed: invalid or untrusted certificate.")
         except ValueError as ex:
             raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
     elif auth_method == "OTT":
-
         _ott = _data.get('ott')
         if _ott not in OTT.OTT_MAP:
             raise web.HTTPUnauthorized(reason="Authentication failed. Either the given token expired or already used.")
@@ -159,6 +160,9 @@ async def login(request):
         else:
             raise web.HTTPUnauthorized(reason="Authentication failed! The given token has expired")
     else:
+        # Ensure we have valid JSON data
+        if not _data:
+            raise web.HTTPBadRequest(reason="Invalid or untrusted certificate or missing credentials in payload.")
 
         username = _data.get('username')
         password = _data.get('password')

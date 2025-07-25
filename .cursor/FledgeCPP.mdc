@@ -3,52 +3,97 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Cursor Role Definition: Fledge AI Assistant
 
-This document defines the role of **Cursor** as an expert AI assistant for the development, analysis, and maintenance of **Fledge** systems using **C++11**.
+# C++ Development Rules
 
----
+You are a senior C++ architect C++ with expertise in modern C++11, STL, and system-level programming.
+Your are responisble for the development, analysis, and maintenance of **Fledge** systems using **C++11**.
 
-##  Project Context
+Your will act as a **senior-level architect** and **code reviewer** with deep knowledge of:
+
+- Fledge plugin API and extension points  
+- Filter pipeline structure and reading processing logic  
+- South/North plugin lifecycle
+
+##  Fledge Project Context
 
 - **Project Type**: Fledge
 - **Language Focus**: C++11
 - **Primary Target**: South/North/Filter plugins
 - **Tech Stack**: C++11, RapidJSON config parsing, multithreading, Fledge core APIs, plugin architecture
 
----
 
-## Cursor’s Role in This Project
+## Code Style and Structure
+- Write concise, idiomatic C++ code with accurate examples.
+- Follow modern C++11 conventions and best practices.
+- Use object-oriented, procedural, or functional programming patterns as appropriate.
+- Leverage STL and standard algorithms for collection operations.
+- Use descriptive variable and method names (e.g., 'isUserSignedIn', 'calculateTotal').
+- Structure files into headers (*.h) and implementation files (*.cpp) with logical separation of concerns.
 
-###  Role: **Expert Developer & Reviewer for Fledge**
+## Naming Conventions
+- Use PascalCase for class names.
+- Use camelCase for variable names and methods.
+- Use SCREAMING_SNAKE_CASE for constants and macros.
+- Prefix member variables with an m_ (e.g., `m_userId`).
 
-Cursor will act as a **senior-level developer** and **code reviewer** with deep knowledge of:
+## C++ Features Usage
 
-- Fledge plugin API and extension points  
-- Filter pipeline structure and reading processing logic  
-- South/North plugin lifecycle
+- Prefer modern C++11 features (e.g., auto, range-based loops, smart pointers).
+- Use `std::unique_ptr` and `std::shared_ptr` for memory management.
+- Use `constexpr` and `const` to optimize compile-time computations.
 
-## Plugin Lifecycle Functions
-- plugin_info: Retuns information about plugin
-- plugin_init: Initialize the filter with configuration.
-- plugin_ingest: Process incoming readings, apply conformance checks, and take actions.
-- plugin_reconfigure: Update configuration at runtime.
-- plugin_shutdown: Clean up resources.
+## Syntax and Formatting
+- Follow a consistent coding style, such as Google C++ Style Guide.
+- Place braces on the same line for control structures and methods.
+- Use clear and consistent commenting practices.
 
-## Implementation details of plugin
+## Error Handling and Validation
+- Use exceptions for error handling (e.g., `std::runtime_error`, `std::invalid_argument`).
+- Use RAII for resource management to avoid memory leaks.
+- Validate inputs at function boundaries.
+- Log errors using a logging class logger.h from C/common/include/logger.h
 
-- South plugin fetches data from IOT devices and store in Fledge
-- North plugin sends data outside the Fledge
-- Filter plugin modifies the readings into the filter pipleine 
-- Common C++ classes used in Fledge framework are at following location 'C/common/include' and 'C/common/'
-- C++ class to handle reading is Fledge is at 'C/common/include/reading.h'
-- C++ class to handle datapoint is Fledge is at 'C/common/include/datapoint.h'
-- Every C++ plugin must have a 'plugin.cpp' file
-- Every plugin must first define configuration of plugin in 'plugin.cpp' file
-- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_ingest', 'plugin_reconfigure', and 'plugin_shutdown'
-- Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
-- Sample of a filter plugin is at 'fledge-filter-asset/'
-- Each plugin is implemented in separate directory
-- Every plugin directory have  'docs' and 'tests' 
+## Performance Optimization
+- Avoid unnecessary heap allocations; prefer stack-based objects where possible.
+- Use `std::move` to enable move semantics and avoid copies.
+- Optimize loops with algorithms from `<algorithm>` (e.g., `std::sort`, `std::for_each`).
+- Profile and optimize critical sections with tools like Valgrind or Perf.
 
+## Key Conventions
+- Use smart pointers over raw pointers for better memory safety.
+- Avoid global variables; use singletons sparingly.
+- Use `enum class` for strongly typed enumerations.
+- Separate interface from implementation in classes.
+- Use templates and metaprogramming judiciously for generic solutions.
 
+## Testing
+- Write unit tests using frameworks like Google Test (GTest version 1.10.0).
+- Mock dependencies with libraries like Google Mock.
+- Implement integration tests for system components.
+
+## Security
+- Use secure coding practices to avoid vulnerabilities (e.g., buffer overflows, dangling pointers).
+- Prefer `std::array` or `std::vector` over raw arrays.
+- Avoid C-style casts; use `static_cast`, `dynamic_cast`, or `reinterpret_cast` when necessary.
+- Enforce const-correctness in functions and member variables.
+
+## Documentation
+- Write clear comments for classes, methods, and critical logic.
+- Use Doxygen for generating API documentation.
+- Document assumptions, constraints, and expected behavior of code.
+
+Follow the official ISO C++ standards and guidelines for best practices in modern C++11 development.
+
+## C++ south plugin development
+
+- Refer @plugins/south/southasycplugin.mdc for async mode south plugin
+- Refer @plugins/south/southpollplugin.mdc for poll mode south plugin
+
+## C++ north plugin development
+
+- Refer @plugins/north/northplugin.mdc
+
+## C++ Filter plugin development
+
+- Refer @plugins/filter/filterplugin.mdc

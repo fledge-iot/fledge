@@ -1,0 +1,151 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+## South Plugin Lifecycle for poll mode plugin
+
+- Every plugin has a configuration. 
+
+example basic plugin configuration
+```
+#define PLUGIN_NAME "plugin-name"
+
+
+	static const char *default_config = QUOTE({
+		"plugin" : {
+			"description" : "plugin description goes here",
+			"type" : "string", 
+			"default" : PLUGIN_NAME,
+			"readonly" : "true"
+		       	},
+		"enable": {
+			"description": "A switch that can be used to enable or disable execution of the plugin.",
+			"type": "boolean",
+			"displayName": "Enabled",
+			"default": "false"
+			},
+		"asset": {
+			"description": "The name of the asset to which validation should be applied",
+			"type": "string",
+			"displayName": "Asset",
+			"default": "sinusoid",
+			"order" : "1"
+		}
+	};
+```
+
+- plugin_info: Retuns information about plugin
+
+example 
+
+```
+extern "C"
+{
+	static PLUGIN_INFORMATION info = {
+        PLUGIN_NAME,                // Name
+        VERSION,                    // Version
+        0, // Flags
+        PLUGIN_TYPE_SOUTH,          // Type
+        "2.0.0",                    // Interface version
+        default_config              // Default configuration
+    };
+
+	/**
+     * Return the information about this plugin
+     */
+    PLUGIN_INFORMATION *plugin_info()
+    {
+        return &info;
+    }
+}
+
+```
+
+- plugin_init: Initialize the filter with configuration.
+
+example
+```
+	/**
+     * Initialise the plugin, called to get the plugin handle
+     *
+     * @param config    Plugin instance configuration
+     * @return          Plugin handle
+     */
+    PLUGIN_HANDLE plugin_init(ConfigCategory *config)
+    {
+        PluginImplementationClass *pluginImpl = new PluginImplementationClass();
+        pluginImpl->configure(config);
+        return (PLUGIN_HANDLE)pluginImpl;
+    }
+```
+
+- plugin_poll: Polls data from sensor or extrenral sources and store into Fledge.
+
+example
+
+```
+	/**
+	 * Poll for a plugin reading
+	 */
+	std::vector<Reading *> *plugin_poll(PLUGIN_HANDLE *handle)
+	{
+		PluginImplementationClass *pluginImpl = (PluginImplementationClass *)handle;
+
+		return pluginImpl->takeReading();
+	}
+```	
+
+
+- plugin_reconfigure: Update configuration at runtime.
+
+example
+
+```
+	/**
+     * Reconfigure the plugin
+     *
+     * @param handle     The plugin handle
+     * @param newConfig  Updated configuration as a JSON string
+     */
+    void plugin_reconfigure(PLUGIN_HANDLE *handle, string &newConfig)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(*handle);
+        pluginImpl->configure(&config);
+    }
+
+```
+
+- plugin_shutdown: Clean up resources.
+
+example
+
+```
+	/**
+     * Shutdown the plugin
+     *
+     * @param handle   The plugin handle
+    
+     */
+    void plugin_shutdown(PLUGIN_HANDLE handle)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(handle);
+        pluginImpl->shutdown();
+        delete pluginImpl;
+    }
+```
+
+
+## Implementation details of plugin
+
+- South plugin fetches data from sensors or extranal sources and store in Fledge
+- Common C++ classes used in Fledge framework are at following location 'C/common/include' and 'C/common/'
+- C++ class to handle reading in Fledge is at 'C/common/include/reading.h'
+- C++ class to handle datapoint in Fledge is at 'C/common/include/datapoint.h'
+- C++ class to handle logging in Fledge is at 'C/common/include/logger.h'
+- Every C++ plugin must have a 'plugin.cpp' file
+- Every plugin must first define configuration of plugin in 'plugin.cpp' file
+- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_poll', 'plugin_reconfigure', and 'plugin_shutdown'
+- Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
+- Every plugin directory have  'docs' and 'tests'

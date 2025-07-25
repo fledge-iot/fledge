@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Fledge',
-    python_requires='>=3.6.9',
+    python_requires='>=3.8.10',
     version='3.1.0',
     description='Fledge, the open source platform for the Internet of Things',
     url='https://github.com/fledge-iot/fledge',

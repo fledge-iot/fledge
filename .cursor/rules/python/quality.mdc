@@ -1,0 +1,135 @@
+---
+description: "Python quality rules for Fledge - dependencies, logging, performance, and version compatibility"
+globs: "python/requirements*.txt"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Python Quality & Best Practices Rules
+
+## Dependencies & Requirements Management
+
+### Requirements Files Structure
+- **[python/requirements.txt](mdc:python/requirements.txt)** - Runtime dependencies for production
+- **[python/requirements-dev.txt](mdc:python/requirements-dev.txt)** - Development dependencies (includes runtime + test)
+- **[python/requirements-test.txt](mdc:python/requirements-test.txt)** - Testing framework dependencies
+
+### Version-Specific Dependencies
+- Use Python version markers for compatibility: `package==version;python_version>="3.12"`
+- Example patterns from existing requirements:
+  ```
+  aiohttp==3.8.6;python_version<"3.12"
+  aiohttp==3.10.11;python_version>="3.12"
+  yarl==1.7.2;python_version<="3.10"
+  yarl==1.9.4;python_version>="3.11" and python_version<"3.12"
+  ```
+
+### Dependency Guidelines
+- **Always specify exact versions** for production dependencies
+- **Use version markers** when different Python versions require different package versions
+- **Test across Python versions** to ensure compatibility
+- **Keep requirements files in sync** - test dependencies should match runtime versions
+- **Document reasoning** for version-specific constraints in comments
+- **Consider ARM compatibility** for Raspberry Pi deployment
+
+### Requirements File Documentation
+- **Add comments** explaining version constraints and Python version markers
+- **Document platform-specific requirements** (e.g., ARM vs x86_64)
+- **Explain version ranges** when multiple versions are supported for different Python versions
+- **Include installation notes** for complex dependencies
+- **Reference upstream issues** when using specific versions due to bugs or compatibility
+
+## Logging
+
+### Logging Framework
+- **Use FLCoreLogger class** for all logging operations
+- **Multi-stacktrace support**: FLCoreLogger handles complex stacktrace scenarios
+- Import from fledge.common.logger: `from fledge.common.logger import FLCoreLogger`
+- Create logger instance: `_logger = FLCoreLogger().get_logger(__name__)`
+
+### Logging Best Practices
+- Use the Fledge logging framework consistently across all components
+- Include appropriate context in log messages for debugging
+- Use proper log levels (DEBUG, INFO, WARNING, ERROR)
+- Avoid logging sensitive information (passwords, tokens, API keys, etc.)
+- Structure log messages for easy parsing and analysis
+
+### FLCoreLogger Usage Examples
+```python
+from fledge.common.logger import FLCoreLogger
+
+_logger = FLCoreLogger().get_logger(__name__)
+
+# Standard logging
+_logger.info("Service started successfully")
+_logger.warning("Configuration parameter missing, using default")
+_logger.error("Failed to connect to database")
+
+# Multi-stacktrace scenarios (handled automatically by FLCoreLogger)
+try:
+    # Complex operation that might have nested exceptions
+    result = complex_operation()
+except Exception as ex:
+    _logger.error(ex, "Complex operation failed")
+```
+
+### Log Message Guidelines
+- Use descriptive messages that provide context
+- Include relevant data (IDs, names, values) but avoid sensitive information
+- Use consistent formatting for similar log types
+- Consider log aggregation and searching when structuring messages
+
+## Testing Integration
+- **Unit Testing**: Detailed unit testing guidelines are in [python/unit.mdc](mdc:python/unit.mdc)
+- **System Testing**: Located in [tests/system/python/](mdc:tests/system/python/)
+- **Test Documentation**: Follow [tests/README.rst](mdc:tests/README.rst) for complete testing instructions
+
+## Performance Guidelines
+
+### Edge Computing Optimization
+- **Memory Constraints**: Raspberry Pi and edge devices have limited RAM
+- **CPU Limitations**: ARM processors may be slower than x86_64
+- **Storage Constraints**: Limited disk space on edge devices
+- **Network Considerations**: Potentially unreliable or slow connections
+
+### Performance Best Practices
+- Optimize database queries and use appropriate indexes
+- Use appropriate caching strategies (consider memory limits)
+- Monitor resource usage in production environments
+- Profile performance-critical code paths on target platforms
+- Minimize blocking operations in async code
+- **Test on Raspberry Pi** for realistic performance validation
+- Consider memory-efficient data structures and algorithms
+- Implement graceful degradation under resource pressure
+
+## Version Compatibility & Testing
+
+### Python Version Testing
+- **Test across full range**: Python 3.8.10 through 3.12
+- **Use CI/CD matrices** to validate on multiple Python versions
+- **Avoid deprecated features** that may be removed in newer versions
+- **Use version-specific workarounds** when necessary with clear documentation
+
+### Platform Testing
+- **Ubuntu Testing**: Primary development and deployment platform (LTS 20.04+)
+- **Raspberry Pi Testing**: ARM architecture and resource constraints
+- **Cross-Architecture**: Ensure code works on x86_64, aarch64, and armv7l
+- **Performance Validation**: Test on actual Raspberry Pi hardware when possible
+- **Architecture-Specific Testing**: Validate on all supported architectures:
+  - x86_64 (Ubuntu)
+  - aarch64 (Ubuntu & Raspberry Pi OS)
+  - armv7l (Raspberry Pi OS)
+
+### Compatibility Guidelines
+- Maintain backwards compatibility for APIs across supported Python versions
+- Use `sys.version_info` checks for version-specific code paths
+- Document breaking changes clearly in commit messages and documentation
+- Consider dependency availability across Python versions and platforms
+- Test package installation on both Ubuntu and Raspberry Pi OS
+
+## Plugin Development
+- Implement proper plugin interfaces defined in [python/fledge/plugins/](mdc:python/fledge/plugins/)
+- Handle plugin lifecycle properly (start, stop, reconfigure)
+- Use the plugin configuration system
+- Follow existing plugin patterns for consistency
+- Consider performance implications for edge devices

@@ -1,0 +1,162 @@
+---
+description: Enforce C++11 coding standards for Fledge plugins.
+globs: ["*.cpp", "*.h"]
+alwaysApply: true
+---
+
+## Filter Plugin Lifecycle
+
+- Every plugin has a configuration. 
+
+example basic plugin configuration
+```
+#define FILTER_NAME "filter-name"
+
+
+	static const char *default_config = QUOTE({
+		"plugin" : {
+			"description" : "plugin description goes here",
+			"type" : "string", 
+			"default" : FILTER_NAME,
+			"readonly" : "true"
+		       	},
+		"enable": {
+			"description": "A switch that can be used to enable or disable execution of the filter.",
+			"type": "boolean",
+			"displayName": "Enabled",
+			"default": "false"
+			},
+		"asset": {
+			"description": "The name of the asset to which validation should be applied",
+			"type": "string",
+			"displayName": "Asset",
+			"default": "sinusoid",
+			"order" : "1"
+		}
+	};
+```
+
+- plugin_info: Retuns information about plugin
+
+example 
+
+```
+extern "C"
+{
+	static PLUGIN_INFORMATION info = {
+		FILTER_NAME,              // Name
+		VERSION,                  // Version
+		0,                        // Flags
+		PLUGIN_TYPE_FILTER,       // Type
+		"1.0.0",                  // Interface version
+		default_config	          // Default plugin configuration
+	};
+
+
+	/**
+     * Return the information about this plugin
+     */
+    PLUGIN_INFORMATION *plugin_info()
+    {
+        return &info;
+    }
+}
+
+```
+
+- plugin_init: Initialize the filter with configuration.
+
+example
+```
+	/**
+     * Initialise the plugin, called to get the plugin handle
+     *
+     * @param config    Plugin instance configuration
+     * @return          Plugin handle
+     */
+    PLUGIN_HANDLE plugin_init(ConfigCategory *config)
+    {
+        PluginImplementationClass *pluginImpl = new PluginImplementationClass();
+        pluginImpl->configure(config);
+        return (PLUGIN_HANDLE)pluginImpl;
+    }
+```
+
+- plugin_ingest: ingest data into filter pipeline.
+
+example
+
+```
+	void plugin_ingest(PLUGIN_HANDLE *handle,
+		   READINGSET *readingSet)
+	{
+		PluginImplementationClass *filter = (PluginImplementationClass) handle;
+		
+		if (!filter->isEnabled())
+		{
+			// Pass the original reading set
+			filter->m_func(filter->m_data, readingSet);
+			return;
+		}
+		std::vector<Reading *> out;
+		filter->ingest(readingSet->getAllReadings(), out);
+		delete (ReadingSet *)readingSet;
+		
+		ReadingSet *newReadingSet = new ReadingSet(&out);
+		filter->m_func(filter->m_data, newReadingSet);
+		
+	}
+```	
+
+
+- plugin_reconfigure: Update configuration at runtime.
+
+example
+
+```
+	/**
+     * Reconfigure the plugin
+     *
+     * @param handle     The plugin handle
+     * @param newConfig  Updated configuration as a JSON string
+     */
+    void plugin_reconfigure(PLUGIN_HANDLE *handle, string &newConfig)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(*handle);
+        pluginImpl->configure(&config);
+    }
+
+```
+
+- plugin_shutdown: Clean up resources.
+
+example
+
+```
+	/**
+     * Shutdown the plugin
+     *
+     * @param handle   The plugin handle
+    
+     */
+    void plugin_shutdown(PLUGIN_HANDLE handle)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(handle);
+        pluginImpl->shutdown();
+        delete pluginImpl;
+    }
+```
+
+
+## Implementation details of plugin
+
+- Filter plugin modifies data in the filter pipeline
+- Common C++ classes used in Fledge framework are at following location 'C/common/include' and 'C/common/'
+- C++ class to handle reading in Fledge is at 'C/common/include/reading.h'
+- C++ class to handle datapoint in Fledge is at 'C/common/include/datapoint.h'
+- C++ class to handle logging in Fledge is at 'C/common/include/logger.h'
+- Every C++ plugin must have a 'plugin.cpp' file
+- Every plugin must first define configuration of plugin in 'plugin.cpp' file
+- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_ingest', 'plugin_reconfigure', and 'plugin_shutdown'
+- Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
+- Every plugin directory have  'docs' and 'tests'

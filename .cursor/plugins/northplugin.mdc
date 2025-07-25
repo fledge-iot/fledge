@@ -1,10 +1,10 @@
 ---
-description: 
-globs: 
+description: Enforce C++11 coding standards for Fledge plugins.
+globs: ["*.cpp", "*.h"]
 alwaysApply: true
 ---
 
-## Filter Plugin Lifecycle
+## North Plugin Lifecycle
 
 - Every plugin has a configuration. 
 
@@ -21,7 +21,7 @@ example basic plugin configuration
 			"readonly" : "true"
 		       	},
 		"enable": {
-			"description": "A switch that can be used to enable or disable execution of the filter.",
+			"description": "A switch that can be used to enable or disable execution of the plugin.",
 			"type": "boolean",
 			"displayName": "Enabled",
 			"default": "false"
@@ -47,7 +47,7 @@ extern "C"
 		FILTER_NAME,              // Name
 		VERSION,                  // Version
 		0,                        // Flags
-		PLUGIN_TYPE_FILTER,       // Type
+		PLUGIN_TYPE_NORTH,       // Type
 		"1.0.0",                  // Interface version
 		default_config	          // Default plugin configuration
 	};
@@ -82,51 +82,24 @@ example
     }
 ```
 
-- plugin_ingest: ingest data into filter pipeline.
-
-example
-
-```
-	void plugin_ingest(PLUGIN_HANDLE *handle,
-		   READINGSET *readingSet)
-	{
-		PluginImplementationClass *filter = (PluginImplementationClass) handle;
-		
-		if (!filter->isEnabled())
-		{
-			// Pass the original reading set
-			filter->m_func(filter->m_data, readingSet);
-			return;
-		}
-		std::vector<Reading *> out;
-		filter->ingest(readingSet->getAllReadings(), out);
-		delete (ReadingSet *)readingSet;
-		
-		ReadingSet *newReadingSet = new ReadingSet(&out);
-		filter->m_func(filter->m_data, newReadingSet);
-		
-	}
-```	
-
-
-- plugin_reconfigure: Update configuration at runtime.
+- plugin_send: send data outside Fledge
 
 example
 
 ```
 	/**
-     * Reconfigure the plugin
-     *
-     * @param handle     The plugin handle
-     * @param newConfig  Updated configuration as a JSON string
-     */
-    void plugin_reconfigure(PLUGIN_HANDLE *handle, string &newConfig)
-    {
-        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(*handle);
-        pluginImpl->configure(&config);
-    }
+	 * Send Readings data outside the Fledge
+	 */
+	uint32_t plugin_send(const PLUGIN_HANDLE handle,
+				 const vector<Reading *>& readings)
+	{
+	PluginImplementationClass	*pluginImpl = (PluginImplementationClass *)handle;
 
-```
+		return pluginImpl->send(readings);
+	}
+```	
+
+
 
 - plugin_shutdown: Clean up resources.
 
@@ -157,6 +130,6 @@ example
 - C++ class to handle logging in Fledge is at 'C/common/include/logger.h'
 - Every C++ plugin must have a 'plugin.cpp' file
 - Every plugin must first define configuration of plugin in 'plugin.cpp' file
-- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_ingest', 'plugin_reconfigure', and 'plugin_shutdown'
+- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_send', and 'plugin_shutdown'
 - Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
 - Every plugin directory have  'docs' and 'tests'

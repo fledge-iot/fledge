@@ -1,10 +1,10 @@
 ---
-description: 
-globs: 
+description: Enforce C++11 coding standards for Fledge plugins.
+globs: ["*.cpp", "*.h"]
 alwaysApply: true
 ---
 
-## South Plugin Lifecycle for poll mode plugin
+## South Plugin Lifecycle for async mode plugin
 
 - Every plugin has a configuration. 
 
@@ -46,7 +46,7 @@ extern "C"
 	static PLUGIN_INFORMATION info = {
         PLUGIN_NAME,                // Name
         VERSION,                    // Version
-        0, // Flags
+        SP_ASYNC, // Flags
         PLUGIN_TYPE_SOUTH,          // Type
         "2.0.0",                    // Interface version
         default_config              // Default configuration
@@ -81,22 +81,41 @@ example
     }
 ```
 
-- plugin_poll: Polls data from sensor or extrenral sources and store into Fledge.
+- plugin_start: Fetches data from sensor or extrenral sources and store into Fledge.
 
 example
 
 ```
 	/**
-	 * Poll for a plugin reading
-	 */
-	std::vector<Reading *> *plugin_poll(PLUGIN_HANDLE *handle)
-	{
-		PluginImplementationClass *pluginImpl = (PluginImplementationClass *)handle;
-
-		return pluginImpl->takeReading();
-	}
+     * Start plugin
+     *
+     * @param handle        The plugin handle
+     */
+	void plugin_start(const PLUGIN_HANDLE handle)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(handle);
+        pluginImpl->start();
+    }
 ```	
 
+- Register ingest callback: registers Register ingest callback.
+
+example
+
+```
+	/**
+     * Register ingest callback
+     *
+     * @param handle    The plugin handle
+     * @param cb        Callback function pointer
+     * @param data      Callback data pointer
+     */
+    void plugin_register_ingest(PLUGIN_HANDLE handle, INGEST_CB2 cb, void *data)
+    {
+        PluginImplementationClass *pluginImpl = static_cast<PluginImplementationClass *>(handle);
+        pluginImpl->registerIngest(data, cb);
+    }
+```
 
 - plugin_reconfigure: Update configuration at runtime.
 
@@ -146,6 +165,6 @@ example
 - C++ class to handle logging in Fledge is at 'C/common/include/logger.h'
 - Every C++ plugin must have a 'plugin.cpp' file
 - Every plugin must first define configuration of plugin in 'plugin.cpp' file
-- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_poll', 'plugin_reconfigure', and 'plugin_shutdown'
+- 'plugin.cpp' file must implement following **Plugin Lifecycle Functions** 'plugin_init', 'plugin_start', 'plugin_register_ingest', 'plugin_reconfigure', and 'plugin_shutdown'
 - Implementation of requriement of plugin is kept into a separate header and class implemetation file which is used by 'plugin.cpp' file
 - Every plugin directory have  'docs' and 'tests'

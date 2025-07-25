@@ -1,0 +1,312 @@
+---
+description: "Python API integration testing rules for Fledge - conftest fixtures, HTTP client patterns, and API test organization"
+globs: "tests/system/python/api/**/*.py,tests/system/python/conftest.py"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# API integration Testing Guidelines
+
+## Test Organization & Structure
+
+### Directory Structure
+- **API integration Tests**: Located in [tests/system/python/api/](mdc:tests/system/python/api/)
+- **Main conftest**: [tests/system/python/conftest.py](mdc:tests/system/python/conftest.py) - Contains shared fixtures
+- **pytest Configuration**: [tests/system/python/pytest.ini](mdc:tests/system/python/pytest.ini)
+- **Test Documentation**: Follow [tests/README.rst](mdc:tests/README.rst) for execution instructions
+
+### Test File Conventions
+- **Naming**: Test files must begin with `test_` for pytest auto-discovery
+- **Pattern**: `test_<api_area>.py` (e.g., `test_authentication.py`, `test_configuration.py`)
+- **Location**: All API tests in `tests/system/python/api/` directory
+- **Imports**: Always include `import http.client` for HTTP connections
+- **Documentation**: Include module docstrings describing the API area being tested
+
+### Test Class Organization
+- **Class Naming**: Use `TestClassName` pattern (e.g., `TestAuthenticationAPI`, `TestCommon`)
+- **Method Naming**: Use descriptive names like `test_login_username_regular_user`
+- **Test Flow**: Organize tests to follow logical API workflows
+- **Dependencies**: Use fixtures to manage test prerequisites and cleanup
+
+## HTTP Client Standards
+
+### Required HTTP Library
+- **MUST USE**: `http.client` library only for HTTP/HTTPS connections
+- **NO requests library**: Do not use `requests` - system tests use `http.client` exclusively
+- **Import Pattern**: Always include `import http.client` at the top of test files
+
+### HTTP Connection Patterns
+
+#### Basic Connection Setup
+```python
+import http.client
+import json
+
+def test_api_endpoint(self, fledge_url):
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("GET", "/fledge/ping")
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+```
+
+#### POST Requests with JSON Data
+```python
+def test_post_with_data(self, fledge_url):
+    conn = http.client.HTTPConnection(fledge_url)
+    data = {"key": "value"}
+    conn.request("POST", "/fledge/endpoint", json.dumps(data))
+    r = conn.getresponse()
+    assert 200 == r.status
+    response_data = json.loads(r.read().decode())
+```
+
+#### Authenticated Requests
+```python
+def test_authenticated_request(self, fledge_url):
+    conn = http.client.HTTPConnection(fledge_url)
+    headers = {"authorization": TOKEN}
+    conn.request("GET", "/fledge/protected", headers=headers)
+    r = conn.getresponse()
+    assert 200 == r.status
+```
+
+### HTTP Best Practices
+- **Status Code Validation**: Always assert expected HTTP status codes
+- **Response Decoding**: Use `r.read().decode()` to get response text
+- **JSON Handling**: Use `json.loads()` and `json.dumps()` for JSON data
+- **Connection Reuse**: Create new connections per test method for isolation
+- **Error Handling**: Test both success and error response scenarios
+
+## Core Conftest Fixtures
+
+### Essential Fixtures for API Testing
+
+#### `reset_and_start_fledge`
+Primary fixture for test environment setup:
+```python
+def test_api_method(self, reset_and_start_fledge, fledge_url):
+    # Test runs with fresh Fledge instance
+```
+- **Purpose**: Kills Fledge, resets database, and starts fresh instance
+- **Parameters**: Uses `storage_plugin`, `readings_plugin`, `authentication` fixtures
+- **Usage**: Include as first parameter in test methods that need clean environment
+
+#### `fledge_url`
+Provides Fledge server connection details:
+```python
+def test_connection(self, fledge_url):
+    conn = http.client.HTTPConnection(fledge_url)
+```
+- **Default**: "localhost:8081"
+- **Override**: Use `--fledge-url` command line option
+- **Usage**: Required for all HTTP connections to Fledge
+
+#### `storage_plugin`
+Specifies database plugin for tests:
+```python
+@pytest.fixture
+def storage_plugin(request):
+    return request.config.getoption("--storage-plugin")
+```
+- **Default**: "sqlite"
+- **Options**: "sqlite", "postgres", "sqlitelb"
+- **Usage**: Used by `reset_and_start_fledge` fixture
+
+#### `authentication`
+Defines authentication mode:
+```python
+@pytest.fixture
+def authentication():
+    return "optional"  # or "mandatory"
+```
+- **Default**: "optional"
+- **Override**: Define in individual test files for specific auth requirements
+- **Usage**: Controls Fledge authentication configuration
+
+### Additional Service Management Fixtures
+
+#### `add_south`
+Adds and configures south services:
+```python
+def test_with_south_service(self, add_south, fledge_url):
+    south_service = add_south("sinusoid", None, fledge_url, "test_service")
+```
+
+#### `add_north`
+Adds and configures north services/tasks:
+```python
+def test_with_north_task(self, add_north, fledge_url):
+    north_task = add_north(fledge_url, "http_north", None, "make", "test_task")
+```
+
+#### `add_service`
+Adds generic services:
+```python
+def test_with_service(self, add_service, fledge_url):
+    service = add_service(fledge_url, "notification", None, 3, "make", "test_svc")
+```
+
+### Utility Fixtures
+
+#### `wait_time` and `retries`
+Control test timing and retry behavior:
+```python
+def test_with_timing(self, fledge_url, wait_time, retries):
+    time.sleep(wait_time)  # Default: 5 seconds
+    # Retry logic using retries count (default: 3)
+```
+
+#### `remove_data_file` and `remove_directories`
+Cleanup utilities for test data:
+```python
+def test_with_cleanup(self, remove_data_file, remove_directories):
+    # Test creates files/directories
+    remove_data_file("/path/to/test/file")
+    remove_directories("/path/to/test/dir")
+```
+
+## Test Configuration
+
+### pytest Configuration
+- **File**: [tests/system/python/pytest.ini](mdc:tests/system/python/pytest.ini)
+- **Default Options**: `--wait-time=6 --retries=4`
+- **Command Line Options**: Extensive options for test customization
+
+### Common Command Line Options
+```bash
+# Basic test execution
+pytest tests/system/python/api/test_authentication.py
+
+# With custom Fledge URL
+pytest --fledge-url=192.168.1.100:8081 tests/system/python/api/
+
+# With different storage plugin
+pytest --storage-plugin=postgres tests/system/python/api/
+
+# With custom timing
+pytest --wait-time=10 --retries=5 tests/system/python/api/
+```
+
+### Available Command Line Arguments
+- `--storage-plugin`: Database plugin ("sqlite", "postgres", "sqlitelb")
+- `--readings-plugin`: Readings plugin ("Use main plugin", "sqlitememory", etc.)
+- `--fledge-url`: Fledge server URL (default: "localhost:8081")
+- `--wait-time`: Generic wait time between processes (default: 5)
+- `--retries`: Number of retry attempts (default: 3)
+- `--south-branch`, `--north-branch`: Plugin branch names for installation
+- `--use-pip-cache`: Use pip cache for plugin installations
+
+## API Testing Best Practices
+
+### Test Design Principles
+- **Environment Isolation**: Use `reset_and_start_fledge` for clean test environments
+- **Fixture Dependencies**: Properly order fixtures based on dependencies
+- **Response Validation**: Validate both status codes and response content
+- **Error Scenarios**: Test both success and failure paths
+- **Authentication**: Handle both authenticated and unauthenticated scenarios
+
+### Common Testing Patterns
+
+#### Basic API Endpoint Test
+```python
+class TestEndpoint:
+    def test_get_endpoint(self, reset_and_start_fledge, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", "/fledge/endpoint")
+        r = conn.getresponse()
+        assert 200 == r.status
+        jdoc = json.loads(r.read().decode())
+        assert "expected_key" in jdoc
+```
+
+#### Authentication Flow Test
+```python
+class TestAuthentication:
+    def test_login_flow(self, fledge_url, authentication, reset_and_start_fledge):
+        # Login
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", "/fledge/login", 
+                    json.dumps({"username": "user", "password": "password"}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        jdoc = json.loads(r.read().decode())
+        token = jdoc["token"]
+        
+        # Use token for authenticated request
+        conn.request("GET", "/fledge/protected", headers={"authorization": token})
+        r = conn.getresponse()
+        assert 200 == r.status
+```
+
+#### Service Configuration Test
+```python
+class TestServiceConfiguration:
+    def test_service_creation(self, add_south, fledge_url):
+        service_name = "test_service"
+        config = {"key": "value"}
+        service = add_south("plugin_name", None, fledge_url, service_name, config)
+        assert service["name"] == service_name
+```
+
+### Error Testing Guidelines
+- **Invalid Requests**: Test malformed JSON, missing parameters
+- **Authentication Errors**: Test unauthorized access, invalid tokens
+- **Resource Not Found**: Test non-existent endpoints and resources
+- **Constraint Violations**: Test duplicate names, invalid configurations
+- **Server Errors**: Test scenarios that trigger 500-level responses
+
+### Data Validation Patterns
+- **JSON Structure**: Validate response JSON contains expected keys
+- **Data Types**: Verify correct data types in responses
+- **Value Ranges**: Check that numeric values are within expected ranges
+- **String Formats**: Validate UUIDs, timestamps, and formatted strings
+- **Array Contents**: Check array lengths and element structures
+
+## Integration with System Testing
+
+### Plugin Installation Testing
+- Use fixtures like `add_south`, `add_north` for plugin integration tests
+- Test both `make` and `package` installation types
+- Validate plugin discovery and configuration
+
+### Multi-Service Testing
+- Combine multiple fixtures to test service interactions
+- Test data flow between south and north services
+- Validate configuration propagation across services
+
+### Performance and Timing
+- Use `wait_time` and `retries` for timing-sensitive tests
+- Account for Fledge startup and shutdown times
+- Test timeout scenarios and retry mechanisms
+
+## Test Execution Guidelines
+
+### Local Development
+```bash
+# Run all API tests
+cd tests/system/python
+pytest api/
+
+# Run specific test file
+pytest api/test_authentication.py
+
+# Run with Disables output capturing
+pytest -s api/test_authentication.py
+
+# Run with verbose output
+pytest -v api/test_configuration.py
+
+# Run with very verbose output
+pytest -vv api/test_configuration.py
+
+# Run with custom Fledge instance
+pytest --fledge-url=localhost:8082 api/
+```
+
+### Continuous Integration
+- Use matrix testing for different storage plugins
+- Test across multiple Python versions
+- Validate on different deployment architectures
+- Include both authenticated and unauthenticated test runs

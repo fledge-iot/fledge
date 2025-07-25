@@ -1,0 +1,286 @@
+---
+description: "Python unit testing rules for Fledge - test organization, framework, execution, and coverage"
+globs: "tests/unit/python/**/*.py,**/test_*.py,python/requirements-test.txt"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Python Unit Testing Guidelines
+
+## Test Organization & Structure
+
+### Directory Structure
+- **Unit Tests**: Located in [tests/unit/python/](mdc:tests/unit/python/) 
+- **Test Instructions**: Follow detailed guidelines in [tests/README.rst](mdc:tests/README.rst)
+- **File Structure**: Tests should mirror the component structure under `tests/unit/python/fledge/<component>`
+- **Template**: Use [tests/unit/python/__template__.py](mdc:tests/unit/python/__template__.py) as starting point
+
+### Test File Conventions
+- **Naming**: Test files must begin with `test_` for pytest auto-discovery
+- **Pattern**: `test_<module_name>.py`
+- **Location**: Place tests in correct directory matching component structure
+- **Imports**: Follow Fledge import patterns and avoid circular dependencies
+- **Docstrings**: Include Pydoc-compatible docstrings for test classes and methods
+
+### Test Class & Method Organization
+- Group related tests in classes using `TestClassName` pattern
+- Use descriptive test method names: `test_should_return_success_when_valid_input`
+- Organize tests logically: happy path, edge cases, error conditions
+- Use pytest fixtures for common setup and teardown
+- Keep tests focused and atomic - one assertion per test when possible
+
+## Testing Framework & Dependencies
+
+### Primary Framework
+- **Framework**: pytest (version specified in [python/requirements-test.txt](mdc:python/requirements-test.txt))
+- **Dependencies**: All testing dependencies are managed in requirements-test.txt
+- **Dependency Management**: Reference requirements-test.txt for current versions - do not hardcode versions in documentation
+
+### Core Testing Dependencies
+Key testing packages (see [python/requirements-test.txt](mdc:python/requirements-test.txt) for current versions):
+- `pytest` - Main testing framework
+- `pytest-asyncio` - For async testing support
+- `pytest-mock` - Mocking framework integration
+- `pytest-cov` - Code coverage reporting
+- `pytest-aiohttp` - aiohttp testing utilities
+- `pylint` - Code quality and linting
+
+### Additional Testing Dependencies
+- `requests` - For HTTP client testing
+- `pyserial` - For RTU serial testing
+- `pytz` - Timezone handling in tests
+- `aiohttp` and `yarl` - Keep versions synchronized with main requirements
+
+## Test Configuration
+
+### pytest Configuration
+- **Configuration File**: [tests/unit/python/.pytest.ini](mdc:tests/unit/python/.pytest.ini)
+- **Minimum Version**: Check requirements-test.txt for current pytest version
+- **Excluded Directories**: Plugin directories excluded from test recursion
+- **Test Discovery**: Automatic discovery of test_*.py files
+
+### Coverage Configuration
+- **Configuration File**: [tests/unit/python/.coveragerc](mdc:tests/unit/python/.coveragerc)
+- **Omitted Files**: 
+  - `__init__.py` and `__template__.py` files
+  - Setup files and plugin directories
+  - Test directories themselves
+- **Coverage Scope**: Focus on core Fledge components, exclude plugin frameworks
+
+## Test Execution
+
+### Basic pytest Commands
+Refer to [tests/README.rst](mdc:tests/README.rst) for complete instructions:
+
+```bash
+# Execute all tests in specific file
+pytest test_filename.py
+
+# Execute specific test class
+pytest test_filename.py::TestClass
+
+# Execute specific test method
+pytest test_filename.py::TestClass::test_case
+
+# Verbose output with detailed information
+pytest -s -vv
+
+# Run tests with coverage
+pytest --cov=. --cov-report=html
+```
+
+### Advanced Test Execution
+```bash
+# Run tests with full coverage report
+pytest -s -vv tests/unit/python/fledge/ --cov=. --cov-report=html --cov-config tests/unit/python/.coveragerc
+
+# Run tests with XML coverage for CI/CD
+pytest --cov=. --cov-report html:coverage_html --cov-report xml:coverage.xml
+
+# Run specific test patterns
+pytest -k "test_pattern_name"
+
+```
+
+## Code Coverage
+
+### Coverage Configuration
+- **Tool**: pytest-cov framework integration
+- **Config File**: [tests/unit/python/.coveragerc](mdc:tests/unit/python/.coveragerc)
+- **Output Formats**: HTML, XML, and terminal reports
+- **Exclusions**: Configured to omit template files, plugins, and test directories
+
+### Coverage Commands
+
+#### Basic Coverage Reports
+```bash
+# Terminal coverage report (default)
+pytest --cov=. --cov-report=term
+
+# Terminal with missing lines shown
+pytest --cov=. --cov-report=term-missing
+
+# HTML coverage report (recommended for development)
+pytest --cov=. --cov-report=html
+
+# JSON coverage report for tools integration
+pytest --cov=. --cov-report=json
+
+# XML coverage report for CI/CD systems
+pytest --cov=. --cov-report=xml
+```
+
+#### Comprehensive Coverage Commands
+```bash
+# Full coverage with HTML and XML (for CI/CD)
+pytest --cov=. --cov-report=html:coverage_html --cov-report=xml:coverage.xml --cov-config=tests/unit/python/.coveragerc
+
+# Coverage with specific source directory and custom config
+pytest tests/unit/python/fledge/ --cov=fledge --cov-report=html --cov-config=tests/unit/python/.coveragerc
+
+# Coverage with minimum percentage threshold (fail if below)
+pytest --cov=. --cov-report=term --cov-fail-under=80
+
+# Coverage with detailed terminal output and HTML
+pytest --cov=. --cov-report=term-missing --cov-report=html:htmlcov
+
+# Coverage for specific modules only
+pytest --cov=fledge.services.core --cov=fledge.common --cov-report=html
+```
+
+#### Coverage Report Analysis
+```bash
+# Generate coverage report after test run
+coverage report
+
+# Generate detailed HTML report
+coverage html
+
+# Show missing lines for specific file
+coverage report --show-missing
+
+# Coverage report with branch coverage
+pytest --cov=. --cov-branch --cov-report=html
+```
+
+### Coverage Best Practices
+
+#### Coverage Targets & Thresholds
+- **Meaningful Coverage**: Aim for meaningful test coverage, not just high numbers
+- **Minimum Thresholds**: Set reasonable minimum coverage (e.g., 80% for core modules)
+- **Critical Paths**: Require higher coverage (90%+) for business logic and critical code paths
+- **New Code**: Ensure new code has high test coverage before merging
+- **Branch Coverage**: Include branch coverage for conditional logic testing
+
+#### Coverage Configuration
+- **Exclude Appropriately**: Use .coveragerc to exclude boilerplate and framework code
+- **Include Patterns**: Focus coverage on source code, exclude tests and third-party code
+- **Source Directories**: Specify source directories to avoid including test files in coverage
+- **Precision**: Set appropriate precision for coverage reporting (e.g., 1 decimal place)
+
+#### Coverage Monitoring & Reporting
+- **Regular Monitoring**: Track coverage trends over time in CI/CD
+- **Coverage Reports**: Generate reports for code review processes
+- **Failed Builds**: Fail builds if coverage drops below threshold
+- **Coverage Badges**: Display coverage status in repository README
+- **Trend Analysis**: Monitor coverage changes across commits and releases
+
+#### Coverage Quality Guidelines
+- **Test Quality Over Quantity**: High coverage with poor tests is worse than lower coverage with good tests
+- **Uncovered Code Review**: Regularly review uncovered code to determine if tests are needed
+- **Coverage Gaps**: Identify and address significant coverage gaps in critical modules
+- **Integration vs Unit**: Distinguish between unit test coverage and integration test coverage
+- **Documentation**: Document rationale for excluding files from coverage
+
+#### Coverage Anti-Patterns to Avoid
+- **Coverage Gaming**: Writing tests just to increase coverage percentage
+- **Shallow Testing**: Tests that call code but don't verify behavior
+- **Ignoring Branches**: Only testing happy paths without error conditions
+- **Over-Mocking**: Mocking so extensively that tests don't verify real behavior
+- **Coverage-Only Metrics**: Using coverage as the only quality metric
+
+#### Coverage Integration Examples
+
+##### CI/CD Pipeline Integration
+```bash
+# In GitHub Actions, GitLab CI, etc.
+pytest --cov=fledge --cov-report=xml --cov-report=html --cov-fail-under=80
+```
+
+##### Coverage with Multiple Output Formats
+```bash
+# Generate multiple report formats simultaneously
+pytest --cov=. \
+  --cov-report=term-missing \
+  --cov-report=html:htmlcov \
+  --cov-report=xml:coverage.xml \
+  --cov-report=json:coverage.json \
+  --cov-fail-under=80
+```
+
+##### Coverage Configuration in pytest.ini
+```ini
+[tool:pytest]
+addopts = --cov=fledge --cov-report=term-missing --cov-report=html --cov-fail-under=80
+```
+
+##### Coverage Badge Generation
+```bash
+# Generate coverage badge (requires coverage-badge package)
+coverage-badge -o coverage.svg
+```
+
+## Unit Testing Best Practices
+
+### Test Design Principles
+- **Isolation**: Each test should be independent and not rely on other tests
+- **Repeatability**: Tests should produce consistent results across runs
+- **Fast Execution**: Keep unit tests fast for quick feedback loops (performance is not the focus, but speed aids development)
+- **Clear Assertions**: Use descriptive assertion messages
+- **Focused Scope**: Test one behavior per test method
+- **Deterministic**: Tests should not rely on random data or external timing
+- **Self-Contained**: Tests should set up their own data and clean up afterwards
+
+### Mocking & Fixtures
+- **External Dependencies**: Mock all external dependencies (databases, APIs, file system)
+- **pytest-mock**: Use pytest-mock for integration with pytest fixtures
+- **Fixture Scope**: Use appropriate fixture scopes (function, class, module, session)
+- **Test Data**: Create reusable test data through fixtures
+- **Cleanup**: Ensure proper cleanup of resources and mocks
+
+### Async Testing
+- **pytest-asyncio**: Use pytest-asyncio for testing async functions
+- **Event Loops**: Properly handle event loop lifecycle in tests
+- **Async Fixtures**: Use async fixtures for async setup/teardown
+- **Timeout Handling**: Set appropriate timeouts for async operations
+- **Mock Async**: Properly mock async functions and coroutines
+
+### Error Testing
+- **Exception Testing**: Test both success and failure scenarios
+- **Error Messages**: Verify error messages and types
+- **Edge Cases**: Test boundary conditions and edge cases
+- **Input Validation**: Test invalid inputs and malformed data
+- **Resource Exhaustion**: Test behavior under resource constraints
+
+## Platform & Version Testing
+
+### Python Version Compatibility
+- **Target Versions**: Test across Python 3.8.10 through 3.12
+- **Version-Specific**: Use version markers in requirements-test.txt for compatibility
+- **CI/CD Integration**: Use matrices to validate multiple Python versions
+- **Version Checks**: Use `sys.version_info` for version-specific test behavior
+
+### Platform Testing Guidelines
+- **Ubuntu Testing**: Primary development platform (LTS 20.04+)
+- **Raspberry Pi**: ARM architecture testing for deployment compatibility
+- **Cross-Architecture**: Validate functionality on x86_64, aarch64, and armv7l
+- **Dependency Availability**: Ensure test dependencies install correctly across platforms
+- **Functional Validation**: Focus on correctness, not performance characteristics
+
+### Architecture-Specific Testing
+- **x86_64**: Standard Ubuntu development and production
+- **aarch64**: Ubuntu ARM64 and Raspberry Pi OS 64-bit
+- **armv7l**: Raspberry Pi OS 32-bit
+- **Dependencies**: Ensure test dependencies are available across platforms
+- **Compatibility**: Verify unit tests pass consistently across architectures
+- **Environment Differences**: Account for platform-specific behaviors in mocks and fixtures

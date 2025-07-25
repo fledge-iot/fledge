@@ -1,0 +1,262 @@
+---
+description: "Python API development rules for Fledge - REST APIs, routes, middleware, and web services"
+globs: "python/fledge/services/*/api/**/*,python/fledge/*/routes.py,python/fledge/common/web/**/*"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Python API Development Rules
+
+## Python Version & Platform Requirements
+
+### Supported Python Versions
+- **Target Range**: Python 3.8.10 - 3.12 (inclusive)
+- Always test API compatibility across the full supported range
+
+### Deployment Platforms
+- **Ubuntu**: LTS versions, 20.04 onwards
+  - **Architectures**: x86_64 & aarch64
+- **Raspberry Pi OS**: Bullseye and Bookworm distributions
+  - **Architectures**: aarch64 & armv7l
+
+### Dependencies Management
+- **Runtime Dependencies**: [python/requirements.txt](mdc:python/requirements.txt) - Include aiohttp, web framework deps
+- **Development Dependencies**: [python/requirements-dev.txt](mdc:python/requirements-dev.txt)
+- **Testing Dependencies**: [python/requirements-test.txt](mdc:python/requirements-test.txt) - Include pytest-aiohttp
+- **Use exact versions** for production dependencies
+- **Consider ARM compatibility** for Raspberry Pi deployment
+- **Test across Python versions** and target architectures
+
+## REST API Development
+
+### API Route Definition & Management
+- **Core Service Routes**: Defined in [python/fledge/services/core/routes.py](mdc:python/fledge/services/core/routes.py)
+- **Microservice Routes**: Exposed at [python/fledge/services/common/microservice_management/routes.py](mdc:python/fledge/services/common/microservice_management/routes.py)
+- **API Handlers**: Follow existing patterns in [python/fledge/services/core/api/](mdc:python/fledge/services/core/api/)
+
+### Route Definition Best Practices
+```python
+# Example route definition with handler
+from aiohttp import web
+from fledge.services.core.api import my_handler
+
+def setup_routes(app):
+    """Setup API routes for the service."""
+    
+    # Check for existing routes to avoid conflicts
+    existing_routes = [route.resource.canonical for route in app.router.routes()]
+    
+    # Define new routes with conflict checking
+    new_routes = [
+        ('GET', '/fledge/my_endpoint', my_handler.get_data),
+        ('POST', '/fledge/my_endpoint', my_handler.create_data),
+        ('PUT', '/fledge/api/my_endpoint/{id}', my_handler.update_data),
+        ('DELETE', '/fledge/api/my_endpoint/{id}', my_handler.delete_data)
+    ]
+    
+    for method, path, handler in new_routes:
+        # Check for route conflicts before adding
+        if path in existing_routes:
+            raise ValueError(f"Route conflict: {method} {path} already exists")
+        
+        app.router.add_route(method, path, handler)
+```
+
+### Route Conflict Prevention
+- **Endpoint Uniqueness**: Ensure each endpoint path is unique across the application
+- **Method Specificity**: Same path can have different HTTP methods (GET, POST, PUT, DELETE)
+- **Conflict Detection**: Check existing routes before adding new ones
+- **Route Inspection**: Use `app.router.routes()` to inspect existing routes
+- **Naming Conventions**: Use descriptive, hierarchical path naming
+
+### Route Organization Guidelines
+```python
+# Core service routes (routes.py)
+CORE_ROUTES = [
+    # System management
+    '/fledge/ping',
+    '/fledge/shutdown',
+    '/fledge/restart',
+    
+    # Configuration management  
+    '/fledge/category',
+    '/fledge/category/{category_name}',
+    
+    # Plugin management
+    '/fledge/plugins',
+    '/fledge/plugins/{plugin_type}',
+    
+    # Service management
+    '/fledge/service',
+    '/fledge/service/{service_name}'
+]
+
+# Microservice routes (microservice_management/routes.py)
+MICROSERVICE_ROUTES = [
+    # Service
+    '/fledge/service/register',
+    '/fledge/service/unregister', 
+    '/fledge/service/ping',
+    '/fledge/service/shutdown',
+    
+    # Health monitoring
+    '/fledge/service/health',
+    '/fledge/service/status'
+]
+```
+
+### API Handler Implementation
+```python
+# Example API handler with proper structure
+from aiohttp import web
+from fledge.common.logger import FLCoreLogger
+import json
+
+_logger = FLCoreLogger().get_logger(__name__)
+
+async def get_data_handler(request):
+    """Handle GET requests for data retrieval."""
+    try:
+        # Extract parameters
+        param_id = request.match_info.get('id')
+        query_params = request.query
+        
+        # Validate input
+        if param_id and not param_id.isdigit():
+            raise web.HTTPBadRequest(reason="Invalid ID parameter")
+        
+        # Process request
+        result = await process_data_request(param_id, query_params)
+        
+        # Return consistent JSON response (camelCase keys)
+        response = {
+            "message": "Data retrieved successfully",
+            "data": result,
+            "count": len(result) if isinstance(result, list) else 1
+        }
+        
+        return web.json_response(response, status=200)
+        
+    except ValueError as ex:
+        _logger.error(ex, "Invalid input parameter")
+        return web.json_response({"message": str(ex)}, status=400)
+    except Exception as ex:
+        _logger.error(ex, "Failed to retrieve data")
+        return web.json_response({"message": "Internal server error"}, status=500)
+```
+
+### Middleware-Based Security & Role Validation
+Fledge implements endpoint security and role validation through middleware:
+- **Middleware Location**: [python/fledge/common/web/middleware.py](mdc:python/fledge/common/web/middleware.py)
+- **Role-Based Access Control**: All endpoint role restrictions handled in middleware
+- **Centralized Validation**: Security logic centralized in middleware layer
+- **Automatic Enforcement**: Middleware automatically validates roles for protected endpoints
+
+### Role Validation Implementation
+```python
+# Role validation is handled in middleware.py, not in individual handlers
+# The middleware intercepts requests and validates user roles before reaching handlers
+
+# Example of how middleware handles role validation:
+async def role_validation_middleware(request, handler):
+    """Middleware that validates user roles for protected endpoints."""
+    
+    # Extract endpoint information
+    endpoint = request.path
+    method = request.method
+    
+    # Check if endpoint requires specific roles
+    required_roles = get_endpoint_roles(endpoint, method)
+    
+    if required_roles:
+        # Validate user authentication and roles
+        user_roles = await get_user_roles(request)
+        
+        if not any(role in user_roles for role in required_roles):
+            return web.json_response(
+                {"message": "Insufficient permissions"}, 
+                status=403
+            )
+    
+    # Continue to handler if validation passes
+    return await handler(request)
+```
+
+### Endpoint Role Configuration
+Role requirements for endpoints are configured and enforced by middleware:
+```python
+# Middleware handles role mapping for different endpoints
+ENDPOINT_ROLES = {
+    # Administrative operations - admin only
+    '/fledge/shutdown': ['admin'],
+    '/fledge/restart': ['admin'],
+    '/fledge/service': ['admin'],
+    '/fledge/certificate': ['admin'],
+    
+    # Configuration management - admin and editor
+    '/fledge/configuration': ['admin', 'editor'],
+    '/fledge/plugins': ['admin', 'editor'],
+    '/fledge/category': ['admin', 'editor'],
+    
+    # Control operations - admin, editor, and control
+    '/fledge/schedule': ['admin', 'editor', 'control'],
+    '/fledge/notification': ['admin', 'editor', 'control'],
+    '/fledge/control/pipeline': ['admin', 'editor', 'control'],
+    '/fledge/control/script': ['admin', 'editor', 'control'],
+    
+    # Data viewing - admin, editor, control, data-view, and view
+    '/fledge/asset': ['admin', 'editor', 'control', 'data-view', 'view'],
+    '/fledge/reading': ['admin', 'editor', 'control', 'data-view', 'view'],
+    '/fledge/statistics': ['admin', 'editor', 'control', 'data-view', 'view'],
+    
+    # General viewing - all authenticated roles
+    '/fledge/ping': ['admin', 'editor', 'control', 'data-view', 'view'],
+    '/fledge/health': ['admin', 'editor', 'control', 'data-view', 'view'],
+    '/fledge/audit': ['admin', 'editor', 'control', 'data-view', 'view'],
+    
+    # Public endpoints - no authentication required
+    '/fledge/login': [],
+    '/fledge/logout': []
+}
+
+# Role Hierarchy (from most to least privileged):
+# admin      - Full system access, can modify everything
+# editor     - Can modify configurations and data processing
+# control    - Can manage control operations and pipelines  
+# data-view  - Can view data and readings but not modify
+# view       - Basic viewing access, limited data access
+
+# Middleware automatically enforces these role requirements
+# No need to implement role checking in individual handlers
+```
+
+### Security Best Practices for Middleware
+- **Centralized Role Management**: All role validation handled in middleware.py
+- **Handler Independence**: Handlers focus on business logic, not security
+- **Consistent Enforcement**: Same security rules applied across all endpoints
+- **Configuration-Based**: Role requirements configured, not hardcoded
+- **Audit Trail**: Middleware logs all security validation attempts
+- **Error Handling**: Proper HTTP status codes for authorization failures
+
+### REST API Standards
+- Use proper HTTP status codes (200, 201, 400, 401, 403, 404, 500)
+- Implement proper authentication/authorization through middleware
+- Validate all input parameters thoroughly
+- Return consistent JSON response formats (camelCase for API keys)
+- Include comprehensive error handling and logging
+- Follow RESTful conventions for HTTP methods and endpoints
+- Apply security middleware to all protected endpoints
+- Use role-based access control for sensitive operations
+
+## Microservice Communication
+- Use the microservice management client from [python/fledge/common/microservice_management_client/](mdc:python/fledge/common/microservice_management_client/)
+- Handle service discovery properly
+- Implement proper retry logic with exponential backoff
+- Use appropriate timeouts for service calls
+
+## Async/Await Patterns
+- Use async/await for I/O operations (database, HTTP, file operations)
+- Properly handle asyncio event loops
+- Use aiohttp for HTTP client operations
+- Follow existing async patterns in the codebase
+- Be mindful of blocking operations in async contexts

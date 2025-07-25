@@ -309,6 +309,8 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 
 	// Set filter pipeline is ready for data ingest
 	m_ready = true;
+	// Set the service handler for the pipeline
+	m_serviceHandler = (ServiceHandler *)ingest;
 
 	//Success
 	return true;

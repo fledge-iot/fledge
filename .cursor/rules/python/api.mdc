@@ -5,7 +5,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Python API Development Rules
+# Python API Development Rules
 
 ## Python Version & Platform Requirements
 
@@ -219,7 +219,7 @@ ENDPOINT_ROLES = {
     '/fledge/logout': []
 }
 
-# Fledge Role Hierarchy (from most to least privileged):
+# Role Hierarchy (from most to least privileged):
 # admin      - Full system access, can modify everything
 # editor     - Can modify configurations and data processing
 # control    - Can manage control operations and pipelines  

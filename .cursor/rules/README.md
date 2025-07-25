@@ -8,16 +8,16 @@ Rules are organized for Python development and documentation:
 
 ```
 .cursor/rules/
-├── README.md              # This usage guide
-├── python/                # Python-specific rules (Python 3.8.10-3.12, Ubuntu LTS 20.04+, Raspberry Pi)
+├── README.md             # This usage guide
+├── python/               # Python-specific rules (Python 3.8.10-3.12, Ubuntu LTS 20.04+, Raspberry Pi)
 │   ├── core.mdc          # Core Python standards + platform requirements
 │   ├── api.mdc           # REST API + web framework dependencies
 │   ├── config.mdc        # Configuration management + validation deps
 │   └── quality.mdc       # Dependencies, logging, performance + requirements.txt
-├── tests/                 # Testing-specific rules
-│   └── python/            # Python testing rules
+├── tests/                # Testing-specific rules
+│   └── python/           # Python testing rules
 │       ├── unit.mdc      # Unit testing rules - pytest, coverage, best practices
-│       └── api.mdc       # System API testing rules - conftest fixtures, http.client patterns
+│       └── api.mdc       # API integration testing rules - conftest fixtures, http.client patterns
 └── docs.mdc              # Documentation guidelines
 ```
 
@@ -30,7 +30,7 @@ Rules are organized for Python development and documentation:
 | `@python/config` | Configuration system, data formats | Config files, configuration modules |
 | `@python/quality` | Dependencies, logging, performance | Requirements files |
 | `@tests/python/unit` | Unit testing with pytest | Unit test files, test configuration |
-| `@tests/python/api` | System API testing with http.client | System API test files, conftest.py |
+| `@tests/python/api` | API integration testing with http.client | API integration test files, conftest.py |
 | `@docs` | Documentation writing | `docs/**/*`, `*.rst` |
 
 ## 🏗️ Shared Platform & Dependencies
@@ -94,7 +94,7 @@ docs/quick_start/installing.rst → @docs rules active
 
 @python/core @tests/python/unit Create a service class with comprehensive unit tests
 
-@tests/python/api @python/api Create system API tests for new REST endpoints
+@tests/python/api @python/api Create API integration tests for new REST endpoints
 ```
 
 ## 💡 Context-Aware Prompts
@@ -157,9 +157,9 @@ Using @tests/python/unit rules, create unit tests that:
 - Include code coverage setup
 ```
 
-### System API Testing
+### API integration Testing
 ```
-Using @tests/python/api rules, create system API tests that:
+Using @tests/python/api rules, create API integration tests that:
 - Use http.client library exclusively (no requests)
 - Leverage conftest.py fixtures like reset_and_start_fledge
 - Test API endpoints with proper authentication
@@ -191,7 +191,7 @@ I'm creating a new Fledge service that includes:
 - Python backend (@python/core @python/api)
 - Configuration management (@python/config)  
 - Unit testing (@tests/python/unit)
-- System API testing (@tests/python/api)
+- API integration testing (@tests/python/api)
 - Complete documentation (@docs)
 ```
 
@@ -347,9 +347,9 @@ Create comprehensive unit tests that:
 - Test both success and failure scenarios
 ```
 
-### System API Testing (@tests/python/api)
+### API integration Testing (@tests/python/api)
 ```
-Create system API tests that:
+Create API integration tests that:
 - Use http.client library exclusively
 - Leverage conftest.py fixtures for environment setup
 - Test API endpoints with authentication flows

@@ -5,7 +5,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Python Quality & Best Practices Rules
+# Python Quality & Best Practices Rules
 
 ## Dependencies & Requirements Management
 
@@ -41,7 +41,7 @@ author: "Ashish Jabble"
 
 ## Logging
 
-### Fledge Logging Framework
+### Logging Framework
 - **Use FLCoreLogger class** for all logging operations
 - **Multi-stacktrace support**: FLCoreLogger handles complex stacktrace scenarios
 - Import from fledge.common.logger: `from fledge.common.logger import FLCoreLogger`

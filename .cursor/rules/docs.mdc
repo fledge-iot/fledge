@@ -8,7 +8,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Documentation Directory Cursor Rules
+# Documentation Directory Cursor Rules
 
 ## Overview
 This file contains specific rules for working with documentation in the `/docs` directory of the Fledge project. These rules supplement the main project cursor rules and focus on documentation-specific patterns and conventions.

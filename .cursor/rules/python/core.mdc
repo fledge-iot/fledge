@@ -5,7 +5,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Python Core Development Rules
+# Python Core Development Rules
 
 ## Python Version & Platform Requirements
 

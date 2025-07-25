@@ -1,16 +1,16 @@
 ---
-description: "Python system API testing rules for Fledge - conftest fixtures, HTTP client patterns, and API test organization"
+description: "Python API integration testing rules for Fledge - conftest fixtures, HTTP client patterns, and API test organization"
 globs: "tests/system/python/api/**/*.py,tests/system/python/conftest.py"
 alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge System API Testing Guidelines
+# API integration Testing Guidelines
 
 ## Test Organization & Structure
 
 ### Directory Structure
-- **System API Tests**: Located in [tests/system/python/api/](mdc:tests/system/python/api/)
+- **API integration Tests**: Located in [tests/system/python/api/](mdc:tests/system/python/api/)
 - **Main conftest**: [tests/system/python/conftest.py](mdc:tests/system/python/conftest.py) - Contains shared fixtures
 - **pytest Configuration**: [tests/system/python/pytest.ini](mdc:tests/system/python/pytest.ini)
 - **Test Documentation**: Follow [tests/README.rst](mdc:tests/README.rst) for execution instructions

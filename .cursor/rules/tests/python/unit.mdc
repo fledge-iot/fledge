@@ -5,7 +5,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Python Unit Testing Guidelines
+# Python Unit Testing Guidelines
 
 ## Test Organization & Structure
 

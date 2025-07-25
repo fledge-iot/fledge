@@ -5,7 +5,7 @@ alwaysApply: false
 author: "Ashish Jabble"
 ---
 
-# Fledge Python Configuration & Data Management Rules
+# Python Configuration & Data Management Rules
 
 ## Python Version & Platform Requirements
 
@@ -29,7 +29,7 @@ author: "Ashish Jabble"
 
 ## Configuration Management
 
-### Fledge Configuration System
+### Configuration System
 - Use the Fledge configuration management system consistently
 - Store configuration in JSON format
 - Validate configuration parameters thoroughly

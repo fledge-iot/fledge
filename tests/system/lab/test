@@ -489,7 +489,10 @@ fi
 
 echo "======================= RANDOMWALK SETUP 2 COMPLETE ======================="
 
+# TODO: Remove the  conditional statement once FOGL-9521 is fixed
 
+VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=" | tr -d '"')
+if [[ "${VERSION_CODENAME}" != "bookworm" ]]; then
 # Add Enviro-pHAT South
 curl -sX POST "$URL/service" -d \
 '{
@@ -542,7 +545,7 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
 fi
 
 echo "======================= enviro-pHAT SETUP COMPLETE ======================="
-
+fi
 
 # Enable Event Engine
 curl -sX POST "$URL/service" -d \

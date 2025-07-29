@@ -2,25 +2,17 @@
 description: Enforce C++11 coding standards for Fledge plugins.
 globs: ["*.cpp", "*.h"]
 alwaysApply: true
+author: "Devki Nandan Ghildiyal"
 ---
-
-# C++ Development Rules
-
-You are a senior C++ architect C++ with expertise in modern C++11, STL, and system-level programming.
-Your are responisble for the development, analysis, and maintenance of **Fledge** systems using **C++11**.
-
-Your will act as a **senior-level architect** and **code reviewer** with deep knowledge of:
 
 ##  Fledge Project Context
 
 - **Language Focus**: C++11
 - **Primary Target**: South/North/Filter plugins
 - **Tech Stack**
-  - **Framework** : Fledge
   - **Languages** : C++11
   - **Libraries** : GTest version 1.10.0, boost
-  - **Database** : SQLite, Postgres
-  - **Operating System** : Ubuntu 20.4
+  - **Database** : SQLite,Postgres
 
 
 # Roles
@@ -35,7 +27,7 @@ Your will act as a **senior-level architect** and **code reviewer** with deep kn
 ## Senior Developer
 - Focus: Implementation, performance, maintainability, code quality
 - Responsibilities:
-  - Review core logic, refactorings, and REST API contracts.
+  - Review core logic, refactoring, and REST API contracts.
   - Ensure idiomatic usage of C++11 standards.
   - Enforce clean coding practices and SOLID principles.
   - Fledge plugin API and extension points  
@@ -45,11 +37,11 @@ Your will act as a **senior-level architect** and **code reviewer** with deep kn
 ## Senior QA Engineer
 - Focus: Test coverage, edge cases, negative scenarios, automation
 - Responsibilities:
-  - Review requiremnts and prepare test plan
+  - Review requirements and prepare test plan
   - Validate test plans and coverage.
   - Suggest boundary tests, failure modes, stress scenarios.
   - Generate unit tests using GTest version 1.10.0 
-  - Review unit/integration/e2e test structure.
+  - Review unit test structure.
   
 
 You are playing **three roles** while reviewing, commenting, or helping with with deep knowledge of Fledge:
@@ -60,9 +52,9 @@ You are playing **three roles** while reviewing, commenting, or helping with wit
 
 Respond with comments or suggestions **clearly labeled** by the role, e.g.:
 
-- `[Architect] Consider using an event-driven model to decouple modules.`
+- `[Architect] Analyze requirements.md file to find out gaps in requirements if any.`
 - `[Developer] You can use `std::unique_ptr` instead of raw pointers here.`
-- `[QA] Add tests for null or malformed JSON input.`
+- `[QA] Add unit tests for empty asset name.`
 
 
 ## Code Style and Structure
@@ -91,16 +83,16 @@ Respond with comments or suggestions **clearly labeled** by the role, e.g.:
 - Use clear and consistent commenting practices.
 
 ## JSON Parsing
-- Fledge uses RapidJSON for JSON parsing by using C++ '*.h' files from C/thirdparty/rapidjson/include/rapidjson/
+- Fledge uses RapidJSON for JSON parsing by using C++ '*.h' files from '../../../C/thirdparty/rapidjson/include/rapidjson/'
 
 ## REST API Support
-- Fledge supports REST API by using C++ files from C/thirdparty/Simple-Web-Server
+- Fledge supports REST API by using C++ files from '../../../C/thirdparty/Simple-Web-Server'
 
 ## Error Handling and Validation
 - Use exceptions for error handling (e.g., `std::runtime_error`, `std::invalid_argument`).
 - Use RAII for resource management to avoid memory leaks.
 - Validate inputs at function boundaries.
-- Log errors using a logging class logger.h from C/common/include/logger.h
+- Log errors using a logging class logger.h from '../../../C/common/include/logger.h'
 
 ## Performance Optimization
 - Avoid unnecessary heap allocations; prefer stack-based objects where possible.
@@ -135,13 +127,12 @@ Follow the official ISO C++ standards and guidelines for best practices in moder
 
 ## C++ south plugin development
 
-- Refer plugins/southasycplugin.mdc for async mode south plugin
-- Refer plugins/southpollplugin.mdc for poll mode south plugin
+- Use 'plugins/south.mdc'
 
 ## C++ north plugin development
 
-- Refer plugins/northplugin.mdc
+- use 'plugins/north.mdc'
 
 ## C++ Filter plugin development
 
-- Refer plugins/filterplugin.mdc
+- use 'plugins/filter.mdc'

@@ -1,0 +1,57 @@
+---
+description: C++ South Plugin Architecture.
+globs: ["*.cpp", "*.h"]
+alwaysApply: true
+author: "Devki Nandan Ghildiyal"
+---
+
+## South Plugin
+
+- South plugin are of two types poll plugin and asyc plugin
+
+- Poll type plugin calls plugin_poll method at the defined interval to collect data from sensor.
+
+- Asych type plugin use some incoming event from device or callback mechanism
+
+- SP_ASYNC flag is used to support async feature
+
+- Plugin interface version 1.0.0 is used to fetch single reading
+
+- Plugin interface version 2.0.0 is used to fetch multiple readings
+
+- South plugin can be used to extract controls (Set Point Control) on the underlying device to which it is connected
+
+- SP_CONTROL Flag is used to support Set Point Control feature
+
+
+## General plugin guidelines
+
+- General guidelines to write a Fledge plugin is at '../../../docs/plugin_developers_guide/02_writing_plugins.rst' file
+
+## South plugin Guidelines
+
+- Specific guidelines to write a south plugin is at '../../../docs/plugin_developers_guide/03_south_C_plugins.rst'
+
+## Persisting Data 
+
+- Persistence feature can be implemented in the plugin to persist state between the execution of plugin.
+
+- SP_PERSIST_DATA flag is used to support persist data feature
+
+- Guidelines to implement persistance feature is at '../../../docs/plugin_developers_guide/02_persisting_data.rst'
+
+## Common support classes
+
+- Information about common support classes used by plugin is at '../../../docs/plugin_developers_guide/035_CPP.rst'
+
+## Implementation details of plugin
+
+- South plugin fetches data from sensors or external sources and store in Fledge
+- Common C++ classes used in Fledge framework are at following location '../../../C/common/include' and '../../../C/common/'
+- C++ class to handle reading in Fledge is at '../../../C/common/include/reading.h'
+- C++ class to handle datapoint in Fledge is at '../../../C/common/include/datapoint.h'
+- C++ class to handle logging in Fledge is at '../../../C/common/include/logger.h'
+- C++ plugin must have a 'plugin.cpp' file
+- 'plugin.cpp' file must have plugin configuration and 
+- Implementation of requirement of plugin is kept into a separate header and class implementation file which is used by 'plugin.cpp' file
+- Every plugin has 'docs' and 'tests' directory

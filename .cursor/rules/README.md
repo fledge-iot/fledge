@@ -8,6 +8,12 @@ Rules are organized for Python development and documentation:
 
 ```
 .cursor/rules/
+├── C
+│   ├── core.mdc          # Core C++ Standards + + platform requirements
+│   └── plugins
+│       ├── filter.mdc    # C++ filter plugin rules
+│       ├── north.mdc     # C++ north plugin rules
+│       └── south.mdc     # C++ south plugin rules
 ├── README.md             # This usage guide
 ├── python/               # Python-specific rules (Python 3.8.10-3.12, Ubuntu LTS 20.04+, Raspberry Pi)
 │   ├── core.mdc          # Core Python standards + platform requirements
@@ -25,6 +31,10 @@ Rules are organized for Python development and documentation:
 
 | Rule File | Purpose | Applies To |
 |-----------|---------|------------|
+| `@C/core` | Core C++ standards,| `*.h`, `*.cpp` |
+| `@C/plugins/south` | C++ South Plugin| `*.h`, `*.cpp` |
+| `@C/plugins/north` | C++ North Plugin| `*.h`, `*.cpp` |
+| `@C/plugins/filter` | C++ Filter Plugin| `*.h`, `*.cpp` |
 | `@python/core` | Core Python standards, naming, imports | `*.py`, `python/**/*` |
 | `@python/api` | REST APIs, routes, middleware | API files, routes.py, web middleware |
 | `@python/config` | Configuration system, data formats | Config files, configuration modules |

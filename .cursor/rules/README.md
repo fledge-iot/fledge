@@ -48,6 +48,7 @@ Rules are organized for Python development and documentation:
 All Python rules include consistent platform and dependency information:
 
 ### **Platform Requirements** (Built into all Python rules)
+- **C++ Standard**: C++11
 - **Python Versions**: 3.8.10 - 3.12 (inclusive)
 - **Ubuntu**: LTS versions, 20.04 onwards (x86_64 & aarch64)
 - **Raspberry Pi OS**: Bullseye and Bookworm (aarch64 & armv7l)

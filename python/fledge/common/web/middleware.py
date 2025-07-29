@@ -103,9 +103,9 @@ async def auth_middleware(app, handler):
                 await validate_requests(request)
             except User.SessionTimeout as e:
                 await User.Objects.delete_token(token)
-                raise web.HTTPUnauthorized(reason=e)
+                raise web.HTTPUnauthorized(reason=str(e))
             except (jwt.DecodeError, jwt.ExpiredSignatureError, User.InvalidToken, User.TokenExpired) as e:
-                raise web.HTTPUnauthorized(reason=e)
+                raise web.HTTPUnauthorized(reason=str(e))
             except jwt.exceptions.InvalidAlgorithmError:
                 raise web.HTTPUnauthorized(reason="The token has expired, login again.")
         else:

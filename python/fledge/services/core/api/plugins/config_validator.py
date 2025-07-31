@@ -14,7 +14,7 @@ from aiohttp import web
 from fledge.common.logger import FLCoreLogger
 
 __author__ = "Ashish Jabble"
-__copyright__ = "Copyright (c) 2024 Dianomic Systems Inc."
+__copyright__ = "Copyright (c) 2025 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 

@@ -37,8 +37,8 @@ class ConfigurationValidator:
     # Configuration item names to check (case insensitive)
     ADDRESS_FIELDS = ['address', 'ip', 'server', 'host', 'hostname']
     URL_FIELDS = ['url']
-    BROKER_FIELDS = ['broker']
-    PORT_FIELDS = ['port']
+    BROKER_FIELDS = ['broker', 'brokerhost']
+    PORT_FIELDS = ['port', 'brokerport']
     
     # Standard protocol ports
     STANDARD_PORTS = {
@@ -163,9 +163,12 @@ class ConfigurationValidator:
             tuple: (hostname, port, protocol) or (None, None, None) if invalid
         """
         try:
-            # Handle special protocols like opc.tcp
+            # Handle special protocols like opc.tcp and tcp (MQTT)
             if url_string.startswith('opc.tcp://'):
                 url_string = url_string.replace('opc.tcp://', 'opcua://')
+            elif url_string.startswith('tcp://'):
+                # Convert tcp:// to mqtt:// for standard parsing
+                url_string = url_string.replace('tcp://', 'mqtt://')
             
             parsed = urlparse(url_string)
             
@@ -176,9 +179,18 @@ class ConfigurationValidator:
             port = parsed.port
             protocol = parsed.scheme.lower()
             
+            # Map back to original protocol names
+            if protocol == 'opcua':
+                protocol = 'opc.tcp'
+            elif protocol == 'mqtt' and 'tcp://' in url_string:
+                protocol = 'tcp'  # Original was tcp://
+
             # Use standard port if not specified
             if port is None and protocol in self.STANDARD_PORTS:
                 port = self.STANDARD_PORTS[protocol]
+            elif port is None and protocol == 'tcp':
+                # Default MQTT port for tcp:// URLs
+                port = self.STANDARD_PORTS['mqtt']
                 
             return hostname, port, protocol
             
@@ -197,7 +209,7 @@ class ConfigurationValidator:
             bool: True if value appears to be a URL
         """
         url_pattern = re.compile(
-            r'^(https?|ftp|mqtt|mqtts|opcua|opc\.tcp|coap|coaps)://'
+            r'^(https?|ftp|mqtt|mqtts|opcua|opc\.tcp|tcp|coap|coaps)://'
             r'[\w\-\.]+(:\d+)?(/.*)?$',
             re.IGNORECASE
         )
@@ -241,6 +253,11 @@ class ConfigurationValidator:
                     _logger.debug(f"Docker hostname detected: {hostname}")
                     return True, f"Docker hostname '{hostname}' is resolvable and assumed reachable"
                 
+                # Special handling for localhost and loopback addresses - these are always considered reachable if they resolve
+                if hostname.lower() in ['localhost', '127.0.0.1', '::1'] or hostname.startswith('127.'):
+                    _logger.debug(f"Localhost/loopback address detected: {hostname}")
+                    return True, f"Localhost address '{hostname}' is always reachable"
+
                 # Try to connect to each resolved address on a common port
                 # We'll try port 80 (HTTP) as it's commonly open and fast to test
                 for family, socktype, proto, canonname, sockaddr in addr_info:
@@ -416,6 +433,7 @@ class ConfigurationValidator:
         # Process brokers
         for item in config_items['brokers']:
             if self.is_url(item['value']):
+                # Broker is a URL
                 hostname, _, _ = self.parse_url(item['value'])
                 if hostname:
                     hosts_to_test.add(hostname)
@@ -428,7 +446,9 @@ class ConfigurationValidator:
                         "values": [{item['name']: item['value']}]
                     }
             else:
-                hosts_to_test.add(item['value'])
+                # Broker is hostname only or brokerHost
+                hostname = item['value']
+                hosts_to_test.add(hostname)
                 test_values.append({item['name']: item['value']})
         
         if not hosts_to_test:
@@ -468,51 +488,154 @@ class ConfigurationValidator:
         """
         connections_to_test = []
         test_values = []
+        processed_combinations = set()  # Track processed host:port combinations to avoid duplicates
         
-        # Find port and corresponding address combinations
-        if config_items['ports']:
-            port_item = config_items['ports'][0]  # Use first port found
-            port = port_item['value']
+        # Handle separated broker host/port fields first (most specific)
+        broker_hosts = [item for item in config_items['brokers'] if 'host' in item['name'].lower()]
+        broker_ports = [item for item in config_items['ports'] if 'broker' in item['name'].lower()]
+
+        # Pair broker hosts with broker ports
+        for host_item in broker_hosts:
+            hostname = host_item['value']
+            port = None
             
-            # Look for corresponding address
-            address = None
-            for item in config_items['addresses']:
-                address = item['value']
-                # Combine address and port into single object
-                test_values.append({
-                    item['name']: item['value'],
-                    port_item['name']: str(port)
-                })
+            # Find corresponding broker port
+            for port_item in broker_ports:
+                port = port_item['value']
+                combination_key = f"{hostname}:{port}"
+                if combination_key not in processed_combinations:
+                    # Combine broker host and port into single object
+                    test_values.append({
+                        host_item['name']: hostname,
+                        port_item['name']: str(port)
+                    })
+                    connections_to_test.append((hostname, port))
+                    processed_combinations.add(combination_key)
                 break
             
-            if address:
-                connections_to_test.append((address, port))
+            if not port:
+                # Use MQTT defaults if no broker port found
+                for default_port in [1883, 8883]:  # MQTT, MQTTS
+                    combination_key = f"{hostname}:{default_port}"
+                    if combination_key not in processed_combinations:
+                        connections_to_test.append((hostname, default_port))
+                        processed_combinations.add(combination_key)
+
+                test_values.append({
+                    host_item['name']: hostname,
+                    "default_ports": "1883,8883"
+                })
         
+        # Process broker URLs
+        for item in config_items['brokers']:
+            if self.is_url(item['value']):
+                # Broker is a URL
+                hostname, port, protocol = self.parse_url(item['value'])
+                if hostname and port:
+                    combination_key = f"{hostname}:{port}"
+                    if combination_key not in processed_combinations:
+                        connections_to_test.append((hostname, port))
+                        test_values.append({item['name']: item['value']})
+                        processed_combinations.add(combination_key)
+            else:
+                # Broker is hostname only (check if not already processed by broker host/port logic)
+                if not any('host' in broker['name'].lower() for broker in config_items['brokers']):
+                    hostname = item['value']
+                    port = None
+
+                    # Look for a corresponding port field
+                    for port_item in config_items['ports']:
+                        # Skip broker-specific ports as they're handled separately
+                        if 'broker' not in port_item['name'].lower():
+                            port = port_item['value']
+                            combination_key = f"{hostname}:{port}"
+                            if combination_key not in processed_combinations:
+                                # Combine broker and port into single object
+                                test_values.append({
+                                    item['name']: item['value'],
+                                    port_item['name']: str(port)
+                                })
+                                connections_to_test.append((hostname, port))
+                                processed_combinations.add(combination_key)
+                            break
+
+                    # If no explicit port, use MQTT defaults
+                    if port is None:
+                        # Try both standard MQTT ports
+                        for default_port in [1883, 8883]:  # MQTT, MQTTS
+                            combination_key = f"{hostname}:{default_port}"
+                            if combination_key not in processed_combinations:
+                                connections_to_test.append((hostname, default_port))
+                                processed_combinations.add(combination_key)
+
+                        test_values.append({
+                            item['name']: item['value'],
+                            "default_ports": "1883,8883"
+                        })
+
         # Process URLs with ports
         for item in config_items['urls']:
             hostname, port, protocol = self.parse_url(item['value'])
             if hostname and port:
-                connections_to_test.append((hostname, port))
-                test_values.append({item['name']: item['value']})
-        
-        # Process brokers
-        for item in config_items['brokers']:
-            if self.is_url(item['value']):
-                hostname, port, protocol = self.parse_url(item['value'])
-                if hostname and port:
+                combination_key = f"{hostname}:{port}"
+                if combination_key not in processed_combinations:
                     connections_to_test.append((hostname, port))
                     test_values.append({item['name']: item['value']})
-            else:
-                # Broker as hostname, look for port
-                if config_items['ports']:
-                    port_item = config_items['ports'][0]
-                    port = port_item['value']
-                    connections_to_test.append((item['value'], port))
-                    # Combine broker and port into single object
+                    processed_combinations.add(combination_key)
+
+        # Handle standard address + port combinations (skip if broker processing already handled them)
+        if config_items['ports'] and not broker_hosts:
+            port_item = config_items['ports'][0]  # Use first port found
+            port = port_item['value']
+
+            # Look for corresponding address
+            address = None
+            for item in config_items['addresses']:
+                address = item['value']
+                combination_key = f"{address}:{port}"
+                if combination_key not in processed_combinations:
+                    # Combine address and port into single object
                     test_values.append({
                         item['name']: item['value'],
                         port_item['name']: str(port)
                     })
+                    connections_to_test.append((address, port))
+                    processed_combinations.add(combination_key)
+                break
+
+        # Handle addresses without ports (like S7, EtherIP) - use common protocol ports
+        if not connections_to_test and config_items['addresses']:
+            for address_item in config_items['addresses']:
+                hostname = address_item['value']
+
+                # Try common protocol ports based on field names only
+                field_name = address_item['name'].lower()
+                default_ports = []
+
+                if 'ip' in field_name:
+                    # IP fields often used for industrial protocols
+                    default_ports = [102, 44818, 502, 80, 443]  # S7, EtherNet/IP, Modbus, HTTP, HTTPS
+                elif 'address' in field_name:
+                    # Address fields commonly used for network services
+                    default_ports = [502, 80, 443]  # Modbus, HTTP, HTTPS
+                elif 'host' in field_name or 'server' in field_name:
+                    # Host/server fields typically web services
+                    default_ports = [80, 443]  # HTTP, HTTPS
+                else:
+                    # Generic network address
+                    default_ports = [80, 443]  # HTTP, HTTPS
+
+                for default_port in default_ports:
+                    combination_key = f"{hostname}:{default_port}"
+                    if combination_key not in processed_combinations:
+                        connections_to_test.append((hostname, default_port))
+                        processed_combinations.add(combination_key)
+
+                test_values.append({
+                    address_item['name']: hostname,
+                    "default_ports": ",".join(map(str, default_ports))
+                })
+                break  # Only process first address to avoid duplicates
         
         if not connections_to_test:
             return None  # No applicable tests

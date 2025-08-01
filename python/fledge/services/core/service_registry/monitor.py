@@ -55,10 +55,8 @@ class Monitor(object):
 
         self.restarted_services = []
         self._acl_handler = None
-        # Option to generate automated support bundles for failed services
-        self._auto_support_bundle = True # type: bool
-        # Number of support bundles to retain
-        self._support_bundle_retain_count = 1 # type: int
+        # Support bundle config
+        self._support_bundle_config = None
         # Alert manager instance to raise alerts
         self._alert_manager = None
 
@@ -152,7 +150,7 @@ class Monitor(object):
                 if check_count[service_record._id] > self._max_attempts:
                     ServiceRegistry.mark_as_failed(service_record._id)
                     check_count[service_record._id] = 0
-                    if self._auto_support_bundle:
+                    if self._support_bundle_config['auto_support_bundle']['value'] == 'true':
                         self._logger.info("Service %s failed, creating automated support bundle",
                                           service_record._name)
                         asyncio.create_task(self.create_automated_support_bundle(service_record._name))
@@ -169,7 +167,7 @@ class Monitor(object):
             from fledge.services.core.support import SupportBuilder
             from fledge.common.common import _FLEDGE_DATA
             support_dir = _FLEDGE_DATA + "/support" if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/support"
-            builder = SupportBuilder(support_dir, self._support_bundle_retain_count)
+            builder = SupportBuilder(support_dir, self._support_bundle_config)
             bundle_name = await builder.build(service_name)
             # Raise alert about support bundle creation
             await self.raise_support_bundle_alert(service_name, bundle_name)
@@ -239,8 +237,7 @@ class Monitor(object):
         self._ping_timeout = int(config['ping_timeout']['value'])
         self._max_attempts = int(config['max_attempts']['value'])
         self._restart_failed = config['restart_failed']['value']
-        self._auto_support_bundle = support_bundle_config['auto_support_bundle']['value'] == 'true'
-        self._support_bundle_retain_count = max(1, int(support_bundle_config['support_bundle_retain_count']['value']))
+        self._support_bundle_config = support_bundle_config
 
     async def restart_service(self, service_record):
         from fledge.services.core import server  # To avoid cyclic import as server also imports monitor

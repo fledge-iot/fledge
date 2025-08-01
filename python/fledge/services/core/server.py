@@ -626,11 +626,12 @@ class Server:
                     "default": "true",
                     "displayName": "Auto Generate On Failure"
                 },
-                "support_bundle_retain_count": { "description": "Number of support bundles to retain (minimum 1)",
-                "type": "integer",
-                "default": "3",
-                "minimum": "1",
-                "displayName": "Bundles To Retain"
+                "support_bundle_retain_count": { 
+                    "description": "Number of support bundles to retain (minimum 1)",
+                    "type": "integer",
+                    "default": "3",
+                    "minimum": "1",
+                    "displayName": "Bundles To Retain"
                 }
             }
 

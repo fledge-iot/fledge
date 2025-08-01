@@ -46,9 +46,11 @@ class SupportBuilder:
     _storage = None
     _num_of_files_to_retain = 1
 
-    def __init__(self, support_dir, num_of_files_to_retain=1):
+    def __init__(self, support_dir, support_bundle_config=None):
         try:
-            self._num_of_files_to_retain = num_of_files_to_retain
+            if support_bundle_config:
+                self._num_of_files_to_retain = int(support_bundle_config['support_bundle_retain_count']['value'])
+
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
             else:
@@ -61,11 +63,11 @@ class SupportBuilder:
             _LOGGER.error(ex, "Error in initializing SupportBuilder class.")
             raise RuntimeError(str(ex))
 
-    async def build(self, service_name=None):
+    async def build(self, name=None):
         try:
             today = datetime.datetime.utcnow()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
-            support_file_name = "support-{}-{}".format(service_name, file_spec) if service_name else "support-{}".format(file_spec)
+            support_file_name = f"support-{name}-{file_spec}" if name else f"support-{file_spec}"
             tar_file_name = self._out_file_path+"/"+support_file_name+".tar.gz"
             pyz = tarfile.open(tar_file_name, "w:gz")
             try:

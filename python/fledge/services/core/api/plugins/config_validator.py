@@ -269,46 +269,39 @@ class ConfigurationValidator:
                             # Test connectivity using a socket connection to port 80
                             # This is faster and more reliable than ping in containers
                             test_port = 80  # HTTP port - commonly accessible
-                            
                             _logger.debug(f"Testing connectivity to {ip_addr}:{test_port}")
-                            
                             # Create socket connection with short timeout
-                            sock = socket.socket(family, socket.SOCK_STREAM)
-                            sock.settimeout(3)  # 3 second timeout
-                            
                             try:
-                                result = await asyncio.get_event_loop().run_in_executor(
-                                    None, sock.connect, (ip_addr, test_port)
-                                )
-                                sock.close()
-                                _logger.debug(f"Successfully connected to {ip_addr}:{test_port}")
-                                return True, f"Host '{hostname}' is reachable"
-                                
+                                with socket.socket(family, socket.SOCK_STREAM) as sock:
+                                    sock.settimeout(3)  # 3 second timeout
+
+                                    result = await asyncio.get_event_loop().run_in_executor(
+                                        None, sock.connect, (ip_addr, test_port)
+                                    )
+                                    _logger.debug(f"Successfully connected to {ip_addr}:{test_port}")
+                                    return True, f"Host '{hostname}' is reachable"
+
                             except (socket.timeout, OSError) as conn_err:
-                                sock.close()
                                 _logger.debug(f"Connection to {ip_addr}:{test_port} failed: {conn_err}")
                                 
                                 # Try a few more common ports to increase success rate
                                 for alt_port in [443, 22, 53]:  # HTTPS, SSH, DNS
                                     try:
-                                        sock = socket.socket(family, socket.SOCK_STREAM)
-                                        sock.settimeout(2)  # Shorter timeout for alt ports
-                                        
-                                        await asyncio.get_event_loop().run_in_executor(
-                                            None, sock.connect, (ip_addr, alt_port)
-                                        )
-                                        sock.close()
-                                        _logger.debug(f"Successfully connected to {ip_addr}:{alt_port}")
-                                        return True, f"Host '{hostname}' is reachable"
+                                        with socket.socket(family, socket.SOCK_STREAM) as sock:
+                                            sock.settimeout(2)  # Shorter timeout for alt ports
+
+                                            await asyncio.get_event_loop().run_in_executor(
+                                                None, sock.connect, (ip_addr, alt_port)
+                                            )
+                                            _logger.debug(f"Successfully connected to {ip_addr}:{alt_port}")
+                                            return True, f"Host '{hostname}' is reachable"
                                         
                                     except (socket.timeout, OSError):
-                                        sock.close()
                                         continue
                                 
                                 # If we get here, the host might be up but not responding on tested ports
                                 # This is still considered "reachable" from a network perspective
                                 continue
-                        
                         except Exception as e:
                             _logger.debug(f"Error testing {ip_addr}: {e}")
                             continue
@@ -326,7 +319,6 @@ class ConfigurationValidator:
                     return False, f"Temporary DNS failure for '{hostname}' - please try again later"
                 else:
                     return False, f"DNS lookup failed for '{hostname}'"
-                    
         except asyncio.TimeoutError:
             _logger.warning(f"Host reachability test timed out for {hostname}")
             return False, f"Connection test to '{hostname}' timed out - host may be unreachable"

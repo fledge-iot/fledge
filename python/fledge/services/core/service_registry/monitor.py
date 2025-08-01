@@ -165,7 +165,7 @@ class Monitor(object):
         """Create support bundle asynchronously when service fails"""
         try:
             from fledge.services.core.support import SupportBuilder
-            from fledge.common.common import _FLEDGE_DATA, _FLEDGE_DATA
+            from fledge.common.common import _FLEDGE_DATA, _FLEDGE_ROOT
             support_dir = _FLEDGE_DATA + "/support" if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/support"
             builder = SupportBuilder(support_dir, self._support_bundle_config)
             bundle_name = await builder.build(service_name)

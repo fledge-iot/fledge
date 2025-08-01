@@ -165,15 +165,13 @@ class Monitor(object):
         """Create support bundle asynchronously when service fails"""
         try:
             from fledge.services.core.support import SupportBuilder
-            from fledge.common.common import _FLEDGE_DATA
+            from fledge.common.common import _FLEDGE_DATA, _FLEDGE_DATA
             support_dir = _FLEDGE_DATA + "/support" if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/support"
             builder = SupportBuilder(support_dir, self._support_bundle_config)
             bundle_name = await builder.build(service_name)
             # Raise alert about support bundle creation
             await self.raise_support_bundle_alert(service_name, bundle_name)
-            
-            self._logger.info("Support bundle created: %s for failed service: %s",
-                            bundle_name, service_name)
+            self._logger.info("Support bundle created: {} for failed service: {}".format(bundle_name, service_name))
         except Exception as ex:
             self._logger.error(ex, "Failed to create support bundle for {}".format(service_name))
     
@@ -231,13 +229,12 @@ class Monitor(object):
         await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
 
         config = await cfg_manager.get_category_all_items('SMNTR')
-        support_bundle_config = await cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
+        self._support_bundle_config = await cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
 
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])
         self._max_attempts = int(config['max_attempts']['value'])
         self._restart_failed = config['restart_failed']['value']
-        self._support_bundle_config = support_bundle_config
 
     async def restart_service(self, service_record):
         from fledge.services.core import server  # To avoid cyclic import as server also imports monitor

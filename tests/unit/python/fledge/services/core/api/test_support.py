@@ -374,4 +374,99 @@ class TestBundleSupport:
                 jdict = json.loads(res)
                 assert actual_count == jdict['count']
 
+
+class TestGetSupportBundleConfig:
+    """Test class for the get_support_bundle_config function"""
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_success(self):
+        """Test successful retrieval of support bundle configuration"""
+        # Mock configuration data that would be returned by ConfigurationManager
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "false",
+                "displayName": "Auto Support Bundle"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock storage client
+        mock_storage_client = Mock()
+        
+        # Mock configuration manager with async method
+        mock_cfg_manager = Mock()
+        
+        # Track calls to get_category_all_items
+        category_calls = []
+        
+        async def mock_get_category_all_items(category):
+            category_calls.append(category)
+            return mock_config
+        
+        mock_cfg_manager.get_category_all_items = mock_get_category_all_items
+        
+        with patch('fledge.services.core.connect.get_storage_async', return_value=mock_storage_client):
+            with patch('fledge.common.configuration_manager.ConfigurationManager', return_value=mock_cfg_manager) as mock_cfg_class:
+                result = await support.get_support_bundle_config()
+                
+                # Verify the function returns the expected configuration
+                assert result == mock_config
+                
+                # Verify ConfigurationManager was called with the storage client
+                mock_cfg_class.assert_called_once_with(mock_storage_client)
+                
+                # Verify get_category_all_items was called with the correct category
+                assert len(category_calls) == 1
+                assert category_calls[0] == 'SUPPORT_BUNDLE'
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_exception(self):
+        """Test exception handling when configuration retrieval fails"""
+        # Mock storage client
+        mock_storage_client = Mock()
+        
+        # Mock configuration manager to raise an exception
+        mock_cfg_manager = Mock()
+        
+        # Track calls and raise exception
+        category_calls = []
+        
+        async def mock_get_category_all_items_error(category):
+            category_calls.append(category)
+            raise Exception("Configuration error")
+        
+        mock_cfg_manager.get_category_all_items = mock_get_category_all_items_error
+        
+        with patch('fledge.services.core.connect.get_storage_async', return_value=mock_storage_client):
+            with patch('fledge.common.configuration_manager.ConfigurationManager', return_value=mock_cfg_manager):
+                # Verify that the exception is properly propagated
+                with pytest.raises(Exception) as exc_info:
+                    await support.get_support_bundle_config()
+                
+                assert str(exc_info.value) == "Configuration error"
+                
+                # Verify the configuration manager was still called
+                assert len(category_calls) == 1
+                assert category_calls[0] == 'SUPPORT_BUNDLE'
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_storage_client_exception(self):
+        """Test exception handling when storage client creation fails"""
+        # Mock connect.get_storage_async to raise an exception
+        with patch('fledge.services.core.connect.get_storage_async', side_effect=Exception("Storage connection error")):
+            # Verify that the exception is properly propagated
+            with pytest.raises(Exception) as exc_info:
+                await support.get_support_bundle_config()
+            
+            assert str(exc_info.value) == "Storage connection error" 
     

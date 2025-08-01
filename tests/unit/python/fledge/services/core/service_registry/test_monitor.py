@@ -185,17 +185,18 @@ class TestMonitor:
                 mock_interest_instance.unregister.return_value = None
                 
                 with patch('asyncio.create_task', side_effect=mock_create_task):
-                    # Simulate the logic from monitor loop when service fails
-                    service_record = ServiceRegistry.get(idx=s_id_1)[0]
-                    check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
-                    
-                    # This is the logic from the monitor loop when max attempts are exceeded
-                    if check_count[service_record._id] > monitor._max_attempts:
-                        ServiceRegistry.mark_as_failed(service_record._id)
-                        check_count[service_record._id] = 0
-                        auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
-                        if auto_support_bundle:
-                            asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
+                    with patch.object(ServiceRegistry._logger, 'info') as log_info_mark_failed:
+                        # Simulate the logic from monitor loop when service fails
+                        service_record = ServiceRegistry.get(idx=s_id_1)[0]
+                        check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
+                        
+                        # This is the logic from the monitor loop when max attempts are exceeded
+                        if check_count[service_record._id] > monitor._max_attempts:
+                            ServiceRegistry.mark_as_failed(service_record._id)
+                            check_count[service_record._id] = 0
+                            auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
+                            if auto_support_bundle:
+                                asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
             
             # Wait for any created tasks to complete
             if created_tasks:
@@ -253,17 +254,18 @@ class TestMonitor:
                 mock_interest_instance.unregister.return_value = None
                 
                 with patch('asyncio.create_task', side_effect=mock_create_task):
-                    # Simulate the logic from monitor loop when service fails
-                    service_record = ServiceRegistry.get(idx=s_id_1)[0]
-                    check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
-                    
-                    # This is the logic from the monitor loop when max attempts are exceeded
-                    if check_count[service_record._id] > monitor._max_attempts:
-                        ServiceRegistry.mark_as_failed(service_record._id)
-                        check_count[service_record._id] = 0
-                        auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
-                        if auto_support_bundle:
-                            asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
+                    with patch.object(ServiceRegistry._logger, 'info') as log_info_mark_failed:
+                        # Simulate the logic from monitor loop when service fails
+                        service_record = ServiceRegistry.get(idx=s_id_1)[0]
+                        check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
+                        
+                        # This is the logic from the monitor loop when max attempts are exceeded
+                        if check_count[service_record._id] > monitor._max_attempts:
+                            ServiceRegistry.mark_as_failed(service_record._id)
+                            check_count[service_record._id] = 0
+                            auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
+                            if auto_support_bundle:
+                                asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
 
         # Verify service is marked as failed
         assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed

@@ -217,7 +217,7 @@ async def validate_requests(request):
     elif int(request.user["role_id"]) == 3:
         if request.method != 'GET':
             supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
-                                   '/fledge/extension/bucket/match']
+                                   '/fledge/extension/bucket/match', '/fledge/plugin/validate']
             if not str(request.rel_url).endswith(tuple(supported_endpoints)):
                 raise web.HTTPForbidden
         else:

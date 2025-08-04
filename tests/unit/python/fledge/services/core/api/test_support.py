@@ -4,12 +4,11 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import json, os, pathlib, sys
+import json, os, pathlib
 from pathlib import PosixPath
 
 from unittest.mock import patch, mock_open, Mock, MagicMock
 
-import asyncio
 from aiohttp import web
 import pytest
 
@@ -116,12 +115,7 @@ class TestBundleSupport:
         async def mock_build():
             return 'support-180301-13-35-23.tar.gz'
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_build()
-        else:
-            _rv = asyncio.ensure_future(mock_build())
-            
+        _rv = await mock_build()
         with patch.object(SupportBuilder, "__init__", return_value=None):
             with patch.object(SupportBuilder, "build", return_value=_rv):
                 resp = await client.post('/fledge/support')

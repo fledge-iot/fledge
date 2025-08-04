@@ -7,10 +7,7 @@
 import os
 import json
 import pathlib
-import asyncio
 from pathlib import PosixPath
-import sys
-
 from unittest.mock import Mock, MagicMock, patch, mock_open
 from aiohttp import web
 
@@ -160,12 +157,7 @@ class TestPackageLog:
         async def mock_coro():
             return {"rows": []}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         storage_client_mock = MagicMock(StorageClientAsync)
         msg = "'No record found'"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -209,12 +201,7 @@ class TestPackageLog:
             del old['log_file_uri']
             return new
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
@@ -266,12 +253,7 @@ class TestPackageLog:
             del old['log_file_uri']
             return new
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:

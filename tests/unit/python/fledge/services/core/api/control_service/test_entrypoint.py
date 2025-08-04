@@ -1,6 +1,4 @@
-import asyncio
 import json
-import sys
 
 from unittest.mock import MagicMock, patch
 import pytest
@@ -44,8 +42,7 @@ class TestEntrypoint:
         expected_api_response = {"controls": [{"name": "EP1", "description": "EP1", "permitted": True},
                                               {"name": "EP2", "description": "Ep2", "permitted": True},
                                               {"name": "EP3", "description": "EP3", "permitted": True}]}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
                 resp = await client.get('/fledge/control/manage')
@@ -79,12 +76,8 @@ class TestEntrypoint:
         storage_result = {'name': ep_name, 'description': 'EP1', 'type': 'operation', 'operation_name': 'OP1',
                           'destination': 'broadcast', 'anonymous': True, 'constants': {'x': '640', 'y': '480'},
                           'variables': {'rpm': '800', 'distance': '138'}, 'allow': ['admin', 'user']}
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(storage_result)
-            rv2 = await mock_coro(True)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(True))
+        rv1 = await mock_coro(storage_result)
+        rv2 = await mock_coro(True)
         with patch.object(entrypoint, '_get_entrypoint', return_value=rv1) as patch_entrypoint:
             with patch.object(entrypoint, '_get_permitted', return_value=rv2) as patch_permitted:
                 resp = await client.get('/fledge/control/manage/{}'.format(ep_name))
@@ -102,8 +95,7 @@ class TestEntrypoint:
                    "variables": {"rpm": "100"}, "allow": [], "anonymous": False}
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"count": 1, "rows": [{"name": ep_name}]}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
                 resp = await client.post('/fledge/control/manage', data=json.dumps(payload))
@@ -141,12 +133,8 @@ class TestEntrypoint:
                 pass
             return insert_result
 
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            arv = await mock_coro(None)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            arv = asyncio.ensure_future(mock_coro(None))
+        rv = await mock_coro(storage_result)
+        arv = await mock_coro(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
                 with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result
@@ -169,8 +157,7 @@ class TestEntrypoint:
         payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"count": 0, "rows": []}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv
                               ) as patch_query_tbl:
@@ -201,18 +188,11 @@ class TestEntrypoint:
         update_payload = ('{"values": {"description": "Updated"}, '
                           '"where": {"column": "name", "condition": "=", "value": "SetLatheSpeed"}}')
         update_result = {"response": "updated", "rows_affected": 1}
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(storage_result)
-            rv2 = await mock_coro(ep_info)
-            rv3 = await mock_coro(new_ep_info)
-            rv4 = await mock_coro(update_result)
-            arv = await mock_coro(None)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(storage_result))
-            arv = asyncio.ensure_future(mock_coro(None))
-            rv2 = asyncio.ensure_future(mock_coro(ep_info))
-            rv3 = asyncio.ensure_future(mock_coro(new_ep_info))
-            rv4 = asyncio.ensure_future(mock_coro(update_result))
+        rv1 = await mock_coro(storage_result)
+        rv2 = await mock_coro(ep_info)
+        rv3 = await mock_coro(new_ep_info)
+        rv4 = await mock_coro(update_result)
+        arv = await mock_coro(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1
                               ) as patch_query_tbl:
@@ -240,8 +220,7 @@ class TestEntrypoint:
         payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"count": 0, "rows": []}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv
                               ) as patch_query_tbl:
@@ -263,14 +242,9 @@ class TestEntrypoint:
              'destination': 'broadcast', 'anonymous': True, 'constants': {'x': '640', 'y': '480'},
              'variables': {'rpm': '800', 'distance': '138'}, 'allow': ['admin', 'user']}]}
         message = "{} control entrypoint has been deleted successfully.".format(ep_name)
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(storage_result)
-            rv2 = await mock_coro(None)
-            arv = await mock_coro(None)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(None))
-            arv = asyncio.ensure_future(mock_coro(None))
+        rv1 = await mock_coro(storage_result)
+        rv2 = await mock_coro(None)
+        arv = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         del_payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -334,15 +308,9 @@ class TestEntrypoint:
         svc_info = (ServiceRecord("d607c5be-792f-4993-96b7-b513674e7d3b",
                                   ep_name, "Dispatcher", "http", "127.0.0.1", "8118", "8118"), "Token")
 
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(storage_result)
-            rv2 = await mock_coro(svc_info)
-            rv3 = await mock_coro(None)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(svc_info))
-            rv3 = asyncio.ensure_future(mock_coro(None))
-
+        rv1 = await mock_coro(storage_result)
+        rv2 = await mock_coro(svc_info)
+        rv3 = await mock_coro(None)
         with patch.object(entrypoint, '_get_entrypoint', return_value=rv1):
             with patch.object(entrypoint, '_get_service_record_info_along_with_bearer_token',
                               return_value=rv2) as patch_service:
@@ -398,8 +366,7 @@ class TestEntrypoint:
         is_constant = 't'
         storage_client_mock = MagicMock(StorageClientAsync)
         rows_affected = {"response": "updated", "rows_affected": 1}
-        rv = await mock_coro(rows_affected) if sys.version_info >= (3, 8) else (
-            asyncio.ensure_future(mock_coro(rows_affected)))
+        rv = await mock_coro(rows_affected)
         tbl_name = 'control_api_parameters'
         delete_payload = {"where": {"column": "name", "condition": "=", "value": ep_name,
                                     "and": {"column": "constant", "condition": "=", "value": "t",
@@ -433,14 +400,9 @@ class TestEntrypoint:
              'constants': {}, 'variables': {},
              'allow': []}]}
         storage_result2 = {"count": 0, "rows": []}
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(storage_result1)
-            rv2 = await mock_coro(storage_result2)
-            rv3 = await mock_coro(storage_result2)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(storage_result1))
-            rv2 = asyncio.ensure_future(mock_coro(storage_result2))
-            rv3 = asyncio.ensure_future(mock_coro(storage_result2))
+        rv1 = await mock_coro(storage_result1)
+        rv2 = await mock_coro(storage_result2)
+        rv3 = await mock_coro(storage_result2)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=[rv1, rv2, rv3]
                               ) as patch_query_tbl:

@@ -4,12 +4,10 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import asyncio
 import json
 from unittest.mock import patch
 from aiohttp import web
 import pytest
-import sys
 
 from fledge.common.web import middleware
 from fledge.services.core import routes
@@ -43,13 +41,7 @@ class TestAuthOptional:
         return client
 
     async def test_get_roles(self, client):
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro([])
-        else:
-            _rv = asyncio.ensure_future(mock_coro([]))
-        
+        _rv = await mock_coro([])
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user/role')
@@ -74,11 +66,7 @@ class TestAuthOptional:
            "description": "Normal user"}])
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(ret_val)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'all', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user')
@@ -98,13 +86,7 @@ class TestAuthOptional:
     async def test_get_user_by_param(self, client, request_params, exp_result, arg1, arg2):
         result = {}
         result.update(exp_result)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(result)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(result))
-        
+        _rv = await mock_coro(result)
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'get', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user{}'.format(request_params))
@@ -170,13 +152,7 @@ class TestAuthOptional:
 
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro([])
-        else:
-            _rv = asyncio.ensure_future(mock_coro([]))
-        
+        _rv = await mock_coro([])
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
                 with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_token:
@@ -203,12 +179,7 @@ class TestAuthOptional:
         async def async_mock():
             return ret_val
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())        
-        
+        _rv = await async_mock()
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
                 with patch.object(auth._logger, 'info') as patch_auth_logger:
@@ -308,13 +279,7 @@ class TestAuthOptional:
     ])
     async def test_valid_role(self, role_id, expected):
         ret_val = [{"id": "1", "description": "for the users having all CRUD privileges including other admin users", "name": "admin"}, {"id": "2", "description": "all CRUD operations and self profile management", "name": "user"}]
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(ret_val)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(ret_val))
-
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_get_roles:
             actual = await auth.is_valid_role(role_id)
             assert expected is actual

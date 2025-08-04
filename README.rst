@@ -71,11 +71,10 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
 Linux distributions
 -------------------
 
-Fledge can be built or installed in one of the following Linux distributions :
+Fledge can be built or installed on the following Linux distributions, supporting both x86_64 and aarch64 architectures.
 
-- Ubuntu 20.04, 22.04
-- Raspbian Bullseye
-- Coral Mendel
+- Ubuntu 20.04, 22.04, 24.04
+- Raspbian Bullseye, Bookworm
 
 Install the prerequisites
 -------------------------

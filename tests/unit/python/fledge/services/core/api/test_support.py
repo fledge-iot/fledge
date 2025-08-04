@@ -169,8 +169,8 @@ class TestBundleSupport:
         def mock_syslog():
             return """
             echo "Sep 12 13:31:41 nerd-034 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: INFO: Signal 11 (Segmentation fault) trapped:"
+            Dec 18 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+            Dec 18 15:15:10 aj-ub Fledge OMF[12145]: INFO: Signal 11 (Segmentation fault) trapped:"
             """
 
         with patch.object(support, "__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE", mock_syslog()):
@@ -320,34 +320,34 @@ class TestBundleSupport:
     async def test_get_syslog_entries_with_level(self, client, template_name, matched_lines, level, actual_count):
         def mock_syslog(_level):
             if _level == 'info':
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
-                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------"
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------"
                 """
             elif _level == 'warning':
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
             elif _level == 'error':
-                return """echo "Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+                return """echo "Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
             else:
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
-                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------
-                Dec 21 25:15:10 aj-ub1804 Fledge sin[11011]: DEBUG: 'sinusoid' plugin reconfigure called" """
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------
+                Dec 21 25:15:10 aj-ub Fledge sin[11011]: DEBUG: 'sinusoid' plugin reconfigure called" """
 
         with patch.object(support, template_name, mock_syslog(level)):
             with patch.object(support, matched_lines, """echo "{}" """.format(actual_count)):

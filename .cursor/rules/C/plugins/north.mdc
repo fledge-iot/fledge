@@ -29,6 +29,36 @@ author: "Devki Nandan Ghildiyal"
 
 - Information about common support classes used by plugin is at '../../../docs/plugin_developers_guide/035_CPP.rst'
 
+## Mutex and Locking
+
+- Thread Safety: The fledge north plugin can send data (send()) and configuration changes (reconfigure()) simultaneously from different threads
+- Data Consistency: Prevents reading configuration while it's being modified
+- RAII Pattern: std::lock_guard automatically unlocks when going out of scope, preventing deadlocks
+
+- Following sample code demonstrates use of mutex and locks when sending data
+
+```
+void send(std::vector<Reading *> *readings, std::vector<Reading *>& outReadings)
+{
+    std::lock_guard<std::mutex> guard(m_configMutex);
+    sendData(readings, outReadings);
+    readings->clear();
+}
+
+```
+
+- Following sample code demonstrates use of mutex and locks when doing configuration changes
+
+```
+void reconfigure(const std::string& conf)
+{
+    std::lock_guard<std::mutex> guard(m_configMutex);
+    setConfig(conf);
+    handleConfig(m_config);
+}
+
+```
+
 ## Implementation details of plugin
 
 - South plugin fetches data from sensors or external sources and store in Fledge

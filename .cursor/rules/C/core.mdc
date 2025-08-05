@@ -11,8 +11,8 @@ author: "Devki Nandan Ghildiyal"
 - **Primary Target**: South/North/Filter plugins
 - **Tech Stack**
   - **Languages** : C++11
-  - **Libraries** : GTest version 1.10.0, boost
-  - **Database** : SQLite,Postgres
+  - **Libraries** : GTest version 1.10.0, boost version 1.71
+  - **Database** : SQLite version 3, Postgres version 12
 
 
 # Roles
@@ -53,7 +53,7 @@ You are playing **three roles** while reviewing, commenting, or helping with wit
 Respond with comments or suggestions **clearly labeled** by the role, e.g.:
 
 - `[Architect] Analyze requirements.md file to find out gaps in requirements if any.`
-- `[Developer] You can use `std::unique_ptr` instead of raw pointers here.`
+- `[Developer] Use range-based loops.`
 - `[QA] Add unit tests for empty asset name.`
 
 
@@ -73,8 +73,7 @@ Respond with comments or suggestions **clearly labeled** by the role, e.g.:
 
 ## C++ Features Usage
 
-- Prefer modern C++11 features (e.g., auto, range-based loops, smart pointers).
-- Use `std::unique_ptr` and `std::shared_ptr` for memory management.
+- Prefer modern C++11 features (e.g., auto, range-based loops).
 - Use `constexpr` and `const` to optimize compile-time computations.
 
 ## Syntax and Formatting
@@ -101,7 +100,7 @@ Respond with comments or suggestions **clearly labeled** by the role, e.g.:
 - Profile and optimize critical sections with tools like Valgrind.
 
 ## Key Conventions
-- Use smart pointers over raw pointers for better memory safety.
+- Do not use smart pointers.
 - Avoid global variables; use singletons sparingly.
 - Use `enum class` for strongly typed enumerations.
 - Separate interface from implementation in classes.
@@ -136,3 +135,22 @@ Follow the official ISO C++ standards and guidelines for best practices in moder
 ## C++ Filter plugin development
 
 - use 'plugins/filter.mdc'
+
+## Log Levels
+
+Fledge support 5 levels of logging, which can be considered in descending order of severity; fatal, error, warning, info and debug. Each of these has a defined use and a targeted audience. By default only the 3 most severe levels of log will be written and presented to the user.
+
+| Log Level | Intended Audience | Usage |
+| :---- | :---- | :---- |
+| fatal | End-user | This is the most severe error level and is reserved for situations whereby the service that raises them can not continue. It is not for transient failures. |
+| error | End-user | Errors should be used when a transient issue prevents the service continuing in the short term, but may be recovered without the service restarting. |
+| warning | End-user | A warning message should be used if the user needs to be aware of some reduction in service or non-fatal issue that does not stop the flow of data. |
+| info | Code/Pipeline Developer | Informational messages should be used to give the user or developer more information as to the progress of a process or task, but does not impact the result of that task. It can be considered more as a progress tracking aid. |
+| debug | Code Developer | Debug messages are reserved for the code developers working on a plugin or core features of the Fledge services. |
+
+# Message Content Fog Logs
+
+- All log entries should be written to be human readable and standalone from the code that raises them. The reader of the log message should not need to have access to the source code in order to understand a log message. They should not include internal code references or variable names, but rather be descriptive regarding any variables printed in the log.
+- Log messages should not contain source file names, line numbers or function names as these have little to no meaning to the intended audience for the majority of log messages These also take up valuable space that can be better used to give a more in-depth description of the issue.
+- Not only are the lengths of messages limited in syslog, but special characters such as new lines and carriage returns are mapped to hash codes and hence do not format correctly. Messages should not include such characters and should be simple strings.
+

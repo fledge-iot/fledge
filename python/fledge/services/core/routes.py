@@ -17,6 +17,7 @@ from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
+from fledge.services.core.api.plugins import config_validator
 from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
@@ -192,6 +193,8 @@ def setup(app):
     app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
     app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)
+    # Plugin validation
+    config_validator.setup(app)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)

@@ -1,6 +1,4 @@
-import asyncio
 import json
-import sys
 
 from unittest.mock import MagicMock, patch
 import pytest
@@ -55,8 +53,7 @@ class TestAlertManager:
             "The Service RW restarted 1 times", "urgency": "Normal", "timestamp": "2024-03-01 09:40:34.482"}])
     ])
     async def test_get_all(self, storage_result, response):
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'query_tbl_with_payload', return_value=rv
                           ) as patch_query_tbl:
             result = await self.alert_manager.get_all()
@@ -69,8 +66,7 @@ class TestAlertManager:
 
     async def test_bad_get_all(self):
         storage_result = {"rows": [{}], 'count': 1}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'query_tbl_with_payload', return_value=rv
                           ) as patch_query_tbl:
             with pytest.raises(Exception) as ex:
@@ -91,8 +87,7 @@ class TestAlertManager:
     async def test_get_by_key_not_found(self):
         key = "Sine"
         storage_result = {"rows": [], 'count': 1}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'query_tbl_with_payload', return_value=rv
                           ) as patch_query_tbl:
             with pytest.raises(Exception) as ex:
@@ -109,8 +104,7 @@ class TestAlertManager:
         key = 'update'
         storage_result = {"rows": [{"key": "RW", "message": "The Service RW restarted 1 times", "urgency": 3,
                     "timestamp": "2024-03-01 09:40:34.482"}], 'count': 1}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'query_tbl_with_payload', return_value=rv
                           ) as patch_query_tbl:
             result = await self.alert_manager.get_by_key(key)
@@ -125,8 +119,7 @@ class TestAlertManager:
     async def test_add(self):
         params = {"key": "update", 'message': 'New version available', 'urgency': 'High'}
         storage_result = {'rows_affected': 1, "response": "inserted"}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'insert_into_tbl', return_value=rv
                           ) as insert_tbl_patch:
             result = await self.alert_manager.add(params)
@@ -139,8 +132,7 @@ class TestAlertManager:
     async def test_bad_add(self):
         params = {"key": "update", 'message': 'New version available', 'urgency': 'High'}
         storage_result = {}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'insert_into_tbl', return_value=rv
                           ) as insert_tbl_patch:
             with pytest.raises(Exception) as ex:
@@ -152,8 +144,7 @@ class TestAlertManager:
 
     async def test_delete(self):
         storage_result = {'rows_affected': 1, "response": "deleted"}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'delete_from_tbl', return_value=rv
                           ) as delete_tbl_patch:
             result = await self.alert_manager.delete()
@@ -167,8 +158,7 @@ class TestAlertManager:
         self.alert_manager.alerts = [{"key": key, "message": "The Service RW restarted 1 times", "urgency": 3,
                                       "timestamp": "2024-03-01 09:40:34.482"}]
         storage_result = {'rows_affected': 1, "response": "deleted"}
-        rv = await self.async_mock(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock(storage_result))
+        rv = await self.async_mock(storage_result)
         with patch.object(self.alert_manager.storage_client, 'delete_from_tbl', return_value=rv
                           ) as delete_tbl_patch:
             result = await self.alert_manager.delete(key)

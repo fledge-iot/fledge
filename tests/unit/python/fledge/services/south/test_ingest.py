@@ -9,7 +9,6 @@
 """
 import copy
 import pytest
-import sys
 import asyncio
 from unittest.mock import MagicMock, call
 from fledge.services.south.ingest import *
@@ -199,14 +198,8 @@ class TestIngest:
         async def mock_create(storage):
             return mock_stat()
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro()
-            _rv2 = await mock_create(None)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro())
-            _rv2 = asyncio.ensure_future(mock_create(None))
-        
+        _rv1 = await mock_coro()
+        _rv2 = await mock_create(None)
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
@@ -251,14 +244,8 @@ class TestIngest:
         async def mock_create(storage):
             return mock_stat()
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro()
-            _rv2 = await mock_create(None)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro())
-            _rv2 = asyncio.ensure_future(mock_create(None))
-        
+        _rv1 = await mock_coro()
+        _rv2 = await mock_create(None)
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)

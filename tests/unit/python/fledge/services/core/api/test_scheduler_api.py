@@ -4,14 +4,11 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-
-import asyncio
 import json
 from datetime import timedelta, datetime
 from unittest.mock import MagicMock, patch, call
 from uuid import UUID
 
-import sys
 import uuid
 import pytest
 
@@ -61,12 +58,7 @@ class TestScheduledProcesses:
             processes.append(process)
             return processes
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_scheduled_processes', return_value=_rv):
             resp = await client.get('/fledge/schedule/process')
             assert 200 == resp.status
@@ -78,13 +70,7 @@ class TestScheduledProcesses:
         storage_client_mock = MagicMock(StorageClientAsync)
         payload = '{"return": ["name"], "where": {"column": "name", "condition": "in", "value": ["purge"]}}'
         response = {'rows': [{'name': 'purge'}], 'count': 1}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro_response(response)
-        else:
-            _rv = asyncio.ensure_future(mock_coro_response(response))
-        
+        _rv = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                   return_value=_rv) as mock_storage_call:
@@ -98,13 +84,7 @@ class TestScheduledProcesses:
     async def test_get_scheduled_process_bad_data(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [], 'count': 0}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro_response(response)
-        else:
-            _rv = asyncio.ensure_future(mock_coro_response(response))
-        
+        _rv = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                   return_value=_rv):
@@ -117,17 +97,9 @@ class TestScheduledProcesses:
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [], 'count': 0}
         ret_val = {"response": "inserted", "rows_affected": 1}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_coro_response(ret_val)
-            _rv3 = await mock_coro_response(None)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_coro_response(ret_val))
-            _rv3 = asyncio.ensure_future(mock_coro_response(None))
-        
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_coro_response(ret_val)
+        _rv3 = await mock_coro_response(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)
                               ) as query_tbl_patch:
@@ -166,13 +138,7 @@ class TestScheduledProcesses:
     async def test_post_scheduled_process_bad_data(self, client, request_data, response_code, error_message):
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{"name": "purge"}], 'count': 1}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro_response(response)
-        else:
-            _rv = asyncio.ensure_future(mock_coro_response(response))
-        
+        _rv = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.post('/fledge/schedule/process', data=json.dumps(request_data))
@@ -213,13 +179,7 @@ class TestSchedules:
             schedule.day = None
             schedules.append(schedule)
             return schedules
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_schedules', return_value=_rv):
             resp = await client.get('/fledge/schedule')
             assert 200 == resp.status
@@ -243,12 +203,8 @@ class TestSchedules:
             schedule.day = None
             return schedule
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv):
             resp = await client.get('/fledge/schedule/{}'.format(self._random_uuid))
             assert 200 == resp.status
@@ -278,12 +234,8 @@ class TestSchedules:
         async def mock_coro():
             return True, "Schedule successfully enabled"
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'enable_schedule', return_value=_rv):
             resp = await client.put('/fledge/schedule/{}/enable'.format(self._random_uuid))
             assert 200 == resp.status
@@ -311,12 +263,8 @@ class TestSchedules:
         async def mock_coro():
             return True, "Schedule successfully disabled"
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'disable_schedule', return_value=_rv):
             resp = await client.put('/fledge/schedule/{}/disable'.format(self._random_uuid))
             assert 200 == resp.status
@@ -351,14 +299,8 @@ class TestSchedules:
         async def patch_queue_task(_resp):
             return _resp
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro()
-            _rv2 = await patch_queue_task(return_queue_task)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro())
-            _rv2 = asyncio.ensure_future(patch_queue_task(return_queue_task))
-
+        _rv1 = await mock_coro()
+        _rv2 = await patch_queue_task(return_queue_task)
         with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv1) as mock_get_schedule:
             with patch.object(server.Server.scheduler, 'queue_task', return_value=_rv2) \
                     as mock_queue_task:
@@ -452,19 +394,10 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'p1'}], 'count': 1}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_schedules()
-            _rv3 = await mock_schedule(request_data["type"])
-            _rv4 = await mock_coro()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_schedules())
-            _rv3 = asyncio.ensure_future(mock_schedule(request_data["type"]))
-            _rv4 = asyncio.ensure_future(mock_coro())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_schedules()
+        _rv3 = await mock_schedule(request_data["type"])
+        _rv4 = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
@@ -514,13 +447,7 @@ class TestSchedules:
     async def test_post_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
         storage_client_mock = MagicMock(StorageClientAsync)
         response = storage_return
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro_response(response)
-        else:
-            _rv = asyncio.ensure_future(mock_coro_response(response))
-
+        _rv = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
@@ -562,15 +489,8 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'purge'}, {'name': 'south_c'}, {'name': 'stats collector'}], 'count': 3}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_schedules()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_schedules())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_schedules()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
@@ -631,17 +551,9 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'p1'}], 'count': 1}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_schedules()
-            _rv3 = await mock_coro()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_schedules())
-            _rv3 = asyncio.ensure_future(mock_coro())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_schedules()
+        _rv3 = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
@@ -693,8 +605,7 @@ class TestSchedules:
             schedule.name = "South Service"
             return schedule
 
-        _rv1 = await mock_schedule() if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(mock_schedule())
+        _rv1 = await mock_schedule()
         with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv1) as patch_get_schedule:
             resp = await client.put('/fledge/schedule/{}'.format(uuid), data=json.dumps(payload))
             assert status_code == resp.status
@@ -763,20 +674,11 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'SCH'}], 'count': 1}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv0 = await mock_coro_response(response)
-            _rv1 = await mock_schedule()
-            _rv11 = await final_schedule()
-            _rv2 = await mock_coro()
-            _rv3 = await mock_schedules()
-        else:
-            _rv0 = asyncio.ensure_future(mock_coro_response(response))
-            _rv1 = asyncio.ensure_future(mock_schedule())
-            _rv11 = asyncio.ensure_future(final_schedule())
-            _rv2 = asyncio.ensure_future(mock_coro())
-            _rv3 = asyncio.ensure_future(mock_schedules())
-
+        _rv0 = await mock_coro_response(response)
+        _rv1 = await mock_schedule()
+        _rv11 = await final_schedule()
+        _rv2 = await mock_coro()
+        _rv3 = await mock_schedules()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv0):
                 with patch.object(server.Server.scheduler, 'get_schedule', side_effect=[_rv1, _rv11]):
@@ -799,13 +701,7 @@ class TestSchedules:
     async def test_update_schedule_data_not_exist(self, client):
         async def mock_coro():
             return ""
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_schedule',
                           return_value=_rv) as patch_get_schedule:
             error_message = 'Schedule not found: {}'.format(self._random_uuid)
@@ -853,15 +749,8 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = storage_return
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_coro()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_coro())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedule',
@@ -913,15 +802,8 @@ class TestSchedules:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'rows': [{'name': 'purge'}], 'count': 1}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_schedules()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_schedules())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_schedules()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedule',
@@ -941,12 +823,7 @@ class TestSchedules:
         async def mock_coro():
             return True, "Schedule deleted successfully."
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'delete_schedule', return_value=_rv):
             resp = await client.delete('/fledge/schedule/{}'.format(self._random_uuid))
             assert 200 == resp.status
@@ -1015,14 +892,9 @@ class TestTasks:
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await mock_coro()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(mock_coro())
-
+        
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_task', return_value=_rv2):
@@ -1074,15 +946,8 @@ class TestTasks:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 1, 'rows': [{'process_name': 'bla'}]}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await patch_get_tasks()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(patch_get_tasks())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await patch_get_tasks()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_tasks', return_value=_rv2):
@@ -1111,15 +976,8 @@ class TestTasks:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 0, 'rows': []}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-            _rv2 = await patch_get_tasks()
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-            _rv2 = asyncio.ensure_future(patch_get_tasks())
-
+        _rv1 = await mock_coro_response(response)
+        _rv2 = await patch_get_tasks()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_tasks', return_value=_rv2):
@@ -1133,13 +991,7 @@ class TestTasks:
         response = {'count': 2, 'rows': [
             {'pid': '1', 'reason': '', 'exit_code': '0', 'id': '1',
              'process_name': 'bla', 'schedule_name': 'bla', 'end_time': '2018', 'start_time': '2018', 'state': '2'}]}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-        
+        _rv1 = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 resp = await client.get('/fledge/task/latest{}'.format(request_params))
@@ -1154,13 +1006,7 @@ class TestTasks:
     async def test_get_tasks_latest_no_task_exception(self, client, request_params):
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'count': 0, 'rows': []}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro_response(response)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro_response(response))
-        
+        _rv1 = await mock_coro_response(response)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 resp = await client.get('/fledge/task/latest{}'.format(request_params))
@@ -1171,12 +1017,7 @@ class TestTasks:
         async def mock_coro():
             return "some valid values"
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_task', return_value=_rv):
             with patch.object(server.Server.scheduler, 'cancel_task', return_value=_rv):
                 resp = await client.put('/fledge/task/{}/cancel'.format(self._random_uuid))
@@ -1199,13 +1040,7 @@ class TestTasks:
     async def test_cancel_task_exceptions(self, client, exception_name, response_code, response_message):
         async def mock_coro():
             return ""
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(server.Server.scheduler, 'get_task', return_value=_rv):
             with patch.object(server.Server.scheduler, 'cancel_task', side_effect=exception_name):
                 resp = await client.put('/fledge/task/{}/cancel'.format(self._random_uuid))

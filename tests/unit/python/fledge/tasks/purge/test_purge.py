@@ -7,7 +7,6 @@
 import json
 import pytest
 import asyncio
-import sys
 from unittest.mock import patch, call, MagicMock
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -58,11 +57,7 @@ class TestPurge:
 
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_value("") if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
-            asyncio.ensure_future(mock_value(""))
-
+        _rv = await mock_value("")
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(Statistics, '_load_keys', return_value=_rv):
                 with patch.object(Statistics, 'update', return_value=_rv) as mock_stats_update:
@@ -76,10 +71,7 @@ class TestPurge:
         """Test that purge's set_configuration returns configuration item with key 'PURGE_READ' """
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_value("") if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
-            asyncio.ensure_future(mock_value(""))
+        _rv = await mock_value("")
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -131,22 +123,11 @@ class TestPurge:
         payload = {"aggregate": {"operation": "min", "column": "last_object"}}
         if expected_calls["flag"] == "retainany":
             payload = {"aggregate": {"operation": "max", "column": "last_object"}}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            if expected_calls["flag"] == "retainany":
-                _rv1 = await q_result('streams', 'any')
-            else:
-                _rv1 = await q_result('streams')
-            _rv2 = await mock_value("")
-            _rv3 = await self.store_purge()
+            _rv1 = await q_result('streams', 'any')
         else:
-            if expected_calls["flag"] == "retainany":
-                _rv1 = asyncio.ensure_future(q_result('streams', 'any'))
-            else:
-                _rv1 = asyncio.ensure_future(q_result('streams'))
-            _rv2 = asyncio.ensure_future(mock_value(""))
-            _rv3 = asyncio.ensure_future(self.store_purge())
-
+            _rv1 = await q_result('streams')
+        _rv2 = await mock_value("")
+        _rv3 = await self.store_purge()
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -182,16 +163,9 @@ class TestPurge:
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
         payload = {"aggregate": {"operation": "min", "column": "last_object"}}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await q_result('streams')
-            _rv2 = await mock_value("")
-            _rv3 = await self.store_purge()
-        else:
-            _rv1 = asyncio.ensure_future(q_result('streams'))
-            _rv2 = asyncio.ensure_future(mock_value(""))
-            _rv3 = asyncio.ensure_future(self.store_purge())
-
+        _rv1 = await q_result('streams')
+        _rv2 = await mock_value("")
+        _rv3 = await self.store_purge()
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -229,17 +203,9 @@ class TestPurge:
         """Test that purge_data logs message when no data was purged"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await q_result('streams')
-            _rv2 = await mock_value("")
-            _rv3 = await self.store_purge()
-        else:
-            _rv1 = asyncio.ensure_future(q_result('streams'))
-            _rv2 = asyncio.ensure_future(mock_value(""))
-            _rv3 = asyncio.ensure_future(self.store_purge())
-
+        _rv1 = await q_result('streams')
+        _rv2 = await mock_value("")
+        _rv3 = await self.store_purge()
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -268,17 +234,9 @@ class TestPurge:
         """Test that purge_data logs error when storage purge returns an error response"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await q_result('streams')
-            _rv2 = await mock_value("")
-            _rv3 = await self.store_purge()
-        else:
-            _rv1 = asyncio.ensure_future(q_result('streams'))
-            _rv2 = asyncio.ensure_future(mock_value(""))
-            _rv3 = asyncio.ensure_future(self.store_purge())
-
+        _rv1 = await q_result('streams')
+        _rv2 = await mock_value("")
+        _rv3 = await self.store_purge()
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -308,14 +266,8 @@ class TestPurge:
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
         expected_error_message = 'purge_data - Configuration item {} bla should be integer!'.format(expected_error_key)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await q_result('streams')
-            _rv2 = await mock_value("")
-        else:
-            _rv1 = asyncio.ensure_future(q_result('streams'))
-            _rv2 = asyncio.ensure_future(mock_value(""))
-
+        _rv1 = await q_result('streams')
+        _rv2 = await mock_value("")
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -338,17 +290,9 @@ class TestPurge:
         """Test that run calls all units of purge process"""
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_value("Some config")
-            _rv2 = await mock_value((1, 2))
-            _rv3 = await mock_value(None)
-        else:
-            _rv1 = asyncio.ensure_future(mock_value("Some config"))
-            _rv2 = asyncio.ensure_future(mock_value((1, 2)))
-            _rv3 = asyncio.ensure_future(mock_value(None))
-
+        _rv1 = await mock_value("Some config")
+        _rv2 = await mock_value((1, 2))
+        _rv3 = await mock_value(None)
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()
@@ -375,11 +319,7 @@ class TestPurge:
 
         mock_storage_client_async = MagicMock(spec=StorageClientAsync)
         mock_audit_logger = AuditLogger(mock_storage_client_async)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_value("Some config") if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
-            asyncio.ensure_future(mock_value("Some config"))
-
+        _rv = await mock_value("Some config")
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mock_audit_logger, "__init__", return_value=None):
                 p = Purge()

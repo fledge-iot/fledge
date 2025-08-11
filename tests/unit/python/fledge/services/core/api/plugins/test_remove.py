@@ -7,9 +7,6 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
-import sys
-import asyncio
-
 from aiohttp import web
 
 from fledge.common.plugin_discovery import PluginDiscovery
@@ -91,12 +88,7 @@ class TestPluginRemove:
                              "packageName": "fledge-{}-http-south".format(_type)}
                             ]
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock([{'service_list': svc_list}])
-        else:
-            _rv = asyncio.ensure_future(async_mock([{'service_list': svc_list}]))
-        
+        _rv = await async_mock([{'service_list': svc_list}])
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv) as plugin_usage_patch:
@@ -128,13 +120,7 @@ class TestPluginRemove:
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(plugin_type_installed_dir,
                                                                                       plugin_installed_dirname),
                              "packageName": pkg_name}]
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(notify_instances_list)
-        else:
-            _rv = asyncio.ensure_future(async_mock(notify_instances_list))
-        
+        _rv = await async_mock(notify_instances_list)
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=_rv) as plugin_usage_patch:
@@ -180,14 +166,8 @@ class TestPluginRemove:
                              "packageName": pkg_name}
                             ]
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock([])
-            _rv2 = await async_mock(select_row_resp)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock([]))
-            _rv2 = asyncio.ensure_future(async_mock(select_row_resp))
-        
+        _rv1 = await async_mock([])
+        _rv2 = await async_mock(select_row_resp)
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:
@@ -249,20 +229,11 @@ class TestPluginRemove:
                              "packageName": pkg_name}
                             ]
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock([])
-            _rv2 = await async_mock(delete)
-            _rv3 = await async_mock(insert)
-            _se1 = await async_mock(select_row_resp)
-            _se2 = await async_mock(insert_row)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock([]))
-            _rv2 = asyncio.ensure_future(async_mock(delete))
-            _rv3 = asyncio.ensure_future(async_mock(insert))
-            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))
-        
+        _rv1 = await async_mock([])
+        _rv2 = await async_mock(delete)
+        _rv3 = await async_mock(insert)
+        _se1 = await async_mock(select_row_resp)
+        _se2 = await async_mock(insert_row)
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:

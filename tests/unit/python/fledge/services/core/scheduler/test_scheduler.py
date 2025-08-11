@@ -11,8 +11,6 @@ import uuid
 import time
 import json
 from unittest.mock import MagicMock, call
-import sys
-
 import copy
 import pytest
 from fledge.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
@@ -40,12 +38,7 @@ async def mock_process():
 class TestScheduler:
 
     async def scheduler_fixture(self, mocker):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_process()
-        else:
-            _rv = asyncio.ensure_future(mock_process())
-        
+        _rv = await mock_process()
         scheduler = Scheduler()
         scheduler._logger.level = logging.INFO
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
@@ -187,13 +180,7 @@ class TestScheduler:
         # Now queue task and assert that the task has been queued
         await scheduler.queue_task(schedule.id)
         assert isinstance(scheduler._schedule_executions[schedule.id], scheduler._ScheduleExecution)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_process()
-        else:
-            _rv = asyncio.ensure_future(mock_process())
-
+        _rv = await mock_process()
         mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=_rv)
         mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock()))
         mocker.patch.object(scheduler, '_resume_check_schedules')
@@ -512,12 +499,7 @@ class TestScheduler:
                     },
             }
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await get_cat()
-        else:
-            _rv = asyncio.ensure_future(get_cat())
-        
+        _rv = await get_cat()
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)

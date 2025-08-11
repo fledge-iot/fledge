@@ -6,10 +6,7 @@
 
 """ Test fledge/services/core/api/statistics.py """
 
-import asyncio
 import json
-import sys
-
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
@@ -41,12 +38,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv) as query_patch:
@@ -65,12 +57,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
@@ -268,12 +255,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.get("/fledge/statistics/history?limit={}".format(request_limit))
@@ -494,13 +476,8 @@ class TestStatistics:
             return return_value
 
         storage_rows = {"rows": [{"value": 15}, {"value": 10}, {"value": 5}, {"value": 15}], "count": 4}
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock({"rows": [{"schedule_interval": "00:00:15"}]})
-            _rv2 = await async_mock(storage_rows)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock({"rows": [{"schedule_interval": "00:00:15"}]}))
-            _rv2 = asyncio.ensure_future(async_mock(storage_rows))
-
+        _rv1 = await async_mock({"rows": [{"schedule_interval": "00:00:15"}]})
+        _rv2 = await async_mock(storage_rows)
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload',

@@ -181,9 +181,9 @@ class Monitor(object):
             self._alert_manager = AlertManager(connect.get_storage_async())
         try:
             param = {
-                "key": bundle_name,
-                "message": f"Support bundle {bundle_name} created for failed service '{service_name}'",
-                "urgency": "3"  # Normal urgency
+                "key": f"{service_name}-support-bundle",
+                "message": f"Support bundle created for failed service '{service_name}'",
+                "urgency": "2"  # High urgency
             }
             await self._alert_manager.add(param)
         except Exception as ex:

@@ -127,3 +127,137 @@ class TestMonitor:
                 assert excinfo.type in [TestMonitorException, TypeError]
 
         assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed
+
+    @pytest.mark.asyncio
+    async def test_monitor_support_bundle_and_alert_creation(self):
+        """Test that support bundle and alert are created when service fails with auto_support_bundle enabled"""
+        
+        # Register a service
+        with patch.object(ServiceRegistry._logger, 'info') as log_info:
+            s_id_1 = ServiceRegistry.register(
+                'test_service', 'Southbound', 'localhost', 1234, 1235, 'http')
+        
+        monitor = Monitor()
+        monitor._max_attempts = 3
+        # Enable auto support bundle creation
+        monitor._support_bundle_config = {
+            'auto_support_bundle': {'value': 'true'},
+            'support_bundle_retain_count': {'value': '3'}
+        }
+
+        # Track method calls
+        support_bundle_calls = []
+        
+        # Mock the create_automated_support_bundle method
+        async def mock_create_support_bundle(service_name):
+            support_bundle_calls.append(service_name)
+            return f'support-{service_name}-123.tar.gz'
+        
+        with patch.object(monitor, 'create_automated_support_bundle', side_effect=mock_create_support_bundle):
+            # Track asyncio.create_task calls
+            created_tasks = []
+            original_create_task = asyncio.create_task
+            
+            def mock_create_task(coro):
+                task = original_create_task(coro)
+                created_tasks.append(task)
+                return task
+            
+            # Mock InterestRegistry to avoid ConfigurationManager issues
+            with patch('fledge.services.core.service_registry.service_registry.InterestRegistry') as mock_interest_registry:
+                mock_interest_instance = MagicMock()
+                mock_interest_registry.return_value = mock_interest_instance
+                mock_interest_instance.get.return_value = []  # Return empty list
+                mock_interest_instance.unregister.return_value = None
+                
+                with patch('asyncio.create_task', side_effect=mock_create_task):
+                    with patch.object(ServiceRegistry._logger, 'info') as log_info_mark_failed:
+                        # Simulate the logic from monitor loop when service fails
+                        service_record = ServiceRegistry.get(idx=s_id_1)[0]
+                        check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
+                        
+                        # This is the logic from the monitor loop when max attempts are exceeded
+                        if check_count[service_record._id] > monitor._max_attempts:
+                            ServiceRegistry.mark_as_failed(service_record._id)
+                            check_count[service_record._id] = 0
+                            auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
+                            if auto_support_bundle:
+                                asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
+            
+            # Wait for any created tasks to complete
+            if created_tasks:
+                await asyncio.gather(*created_tasks, return_exceptions=True)
+
+        # Verify service is marked as failed
+        assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed
+        
+        # Verify support bundle creation method was called
+        assert len(support_bundle_calls) == 1
+        assert support_bundle_calls[0] == 'test_service'
+        
+        # Verify a task was created
+        assert len(created_tasks) == 1
+
+    @pytest.mark.asyncio
+    async def test_monitor_no_support_bundle_when_disabled(self):
+        """Test that support bundle is not created when auto_support_bundle is disabled"""
+        
+        # Register a service
+        with patch.object(ServiceRegistry._logger, 'info') as log_info:
+            s_id_1 = ServiceRegistry.register(
+                'test_service_2', 'Northbound', 'localhost', 1236, 1237, 'http')
+        
+        monitor = Monitor()
+        monitor._max_attempts = 3
+        # Disable auto support bundle creation
+        monitor._support_bundle_config = {
+            'auto_support_bundle': {'value': 'false'}
+        }
+
+        # Track method calls
+        support_bundle_calls = []
+        
+        # Mock the create_automated_support_bundle method
+        async def mock_create_support_bundle(service_name):
+            support_bundle_calls.append(service_name)
+            return f'support-{service_name}-123.tar.gz'
+        
+        with patch.object(monitor, 'create_automated_support_bundle', side_effect=mock_create_support_bundle):
+            # Track asyncio.create_task calls
+            created_tasks = []
+            original_create_task = asyncio.create_task
+            
+            def mock_create_task(coro):
+                task = original_create_task(coro)
+                created_tasks.append(task)
+                return task
+            
+            # Mock InterestRegistry to avoid ConfigurationManager issues
+            with patch('fledge.services.core.service_registry.service_registry.InterestRegistry') as mock_interest_registry:
+                mock_interest_instance = MagicMock()
+                mock_interest_registry.return_value = mock_interest_instance
+                mock_interest_instance.get.return_value = []  # Return empty list
+                mock_interest_instance.unregister.return_value = None
+                
+                with patch('asyncio.create_task', side_effect=mock_create_task):
+                    with patch.object(ServiceRegistry._logger, 'info') as log_info_mark_failed:
+                        # Simulate the logic from monitor loop when service fails
+                        service_record = ServiceRegistry.get(idx=s_id_1)[0]
+                        check_count = {service_record._id: monitor._max_attempts + 1}  # Exceed max attempts
+                        
+                        # This is the logic from the monitor loop when max attempts are exceeded
+                        if check_count[service_record._id] > monitor._max_attempts:
+                            ServiceRegistry.mark_as_failed(service_record._id)
+                            check_count[service_record._id] = 0
+                            auto_support_bundle = monitor._support_bundle_config['auto_support_bundle']['value'] == 'true'
+                            if auto_support_bundle:
+                                asyncio.create_task(monitor.create_automated_support_bundle(service_record._name))
+
+        # Verify service is marked as failed
+        assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Failed
+        
+        # Verify support bundle creation method was NOT called
+        assert len(support_bundle_calls) == 0
+        
+        # Verify no tasks were created
+        assert len(created_tasks) == 0

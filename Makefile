@@ -327,6 +327,17 @@ $(SYMLINK_PLUGINS_DIR) :
 # run make install on cmake based components
 c_install : c_build
 	$(CD) $(CMAKE_BUILD_DIR) ; $(MAKE_INSTALL)
+# reduce size of binaries by stripping unnecessary information
+ifeq ($(STRIP_EXEC),1)
+	@echo "Stripping unnecessary information..."
+	find $(INSTALL_DIR) -type f -exec sh -c '\
+		for f do \
+			if file "$$f" | grep -q "ELF"; then \
+				strip "$$f"; \
+			fi; \
+		done \
+	' sh {} +
+endif
 
 ###############################################################################
 ###################### PYTHON BUILD/INSTALL TARGETS ###########################

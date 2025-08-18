@@ -135,11 +135,9 @@ COMMON_SCRIPTS_SRC          := scripts/common
 POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
 SQLITE_SCRIPT_SRC           := scripts/plugins/storage/sqlite.sh
 SQLITELB_SCRIPT_SRC         := scripts/plugins/storage/sqlitelb.sh
-SOUTH_SCRIPT_SRC            := scripts/services/south
 SOUTH_C_SCRIPT_SRC          := scripts/services/south_c
 STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
 STORAGE_SCRIPT_SRC          := scripts/storage
-NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
@@ -415,8 +413,8 @@ install_sqlitelb_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
 	$(CP_DIR) scripts/plugins/storage/sqlite/upgrade $(SQLITELB_SCHEMA_UPDATE_DIR)
 	$(CP_DIR) scripts/plugins/storage/sqlite/downgrade $(SQLITELB_SCHEMA_UPDATE_DIR)
 
-install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
-	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR)
+	$(CP) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_south_c_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_C_SCRIPT_SRC)
 	$(CP) $(SOUTH_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
@@ -424,8 +422,8 @@ install_south_c_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_C_SCRIPT_SRC)
 install_storage_service_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(STORAGE_SERVICE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SERVICE_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
-install_north_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_SCRIPT_SRC)
-	$(CP) $(NORTH_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+install_north_script : $(SCRIPT_TASKS_INSTALL_DIR)
+	$(CP) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_north_c_script : $(SCRIPT_TASKS_INSTALL_DIR) $(NORTH_C_SCRIPT_SRC)
 	$(CP) $(NORTH_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

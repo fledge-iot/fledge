@@ -11,6 +11,7 @@ import datetime
 import uuid
 import json
 import multiprocessing
+import subprocess
 from aiohttp import web
 
 from typing import Dict, List
@@ -34,7 +35,7 @@ from fledge.common.audit_logger import AuditLogger
 from fledge.common.web.middleware import has_permission
 
 
-__author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
+__author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -44,12 +45,39 @@ _help = """
     | GET POST            | /fledge/service                                      |
     | GET                 | /fledge/service/available                            |
     | GET                 | /fledge/service/installed                            |
+    | GET                 | /fledge/service/info                                 |
+    | GET                 | /fledge/service/info/{service_name}                  |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
     | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
 _logger = FLCoreLogger().get_logger(__name__)
+
+# Prebuilt services configuration
+_PREBUILT_SERVICES = {
+    "south": {
+        "name": "south",
+        "description": "Service used to interact with device, API and generic sources of data",
+        "type": "south",
+        "process": "south",
+        "process_script": "south_c"
+    },
+    "north": {
+        "name": "north",
+        "description": "Service used to interact with device, API and generic sources of data",
+        "type": "north",
+        "process": "north",
+        "process_script": "north_C"
+    },
+    "storage": {
+        "name": "storage",
+        "description": "The storage service buffers data within a single Fledge instance",
+        "type": "storage",
+        "process": "storage",
+        "process_script": "storage"
+    }
+}
 
 #################################
 #  Service
@@ -77,6 +105,121 @@ def get_service_records(_type=None):
     return recs
 
 
+async def _fetch_service_info(service_name: str) -> dict:
+    """
+    Fetch service information by attempting multiple service discovery methods.
+
+    Tries to get service info in the following order:
+    1. C service executable with --info flag
+    2. Python service module with info() function
+
+    Args:
+        service_name: Name of the service to fetch info for
+
+    Returns:
+        Service info dictionary with service details, or empty response if all methods fail
+    """
+    def _create_empty_service_response(name: str) -> dict:
+        return {
+            "name": name,
+            "description": "",
+            "type": "",
+            "process": "",
+            "process_script": ""
+        }
+
+    def _get_service_info_from_path(service_path: str, is_python: bool = False) -> dict:
+        """
+        Get service information from the specified path.
+
+        Args:
+            service_path: Path to the service (executable or Python __main__.py)
+            is_python: True if this is a Python service, False for C service
+
+        Returns:
+            Service information dictionary or None if failed
+        """
+        if is_python:
+            # For Python services, import the module and call info() function directly
+            try:
+                import importlib.util
+
+                # Load the Python module from the __main__.py file
+                spec = importlib.util.spec_from_file_location("service_module", service_path)
+                if spec is None or spec.loader is None:
+                    _logger.error(f"Could not load service module from path: {service_path}.")
+                    return None
+
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                # Call the info() function if it exists
+                if hasattr(module, 'info') and callable(getattr(module, 'info')):
+                    return module.info()
+                else:
+                    _logger.error(f"Service module {service_name} does not have info() function.")
+                    return None
+            except Exception as ex:
+                _logger.error(f"Error loading service module {service_name}: {ex}")
+                return None
+        else:
+            # For C services, execute with --info flag
+            cmd_with_args = [service_path, "--info"]
+            try:
+                p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = p.communicate(timeout=10)
+                return_code = p.returncode
+                if return_code == 0 and out:
+                    res = out.decode("utf-8")
+                    return json.loads(res)
+                else:
+                    error_msg = err.decode("utf-8") if err else "Unknown error"
+                    _logger.error(f"Service execution failed for {service_name}: {error_msg}.")
+                    return None
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate()
+                _logger.error(f"Service execution timeout for {service_name}.")
+                return None
+            except json.JSONDecodeError as ex:
+                _logger.error(f"Invalid JSON response from service {service_name}: {ex}")
+                return None
+
+    # First check C service path
+    service_path = f"{_FLEDGE_ROOT}/services/fledge.services.{service_name}"
+    if os.path.exists(service_path):
+        try:
+            service_info = _get_service_info_from_path(service_path)
+            if service_info:
+                return service_info
+            else:
+                # File found but unable to get info - return early
+                _logger.error(f"C service {service_name} found but unable to retrieve service info.")
+                return _create_empty_service_response(service_name)
+        except Exception as ex:
+            _logger.error(f"Error executing service {service_name}: {ex}")
+            return _create_empty_service_response(service_name)
+
+    # Fallback to Python service path (only if C service not found)
+    python_service = f"{_FLEDGE_ROOT}/python/fledge/services/{service_name}/__main__.py"
+    if os.path.exists(python_service):
+        try:
+            service_info = _get_service_info_from_path(python_service, is_python=True)
+            if service_info:
+                return service_info
+            else:
+                # File found but unable to get info - return early
+                _logger.error(f"Python service {service_name} found but unable to retrieve service info.")
+                return _create_empty_service_response(service_name)
+        except Exception as ex:
+            _logger.error(f"Error loading Python service {service_name}: {ex}")
+            return _create_empty_service_response(service_name)
+
+    # Both paths failed - log once and return empty response
+    _logger.error(f"Service {service_name} not found in both ({service_path}) and ({python_service}) paths.")
+    return _create_empty_service_response(service_name)
+
+
 def get_service_installed() -> List:
     paths = [_FLEDGE_ROOT + "/services", _FLEDGE_ROOT + "/python/fledge/services/management"]
     services = []
@@ -89,6 +232,75 @@ def get_service_installed() -> List:
                 elif _file == '__main__.py':
                     services.append('management')
     return services
+
+
+async def get_service_info(request):
+    """
+    Get information about all the services by calling each service
+
+    Args:
+        request: HTTP request object
+
+    Returns:
+        JSON response with information about all services including their configuration
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/service/info
+    """
+    try:
+        # Get list of installed services
+        installed_services = get_service_installed()
+        services = []
+        for service_name in installed_services:
+            # Check if it's a prebuilt service
+            if service_name in _PREBUILT_SERVICES:
+                services.append(_PREBUILT_SERVICES[service_name])
+                continue
+            service_info = await _fetch_service_info(service_name)
+            services.append(service_info)
+        response = {"services": services}
+        return web.json_response(response)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+
+async def get_service_info_by_name(request):
+    """
+    Get information about a specific service by name
+
+    Args:
+        request: HTTP request object with service name in URL path
+
+    Returns:
+        JSON response with information about the specified service
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/service/info/MyService
+    """
+    try:
+        service_name = request.match_info.get('service_name', None)
+        if service_name is None:
+            msg = f"Service name is required in the URL path."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+        # Get list of installed services to validate the service exists
+        installed_services = get_service_installed()
+        if service_name not in installed_services:
+            msg = f"Service '{service_name}' not found in installed services."
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+
+        # Check if it's a prebuilt service
+        if service_name in _PREBUILT_SERVICES:
+            service_info = _PREBUILT_SERVICES[service_name]
+        else:
+            # Try to get service info from C or Python service
+            service_info = await _fetch_service_info(service_name)
+        response = {'services': [service_info]}
+        return web.json_response(response)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def get_health(request):

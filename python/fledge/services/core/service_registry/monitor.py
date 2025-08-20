@@ -23,6 +23,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+# Module-level variable to hold the monitor instance for callbacks
+_monitor_instance = None
+
 
 class Monitor(object):
 
@@ -59,6 +62,8 @@ class Monitor(object):
         self._support_bundle_config = None
         # Alert manager instance to raise alerts
         self._alert_manager = None
+        # Configuration manager instance
+        self._cfg_manager = None
 
     async def _sleep(self, sleep_time):
         await asyncio.sleep(sleep_time)
@@ -179,9 +184,20 @@ class Monitor(object):
         """Raise alert for automated support bundle creation"""
         if not self._alert_manager:
             self._alert_manager = AlertManager(connect.get_storage_async())
+        # Don't create alert if already exists
+        key = f"{service_name}-support-bundle"
+        try:
+            alert = await self._alert_manager.get_by_key(key)
+        except KeyError:
+            alert = None
+
+        if alert is not None:
+            self._logger.debug("Alert for support bundle already exists for service: {}".format(service_name))
+            return
+
         try:
             param = {
-                "key": f"{service_name}-support-bundle",
+                "key": key,
                 "message": f"Support bundle created for failed service '{service_name}'",
                 "urgency": "2"  # High urgency
             }
@@ -189,9 +205,90 @@ class Monitor(object):
         except Exception as ex:
             self._logger.error(ex, "Failed to raise an alert on support bundle creation for {} service.".format(service_name))
 
+    async def _handle_config_change(self, category_name):
+        """Handle configuration changes for monitored categories"""
+        self._logger.info("Processing configuration change for category: {}".format(category_name))
+        
+        try:
+            if category_name == 'SMNTR':
+                await self._reload_monitor_config()
+            elif category_name == 'SUPPORT_BUNDLE':
+                await self._reload_support_bundle_config()
+        except Exception as ex:
+            self._logger.error("Failed to handle configuration change for {}: {}".format(category_name, str(ex)))
+
+    async def _reload_monitor_config(self):
+        """Reload SMNTR configuration and update monitor parameters"""
+        self._logger.info("Reloading SMNTR configuration...")
+        
+        config = await self._cfg_manager.get_category_all_items('SMNTR')
+        
+        # Store old values for logging
+        old_values = {
+            'sleep_interval': self._sleep_interval,
+            'ping_timeout': self._ping_timeout,
+            'max_attempts': self._max_attempts,
+            'restart_failed': self._restart_failed
+        }
+        
+        # Update with new values
+        self._sleep_interval = int(config['sleep_interval']['value'])
+        self._ping_timeout = int(config['ping_timeout']['value'])
+        self._max_attempts = int(config['max_attempts']['value'])
+        self._restart_failed = config['restart_failed']['value']
+        
+        # Log changes
+        changes = []
+        if old_values['sleep_interval'] != self._sleep_interval:
+            changes.append("Sleep interval: {} -> {}".format(old_values['sleep_interval'], self._sleep_interval))
+        if old_values['ping_timeout'] != self._ping_timeout:
+            changes.append("Ping timeout: {} -> {}".format(old_values['ping_timeout'], self._ping_timeout))
+        if old_values['max_attempts'] != self._max_attempts:
+            changes.append("Max attempts: {} -> {}".format(old_values['max_attempts'], self._max_attempts))
+        if old_values['restart_failed'] != self._restart_failed:
+            changes.append("Restart failed: {} -> {}".format(old_values['restart_failed'], self._restart_failed))
+            
+        if changes:
+            self._logger.info("SMNTR configuration changes applied: {}".format(", ".join(changes)))
+        else:
+            self._logger.debug("SMNTR configuration reloaded with no changes")
+
+    async def _reload_support_bundle_config(self):
+        """Reload SUPPORT_BUNDLE configuration"""
+        self._logger.info("Reloading SUPPORT_BUNDLE configuration...")
+        
+        old_auto_bundle = self._support_bundle_config.get('auto_support_bundle', {}).get('value', 'false') if self._support_bundle_config else 'false'
+        
+        self._support_bundle_config = await self._cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
+        
+        new_auto_bundle = self._support_bundle_config.get('auto_support_bundle', {}).get('value', 'false')
+        
+        if old_auto_bundle != new_auto_bundle:
+            self._logger.info("SUPPORT_BUNDLE configuration changed - Auto support bundle: {} -> {}".format(old_auto_bundle, new_auto_bundle))
+        else:
+            self._logger.debug("SUPPORT_BUNDLE configuration reloaded with no changes")
+
+    async def _register_config_interests(self):
+        """Register interest for configuration changes"""
+        try:
+            # Register for SMNTR configuration changes
+            self._cfg_manager.register_interest('SMNTR', 'fledge.services.core.service_registry.monitor')
+            self._logger.info("Registered interest for SMNTR configuration changes")
+            
+            # Register for SUPPORT_BUNDLE configuration changes
+            self._cfg_manager.register_interest('SUPPORT_BUNDLE', 'fledge.services.core.service_registry.monitor')
+            self._logger.info("Registered interest for SUPPORT_BUNDLE configuration changes")
+            
+        except Exception as ex:
+            self._logger.error("Failed to register configuration interests: {}".format(str(ex)))
+
     
     async def _read_config(self):
         """Reads configuration"""
+        # Set module-level reference for callbacks
+        global _monitor_instance
+        _monitor_instance = self
+        
         default_config = {
             "sleep_interval": {
                 "description": "Time in seconds to sleep between health checks. (must be greater than 5)",
@@ -225,16 +322,19 @@ class Monitor(object):
         }
 
         storage_client = connect.get_storage_async()
-        cfg_manager = ConfigurationManager(storage_client)
-        await cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
+        self._cfg_manager = ConfigurationManager(storage_client)
+        await self._cfg_manager.create_category('SMNTR', default_config, 'Service Monitor', display_name='Service Monitor')
 
-        config = await cfg_manager.get_category_all_items('SMNTR')
-        self._support_bundle_config = await cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
+        config = await self._cfg_manager.get_category_all_items('SMNTR')
+        self._support_bundle_config = await self._cfg_manager.get_category_all_items('SUPPORT_BUNDLE')
 
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])
         self._max_attempts = int(config['max_attempts']['value'])
         self._restart_failed = config['restart_failed']['value']
+
+        # Register for configuration change notifications
+        await self._register_config_interests()
 
     async def restart_service(self, service_record):
         from fledge.services.core import server  # To avoid cyclic import as server also imports monitor
@@ -273,7 +373,40 @@ class Monitor(object):
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
     async def stop(self):
+        """Clean up when stopping the monitor"""
+        try:
+            # Unregister configuration interests
+            if self._cfg_manager:
+                self._cfg_manager.unregister_interest('SMNTR', 'fledge.services.core.service_registry.monitor')
+                self._cfg_manager.unregister_interest('SUPPORT_BUNDLE', 'fledge.services.core.service_registry.monitor')
+                self._logger.info("Unregistered configuration interests")
+        except Exception as ex:
+            self._logger.error("Error unregistering config interests: {}".format(str(ex)))
+            
         try:
             self._monitor_loop_task.cancel()
         except asyncio.CancelledError:
             pass
+
+
+# Module-level callback function required by ConfigurationManager
+async def run(category_name):
+    """Module-level callback function for configuration changes
+    
+    This function is called by ConfigurationManager when registered categories change.
+    It delegates to the monitor instance to handle the actual configuration update.
+    
+    Args:
+        category_name (str): The name of the category that changed
+    """
+    global _monitor_instance
+    
+    if _monitor_instance is None:
+        # Log but don't raise exception to avoid breaking the config system
+        logger.setup(__name__).warning("Monitor instance not available for config change callback")
+        return
+        
+    try:
+        await _monitor_instance._handle_config_change(category_name)
+    except Exception as ex:
+        logger.setup(__name__).error("Error in configuration change callback for {}: {}".format(category_name, str(ex)))

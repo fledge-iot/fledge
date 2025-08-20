@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run a Fledge Storage service written in C/C++
-
+set -eo pipefail
 storageExec=""
 pluginScriptPath=""
 
@@ -47,7 +47,7 @@ else
     fi
 fi
 
-if [[ "$1" != "--plugin" ]]; then
+if [[ "$1" == "--plugin" ]]; then
     # Get db schema
     FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
     FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
@@ -66,12 +66,16 @@ if [[ "$1" != "--plugin" ]]; then
     else
 		${storageExec} "$@"
     fi
-elif [[ "$1" != "--readingsPlugin" ]]; then
+elif [[ "$1" == "--readingsPlugin" ]]; then
     # Get db schema
     FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
     FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
     # Get storage engine
     res=(`${storageExec} --readingsPlugin`)
+    # Check if the first three words are "Use main plugin"
+    if [[ "$res" =~ "Use main plugin" ]]; then
+        res=(`${storageExec} --plugin`)
+    fi
     storagePlugin=${res[0]}
     managedEngine=${res[1]}
     # Call plugin check: this will create database if not set yet

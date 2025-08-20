@@ -24,6 +24,96 @@ Version History
 Fledge v3
 ==========
 
+v3.1.0
+-------
+
+Release Date: 2025-07-10
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Added new convenience methods to the ConfigCategory class to streamline plugin development in C++.
+       - Added support for running in containers without root privileges.
+       - Added command line interface for debugging processing pipelines in south and north services.
+       - Added new configuration category for selectively enabling/disabling features instance-wide (currently supports control features and pipeline debugger).
+       - Added pipeline debugging capabilities to trace data flow in north and south services.
+       - Added configurable buffer size limit for south services to handle storage service overload scenarios.
+       - Added certificate-based authentication support to Fledge management script.
+       - Improved north service resource usage during connection failures.
+       - Increased minimum key size requirement to 2048 bits for all authentication and encryption keys.
+       - Updated plugin developers guide with notification rule plugin development documentation.
+       - Updated quick start guide with improved formatting and content accuracy.
+       - The newly supported platforms include Ubuntu 24.04 and Raspberry Pi OS (bookworm).
+
+    - Bug Fix:
+
+       - Fixed storage system issue that was causing log flooding due to stale object registrations.
+       - Fixed service registration issue with sinusoid plugin when using reserved asset names.
+       - Fixed critical resource leak in plugin interface. **Note:** All plugins must be rebuilt against this version to ensure binary object handling compatibility.
+       - Fixed log display corruption caused by invalid character handling.
+       - Corrected service pipeline configuration to properly restrict control pipeline source/destination options.
+       - Resolved shutdown logging anomalies when running with Python 3.11+.
+       - Resolved certificate chain of trust validation issues in authentication system.
+       - Addressed security vulnerability that allowed unauthorized authentication method changes without proper password configuration.
+       - Addressed security vulnerability that exposed plaintext passwords in support bundles.
+
+
+- **GUI**
+
+    - New Features:
+
+       - Added tooltip to notification log page showing source column description.
+       - Added search functionality to dashboard graph selection dropdown to filter statistics.
+       - Added persistence for menubar collapsed/expanded state between sessions.
+       - Changed default menubar mode to narrow view for improved space utilization.
+       - Enhanced user list display to clearly indicate certificate login issues.
+
+    - Bug Fix:
+
+       - Fixed service status icon incorrectly showing grey state.
+       - Fixed menu sidebar layout issues on different screen sizes.
+       - Fixed disabled scroll arrows on south service configuration page.
+       - Fixed pipeline icon display with long filter/service names.
+       - Fixed screen visibility during restart with collapsed menu.
+       - Standardized Delete key behavior for connections across keyboard and mouse operations.
+       - Improved submenu interaction to prevent accidental selections.
+       - Improved overall UI appearance and consistency.
+
+- **Plugins**
+
+    - New Features:
+
+       - Asset Filter Enhancements:
+
+         * Added new *nest* rule for adding nesting to datapoints.
+         * Added list support to *select* rule similar to *remove* rule.
+         * Improved regular expression support with substitution patterns in *rename*, *datapoint map* and *split* rules.
+         * Improved filter performance.
+         * Extended rules to handle lists of datapoints instead of single datapoints.
+         * Restructured documentation with better rule descriptions and additional examples.
+
+       - OMF North Plugin Enhancements:
+
+         * Optimized authentication for AVEVA Data Hub (ADH) by leveraging token expiration time.
+         * Added connectivity checks for AVEVA Data Hub and Edge Data Store (similar to existing PI Web API checks).
+         * Added logging of attempted links when OMF Data message fails to help troubleshoot AF Attribute conflicts.
+         * Added data type coercion support for *number* and *integer* OMFHints to handle filter-induced data type changes.
+         * Added support for Static Data values in Linked Types.
+
+    - Bug Fix:
+
+       - Fixed scale-set filter bug affecting data scaling.
+       - Resolved resource leaks in fledge-filter-asset, fledge-filter-python35, and several other filters.
+       - OMF North Plugin Fixes:
+
+         * Fixed parsing of Static Data values when more than 2 values configured.
+         * Fixed large OMF Data message handling by implementing message splitting.
+         * Fixed authentication endpoint to use correct Region hosting the Namespace.
+         * Updated Tag Name OMFHint to support both Container and PI Point naming.
+         * Enhanced plugin documentation for better clarity.
+
+
 v3.0.0
 -------
 

@@ -459,6 +459,144 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the value of the configuration category item with a default
+ *
+ * @param name         The name of the configuration item to return
+ * @param defaultValue The default value to return if the item does not exist
+ * @return string      The configuration item value or the default
+ */
+string ConfigCategory::getValue(const std::string& name, const std::string& defaultValue) const
+{
+	try
+	{
+		return getValue(name);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%s'", name.c_str(), e->what(), defaultValue.c_str());
+		delete e;
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a boolean value from a configuration category item
+ *
+ * @param name         The name of the item
+ * @param defaultValue The value to return if item is not found or invalid
+ * @return bool        The boolean value
+ */
+bool ConfigCategory::getBoolValue(const std::string& name, bool defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		std::string lower = val;
+		std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+		if (lower == "true" || lower == "1") return true;
+		if (lower == "false" || lower == "0") return false;
+		Logger::getLogger()->info("Config item '%s' expected to be boolean but got '%s'", name.c_str(), val.c_str());
+		return defaultValue;
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+}
+
+/**
+ * Return an integer value from a configuration category item
+ */
+int ConfigCategory::getIntegerValue(const std::string& name, int defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stoi(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be integer but got '%s', returning default value '%d'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%d'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a long value from a configuration category item
+ */
+long ConfigCategory::getLongValue(const std::string& name, long defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stol(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be long but got '%s', returning default value '%ld'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%ld'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a double value from a configuration category item
+ */
+double ConfigCategory::getDoubleValue(const std::string& name, double defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stod(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be double but got '%s', returning default value '%lf'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%lf'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
  * Return the value of the configuration category item list, this
  * is a convience function used when simple lists are defined
  * and allows for central processing of the list values

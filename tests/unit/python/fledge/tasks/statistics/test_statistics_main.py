@@ -6,8 +6,6 @@
 
 """Test tasks/statistics/__main__.py entry point"""
 
-import asyncio
-import sys
 from unittest.mock import patch, MagicMock
 import pytest
 
@@ -39,10 +37,7 @@ async def test_main(_stats_history_instance):
     async def mock_coro():
         return None
     with patch.object(statistics_history, "__name__", "__main__"):
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
+        _rv = await mock_coro()
         with patch.object(StatisticsHistory, 'run', return_value=_rv):
             assert isinstance(_stats_history_instance, StatisticsHistory)
             await _stats_history_instance.run()

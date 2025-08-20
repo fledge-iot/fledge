@@ -17,7 +17,7 @@ using namespace SimpleWeb;
 /**
  * Constructor for the OMFInformation class
  */
-OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false)
+OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_ocs(NULL), m_connected(false)
 {
 
 	m_logger = Logger::getLogger();
@@ -58,12 +58,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 		m_PIServerEndpoint = ENDPOINT_ADH;
 		url 		   = ENDPOINT_URL_ADH;
+		m_authUrl 	   = AUTHORIZATION_URL_ADH;
 		std::string region = "uswe";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "euno";
 		else if(ADHRegions.compare("Australia") == 0)
 			region = "auea";
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_ADH;
 	}
 	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
@@ -71,12 +73,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 		m_PIServerEndpoint = ENDPOINT_OCS;
 		url                = ENDPOINT_URL_OCS;
+		m_authUrl          = AUTHORIZATION_URL_OCS;
 		std::string region = "dat-b";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "dat-d";
 		else if(ADHRegions.compare("Australia") == 0)
 			Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_OCS;
 	}
 	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
@@ -380,10 +384,9 @@ void OMFInformation::handleOMFTracing()
  */
 OMFInformation::~OMFInformation()
 {
-	if (m_sender)
-		delete m_sender;
-	if (m_omf)
-		delete m_omf;
+	delete m_sender;
+	delete m_omf;
+	delete m_ocs;
 	// TODO cleanup the allocated member variables
 }
 
@@ -613,6 +616,15 @@ void OMFInformation::start(const string& storedData)
 			m_omf->setLegacyMode(m_legacy);
 		}
 	}
+
+	// Allocate the OCS class that implements ADH and OCS authentication
+	if (!m_ocs)
+	{
+		if ((m_PIServerEndpoint == ENDPOINT_ADH) || (m_PIServerEndpoint == ENDPOINT_OCS))
+		{
+			m_ocs = new OCS(m_authUrl);
+		}
+	}
 }
 
 /**
@@ -634,11 +646,10 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		return 0;
 	}
 
-	// OCS or ADH - retrieves the authentication token
-	// It is retrieved at every send as it can expire and the configuration is only in OCS and ADH
-	if (m_PIServerEndpoint == ENDPOINT_OCS || m_PIServerEndpoint == ENDPOINT_ADH)
+	// For OCS and ADH, retrieve the authentication token
+	if (m_ocs)
 	{
-		std::string token = OCSRetrieveAuthToken();
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret);
 		if (!token.empty())
 		{
 			m_OCSToken = token;
@@ -1119,7 +1130,7 @@ int OMFInformation::IsADHConnected(bool logMessage)
 {
 	if (m_OCSToken.empty())
 	{
-		std::string token = OCSRetrieveAuthToken(false);
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret, false);
 		if (!token.empty())
 		{
 			m_OCSToken = token;
@@ -1248,29 +1259,6 @@ void OMFInformation::CheckDataActionCode()
 			m_dataActionCode = "create";
 		}
 	}
-}
-
-/**
- * Calls the OCS API to retrieve the authentication token
- * 
- * @param    logMessage	If true, log error messages (default: true)
- * @return   token      Authorization token
- */
-string OMFInformation::OCSRetrieveAuthToken(bool logMessage)
-{
-	string token;
-	OCS *ocs;
-
-	if (m_PIServerEndpoint == ENDPOINT_OCS)
-		ocs = new OCS();
-	else if (m_PIServerEndpoint == ENDPOINT_ADH)
-		ocs = new OCS(true);
-
-	token = ocs->retrieveToken(m_OCSClientId , m_OCSClientSecret, logMessage);
-
-	delete ocs;
-
-	return token;
 }
 
 /**

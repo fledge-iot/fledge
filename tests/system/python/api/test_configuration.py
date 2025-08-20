@@ -80,6 +80,12 @@ class TestConfiguration:
                             ]
                   },
                   {
+                     'key': 'SUPPORT_BUNDLE',
+                     'description': 'Support Bundle Configuration',
+                     'displayName': 'Support Bundle',
+                     'children': []
+                  },
+                  {
                      'key': 'SMNTR',
                      'description': 'Service Monitor',
                      'displayName': 'Service Monitor',

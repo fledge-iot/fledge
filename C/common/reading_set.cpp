@@ -214,6 +214,57 @@ ReadingSet::append(vector<Reading *>& readings)
 }
 
 /**
+ * merge the readings in a vector with the set of readings in the reading set.
+ * The input reading vector must be ordered as per timestamp and cleared at the end of the operation.
+ * @param readings	A vector of Reading pointers to merge with the ReadingSet
+*/
+void ReadingSet::merge(std::vector<Reading *> *readings)
+{
+	if (!readings || readings->empty()) {
+		return;
+	}
+
+	size_t totalSize = m_readings.size() + readings->size();
+	std::vector<Reading*> merged;
+	merged.reserve(totalSize);
+	merged.resize(totalSize);  // make sure we can assign via operator[]
+
+	size_t i = 0;
+	auto p1 = m_readings.begin();
+	auto p2 = readings->begin();
+
+	while (p1 != m_readings.end() || p2 != readings->end()) {
+		if (p1 != m_readings.end() && p2 != readings->end()) {
+			struct timeval ta, tb;
+			(*p1)->getUserTimestamp(&ta);
+			(*p2)->getUserTimestamp(&tb);
+
+			// stable ordering: if equal, p1 wins
+			if (timercmp(&ta, &tb, <=)) {
+				merged[i++] = *p1++;
+			} else {
+				if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+					m_last_id = (*p2)->getId();
+				}
+				merged[i++] = *p2++;
+			}
+		} else if (p1 != m_readings.end()) {
+			merged[i++] = *p1++;
+		} else if (p2 != readings->end()) {
+			if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+				m_last_id = (*p2)->getId();
+			}
+			merged[i++] = *p2++;
+		}
+	}
+
+	m_readings = std::move(merged);
+	m_count = m_readings.size();
+	//Clear input readings vector
+	readings->clear();
+}
+
+/**
 * Deep copy a set of readings to this reading set.
 *
 * @param src	The reading set to copy

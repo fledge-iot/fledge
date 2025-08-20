@@ -5,8 +5,6 @@
 # FLEDGE_END
 
 
-import sys
-import asyncio
 import json
 import pathlib
 
@@ -145,9 +143,8 @@ class TestCertificateStore:
     async def test_bad_delete_cert_with_invalid_filename(self, client, cert_name, actual_code, actual_reason):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(REST_API_CAT_INFO))
+        
+        _rv = await mock_coro(REST_API_CAT_INFO)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
@@ -185,9 +182,7 @@ class TestCertificateStore:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         msg = 'Only cert and key are allowed for the value of type param'
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(REST_API_CAT_INFO))
+        _rv = await mock_coro(REST_API_CAT_INFO)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
@@ -208,9 +203,9 @@ class TestCertificateStore:
     async def test_delete_cert_with_type(self, client, cert_name, param):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        
         cat_info = {'certificateName': {'value': 'foo'}, 'authCertificateName': {'value': 'ca'}}
-        _rv = await mock_coro(cat_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(cat_info))
+        _rv = await mock_coro(cat_info)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 with patch('os.path.isfile', return_value=True):
@@ -226,9 +221,8 @@ class TestCertificateStore:
     async def test_delete_cert(self, client, certs_path, cert_name='server.cert'):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(REST_API_CAT_INFO))
+        
+        _rv = await mock_coro(REST_API_CAT_INFO)
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
@@ -271,15 +265,10 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
 
     async def auth_token_fixture(self, mocker, is_admin=True):
         user = {'id': 1, 'uname': 'admin', 'role_id': '1'} if is_admin else {'id': 2, 'uname': 'user', 'role_id': '2'}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro(user)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro(user))
+        
+        _rv1 = await mock_coro(user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro(user)
         patch_logger_debug = mocker.patch.object(middleware._logger, 'debug')
         patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
         patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
@@ -311,12 +300,12 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
             mocker, is_admin=False)
         msg = 'Certificate with name test.cer is configured to be used, ' \
               'An `admin` role permissions required to add/overwrite.'
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        
         cat_info = {'certificateName':  {'value': 'test'},  'authCertificateName':  {'value': 'foo'}}
-        _rv = await mock_coro(cat_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(cat_info))
+        _rv = await mock_coro(cat_info)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        
         with patch.object(certificate_store._logger, 'warning') as patch_logger:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
@@ -445,15 +434,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
 
     async def auth_token_fixture(self, mocker, is_admin=True):
         user = {'id': 1, 'uname': 'admin', 'role_id': '1'} if is_admin else {'id': 2, 'uname': 'user', 'role_id': '2'}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro(user)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro(user))
+        
+        _rv1 = await mock_coro(user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro(user)
         patch_logger_debug = mocker.patch.object(middleware._logger, 'debug')
         patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
         patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
@@ -469,13 +453,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(REST_API_CAT_INFO)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
+        
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(REST_API_CAT_INFO)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
@@ -500,9 +480,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
     async def test_bad_delete_cert(self, client, mocker, cert_name, actual_code, actual_reason):
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        
         _payload = [{'id': '1'}]
-        _rv = await mock_coro(_payload) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(_payload))
+        _rv = await mock_coro(_payload)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv):
             resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
             assert actual_code == resp.status
@@ -524,13 +504,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             cert_name)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(REST_API_CAT_INFO)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
+        
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(REST_API_CAT_INFO)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch('os.path.isfile', return_value=True):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -557,14 +533,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         msg = 'Only cert and key are allowed for the value of type param'
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(REST_API_CAT_INFO)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
         
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(REST_API_CAT_INFO)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
@@ -595,14 +566,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        
         cat_info = {'certificateName':  {'value': 'foo'},  'authCertificateName':  {'value': 'ca'}}
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(cat_info)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(cat_info))
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(cat_info)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
@@ -628,14 +595,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(REST_API_CAT_INFO)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
         
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(REST_API_CAT_INFO)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
                 with patch('os.walk') as mockwalk:

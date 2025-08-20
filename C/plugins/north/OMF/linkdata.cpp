@@ -60,6 +60,68 @@ static std::string StringSetToCSVString(const std::set<std::string> &stringSet)
 }
 
 /**
+ * Convert a DatapointValue to a string suitable for an OMF Data message
+ *
+ * @param dp		Datapoint
+ * @param format	OMF data type format to be used for the string
+ * @return			Value string for the OMF Data message
+ */
+static std::string DatapointValueToOMFString(Datapoint *dp, std::string &format)
+{
+	// Coerce floating point numbers to integers if requested.
+	// OMF will not accept floating point numbers sent to integer Containers so they must be coerced.
+	// OMF will accept integers sent to floating point Containers so no need to explicitly coerce.
+	// When coercing negative floating point numbers to unsigned integers, set the OMF value to 'null'.
+	std::string omfValueString;
+
+	if (dp->getData().getType() == DatapointValue::T_FLOAT)
+	{
+		double doubleValue = dp->getData().toDouble();
+
+		if (format.compare(0, 6, "Double") == 0)
+		{
+			omfValueString = dp->getData().toString(); // very common; check this first
+		}
+		else if (format.compare(0, 7, "Integer") == 0)
+		{
+			omfValueString = std::to_string((long)doubleValue);
+		}
+		else if (format.compare(0, 8, "UInteger") == 0)
+		{
+			if (doubleValue < 0.0)
+			{
+				omfValueString = std::string("null");
+			}
+			else
+			{
+				omfValueString = std::to_string((long)doubleValue);
+			}
+		}
+		else
+		{
+			omfValueString = dp->getData().toString();
+		}
+	}
+	else if ((dp->getData().getType() == DatapointValue::T_INTEGER) && (format.compare(0, 8, "UInteger") == 0))
+	{
+		if (dp->getData().toInt() < 0)
+		{
+			omfValueString = std::string("null");
+		}
+		else
+		{
+			omfValueString = dp->getData().toString();
+		}
+	}
+	else
+	{
+		omfValueString = dp->getData().toString();
+	}
+
+	return omfValueString;
+}
+
+/**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
  * @param payload	    The buffer into which to populate the payload
@@ -163,14 +225,6 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 		}
 		else
 		{
-			if (needDelim)
-			{
-				payload.append(',');
-			}
-			else
-			{
-				needDelim = true;
-			}
 			string format;
 			string tagNameHintRaw, tagNameHint;
 			bool tagNameHintchanged = false;
@@ -204,6 +258,31 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
 			string baseType = getBaseType(dp, format);
+			if (baseType.empty())
+			{
+				// Skip the datapoint.
+				// Data type is not supported or the OMFHint is incorrect.
+				// If 'format' is non-empty, a numeric or integer OMFHint was applied. The format string must be invalid.
+				if (format.empty())
+				{
+					skippedDatapoints.push_back(dpName);
+				}
+				else
+				{
+					skippedDatapoints.push_back(dpName + "[" + format + "]");
+				}
+				continue;
+			}
+
+			if (needDelim)
+			{
+				payload.append(',');
+			}
+			else
+			{
+				needDelim = true;
+			}
+
 			if (dpLookup == m_linkedAssetState->end())
 			{
 				Logger::getLogger()->error("Trying to send a link for a datapoint for which we have not created a base type");
@@ -224,28 +303,19 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			}
 			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
 			{
-				string bt = dpLookup->second.getBaseTypeString();
-				if (bt.compare(0, 6, "Double") == 0 &&
-						(baseType.compare(0, 7, "Integer") == 0
-						 || baseType.compare(0, 8, "UInteger") == 0))
-				{
-					string msg = "Asset " + assetName + " data point " + dpName 
-				       		+ " conversion from floating point to integer is being ignored";
-					OMF::reportAsset(assetName, "warn", msg);
-					baseType = bt;
-				}
-				else
-				{
-					sendContainer(link, dp, hints, baseType);
-					dpLookup->second.containerSent(assetName, baseType);
-				}
+				// Land here if the integer or number OMFHint is different from the hint in place
+				// when the Container was first created or confirmed in the current run.
+				// The only way to store data in this case is to reset the format to its initial value.
+				// Attempting to apply the requested format will cause data to be discarded because the
+				// requested format is not defined for the Container.
+				string containerFormat = dpLookup->second.getBaseTypeString();
+
+				Logger::getLogger()->debug("%s: Requested format '%s' does not match the Container format '%s'. Resetting to '%s'.",
+					link.c_str(), baseType.c_str(), containerFormat.c_str(), containerFormat.c_str());
+
+				baseType = containerFormat;
 			}
-			if (baseType.empty())
-			{
-				// Type is not supported, skip the datapoint
-				skippedDatapoints.push_back(dpName);
-				continue;
-			}
+
 			if (m_sendFullStructure && dpLookup->second.linkState(assetName) == false)
 			{
 				payload.append("{ \"typeid\":\"__Link\",");
@@ -267,9 +337,11 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 
 			// Base type we are using for this data point
 			payload.append("\"" + baseType + "\": ");
-			// Add datapoint Value
-		       	payload.append(dp->getData().toString());
+
+			// Add datapoint Value as a string to the payload.
+			payload.append(DatapointValueToOMFString(dp, baseType));
 			payload.append(", ");
+
 			// Append Z to getAssetDateTime(FMT_STANDARD)
 			payload.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 			payload.append("} ] }");
@@ -291,7 +363,7 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			points.replace(pos, 1, " and");
 		}
 		string assetName = reading.getAssetName();
-		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
+		string msg = "The asset " + assetName + " had a number of datapoints (" + points + ") that are not supported by OMF and have been omitted";
 		OMF::reportAsset(assetName, "warn", msg);
 	}
 	return rval;
@@ -379,6 +451,10 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "UInteger32";
 			else if (intFormat.compare("uint16") == 0)
 				baseType = "UInteger16";
+			else if (intFormat.compare("float64") == 0)
+				baseType = "Double64";
+			else if (intFormat.compare("float32") == 0)
+				baseType = "Double32";
 			break;
 		}
 		case DatapointValue::T_FLOAT:
@@ -392,14 +468,26 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "Double64";
 			else if (doubleFormat.compare("float32") == 0)
 				baseType = "Double32";
+			else if (doubleFormat.compare("int64") == 0)
+				baseType = "Integer64";
+			else if (doubleFormat.compare("int32") == 0)
+				baseType = "Integer32";
+			else if (doubleFormat.compare("int16") == 0)
+				baseType = "Integer16";
+			else if (doubleFormat.compare("uint64") == 0)
+				baseType = "UInteger64";
+			else if (doubleFormat.compare("uint32") == 0)
+				baseType = "UInteger32";
+			else if (doubleFormat.compare("uint16") == 0)
+				baseType = "UInteger16";
 			break;
 		}
 		default:
-			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr(),
+			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr().c_str(),
 					dp->getName().c_str());
-			// Not supported
-			return baseType;
+			break;
 	}
+
 	return baseType;
 }
 

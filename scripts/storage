@@ -44,6 +44,7 @@ PLUGIN_TO_USE=`get_storage_plugin`
 READINGS_PLUGIN_TO_USE=`get_readings_plugin`
 if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
     storage_log "err" "Missing plugin from Fledge storage service" "all" "pretty"
+    exit 1
 fi
 
 PLUGIN_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/$PLUGIN_TO_USE.sh"

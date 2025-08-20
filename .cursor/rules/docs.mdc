@@ -1,0 +1,378 @@
+
+---
+description: "Cursor AI rules for Fledge documentation - covers reStructuredText, Sphinx, file naming, and content guidelines"
+globs: 
+  - "docs/**/*"
+  - "*.rst"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Documentation Directory Cursor Rules
+
+## Overview
+This file contains specific rules for working with documentation in the `/docs` directory of the Fledge project. These rules supplement the main project cursor rules and focus on documentation-specific patterns and conventions.
+
+## Documentation Framework
+- **Format**: reStructuredText (.rst) format exclusively
+- **Build System**: Sphinx documentation generator
+- **Theme**: sphinx_rtd_theme (Read the Docs theme)
+- **Configuration**: All settings in `docs/conf.py`
+
+## 🚫 "Fledge" Branding Guidelines - MINIMIZE USAGE
+
+**CRITICAL RULE: Avoid "Fledge" in naming wherever possible**
+
+### What to Avoid:
+- ❌ Image files: `fledge_architecture.png`
+- ❌ Directory names: `fledge_authentication/`
+- ❌ File names: `fledge_configuration.rst`
+- ❌ Headings: "Fledge Authentication Setup"
+- ❌ Repetitive content: "Fledge does this... Fledge provides that..."
+
+### What to Use Instead:
+- ✅ Image files: `architecture_overview.png`, `auth_flow.png`
+- ✅ Directory names: `authentication/`, `configuration/`, `monitoring/`
+- ✅ File names: `authentication.rst`, `configuration.rst`
+- ✅ Headings: "Authentication Setup", "Configuration Guide"
+- ✅ Content alternatives: "the platform", "the system", "this feature"
+
+### When "Fledge" IS Appropriate:
+- Main title pages and introductory content
+- External references and comparisons
+- Installation package names
+- API endpoint references where it's part of the actual name
+
+## File Organization
+
+### Directory Structure
+- `/docs/` - Main documentation root
+- `/docs/_static/` - Static assets (CSS, images that aren't content)
+- `/docs/_templates/` - Custom Sphinx templates
+- `/docs/images/` - Documentation images and screenshots
+- `/docs/quick_start/` - Getting started guides
+- `/docs/plugin_developers_guide/` - Plugin development documentation
+- `/docs/rest_api_guide/` - REST API documentation
+- `/docs/building_fledge/` - Build and installation guides
+- `/docs/monitoring/` - System monitoring documentation
+- `/docs/fledge-rule-DataAvailability/` - Built-in Data Availability rule plugin docs
+- `/docs/fledge-rule-Threshold/` - Built-in Threshold rule plugin docs
+- `/docs/fledge-north-OMF.rst` - Built-in OMF north plugin documentation
+- `/docs/keywords/` - Plugin categorization keywords and mappings
+- `/docs/fledge_plugins.rst` - Master plugin list with conditional hyperlinks
+
+**DIRECTORY NAMING GUIDELINES:**
+- **AVOID "fledge" in new directory names** - use functional descriptions
+- Use topic-based naming: `authentication/` instead of `fledge_authentication/`
+- Keep directory names lowercase with underscores
+- Focus on the purpose/feature rather than product branding
+
+### File Naming Conventions
+- Use lowercase with underscores: `file_name.rst`
+- Index files: `index.rst` for each directory
+- Numbered files for version/download info: `91_version_history.rst`, `92_downloads.rst`
+- Descriptive names reflecting content: `securing.rst`, `troubleshooting_pi_server_integration.rst`
+- **AVOID "fledge" in filenames** - use functional descriptions: `authentication.rst` instead of `fledge_authentication.rst`
+- Focus on the topic/feature being documented
+
+## reStructuredText Style Guidelines
+
+### Heading Hierarchy
+Follow this exact hierarchy for consistency:
+```rst
+***************
+Document Title (Level 1)
+***************
+
+===============
+Major Section (Level 2)
+===============
+
+Minor Section (Level 3)
+-----------------------
+
+Subsection (Level 4)
+^^^^^^^^^^^^^^^^^^^^
+
+Sub-subsection (Level 5)
+"""""""""""""""""""""""""
+```
+
+**IMPORTANT NAMING CONVENTIONS:**
+- **AVOID "Fledge" in headings** unless absolutely necessary for context
+- Use descriptive, functional titles: "Authentication Configuration" instead of "Fledge Authentication Configuration"
+- Focus on the feature/functionality rather than the product name
+- Keep headings concise and user-focused
+
+### Document Structure
+1. **Title**: Use level 1 heading with asterisks above and below
+2. **Introduction**: Brief overview of the document's purpose
+3. **Table of Contents**: Use `.. toctree::` for sections with multiple pages
+4. **Main Content**: Organized with appropriate heading levels
+5. **Cross-references**: Link to related documentation
+
+### Code Blocks
+```rst
+.. code-block:: language
+   :linenos:
+   :emphasize-lines: 2,3
+
+   code here
+```
+
+### Common Directives
+- `.. note::` - Important information
+- `.. warning::` - Critical warnings
+- `.. code-block::` - Code examples
+- `.. image::` - Images with proper alt text
+- `.. toctree::` - Table of contents trees
+
+### Images and Media
+- Store images in `/docs/images/` directory
+- Use descriptive filenames: `architecture_overview.png` (avoid "fledge_" prefix)
+- **AVOID "Fledge" in image filenames** - use descriptive terms like `architecture_overview.png` instead of `fledge_architecture_overview.png`
+- Always include alt text: `.. image:: images/filename.png :alt: Description`
+- Optimize images for web (reasonable file sizes)
+- Use subdirectories in images/ for organization by topic
+- Keep image names concise and topic-focused
+
+### Cross-References and Links
+- Internal references: `:doc:`filename`` or `:ref:`label``
+- External links: `Link text <URL>`_
+- API references: Follow existing patterns for REST API documentation
+
+## Content Guidelines
+
+### Writing Style
+- Use clear, concise language suitable for technical documentation
+- Write in active voice when possible
+- Use present tense for current functionality
+- Include step-by-step instructions for procedures
+- Provide context and examples
+- **MINIMIZE use of "Fledge" in content** - focus on functionality and features
+- Use "the platform", "the system", or specific feature names instead of repetitive "Fledge" references
+
+### Code Examples
+- Include complete, runnable examples when possible
+- Show both input and expected output
+- Use realistic data that represents actual Fledge usage
+- Comment code examples appropriately
+- Test code examples to ensure they work
+
+### API Documentation
+- Document all public APIs, parameters, and return values
+- Include HTTP status codes for REST APIs
+- Provide curl examples for API endpoints
+- Show JSON request/response examples
+- Document error conditions and responses
+
+### Configuration Documentation
+- Show complete configuration examples
+- Explain all configuration parameters
+- Provide default values where applicable
+- Include configuration validation rules
+- Link to related configuration sections
+
+## Sphinx Configuration
+
+### Extensions
+- Keep extensions minimal and focused
+- Document any new extensions added
+- Ensure extensions are available in build environment
+
+### Build Process
+- Use `make html` for local builds
+- Check for build warnings and errors
+- Test documentation locally before committing
+- Verify all links work correctly
+
+### Documentation Generation Scripts
+- **Location**: `/scripts/` directory contains documentation generation utilities
+- **Plugin Discovery**: Scripts automatically scan plugin repositories for `docs/` directories
+- **Content Aggregation**: Pulls documentation from external plugin repos during build
+- **Branch Management**: Handles DOCBRANCH parameter for version-specific documentation
+- **Integration**: Merges external plugin docs with core Fledge documentation seamlessly
+
+### Keywords and Categorization System
+- **Keywords Directory**: `/docs/keywords/` contains category definition files
+- **Category Mapping**: Each keyword file defines a plugin category (e.g., `Augmentation`, `Cleansing`, `Cloud`)
+- **Plugin Keywords**: Plugin repositories contain keyword files that reference category keywords
+- **Automatic Categorization**: Build scripts match plugin keywords with category definitions
+- **Dynamic Organization**: Plugin list automatically organized into categorical sections
+- **Conditional Display**: Categories only appear if plugins with matching keywords exist
+
+### Version Management
+- Version information managed in `conf.py`
+- DOCBRANCH parameter for plugin documentation
+- Update version info during releases
+
+### DOCBRANCH System
+- **Purpose**: Generates documentation from both core Fledge and external plugin repositories
+- **Core Documentation**: Always included from the main Fledge repository
+- **Plugin Documentation**: Pulled from individual plugin repositories if they have a `docs/` directory
+- **Branch Control**: Uses `DOCBRANCH='develop'` parameter (set to actual version during releases)
+- **Auto-Discovery**: Only includes plugins that have documentation - ignores repos without `docs/` directory
+- **Generation Scripts**: Located in `/scripts/` directory handle the plugin documentation aggregation
+- **Build Command**: `subprocess.run(["make generated DOCBRANCH='develop'"], shell=True, check=True)` in `conf.py`
+
+## Plugin Documentation
+
+### Plugin Repository Documentation
+- **External Plugins**: Each plugin repository can have its own `docs/` directory
+- **Auto-Discovery**: Build system automatically includes plugin docs if `docs/` directory exists
+- **Repository Requirement**: Plugin repos without `docs/` directory are ignored during documentation generation
+- **Branch Synchronization**: Uses same DOCBRANCH parameter as core documentation
+- **Integration**: Plugin docs are seamlessly integrated into the main documentation site
+
+### Built-in Plugins (In Core Repository)
+The following plugins have documentation included directly in the core Fledge repository:
+- **`fledge-rule-DataAvailability/`** - Data availability rule plugin documentation
+- **`fledge-rule-Threshold/`** - Threshold rule plugin documentation  
+- **`fledge-north-OMF.rst`** - OMF north plugin documentation
+
+### Plugin Documentation Standards
+- Each plugin should have its own documentation section
+- Follow the pattern established in existing plugin docs
+- Include installation, configuration, and usage instructions
+- Provide troubleshooting sections
+- Use the same reStructuredText format and style guidelines
+
+### Auto-Generated Content
+- Plugin lists and references may be auto-generated by scripts in `/scripts/` directory
+- Don't manually edit generated content
+- Use the build system's generation capabilities
+- Generated content includes plugin discovery from external repositories
+
+### Plugin Listing System (`fledge_plugins.rst`)
+- **Master List**: All plugins are listed with name and description in `fledge_plugins.rst`
+- **Smart Hyperlinking**: 
+  - ✅ **With Documentation**: Plugin names become hyperlinks if `docs/` directory exists in plugin repo
+  - ❌ **Without Documentation**: Plugin names remain as plain text (no hyperlink)
+- **Automatic Detection**: Build system checks for documentation availability during generation
+- **Comprehensive Coverage**: Includes all available Fledge plugins regardless of documentation status
+
+### Plugin Categorization System
+- **Keyword-Based Organization**: Plugins organized by categories using keyword mapping
+- **Keywords Directory**: `/docs/keywords/` contains category definitions and mappings
+- **Plugin Keywords**: Each plugin repository can have a keywords file defining its categories
+- **Categorical Display**: Plugins grouped and displayed under appropriate category sections
+- **Dynamic Categorization**: Categories are automatically generated based on available keywords
+
+### Plugin Documentation Sources
+- **Core Repository Plugins**: Documentation in `/docs/` for built-in plugins
+- **External Plugin Repos**: Each plugin repository can maintain its own `docs/` directory
+- **Plugin Directory Reference**: All Fledge-based plugins available in main `plugins/` directory
+- **Detailed Documentation**: Comprehensive plugin docs when `docs/` directory exists in plugin repo
+
+### Plugin Documentation Workflow
+1. **Plugin Discovery**: Build system scans all available Fledge plugin repositories
+2. **Documentation Check**: Determines if plugin repo has `docs/` directory
+3. **List Generation**: All plugins added to `fledge_plugins.rst` with name and description
+4. **Hyperlink Decision**: 
+   - Plugins WITH docs → Name becomes clickable hyperlink
+   - Plugins WITHOUT docs → Name remains as plain text
+5. **Category Organization**: Plugins grouped by keywords into categorical sections
+6. **Integration**: Plugin docs seamlessly integrated into main documentation site
+
+## Quality Standards
+
+### Content Review
+- Ensure accuracy of all technical information
+- Verify code examples work with current Fledge version
+- Check that screenshots are current and accurate
+- Review for clarity and completeness
+
+### Accessibility
+- Use proper heading hierarchy for screen readers
+- Include alt text for all images
+- Ensure good color contrast in custom CSS
+- Test with accessibility tools
+
+### Maintenance
+- Update documentation when features change
+- Remove or update deprecated information
+- Keep external links current
+- Regular review of troubleshooting sections
+
+## Build and Deployment
+
+### Local Testing
+```bash
+cd docs
+make html
+# Check _build/html/index.html in browser
+```
+
+### Build Warnings
+- Address all Sphinx build warnings
+- Fix broken internal references
+- Verify external links periodically
+- Check image references
+
+### Dependencies
+- Document build dependencies in `requirements.txt`
+- Keep Sphinx version constraints appropriate
+- Test builds in clean environments
+
+## Documentation Contribution Guidelines
+
+### New Documentation
+- Create comprehensive documentation for new features
+- Follow existing patterns and conventions
+- Include in appropriate toctree structures
+- Add cross-references to related content
+
+### Plugin Documentation Contributions
+- **Adding Plugin Docs**: Create `docs/` directory in plugin repository with proper structure
+- **Hyperlink Generation**: Plugin names in `fledge_plugins.rst` automatically become hyperlinks when docs exist
+- **Keywords Assignment**: Add appropriate keyword files to enable categorical organization
+- **Content Standards**: Follow same reStructuredText standards as core documentation
+- **Testing**: Verify plugin documentation builds correctly with main documentation site
+
+### Updates
+- Update documentation when code changes
+- Maintain backwards compatibility information
+- Add migration guides for breaking changes
+- Update version history appropriately
+
+### Review Process
+- Technical accuracy review
+- Editorial review for clarity
+- Build verification
+- Link checking
+
+## Common Patterns
+
+### Getting Started Guides
+- Step-by-step instructions
+- Prerequisites clearly stated
+- Expected outcomes described
+- Troubleshooting section included
+
+### Reference Documentation
+- Comprehensive parameter listings
+- Example configurations
+- Default values documented
+- Related settings cross-referenced
+
+### Tutorial Content
+- Progressive complexity
+- Complete working examples
+- Clear learning objectives
+- Summary and next steps
+
+## Troubleshooting Documentation
+
+### Error Messages
+- Include exact error message text
+- Provide context for when errors occur
+- Give specific resolution steps
+- Link to related configuration
+
+### Common Issues
+- Document frequently reported problems
+- Provide multiple solution approaches
+- Include preventive measures
+- Reference community resources
+
+This documentation should be treated as living guidelines that evolve with the project's needs while maintaining consistency and quality standards.

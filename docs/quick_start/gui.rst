@@ -1,6 +1,7 @@
 .. Images
 .. |login| image:: ../images/gui_login.jpg
 .. |dashboard| image:: ../images/dashboard.JPG
+.. |DashboardSearch| image:: ../images/DashboardSearch.jpg
 
 .. Links
 .. |secure| raw:: html
@@ -36,9 +37,11 @@ Fledge Dashboard
 | |dashboard| |
 +-------------+
 
-This screen provides an overview of Fledge operations. You can customize the information and time frames displayed on this screen using the drop-down menus in the upper right corner. The information you select will be displayed in a series of graphs.
+This screen provides an overview of Fledge operations. You may view various graphs of the statistics that are gathered as part of the operation of Fledge. Using these statistical displays it is possible to ascertain the operational state of Fledge and the services it is running.
 
-You can choose to view a graph of any of the sensor reading being collected by the Fledge system. In addition, you can view graphs of the following system-wide information:
+You can customize the information and time frames displayed on this screen using the drop-down menus in the upper right corner. The information you select will be displayed in a series of graphs.
+
+You can choose to view a graph of any of the statistics for sensor readings being collected by the Fledge system or the ingest rates for any of the Fledge services. In addition, you can view graphs of the following system-wide statistics:
 
   - **READINGS:** The total number of data readings collected by Fledge since system boot.
   - **BUFFERED:** The number of data readings currently in the Fledge buffer.
@@ -46,4 +49,16 @@ You can choose to view a graph of any of the sensor reading being collected by t
   - **UNSENT:** Number of data readings that were not sent successfully.
   - **PURGED:** The total number of data readings that have been purged from the system.
   - **UNSNPURGED:** The number of data readings that were purged without being sent to a North service.
+
+In a Fledge system that has many services, or where multiple assets are ingested per service, the list of available statistics to display can become long very quickly. In order to aid the process of finding the statistic you wish to view in the dashboard a search option is provided.
+
++-------------------+
+| |DashboardSearch| |
++-------------------+
+
+Simply type part of the name you wish to locate in the drop down and the content of the drop down list will be filtered to show just those statistics that match the string you type.
+
+.. note::
+
+   The filtering algorithm is independent of the case of the string you enter and in the name of the matching statistic.
 

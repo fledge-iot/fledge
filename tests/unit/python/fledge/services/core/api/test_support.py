@@ -4,12 +4,11 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import json, os, pathlib, sys
+import json, os, pathlib
 from pathlib import PosixPath
 
 from unittest.mock import patch, mock_open, Mock, MagicMock
 
-import asyncio
 from aiohttp import web
 import pytest
 
@@ -116,19 +115,25 @@ class TestBundleSupport:
         async def mock_build():
             return 'support-180301-13-35-23.tar.gz'
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_build()
-        else:
-            _rv = asyncio.ensure_future(mock_build())
-            
-        with patch.object(SupportBuilder, "__init__", return_value=None):
-            with patch.object(SupportBuilder, "build", return_value=_rv):
-                resp = await client.post('/fledge/support')
-                res = await resp.text()
-                jdict = json.loads(res)
-                assert 200 == resp.status
-                assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
+        _rv = await mock_build()    
+        mock_config = {
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", return_value=_rv):
+                    resp = await client.post('/fledge/support')
+                    res = await resp.text()
+                    jdict = json.loads(res)
+                    assert 200 == resp.status
+                    assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
 
     async def test_create_support_bundle_exception(self, client):
         msg = "Failed to create support bundle."
@@ -175,8 +180,8 @@ class TestBundleSupport:
         def mock_syslog():
             return """
             echo "Sep 12 13:31:41 nerd-034 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-            Dec 18 15:15:10 aj-ub1804 Fledge OMF[12145]: INFO: Signal 11 (Segmentation fault) trapped:"
+            Dec 18 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+            Dec 18 15:15:10 aj-ub Fledge OMF[12145]: INFO: Signal 11 (Segmentation fault) trapped:"
             """
 
         with patch.object(support, "__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE", mock_syslog()):
@@ -326,34 +331,34 @@ class TestBundleSupport:
     async def test_get_syslog_entries_with_level(self, client, template_name, matched_lines, level, actual_count):
         def mock_syslog(_level):
             if _level == 'info':
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
-                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------"
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------"
                 """
             elif _level == 'warning':
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
             elif _level == 'error':
-                return """echo "Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
+                return """echo "Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------" """
             else:
-                return """echo "Dec 21 10:20:03 aj-ub1804 Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
-                Dec 21 12:20:03 aj-ub1804 Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
-                Dec 12 13:31:41 aj-ub1804 Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
-                Dec 21 15:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
-                Dec 21 16:52:48 aj-ub1804 Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
-                Dec 21 16:52:54 aj-ub1804 Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
-                Dec 21 25:15:10 aj-ub1804 Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------
-                Dec 21 25:15:10 aj-ub1804 Fledge sin[11011]: DEBUG: 'sinusoid' plugin reconfigure called" """
+                return """echo "Dec 21 10:20:03 aj-ub Fledge[14623] WARNING: server: fledge.services.core.server: A Fledge PID file has been found.
+                Dec 21 12:20:03 aj-ub Fledge[14623] ERROR: change_callback: fledge.services.core.interest_registry.change_callback: Unable to notify microservice with uuid dc2b2f3a-0310-426f-8d1c-8bd3853fcf2f due to exception
+                Dec 12 13:31:41 aj-ub Fledge PI[9241] ERROR: sending_process: sending_process_PI: cannot complete the sending operation
+                Dec 21 15:15:10 aj-ub Fledge OMF[12145]: FATAL: Signal 11 (Segmentation fault) trapped:
+                Dec 21 16:52:48 aj-ub Fledge[24953] INFO: scheduler: fledge.services.core.scheduler.scheduler: Service HTC records successfully removed
+                Dec 21 16:52:54 aj-ub Fledge[24953] INFO: service_registry: fledge.services.core.service_registry.service_registry
+                Dec 21 25:15:10 aj-ub Fledge OMF[12145]: FATAL: (0) 00x55ac77b9d1b9 handler(int) + 73---------
+                Dec 21 25:15:10 aj-ub Fledge sin[11011]: DEBUG: 'sinusoid' plugin reconfigure called" """
 
         with patch.object(support, template_name, mock_syslog(level)):
             with patch.object(support, matched_lines, """echo "{}" """.format(actual_count)):
@@ -362,3 +367,100 @@ class TestBundleSupport:
                 res = await resp.text()
                 jdict = json.loads(res)
                 assert actual_count == jdict['count']
+
+
+class TestGetSupportBundleConfig:
+    """Test class for the get_support_bundle_config function"""
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_success(self):
+        """Test successful retrieval of support bundle configuration"""
+        # Mock configuration data that would be returned by ConfigurationManager
+        mock_config = {
+            "auto_support_bundle": {
+                "value": "true",
+                "description": "Automatically create support bundle when service fails",
+                "type": "boolean",
+                "default": "false",
+                "displayName": "Auto Support Bundle"
+            },
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        
+        # Mock storage client
+        mock_storage_client = Mock()
+        
+        # Mock configuration manager with async method
+        mock_cfg_manager = Mock()
+        
+        # Track calls to get_category_all_items
+        category_calls = []
+        
+        async def mock_get_category_all_items(category):
+            category_calls.append(category)
+            return mock_config
+        
+        mock_cfg_manager.get_category_all_items = mock_get_category_all_items
+        
+        with patch('fledge.services.core.connect.get_storage_async', return_value=mock_storage_client):
+            with patch('fledge.common.configuration_manager.ConfigurationManager', return_value=mock_cfg_manager) as mock_cfg_class:
+                result = await support.get_support_bundle_config()
+                
+                # Verify the function returns the expected configuration
+                assert result == mock_config
+                
+                # Verify ConfigurationManager was called with the storage client
+                mock_cfg_class.assert_called_once_with(mock_storage_client)
+                
+                # Verify get_category_all_items was called with the correct category
+                assert len(category_calls) == 1
+                assert category_calls[0] == 'SUPPORT_BUNDLE'
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_exception(self):
+        """Test exception handling when configuration retrieval fails"""
+        # Mock storage client
+        mock_storage_client = Mock()
+        
+        # Mock configuration manager to raise an exception
+        mock_cfg_manager = Mock()
+        
+        # Track calls and raise exception
+        category_calls = []
+        
+        async def mock_get_category_all_items_error(category):
+            category_calls.append(category)
+            raise Exception("Configuration error")
+        
+        mock_cfg_manager.get_category_all_items = mock_get_category_all_items_error
+        
+        with patch('fledge.services.core.connect.get_storage_async', return_value=mock_storage_client):
+            with patch('fledge.common.configuration_manager.ConfigurationManager', return_value=mock_cfg_manager):
+                # Verify that the exception is properly propagated
+                with pytest.raises(Exception) as exc_info:
+                    await support.get_support_bundle_config()
+                
+                assert str(exc_info.value) == "Configuration error"
+                
+                # Verify the configuration manager was still called
+                assert len(category_calls) == 1
+                assert category_calls[0] == 'SUPPORT_BUNDLE'
+
+    @pytest.mark.asyncio
+    async def test_get_support_bundle_config_storage_client_exception(self):
+        """Test exception handling when storage client creation fails"""
+        # Mock connect.get_storage_async to raise an exception
+        with patch('fledge.services.core.connect.get_storage_async', side_effect=Exception("Storage connection error")):
+            # Verify that the exception is properly propagated
+            with pytest.raises(Exception) as exc_info:
+                await support.get_support_bundle_config()
+            
+            assert str(exc_info.value) == "Storage connection error" 
+    

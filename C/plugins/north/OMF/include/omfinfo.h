@@ -57,6 +57,8 @@
 
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
+#define AUTHORIZATION_URL_ADH   "REGION_PLACEHOLDER.datahub.connect.aveva.com"
+#define AUTHORIZATION_URL_OCS   "REGION_PLACEHOLDER.osisoft.com:443"
 
 enum OMF_ENDPOINT_PORT {
 	ENDPOINT_PORT_PIWEB_API=443,
@@ -116,7 +118,6 @@ class OMFInformation {
 		int		IsADHConnected(bool logMessage = true);
 		void		SetOMFVersion();
 		void		CheckDataActionCode();
-		std::string	OCSRetrieveAuthToken(bool logMessage = true);
 		OMF_ENDPOINT	identifyPIServerEndpoint();
 		std::string	saveSentDataTypes();
 		unsigned long	calcTypeShort(const std::string& dataTypes);
@@ -132,6 +133,7 @@ class OMFInformation {
 		Logger		*m_logger;
 		HttpSender	*m_sender;              // HTTPS connection
 		OMF 		*m_omf;                 // OMF data protocol
+		OCS			*m_ocs;					// ADH and OCS authorization
 		bool		m_sendFullStructure;    // It sends the minimum OMF structural messages to load data into PI Data Archive if disabled
 		bool		m_compression;          // whether to compress readings' data
 		string		m_protocol;             // http / https
@@ -167,11 +169,12 @@ class OMFInformation {
 						    //   You can use a keytab file to authenticate to various remote systems
 						    //   using Kerberos without entering a password.
 
-		string		m_OCSNamespace;           // OCS configurations
+		string		m_OCSNamespace;           // ADH & OCS configurations
 		string		m_OCSTenantId;
 		string		m_OCSClientId;
 		string		m_OCSClientSecret;
 		string		m_OCSToken;
+		string		m_authUrl;
 
 		vector<pair<string, string>>
 				m_staticData;	// Static data

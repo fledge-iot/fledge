@@ -188,7 +188,7 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/plugins/installed", 200),
         # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt-update
         ("POST", "/fledge/plugins", 403), ("PUT", "/fledge/plugins/south/sinusoid/update", 403),
-        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("GET", "/fledge/service/foo/persist", 404),
+        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("PUT", "/fledge/plugin/validate", 400), ("GET", "/fledge/service/foo/persist", 404),
         ("GET", "/fledge/service/foo/plugin/omf/data", 404), ("POST", "/fledge/service/foo/plugin/omf/data", 403),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 403),
         # filters
@@ -355,7 +355,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # plugins
         ("GET", "/fledge/plugins/installed", 403), ("GET", "/fledge/plugins/available", 403),
         ("POST", "/fledge/plugins", 403), ("PUT", "/fledge/plugins/south/sinusoid/update", 403),
-        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("GET", "/fledge/service/foo/persist", 403),
+        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("PUT", "/fledge/plugin/validate", 403), ("GET", "/fledge/service/foo/persist", 403),
         ("GET", "/fledge/service/foo/plugin/omf/data", 403), ("POST", "/fledge/service/foo/plugin/omf/data", 403),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 403),
         # filters
@@ -452,7 +452,7 @@ class TestAPIEndpointsWithControlUserType:
         ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/6/password", 500),
         ("GET", "/fledge/user/role", 403),
         # auth
-        ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),
+        ("POST", "/fledge/login", 400), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
@@ -528,7 +528,7 @@ class TestAPIEndpointsWithControlUserType:
         # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt operations
         # ("PUT", "/fledge/plugins/south/sinusoid/update", 200),
         # ("DELETE", "/fledge/plugins/south/sinusoid", 404),
-        ("POST", "/fledge/plugins", 400), ("GET", "/fledge/service/foo/persist", 404),
+        ("POST", "/fledge/plugins", 400), ("PUT", "/fledge/plugin/validate", 400), ("GET", "/fledge/service/foo/persist", 404),
         ("GET", "/fledge/service/foo/plugin/omf/data", 404), ("POST", "/fledge/service/foo/plugin/omf/data", 404),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 404),
         # filters

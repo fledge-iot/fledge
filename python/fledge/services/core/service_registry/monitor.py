@@ -23,8 +23,50 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-# Module-level variable to hold the monitor instance for callbacks
-_monitor_instance = None
+
+class MonitorRegistry:
+    """Registry to manage monitor instances"""
+    _monitors = {}
+    
+    @classmethod
+    def register(cls, monitor_id, monitor_instance):
+        """Register a monitor instance with the given ID
+        
+        Args:
+            monitor_id (str): Identifier for the monitor instance
+            monitor_instance (Monitor): The monitor instance to register
+        """
+        cls._monitors[monitor_id] = monitor_instance
+    
+    @classmethod
+    def get(cls, monitor_id='default'):
+        """Get a monitor instance by ID
+        
+        Args:
+            monitor_id (str): Identifier for the monitor instance
+            
+        Returns:
+            Monitor: The monitor instance, or None if not found
+        """
+        return cls._monitors.get(monitor_id)
+    
+    @classmethod
+    def unregister(cls, monitor_id='default'):
+        """Unregister a monitor instance by ID
+        
+        Args:
+            monitor_id (str): Identifier for the monitor instance to remove
+        """
+        return cls._monitors.pop(monitor_id, None)
+    
+    @classmethod
+    def get_all(cls):
+        """Get all registered monitor instances
+        
+        Returns:
+            dict: Dictionary of all registered monitors
+        """
+        return cls._monitors.copy()
 
 
 class Monitor(object):
@@ -186,10 +228,11 @@ class Monitor(object):
             self._alert_manager = AlertManager(connect.get_storage_async())
         # Don't create alert if already exists
         key = f"{service_name}-support-bundle"
+        alert = None
         try:
             alert = await self._alert_manager.get_by_key(key)
         except KeyError:
-            alert = None
+            pass
 
         if alert is not None:
             self._logger.debug("Alert for support bundle already exists for service: {}".format(service_name))
@@ -285,9 +328,8 @@ class Monitor(object):
     
     async def _read_config(self):
         """Reads configuration"""
-        # Set module-level reference for callbacks
-        global _monitor_instance
-        _monitor_instance = self
+        # Register this instance with the registry
+        MonitorRegistry.register('default', self)
         
         default_config = {
             "sleep_interval": {
@@ -374,6 +416,9 @@ class Monitor(object):
 
     async def stop(self):
         """Clean up when stopping the monitor"""
+        # Unregister from registry
+        MonitorRegistry.unregister('default')
+        
         try:
             # Unregister configuration interests
             if self._cfg_manager:
@@ -399,14 +444,17 @@ async def run(category_name):
     Args:
         category_name (str): The name of the category that changed
     """
-    global _monitor_instance
+    monitor = MonitorRegistry.get('default')
     
-    if _monitor_instance is None:
-        # Log but don't raise exception to avoid breaking the config system
-        logger.setup(__name__).warning("Monitor instance not available for config change callback")
+    if monitor is None:
+        # Monitor instance not available - this could happen during startup/shutdown
+        # We can't use the monitor's logger since we don't have the instance
+        # Using the module-level logger setup instead
+        _logger = logger.setup(__name__)
+        _logger.warning("Monitor instance not available for config change callback")
         return
         
     try:
-        await _monitor_instance._handle_config_change(category_name)
+        await monitor._handle_config_change(category_name)
     except Exception as ex:
-        logger.setup(__name__).error("Error in configuration change callback for {}: {}".format(category_name, str(ex)))
+        monitor._logger.error("Error in configuration change callback for {}: {}".format(category_name, str(ex)))

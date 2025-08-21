@@ -11,6 +11,4 @@ omit =
     */python/fledge/plugins/south/*
     */python/fledge/plugins/notificationDelivery/*
     */python/fledge/plugins/notificationRule/*
-    */python/fledge/services/south/*
-    */python/fledge/tasks/north/sending_process.py
     tests/*

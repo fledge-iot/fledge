@@ -110,8 +110,8 @@ async def _fetch_service_info(service_name: str) -> dict:
     Fetch service information by attempting multiple service discovery methods.
 
     Tries to get service info in the following order:
-    1. C service executable with --info flag
-    2. Python service module with info() function
+    1. C service executable with --info argument
+    2. Python service module executed with --info argument
 
     Args:
         service_name: Name of the service to fetch info for
@@ -128,42 +128,50 @@ async def _fetch_service_info(service_name: str) -> dict:
             "process_script": ""
         }
 
-    def _get_service_info_from_path(service_path: str, is_python: bool = False) -> dict:
+    def _get_service_info_from_path(service_path: str, is_python: bool = False, service_name: str = None) -> dict:
         """
         Get service information from the specified path.
 
         Args:
-            service_path: Path to the service (executable or Python __main__.py)
+            service_path: Path to the service (executable or Python service package)
             is_python: True if this is a Python service, False for C service
+            service_name: Name of the service (required for Python services, optional for C services)
 
         Returns:
             Service information dictionary or None if failed
         """
         if is_python:
-            # For Python services, import the module and call info() function directly
+            import sys
+            # service_name is required for Python services
+            if service_name is None:
+                _logger.error("service_name is required for Python services")
+                return None
+            # Execute Python service with --info argument
+            cmd_with_args = [sys.executable, "-m", f"fledge.services.{service_name}", "--info"]
             try:
-                import importlib.util
-
-                # Load the Python module from the __main__.py file
-                spec = importlib.util.spec_from_file_location("service_module", service_path)
-                if spec is None or spec.loader is None:
-                    _logger.error(f"Could not load service module from path: {service_path}.")
-                    return None
-
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
-                # Call the info() function if it exists
-                if hasattr(module, 'info') and callable(getattr(module, 'info')):
-                    return module.info()
+                p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = p.communicate(timeout=10)
+                return_code = p.returncode
+                if return_code == 0 and out:
+                    res = out.decode("utf-8")
+                    return json.loads(res)
                 else:
-                    _logger.error(f"Service module {service_name} does not have info() function.")
+                    error_msg = err.decode("utf-8") if err else "Unknown error"
+                    _logger.error(f"Python service execution failed for {service_name}: {error_msg}")
                     return None
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate()
+                _logger.error(f"Python service execution timeout for {service_name}")
+                return None
+            except json.JSONDecodeError as ex:
+                _logger.error(f"Invalid JSON response from Python service {service_name}: {ex}")
+                return None
             except Exception as ex:
-                _logger.error(f"Error loading service module {service_name}: {ex}")
+                _logger.error(f"Error executing Python service {service_name}: {ex}")
                 return None
         else:
-            # For C services, execute with --info flag
+            # For C services, execute with --info argument
             cmd_with_args = [service_path, "--info"]
             try:
                 p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -189,7 +197,7 @@ async def _fetch_service_info(service_name: str) -> dict:
     service_path = f"{_FLEDGE_ROOT}/services/fledge.services.{service_name}"
     if os.path.exists(service_path):
         try:
-            service_info = _get_service_info_from_path(service_path)
+            service_info = _get_service_info_from_path(service_path, service_name=service_name)
             if service_info:
                 return service_info
             else:
@@ -201,10 +209,10 @@ async def _fetch_service_info(service_name: str) -> dict:
             return _create_empty_service_response(service_name)
 
     # Fallback to Python service path (only if C service not found)
-    python_service = f"{_FLEDGE_ROOT}/python/fledge/services/{service_name}/__main__.py"
-    if os.path.exists(python_service):
+    python_service_path = f"{_FLEDGE_ROOT}/python/fledge/services/{service_name}"
+    if os.path.exists(python_service_path):
         try:
-            service_info = _get_service_info_from_path(python_service, is_python=True)
+            service_info = _get_service_info_from_path(python_service_path, is_python=True, service_name=service_name)
             if service_info:
                 return service_info
             else:
@@ -216,7 +224,7 @@ async def _fetch_service_info(service_name: str) -> dict:
             return _create_empty_service_response(service_name)
 
     # Both paths failed - log once and return empty response
-    _logger.error(f"Service {service_name} not found in both ({service_path}) and ({python_service}) paths.")
+    _logger.error(f"Service {service_name} not found in both ({service_path}) and ({python_service_path}) paths.")
     return _create_empty_service_response(service_name)
 
 
@@ -296,8 +304,7 @@ async def get_service_info_by_name(request):
         else:
             # Try to get service info from C or Python service
             service_info = await _fetch_service_info(service_name)
-        response = {'services': [service_info]}
-        return web.json_response(response)
+        return web.json_response(service_info)
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

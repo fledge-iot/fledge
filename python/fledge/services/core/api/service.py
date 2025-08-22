@@ -54,6 +54,88 @@ _help = """
 """
 _logger = FLCoreLogger().get_logger(__name__)
 
+
+class ServiceInfoCache(object):
+    """Service Information Cache Manager"""
+
+    def __init__(self, size=20):
+        """
+        cache: value stored in dictionary as per service_name
+        max_cache_size: Hold the recently requested service info in the cache. Default cache size is 20
+        hit: number of times an item is read from the cache
+        miss: number of times an item was not found in the cache and a read of the service was required
+        """
+        self.cache = {}
+        self.max_cache_size = size
+        self.hit = 0
+        self.miss = 0
+
+    def __contains__(self, service_name):
+        """Returns True or False depending on whether or not the service is in the cache
+        and update the hit and date_accessed"""
+        if service_name in self.cache:
+            try:
+                current_hit = self.cache[service_name]['hit']
+            except KeyError:
+                current_hit = 0
+
+            self.hit += 1
+            self.cache[service_name].update({'date_accessed': datetime.datetime.now(), 'hit': current_hit + 1})
+            return True
+        self.miss += 1
+        return False
+
+    def update(self, service_name, service_info):
+        """Update the cache dictionary and remove the oldest item if needed"""
+        if service_name not in self.cache and len(self.cache) >= self.max_cache_size:
+            self.remove_oldest()
+        self.cache[service_name] = {
+            'date_accessed': datetime.datetime.now(),
+            'service_info': service_info,
+            'hit': 0
+        }
+        _logger.debug("Updated Service Info Cache for service: %s", service_name)
+
+    def remove_oldest(self):
+        """Remove the entry that has the oldest accessed date"""
+        oldest_entry = None
+        for service_name in self.cache:
+            if oldest_entry is None:
+                oldest_entry = service_name
+            elif (self.cache[service_name].get('date_accessed') and
+                  self.cache[oldest_entry].get('date_accessed') and
+                  self.cache[service_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']):
+                oldest_entry = service_name
+        if oldest_entry:
+            self.cache.pop(oldest_entry)
+
+    def get(self, service_name):
+        """Get service info from cache"""
+        if service_name in self:  # This will update hit count and date_accessed
+            return self.cache[service_name]['service_info']
+        return None
+
+    def remove(self, service_name):
+        """Remove the entry with given service name"""
+        if service_name in self.cache:
+            self.cache.pop(service_name)
+
+    def clear(self):
+        """Clear all cached service info"""
+        self.cache.clear()
+        self.hit = 0
+        self.miss = 0
+
+    @property
+    def size(self):
+        """Return the size of the cache"""
+        return len(self.cache)
+
+
+# service info cache instance
+_service_info_cache = ServiceInfoCache()
+
+# TODO: FOGL-1022 - This is a temporary solution to get the service info for the prebuilt services.
 # Prebuilt services configuration
 _PREBUILT_SERVICES = {
     "south": {
@@ -109,9 +191,12 @@ async def _fetch_service_info(service_name: str) -> dict:
     """
     Fetch service information by attempting multiple service discovery methods.
 
+    Implements caching for non-prebuilt services to improve performance.
+
     Tries to get service info in the following order:
-    1. C service executable with --info argument
-    2. Python service module executed with --info argument
+    1. Check cache for non-prebuilt services
+    2. C service executable with --info argument
+    3. Python service module executed with --info argument
 
     Args:
         service_name: Name of the service to fetch info for
@@ -119,6 +204,13 @@ async def _fetch_service_info(service_name: str) -> dict:
     Returns:
         Service info dictionary with service details, or empty response if all methods fail
     """
+    # Check cache first for non-prebuilt services
+    if service_name not in _PREBUILT_SERVICES:
+        cached_info = _service_info_cache.get(service_name)
+        if cached_info is not None:
+            _logger.debug(f"Retrieved service info for {service_name} from cache")
+            return cached_info
+
     def _create_empty_service_response(name: str) -> dict:
         return {
             "name": name,
@@ -199,6 +291,10 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(service_path, service_name=service_name)
             if service_info:
+                # Cache successful result for non-prebuilt services
+                if service_name not in _PREBUILT_SERVICES:
+                    _service_info_cache.update(service_name, service_info)
+                    _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -214,6 +310,10 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(python_service_path, is_python=True, service_name=service_name)
             if service_info:
+                # Cache successful result for non-prebuilt services
+                if service_name not in _PREBUILT_SERVICES:
+                    _service_info_cache.update(service_name, service_info)
+                    _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -830,6 +930,9 @@ async def get_installed(request: web.Request) -> web.Response:
         :Example:
             curl -X GET http://localhost:8081/fledge/service/installed
     """
+    # Clear service info cache when checking installed services
+    # to ensure cache stays synchronized with actual installed services
+    _service_info_cache.clear()
     services = get_service_installed()
     return web.json_response({"services": services})
 

@@ -44,6 +44,14 @@ static void reconfThreadMain(void *arg);
 
 using namespace std;
 
+// Displays service information in JSON format
+static void printServiceInfoAsJSON()
+{
+	std::string serviceInfoJSON = R"({"name":"South Service","description":"Fledge South Service To Ingress Data","type":"south","process_name":"south_c","process_script":"[services/south_c]"})" ;
+
+	std::cout << serviceInfoJSON << std::endl;
+}
+
 /**
  * South service main entry point
  */
@@ -65,6 +73,11 @@ bool	       dryrun = false;
 
 	for (int i = 1; i < argc; i++)
 	{
+		if (!strcmp(argv[i], "--info"))
+		{
+			printServiceInfoAsJSON();
+			return 0;
+		}
 		if (!strcmp(argv[i], "-d"))
 		{
 			daemonMode = false;

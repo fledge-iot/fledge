@@ -126,6 +126,14 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
 	return rval;
 }
 
+// Displays service information in JSON format
+static void printServiceInfoAsJSON()
+{
+	std::string serviceInfoJSON = R"({"name":"North Service","description":"Fledge North Service To Egress Data","type":"north","process_name":"north_C","process_script":"[services/north_C]"})" ;
+
+	std::cout << serviceInfoJSON << std::endl;
+}
+
 /**
  * North service main entry point
  */
@@ -147,6 +155,11 @@ bool		dryRun = false;
 
 	for (int i = 1; i < argc; i++)
 	{
+		if (!strcmp(argv[i], "--info"))
+		{
+			printServiceInfoAsJSON();
+			return 0;
+		}
 		if (!strcmp(argv[i], "-d"))
 		{
 			daemonMode = false;

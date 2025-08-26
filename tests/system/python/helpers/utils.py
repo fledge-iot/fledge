@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 from datetime import datetime
+import os
 
 import http.client
 import json
@@ -87,4 +88,35 @@ def validate_date_format(datetime_str, format_str=None):
         return True
     except ValueError:
         return False
+
+
+def detect_ubuntu_version():
+    """
+    Detect Ubuntu major version
+    
+    Returns:
+    - str: 'Ubuntu X' where X is the major version (e.g., 'Ubuntu 20', 'Ubuntu 22'), or 'Unknown'
+    """
+    try:
+        # Check if it's Ubuntu by reading /etc/os-release
+        if os.path.exists('/etc/os-release'):
+            with open('/etc/os-release', 'r') as f:
+                content = f.read()
+                
+                # Check if it's Ubuntu
+                if 'Ubuntu' not in content:
+                    return 'Unknown'
+                
+                # Extract version
+                for line in content.split('\n'):
+                    if line.startswith('VERSION_ID='):
+                        version = line.split('=')[1].strip().strip('"')
+                        # Extract major version (first part before the dot)
+                        major_version = version.split('.')[0]
+                        return f'Ubuntu {major_version}'
+        
+        return 'Unknown'
+    
+    except Exception:
+        return 'Unknown'
 

@@ -1640,94 +1640,106 @@ class Server:
         return web.json_response({"services": services})
 
     @classmethod
-    async def get_auth_token(cls, request: web.Request) -> web.Response:
-        """ get auth token
+    async def service_login(cls, request: web.Request) -> web.Response:
+        """ service login
             :Example:
-                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken
+                curl -sX POST -H "{'Authorization': 'Bearer ..'}" -d '{"username": "Manager"}' http://localhost:<core mgt port>/fledge/service/login
         """
-        async def cert_login(ca_cert):
-            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
-            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
-            SSLVerifier.set_ca_cert(ca_cert_file)
-            # FIXME: allow to supply content and any cert name as placed with configured CA sign
-            with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
-                cert_content = content_file.read()
-            SSLVerifier.set_user_cert(cert_content)
-            SSLVerifier.verify()
-            username = SSLVerifier.get_subject()['commonName']
-            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
-            return _token
-
         try:
-            cfg_mgr = ConfigurationManager(cls._storage_client_async)
-            category_info = await cfg_mgr.get_category_all_items('rest_api')
-            is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
-
-            if is_auth_optional:
-                raise api_exception.AuthenticationIsOptional
-
-            auth_method = category_info['authMethod']['value']
-            ca_cert_name = category_info['authCertificateName']['value']
-
             try:
-                auth_header = request.headers.get('Authorization', None)
-            except:
-                raise api_exception.VerificationFailed
-            else:
-                if auth_header is None:
-                    raise api_exception.VerificationFailed
-                if not "Bearer " in auth_header:
-                    raise api_exception.VerificationFailed
-                # check bearer token with service registry for given service
-                ##
-                # the lines below are repated many times, make it a def for common usage/check
-                parts = auth_header.split("Bearer ")
-                if len(parts) != 2:
-                    msg = "Bearer token is missing"
+                data = await request.json()
+                if not isinstance(data, dict):
+                    msg = 'Request body must be a valid JSON object.'
                     raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-                bearer_token = parts[1]
-                # Validate token and get public claims
-                claims = cls.validate_token(bearer_token)
-                if claims.get('error'):
-                    msg = "Service '" + str(claims['sub']) + "' not registered"
-                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            except Exception:
+                msg = 'Request body must be valid JSON. Please provide a JSON object with username field.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-                if bearer_token != ServiceRegistry.getBearerToken(claims['sub']):
-                    # add WARN log (audit?) for this attempt?!
-                    raise api_exception.VerificationFailed
-                else:
-                    # add debug log for successful token verification
-                    pass
-                ##
+            username = data.get('username', None)
+
+            # Check if username is empty or whitespace
+            if not username or not username.strip():
+                msg = 'Username is required and cannot be empty.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            username = username.strip()
+            user_data = None
+            users = await User.Objects.all()
+            for user in users:
+                if user['uname'] == username and user['enabled'] == 't':
+                    if user['role_id'] in [3, 4]:
+                        msg = "User is not authorized to access the service."
+                        raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+                    user_data = user
+                    break
+
+            if user_data is None:
+                msg = f"Username '{username}' does not exist."
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+
+            auth_header = request.headers.get('Authorization', None)
+            if auth_header is None:
+                msg = "Authorization header is missing."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            if "Bearer " not in auth_header:
+                msg = "Invalid Authorization token format."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            parts = auth_header.split("Bearer ")
+            if len(parts) != 2:
+                msg = "Bearer token is missing."
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+
+            bearer_token = parts[1]
+
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error'):
+                msg = f"Service '{claims['sub']}' not registered"
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+
+            if bearer_token != ServiceRegistry.getBearerToken(claims['sub']):
+                msg = "Invalid bearer token."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
 
             peername = request.transport.get_extra_info('peername')
             host = '0.0.0.0'
             if peername is not None:
                 host, _ = peername
 
-            # TODO: restrict host to 0.0.0.0, 127.0.0.1 or localhost?
-
-            if auth_method == 'certificate':
-                token = await cert_login(ca_cert_name)
-            elif auth_method == 'password':
-                # Super admin user always exists on the system
-                # these can be configured diff for a/per services if required
-                payload = payload_builder.PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
-                result = await cls._storage_client_async.query_tbl_with_payload('users', payload)
-                uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
+            # Check user's access method and use appropriate login
+            access_method = user_data.get('access_method', 'any')
+            # Delete all user tokens
+            await User.Objects.delete_user_tokens(user_data['id'])
+            if access_method == 'cert':
+                # Use certificate login for users with cert access method
+                try:
+                    uid, token, is_admin = await User.Objects.certificate_login(user_data['uname'], host)
+                except Exception as ex:
+                    msg = f"Certificate login failed: {str(ex)}."
+                    raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
             else:
-                # For auth method "any" we can use either login with cert or password
-                token = await cert_login(ca_cert_name)
-                # TODO: if cert does not exist then may try with password
-        except api_exception.AuthenticationIsOptional as err:
-            msg = str(err)
-            raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
-        except api_exception.VerificationFailed:
-            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Required authorization token is missing or invalid.'}))
+                # Use password login for other access methods (password, any)
+                try:
+                    uid, token, is_admin = await User.Objects.login(user_data['uname'], user_data['pwd'], host)
+                except User.PasswordNotSetError:
+                    msg = "Password is not set for this user."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                except Exception as ex:
+                    msg = f"Login failed: {str(ex)}"
+                    raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+            return web.json_response(
+                {"token": token, "uid": uid, "admin": is_admin, 
+                "message": f"Logged in successfully for user '{user_data['uname']}'."})
+        except web.HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
+        except ValueError as ex:
+            msg = f"Value error: {str(ex)}."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
-            msg = str(ex)
+            msg = f"Failed to process service login: {str(ex)}."
+            _logger.error(msg)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-        return web.json_response({"token": token})
 
     @classmethod
     async def shutdown(cls, request):

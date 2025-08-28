@@ -1367,19 +1367,21 @@ def pytest_configure():
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
 
 
-def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None):
+def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, use_https=False):
     """ Restarts the Fledge service and waits until it becomes responsive
 
     Args:
         fledge_url (str): base fledge url
         wait_time (int): Seconds between retries
         auth_token (str): Authorization Token (Optional)
+        use_https (bool): Whether to use HTTPS for ping checks after restart (Optional)
     Raises:
         AssertionError: If Fledge failed to restart
 
     Returns:
         JSON Document
     """
+    import ssl
     from contextlib import closing
     headers = {"authorization": auth_token} if auth_token else {}
 
@@ -1398,16 +1400,30 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None):
     jdoc = {}
     for attempt in range(max_retries):
         try:
-            with closing(http.client.HTTPConnection(fledge_url)) as connection:
-                connection.request("GET", "/fledge/ping", headers=headers)
-                response = connection.getresponse()
-                if response.status == 200:
-                    r = response.read().decode()
-                    jdoc = json.loads(r)
-                    break
-                elif response.status == 401:
-                    jdoc = {"message": "Unauthorized"}
-                    break
+            if use_https:
+                context = ssl._create_unverified_context()
+                host = fledge_url.split(':')[0] if ':' in fledge_url else fledge_url
+                with closing(http.client.HTTPSConnection(host, 1995, context=context)) as connection:
+                    connection.request("GET", "/fledge/ping", headers=headers)
+                    response = connection.getresponse()
+                    if response.status == 200:
+                        r = response.read().decode()
+                        jdoc = json.loads(r)
+                        break
+                    elif response.status == 401:
+                        jdoc = {"message": "Unauthorized"}
+                        break
+            else:
+                with closing(http.client.HTTPConnection(fledge_url)) as connection:
+                    connection.request("GET", "/fledge/ping", headers=headers)
+                    response = connection.getresponse()
+                    if response.status == 200:
+                        r = response.read().decode()
+                        jdoc = json.loads(r)
+                        break
+                    elif response.status == 401:
+                        jdoc = {"message": "Unauthorized"}
+                        break
         except:
             pass  # Continue trying
         time.sleep(wait_time * 5)

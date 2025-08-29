@@ -1399,17 +1399,20 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, https_po
     start_time = time.time()
     max_retries = 5
     jdoc = {}
-    
-    # Pre-compute values outside the loop
-    connection_cls = http.client.HTTPSConnection if https_enabled else http.client.HTTPConnection
-    context = ssl._create_unverified_context() if https_enabled else None
-    host = fledge_url.split(':')[0] if ':' in fledge_url else fledge_url
-    
     for attempt in range(max_retries):
         try:
-            with closing(connection_cls(host, https_port, context=context)) as connection:
-                connection.request("GET", "/fledge/ping", headers=headers)
-                response = connection.getresponse()
+            # Create appropriate connection based on protocol
+            if https_enabled:
+                context = ssl._create_unverified_context()
+                host = fledge_url.split(':')[0] if ':' in fledge_url else fledge_url
+                connection = http.client.HTTPSConnection(host, https_port, context=context)
+            else:
+                connection = http.client.HTTPConnection(fledge_url)
+            
+            # Common connection logic
+            with closing(connection) as conn:
+                conn.request("GET", "/fledge/ping", headers=headers)
+                response = conn.getresponse()
                 if response.status == 200:
                     r = response.read().decode()
                     jdoc = json.loads(r)
@@ -1425,7 +1428,7 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, https_po
         raise AssertionError(f"Failed to restart Fledge after {elapsed} seconds.")
     else:
         # Additional time is necessary to ensure that other endpoints are prepared
-        time.sleep(wait_time * 5)
+        time.sleep(wait_time * 6)
     return jdoc
 
 

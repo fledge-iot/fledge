@@ -109,7 +109,7 @@ def change_auth_method(fledge_url, wait_time):
         jdoc = json.loads(r)
         assert auth_method == jdoc['authMethod']['value']
         if restart:
-            restart_and_wait_for_fledge(fledge_url, wait_time, token, use_https=enable_tls)
+            restart_and_wait_for_fledge(fledge_url, wait_time, token, https_enabled=enable_tls)
         if not restart:
             conn.request("PUT", '/fledge/logout', headers={"authorization": token})
             r = conn.getresponse()

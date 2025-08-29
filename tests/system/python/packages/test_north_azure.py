@@ -27,7 +27,7 @@ import datetime
 
 try:
     cmd = "python3 -m pip install azure-storage-blob==12.13.1"
-    if utils.detect_ubuntu_version() == "Ubuntu 24":
+    if utils.detect_os() == "Ubuntu 24":
         cmd = cmd + " --upgrade urllib3==2.5.0 --upgrade requests==2.32.5 --break-system-packages"
     subprocess.run([cmd], shell=True, check=True)
 except subprocess.CalledProcessError:

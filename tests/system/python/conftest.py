@@ -1070,6 +1070,14 @@ def pytest_addoption(parser):
     parser.addoption("--run-time", action="store", default="60",
                     help="The number of minute for which a test should run")
 
+    parser.addoption("--plugin-name", action="store", default="sinusoid",
+                    help="The name of south poll plugin")
+
+
+@pytest.fixture
+def plugin_name(request):
+    return request.config.getoption("--plugin-name")
+
 @pytest.fixture
 def num_assets(request):
     return request.config.getoption("--num-assets")

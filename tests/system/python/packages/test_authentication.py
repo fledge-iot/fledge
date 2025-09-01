@@ -97,7 +97,7 @@ def change_auth_method(fledge_url, wait_time):
         assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert jdoc['admin']
         token = jdoc['token']
-
+        
         payload = {"authMethod": auth_method}
         if enable_tls:
             payload["enableHttp"] = "false"
@@ -118,68 +118,6 @@ def change_auth_method(fledge_url, wait_time):
             jdoc = json.loads(r)
             assert jdoc['logout']
     return _change_auth_method
-
-
-def wait_for_fledge_on_custom_port(host, port, wait_time, use_https=True, max_retries=10):
-    """
-    Wait for Fledge to become available on a custom port after restart.
-    
-    Args:
-        host (str): Hostname to connect to (e.g., "localhost")
-        port (int): Port number to connect to
-        wait_time (int): Wait time between retry attempts in seconds
-        use_https (bool): Whether to use HTTPS (default True) or HTTP
-        max_retries (int): Maximum number of retry attempts (default 10)
-    
-    Returns:
-        bool: True if connection successful, False otherwise
-        
-    Raises:
-        AssertionError: If connection fails after all retries
-    """
-    import time
-    
-    # For custom ports, we need to wait longer for Fledge to restart with new configuration
-    initial_wait = wait_time * 3  # Triple the initial wait for port changes
-    print(f"Waiting for Fledge to become available on {'HTTPS' if use_https else 'HTTP'} port {port}... (Initial wait: {initial_wait}s)")
-    time.sleep(initial_wait)
-    
-    start_time = time.time()
-    success = False
-    
-    for attempt in range(max_retries):
-        try:
-            if use_https:
-                conn = http.client.HTTPSConnection(host, port, context=context)
-            else:
-                conn = http.client.HTTPConnection(host, port)
-            
-            conn.request("GET", "/fledge/ping")
-            r = conn.getresponse()
-            if r.status == 200:
-                print(f"✅ Successfully connected to {host}:{port} on attempt {attempt + 1}")
-                success = True
-                conn.close()
-                break
-            else:
-                print(f"Attempt {attempt + 1}: Got HTTP {r.status} from {host}:{port}")
-            conn.close()
-        except Exception as e:
-            print(f"Attempt {attempt + 1}: Connection to {host}:{port} failed - {e}")
-            pass  # Continue trying
-        
-        # Use longer wait between retries for custom ports
-        retry_wait = wait_time * 2
-        print(f"Waiting {retry_wait}s before next attempt...")
-        time.sleep(retry_wait)
-    
-    if not success:
-        elapsed = round(time.time() - start_time, 2)
-        protocol = "HTTPS" if use_https else "HTTP"
-        raise AssertionError(f"Failed to connect to Fledge on custom {protocol} port {port} after {elapsed} seconds.")
-    
-    return success
-
 
 @pytest.fixture
 def reset_fledge(wait_time):
@@ -248,16 +186,7 @@ class TestTLSDisabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Fledge restart has been scheduled." == jdoc['message']
-
-        # Wait for Fledge to restart and become available on the new port
-        # The helper function validates that Fledge is responding on the custom port
-        wait_for_fledge_on_custom_port("localhost", 8005, wait_time, use_https=False)
+        restart_and_wait_for_fledge(fledge_url, wait_time, custom_port=8005)
 
     def test_reset_to_default_port(self, fledge_url, wait_time):
         conn = http.client.HTTPConnection("localhost", 8005)
@@ -272,20 +201,7 @@ class TestTLSDisabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Fledge restart has been scheduled." == jdoc['message']
-
-        # Wait for Fledge to restart and become available on the default port (8081)
-        # Note: fledge_url should be "localhost:8081" but we'll use the port directly
-        host_port = fledge_url.split(':')
-        host = host_port[0] if len(host_port) > 1 else fledge_url
-        port = int(host_port[1]) if len(host_port) > 1 else 8081
-        # The helper function validates that Fledge is responding on the custom port
-        wait_for_fledge_on_custom_port(host, port, wait_time, use_https=False)
+        restart_and_wait_for_fledge("localhost:8005", wait_time, custom_port=8081)
 
 
 class TestAuthAnyWithoutTLS:
@@ -1367,16 +1283,7 @@ class TestTLSEnabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart', json.dumps({}))
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Fledge restart has been scheduled." == jdoc['message']
-
-        # Wait for Fledge to restart and become available on the new port
-        # The helper function validates that Fledge is responding on the custom HTTPS port
-        wait_for_fledge_on_custom_port("localhost", 2005, wait_time, use_https=True)
+        restart_and_wait_for_fledge("localhost:1995", wait_time, custom_port=2005, https_enabled=True)
 
 
 class TestAuthAnyWithTLS:

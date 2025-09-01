@@ -110,6 +110,8 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/service/{service_name}', service.delete_service)
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
+    app.router.add_route('GET', '/fledge/service/info', service.get_service_info)
+    app.router.add_route('GET', '/fledge/service/info/{service_name}', service.get_service_info_by_name)
     app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
     app.router.add_route('POST', '/fledge/service/{service_name}/otp', service.issueOTPToken)
 

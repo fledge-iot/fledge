@@ -82,6 +82,13 @@ int	size;
 	exit(1);
 }
 
+// Displays service information in JSON format
+static void printServiceInfoAsJSON()
+{
+        static std::string serviceInfoJSON = R"({"name":"Storage Service","description":"The storage service buffers data within a single Fledge instance","type":"storage","process_name":"storage","process_script":"[services/storage_c]"})" ;
+
+        std::cout << serviceInfoJSON << std::endl;
+}
 
 /**
  * Storage service main entry point
@@ -98,6 +105,11 @@ string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
 	{
+		if (!strcmp(argv[i], "--info"))
+                {
+                        printServiceInfoAsJSON();
+                        return 0;
+                }
 		if (!strcmp(argv[i], "-d"))
 		{
 			daemonMode = false;

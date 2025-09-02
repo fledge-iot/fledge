@@ -98,7 +98,7 @@ def change_auth_method(fledge_url, wait_time):
         assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert jdoc['admin']
         token = jdoc['token']
-        
+
         payload = {"authMethod": auth_method}
         if enable_tls:
             payload["enableHttp"] = "false"
@@ -1314,11 +1314,12 @@ class TestTLSEnabled:
                     if response.status == 200:
                         response_data = response.read().decode()
                         jdoc = json.loads(response_data)
-                        print("Fledge successfully restarted on port 2005")
+                        assert "uptime" in jdoc, "Fledge ping response missing uptime field"
+                        assert jdoc['uptime'] > 0, "Fledge uptime should be greater than 0"
                         break
                     elif response.status == 401:
                         jdoc = {"message": "Unauthorized"}
-                        print("Fledge restarted on port 2005 but requires authentication")
+                        assert response.status == 401, "Expected 401 status for unauthorized access"
                         break
                     else:
                         print(f"Attempt {attempt + 1}: Got HTTP status {response.status}")

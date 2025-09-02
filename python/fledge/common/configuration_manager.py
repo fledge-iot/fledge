@@ -843,7 +843,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return results['rows'][0]['value']
 
-    async def _update_value_val(self, category_name, item_name, new_value_val):
+    async def _update_value_val(self, category_name, item_name, new_value_val, item_type=None):
         try:
             old_value = await self._read_value_val(category_name, item_name)
             # UPDATE fledge.configuration
@@ -857,8 +857,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_value = {item_name: {"value": new_value_val}}
             self._handle_config_items(category_name, cat_value)
             audit = AuditLogger(self._storage)
-            audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value,
-                             'newValue': new_value_val}
+
+            # Mask password values for audit trail security
+            masked_old_value = self._mask_password_value(item_type, old_value) if item_type else old_value
+            masked_new_value = self._mask_password_value(item_type, new_value_val) if item_type else new_value_val
+
+            audit_details = {'category': category_name, 'item': item_name, 'oldValue': masked_old_value,
+                             'newValue': masked_new_value}
             await audit.information('CONCH', audit_details)
         except KeyError as ex:
             raise ValueError(str(ex))
@@ -971,7 +976,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                         .WHERE(["key", "=", category_name]).payload()
                     payload['updates'].append(json.loads(payload_item))
-                    audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+                    # Mask password values for audit trail security
+                    item_type = cat_info[item_name].get('type')
+                    masked_old_value = self._mask_password_value(item_type, old_value)
+                    masked_new_value = self._mask_password_value(item_type, new_val)
+                    audit_details['items'].update({item_name: {'oldValue': masked_old_value, 'newValue': masked_new_value}})
 
                     if "ACL" in item_name and type(old_value) == str and type(new_val) == str:
                         await self._handle_update_config_for_acl(category_name, old_value, new_val)
@@ -1245,7 +1254,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     modify_value = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
                     new_value_entry = modify_value
 
-            await self._update_value_val(category_name, item_name, new_value_entry)
+            await self._update_value_val(category_name, item_name, new_value_entry, storage_value_entry.get('type'))
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
             # Special case for script type
@@ -1960,6 +1969,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return False
         elif _type == 'string' or _type == 'northTask':
             return isinstance(_value, str)
+
+    def _mask_password_value(self, item_type, value):
+        """Mask password values for audit trail security"""
+        if item_type == 'password':
+            return '****'
+        return value
 
     def _clean(self, storage_val, item_val) -> str:
         # For optional attributes

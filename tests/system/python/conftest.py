@@ -1385,20 +1385,14 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, custom_p
     import ssl
     from contextlib import closing
     headers = {"authorization": auth_token} if auth_token else {}
-
-    if "1995" in fledge_url:
-        ssl_context = ssl._create_unverified_context()
-        connection = http.client.HTTPSConnection(fledge_url, context=ssl_context)
-    else:
-        connection = http.client.HTTPConnection(fledge_url)
         
-    with closing(connection) as connection:
+    with closing(http.client.HTTPConnection(fledge_url)) as connection:
         connection.request("PUT", '/fledge/restart', headers=headers, body=json.dumps({}))
         response = connection.getresponse()
         assert response.status == 200
         response_data = response.read().decode()
         jdoc = json.loads(response_data)
-        assert jdoc['message'] == "Fledge restart has been scheduled."
+        assert "Fledge restart has been scheduled." == jdoc['message']
 
     print(f"Waiting for Fledge to restart... (Initial wait: {wait_time}s)")
     time.sleep(wait_time)
@@ -1411,15 +1405,13 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, custom_p
     
     # Prepare connection configuration once (parameters don't change between attempts)
     if https_enabled:
-        connection_class = http.client.HTTPSConnection
-        connection_kwargs = {"context": ssl._create_unverified_context()}
+        connection = http.client.HTTPSConnection(host, port, context=ssl._create_unverified_context())
     else:
-        connection_class = http.client.HTTPConnection
-        connection_kwargs = {}
+        connection = http.client.HTTPConnection(host, port)
     
     for attempt in range(max_retries):
         try:
-            with closing(connection_class(host, port, **connection_kwargs)) as conn:
+            with closing(connection) as conn:
                 conn.request("GET", "/fledge/ping", headers=headers)
                 response = conn.getresponse()
                 if response.status == 200:

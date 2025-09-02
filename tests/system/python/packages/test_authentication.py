@@ -13,6 +13,7 @@ import json
 import time
 import ssl
 from pathlib import Path
+from contextlib import closing
 import pytest
 from pytest import PKG_MGR
 from conftest import restart_and_wait_for_fledge
@@ -1283,7 +1284,54 @@ class TestTLSEnabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        restart_and_wait_for_fledge("localhost:1995", wait_time, custom_port=2005, https_enabled=True)
+        # Restart Fledge
+        restart_headers = {}  # No auth headers needed for restart endpoint
+        conn.request("PUT", '/fledge/restart', headers=restart_headers, body=json.dumps({}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert "Fledge restart has been scheduled." == jdoc['message']
+        
+        # Note: Can't use restart_and_wait_for_fledge() from conftest because it only supports
+        # default ports and HTTP connections, but we need to verify HTTPS on custom port 2005
+        # Wait for Fledge to restart and verify it's running on the new port (2005)
+        print(f"Waiting for Fledge to restart on port 2005... (Initial wait: {wait_time}s)")
+        time.sleep(wait_time)
+        
+        start_time = time.time()
+        max_retries = 5
+        ping_headers = {}  # No auth headers needed for ping endpoint
+        
+        # Create connection for the new port (2005)
+        conn = http.client.HTTPSConnection("localhost", 2005, context=context)
+        
+        for attempt in range(max_retries):
+            try:
+                with closing(conn) as connection:
+                    connection.request("GET", "/fledge/ping", headers=ping_headers)
+                    response = connection.getresponse()
+                    if response.status == 200:
+                        response_data = response.read().decode()
+                        jdoc = json.loads(response_data)
+                        print("Fledge successfully restarted on port 2005")
+                        break
+                    elif response.status == 401:
+                        jdoc = {"message": "Unauthorized"}
+                        print("Fledge restarted on port 2005 but requires authentication")
+                        break
+                    else:
+                        print(f"Attempt {attempt + 1}: Got HTTP status {response.status}")
+            except Exception as e:
+                print(f"Attempt {attempt + 1}: Connection failed - {type(e).__name__}: {e}")
+            
+            if attempt < max_retries - 1:
+                sleep_time = wait_time * 2
+                print(f"Waiting {sleep_time}s before next attempt...")
+                time.sleep(sleep_time)
+        else:
+            elapsed = round(time.time() - start_time, 2)
+            raise AssertionError(f"Failed to restart Fledge on port 2005 after {elapsed} seconds: {jdoc}")
 
 
 class TestAuthAnyWithTLS:

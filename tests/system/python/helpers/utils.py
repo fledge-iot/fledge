@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 from datetime import datetime
+import os
 
 import http.client
 import json
@@ -87,4 +88,42 @@ def validate_date_format(datetime_str, format_str=None):
         return True
     except ValueError:
         return False
+
+
+def detect_os():
+    """
+    Detect Ubuntu or Raspberry Pi OS version
+    
+    Returns:
+    - str: 'Ubuntu X' where X is the major version (e.g., 'Ubuntu 20', 'Ubuntu 22')
+    - str: Codename for Raspberry Pi OS (e.g., 'Bookworm', 'Bullseye')
+    - str: 'Unknown' if neither Ubuntu nor Raspberry Pi OS is detected
+    """
+    try:
+        if os.path.exists('/etc/os-release'):
+            with open('/etc/os-release', 'r') as f:
+                content = f.read()
+                
+                # Parse the content into a dictionary
+                os_info = {}
+                for line in content.split('\n'):
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        os_info[key] = value.strip().strip('"')
+                
+                # Check for Ubuntu
+                if 'Ubuntu' in content:
+                    version_id = os_info.get('VERSION_ID', '')
+                    major_version = version_id.split('.')[0]
+                    return f'Ubuntu {major_version}'
+                
+                # Check for Raspberry Pi OS (Debian-based)
+                elif os_info.get('ID') == 'debian' and os_info.get('VERSION_CODENAME') in ['bullseye', 'bookworm']:
+                    codename = os_info.get('VERSION_CODENAME', '')
+                    return codename.capitalize()
+        
+        return 'Unknown'
+    
+    except Exception:
+        return 'Unknown'
 

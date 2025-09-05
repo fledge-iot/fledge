@@ -395,81 +395,76 @@ class TestMonitorConfigCallback:
     async def test_run_callback_with_registered_monitor(self):
         """Test run callback when monitor is registered"""
         monitor = Monitor()
-        mock_handle_config_change = MagicMock()
+        # Mock handle_config_change as async method
+        async def mock_handle_config_change(category_name):
+            pass  # Successful call
         monitor._handle_config_change = mock_handle_config_change
-        
+        # Track if the method was called
+        call_tracker = {'called': False, 'category': None}
+        async def tracked_mock_handle_config_change(category_name):
+            call_tracker['called'] = True
+            call_tracker['category'] = category_name
+        monitor._handle_config_change = tracked_mock_handle_config_change
         # Register monitor
         MonitorRegistry.register('default', monitor)
-        
         # Import and call the run function
         from fledge.services.core.service_registry.monitor import run
-        
         await run('SMNTR')
-        
         # Verify the monitor's handle_config_change was called
-        mock_handle_config_change.assert_called_once_with('SMNTR')
+        assert call_tracker['called'] is True
+        assert call_tracker['category'] == 'SMNTR'
 
     @pytest.mark.asyncio
     async def test_run_callback_with_no_registered_monitor(self):
         """Test run callback when no monitor is registered"""
         # Ensure no monitor is registered
         assert MonitorRegistry.get('default') is None
-        
         # Mock logger setup to capture warning
         with patch('fledge.services.core.service_registry.monitor.logger.setup') as mock_logger_setup:
             mock_logger = MagicMock()
             mock_logger_setup.return_value = mock_logger
-            
             # Import and call the run function
             from fledge.services.core.service_registry.monitor import run
-            
             await run('SMNTR')
-            
-            # Verify warning was logged
-            mock_logger.warning.assert_called_once_with("Monitor instance not available for config change callback")
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once_with("Monitor instance not available for config change callback")
 
     @pytest.mark.asyncio
     async def test_run_callback_handles_exception(self):
         """Test run callback handles exceptions in monitor's handle_config_change"""
         monitor = Monitor()
-        
-        # Mock handle_config_change to raise an exception
-        mock_handle_config_change = MagicMock()
-        mock_handle_config_change.side_effect = Exception("Test exception")
+        # Mock handle_config_change to raise an exception - make it async
+        async def mock_handle_config_change(category_name):
+            raise Exception("Test exception")
         monitor._handle_config_change = mock_handle_config_change
-        
-        # Mock logger for error logging
-        mock_logger = MagicMock()
-        monitor._logger = mock_logger
-        
-        # Register monitor
-        MonitorRegistry.register('default', monitor)
-        
-        # Import and call the run function
-        from fledge.services.core.service_registry.monitor import run
-        
-        # Should not raise exception, should handle it gracefully
-        await run('SMNTR')
-        
+        # Mock logger for error logging - patch the logger to avoid MagicMock async issues
+        with patch.object(monitor, '_logger') as mock_logger:
+            # Register monitor
+            MonitorRegistry.register('default', monitor)
+            # Import and call the run function
+            from fledge.services.core.service_registry.monitor import run
+            # Should not raise exception, should handle it gracefully
+            await run('SMNTR')
         # Verify error was logged
         mock_logger.error.assert_called_once_with(
-            "Error in configuration change callback for {}: {}".format('SMNTR', 'Test exception')
-        )
+            "Error in configuration change callback for {}: {}".format('SMNTR', 'Test exception'))
 
     @pytest.mark.asyncio
     async def test_run_callback_with_support_bundle_category(self):
         """Test run callback with SUPPORT_BUNDLE category"""
         monitor = Monitor()
-        mock_handle_config_change = MagicMock()
-        monitor._handle_config_change = mock_handle_config_change
-        
+        # Track if the method was called
+        call_tracker = {'called': False, 'category': None}
+        async def tracked_mock_handle_config_change(category_name):
+            call_tracker['called'] = True
+            call_tracker['category'] = category_name
+        monitor._handle_config_change = tracked_mock_handle_config_change
         # Register monitor
         MonitorRegistry.register('default', monitor)
-        
         # Import and call the run function
         from fledge.services.core.service_registry.monitor import run
-        
         await run('SUPPORT_BUNDLE')
-        
         # Verify the monitor's handle_config_change was called with correct category
-        mock_handle_config_change.assert_called_once_with('SUPPORT_BUNDLE')
+        assert call_tracker['called'] is True
+        assert call_tracker['category'] == 'SUPPORT_BUNDLE'
+

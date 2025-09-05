@@ -1940,7 +1940,7 @@ class TestConfigurationManager:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 callbackpatch.assert_called_once_with(category_name)
-            updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
+            updatepatch.assert_called_once_with(category_name, item_name, new_value_entry, storage_value_entry.get('type'))
         readpatch.assert_called_once_with(category_name, item_name)
 
     @pytest.mark.parametrize("new_value_entry, storage_result, exc_name, exc_msg", [
@@ -2054,7 +2054,7 @@ class TestConfigurationManager:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 callbackpatch.assert_called_once_with(category_name)
-            updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
+            updatepatch.assert_called_once_with(category_name, item_name, new_value_entry, storage_value_entry.get('type'))
         readpatch.assert_called_once_with(category_name, item_name)
 
     @pytest.mark.parametrize("new_value_entry, message", [
@@ -2114,7 +2114,7 @@ class TestConfigurationManager:
                 with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as patch_callback:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 patch_callback.assert_called_once_with(category_name)
-            patch_update.assert_called_once_with(category_name, item_name, modified_new_value_entry)
+            patch_update.assert_called_once_with(category_name, item_name, modified_new_value_entry, storage_value_entry.get('type'))
         patch_read.assert_called_once_with(category_name, item_name)
 
     async def test_get_all_category_names_good(self, reset_singleton):
@@ -3986,3 +3986,202 @@ class TestConfigurationManager:
         assert 1 == log_warn.call_count
         log_warn.assert_called_once_with('For {} category, DISCARDING unrecognized entry name {} for item name {}'.
                                          format(CAT_NAME, entry_name, ITEM_NAME))
+
+    # Password masking tests
+    @pytest.mark.parametrize("item_type, value, expected", [
+        ('password', 'secret123', '****'),
+        ('string', 'normalvalue', 'normalvalue'),
+        ('integer', '42', '42'),
+        ('boolean', 'true', 'true'),
+        ('JSON', '{"key": "value"}', '{"key": "value"}')
+    ])
+    def test__mask_password_value_individual(self, reset_singleton, item_type, value, expected):
+        """Test password masking for individual values"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        assert expected == c_mgr._mask_password_value(item_type, value)
+
+    @pytest.mark.parametrize("category_val, expected_masked_items", [
+        # Category with password item
+        ({
+            'username': {'type': 'string', 'value': 'admin', 'default': 'admin'},
+            'password': {'type': 'password', 'value': 'secret123', 'default': 'defaultpass'}
+        }, {'password': {'value': '****', 'default': '****'}}),
+        # Category with multiple password items
+        ({
+            'dbPassword': {'type': 'password', 'value': 'dbsecret', 'default': 'dbdefault'},
+            'apiKey': {'type': 'password', 'value': 'apisecret', 'default': 'apidefault'},
+            'port': {'type': 'integer', 'value': '8080', 'default': '8080'}
+        }, {
+            'dbPassword': {'value': '****', 'default': '****'},
+            'apiKey': {'value': '****', 'default': '****'}
+        }),
+        # Category with no password items
+        ({
+            'host': {'type': 'string', 'value': 'localhost', 'default': 'localhost'},
+            'port': {'type': 'integer', 'value': '8080', 'default': '8080'}
+        }, {}),
+        # Empty category
+        ({}, {}),
+    ])
+    def test__mask_password_value_category(self, reset_singleton, category_val, expected_masked_items):
+        """Test password masking for category configurations"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        result = c_mgr._mask_password_value(category_val)
+        # Verify that password items are masked
+        for item_name, expected_values in expected_masked_items.items():
+            assert item_name in result
+            for field, expected_value in expected_values.items():
+                assert expected_value == result[item_name][field]
+        # Verify non-password items are unchanged
+        if isinstance(category_val, dict):
+            for item_name, item_val in category_val.items():
+                if isinstance(item_val, dict) and item_val.get('type') != 'password':
+                    assert item_val == result[item_name]
+
+    def test__mask_password_value_non_dict_input(self, reset_singleton):
+        """Test password masking with non-dict input returns unchanged"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        test_inputs = ['string_value', 123, ['list'], None]
+        for test_input in test_inputs:
+            result = c_mgr._mask_password_value(test_input)
+            assert test_input == result
+
+    async def test_create_category_with_password_masking_in_audit(self, reset_singleton):
+        """Test that password values are masked in audit trail during category creation"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'test_auth'
+        category_val = {
+            'username': {'type': 'string', 'description': 'Username', 'default': 'admin'},
+            'password': {'type': 'password', 'description': 'Password', 'default': 'secret123'}
+        }
+        _rv = await self.async_mock({'response': 'inserted', 'rows_affected': 1})
+        _rv2 = await self.async_mock(None)
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=None) as patch_read:
+            with patch.object(ConfigurationManager, '_storage') as patch_storage:
+                patch_storage.insert_into_tbl.return_value = _rv
+                with patch.object(AuditLogger, '__init__', return_value=None):
+                    with patch.object(AuditLogger, 'information', return_value=_rv2) as patch_audit:
+                        with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name', 
+                                        return_value=(False, None, None, None)) as patch_acl:
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2):
+                                await c_mgr.create_category(category_name, category_val, 'Test auth category')
+                        patch_acl.assert_called_once()
+                    patch_audit.assert_called_once()
+                    audit_call_args = patch_audit.call_args[0]
+                    assert 'CONAD' == audit_call_args[0]
+                    audit_data = audit_call_args[1]
+                    assert category_name == audit_data['name']
+                    # Verify password is masked in audit data
+                    assert '****' == audit_data['category']['password']['value']
+                    assert '****' == audit_data['category']['password']['default']
+                    # Verify non-password items are not masked
+                    assert 'admin' == audit_data['category']['username']['default']
+            patch_storage.insert_into_tbl.assert_not_called()
+        patch_read.assert_called_once_with(category_name)
+
+    async def test_merge_category_with_password_masking_in_audit(self, reset_singleton):
+        """Test that password values are masked in audit trail during category merge"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'test_auth'
+        category_val_new = {
+            'username': {'type': 'string', 'description': 'Username', 'default': 'admin'},
+            'password': {'type': 'password', 'description': 'Password', 'default': 'newsecret'}
+        }
+        category_val_storage = {
+            'username': {'type': 'string', 'description': 'Username', 'default': 'admin', 'value': 'admin'},
+            'password': {'type': 'password', 'description': 'Password', 'default': 'oldsecret', 'value': 'oldsecret'}
+        }
+        _rv2 = await self.async_mock(None)
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=category_val_storage):
+            with patch.object(ConfigurationManager, '_read_all_category_names', 
+                              return_value=[('test_auth', 'desc', 'test_auth')]):
+                with patch.object(ConfigurationManager, '_update_category', return_value=_rv2):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv2) as patch_audit:
+                            with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name', 
+                                              return_value=(False, None, None, None)):
+                                with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2):
+                                    await c_mgr.create_category(category_name, category_val_new, 'Test auth category')
+                        patch_audit.assert_called_once()
+                        audit_call_args = patch_audit.call_args[0]
+                        assert 'CONCH' == audit_call_args[0]
+                        audit_data = audit_call_args[1]
+                        # Verify passwords are masked in both old and new values
+                        assert '****' == audit_data['oldValue']['password']['value']
+                        assert '****' == audit_data['oldValue']['password']['default']
+                        assert '****' == audit_data['newValue']['password']['default']
+                        # Verify non-password items are not masked
+                        assert 'admin' == audit_data['oldValue']['username']['value']
+                        assert 'admin' == audit_data['newValue']['username']['default']
+
+    async def test_deprecated_item_with_password_masking_in_audit(self, reset_singleton):
+        """Test that password values are masked when items are deprecated"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'test_deprecated'
+        category_val_new = {
+            'oldPassword': {'type': 'password', 'description': 'Old Password', 'default': 'oldsecret', 
+                            'value': 'oldsecret', 'deprecated': 'true'}
+        }
+        category_val_storage = {}
+        _rv = await self.async_mock(None)
+        with patch.object(AuditLogger, '__init__', return_value=None):
+            with patch.object(AuditLogger, 'information', return_value=_rv) as patch_audit:
+                result = await c_mgr._merge_category_vals(category_val_new, category_val_storage, 
+                                                          keep_original_items=False, category_name=category_name)
+            # Verify audit was called with masked password for deprecated item
+            patch_audit.assert_called_once()
+            audit_call_args = patch_audit.call_args[0]
+            assert 'CONCH' == audit_call_args[0]
+            audit_data = audit_call_args[1]
+            assert category_name == audit_data['category']
+            assert 'oldPassword' == audit_data['item']
+            assert '****' == audit_data['oldValue']  # Password should be masked
+            assert 'deprecated' == audit_data['newValue']
+            # Verify deprecated item is removed from result
+            assert 'oldPassword' not in result
+
+    async def test_update_configuration_item_bulk_with_password_masking(self, reset_singleton):
+        """Test that password values are masked in bulk update audit trail"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        category_name = 'test_bulk_auth'
+        config_item_list = {
+            'password': 'newsecret123',
+            'username': 'newuser'
+        }
+        cat_info = {
+            'password': {'type': 'password', 'description': 'Password', 'value': 'oldsecret', 'default': 'oldsecret'},
+            'username': {'type': 'string', 'description': 'Username', 'value': 'olduser', 'default': 'olduser'}
+        }
+        _rv = await self.async_mock({'response': 'updated', 'rows_affected': 1})
+        _rv2 = await self.async_mock(cat_info)
+        _rv3 = await self.async_mock(None)
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv2) as patch_get_all_items:
+            with patch.object(ConfigurationManager, '_storage') as patch_storage:
+                patch_storage.update_tbl.return_value = _rv
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=cat_info) as patch_read_val:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv3):
+                                await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
+                        # Verify audit was called with masked password values
+                        patch_audit.assert_called_once()
+                        audit_call_args = patch_audit.call_args[0]
+                        assert 'CONCH' == audit_call_args[0]
+                        audit_data = audit_call_args[1]
+                        assert category_name == audit_data['category']
+                        # Verify password values are masked in audit trail
+                        assert '****' == audit_data['items']['password']['oldValue']
+                        assert '****' == audit_data['items']['password']['newValue']
+                        # Verify non-password values are not masked
+                        assert 'olduser' == audit_data['items']['username']['oldValue']
+                        assert 'newuser' == audit_data['items']['username']['newValue']
+                patch_read_val.assert_called_once_with(category_name)
+            patch_storage.update_tbl.assert_not_called()
+        patch_get_all_items.assert_called_once_with(category_name)

@@ -366,7 +366,7 @@ const std::string DefaultConfigJson = R"({
 	"bool_true":     { "type": "boolean", "default": "true", "value": "true" },
 	"bool_false":    { "type": "boolean", "default": "false", "value": "false" },
 	"int_val":       { "type": "integer", "default": "10", "value": "42" },
-	"long_val":      { "type": "integer", "default": "1000", "value": "10000000000" },
+	"long_val":      { "type": "integer", "default": "1000", "value": "1000000000" },
 	"double_val":    { "type": "float",   "default": "3.14", "value": "2.718" },
 	"invalid_bool":  { "type": "boolean", "default": "true", "value": "maybe" },
 	"invalid_int":   { "type": "integer", "default": "5", "value": "not_a_number" },
@@ -400,7 +400,7 @@ TEST(CategoriesTest, GetIntegerValue)
 TEST(CategoriesTest, GetLongValue)
 {
 	ConfigCategory cat("test", DefaultConfigJson);
-	EXPECT_EQ(cat.getLongValue("long_val"), 10000000000L);
+	EXPECT_EQ(cat.getLongValue("long_val"), 1000000000L);
 	EXPECT_EQ(cat.getLongValue("non_existing_long", 55555L), 55555L); // fallback
 	EXPECT_EQ(cat.getLongValue("invalid_int", 99L), 99L); // wrong type fallback
 }

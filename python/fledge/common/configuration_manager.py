@@ -263,7 +263,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)
-                audit_details = {'category': category_name, 'item': item_name_new, 'oldValue': item_val_new['value'],
+                # Mask password values for audit trail security
+                masked_old_value = self._mask_password_value(item_val_new.get('type'), item_val_new['value'])
+                audit_details = {'category': category_name, 'item': item_name_new, 'oldValue': masked_old_value,
                                  'newValue': 'deprecated'}
                 await audit.information('CONCH', audit_details)
                 deprecated_items.append(item_name_new)
@@ -687,7 +689,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 new_category_val = category_val
             display_name = category_name if display_name is None else display_name
             audit = AuditLogger(self._storage)
-            await audit.information('CONAD', {'name': category_name, 'category': new_category_val})
+            # Mask password values for audit trail security
+            masked_category_val = self._mask_password_value(new_category_val)
+            await audit.information('CONAD', {'name': category_name, 'category': masked_category_val})
             payload = PayloadBuilder().INSERT(key=category_name, description=category_description,
                                               value=new_category_val, display_name=display_name).payload()
             result = await self._storage.insert_into_tbl("configuration", payload)
@@ -843,7 +847,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         return results['rows'][0]['value']
 
-    async def _update_value_val(self, category_name, item_name, new_value_val):
+    async def _update_value_val(self, category_name, item_name, new_value_val, item_type=None):
         try:
             old_value = await self._read_value_val(category_name, item_name)
             # UPDATE fledge.configuration
@@ -857,8 +861,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_value = {item_name: {"value": new_value_val}}
             self._handle_config_items(category_name, cat_value)
             audit = AuditLogger(self._storage)
-            audit_details = {'category': category_name, 'item': item_name, 'oldValue': old_value,
-                             'newValue': new_value_val}
+
+            # Mask password values for audit trail security
+            masked_old_value = self._mask_password_value(item_type, old_value) if item_type else old_value
+            masked_new_value = self._mask_password_value(item_type, new_value_val) if item_type else new_value_val
+
+            audit_details = {'category': category_name, 'item': item_name, 'oldValue': masked_old_value,
+                             'newValue': masked_new_value}
             await audit.information('CONCH', audit_details)
         except KeyError as ex:
             raise ValueError(str(ex))
@@ -971,7 +980,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         .FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
                         .WHERE(["key", "=", category_name]).payload()
                     payload['updates'].append(json.loads(payload_item))
-                    audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
+                    # Mask password values for audit trail security
+                    item_type = cat_info[item_name].get('type')
+                    masked_old_value = self._mask_password_value(item_type, old_value)
+                    masked_new_value = self._mask_password_value(item_type, new_val)
+                    audit_details['items'].update({item_name: {'oldValue': masked_old_value, 'newValue': masked_new_value}})
 
                     if "ACL" in item_name and type(old_value) == str and type(new_val) == str:
                         await self._handle_update_config_for_acl(category_name, old_value, new_val)
@@ -1245,7 +1258,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     modify_value = json.dumps({storage_value_entry['listName']: json.loads(new_value_entry)})
                     new_value_entry = modify_value
 
-            await self._update_value_val(category_name, item_name, new_value_entry)
+            await self._update_value_val(category_name, item_name, new_value_entry, storage_value_entry.get('type'))
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
             # Special case for script type
@@ -1483,11 +1496,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         diff = common_utils.dict_difference(category_val_prepared, category_val_storage)
                         if diff:
                             audit = AuditLogger(self._storage)
+                            # Mask password values for audit trail security
+                            masked_old_value = self._mask_password_value(category_val_storage)
+                            masked_new_value = self._mask_password_value(category_val_prepared)
                             audit_details = {
                                 'category': category_name,
                                 'item': "configurationChange",
-                                'oldValue': category_val_storage,
-                                'newValue': category_val_prepared
+                                'oldValue': masked_old_value,
+                                'newValue': masked_new_value
                             }
                             await audit.information('CONCH', audit_details)
             is_acl, config_item, found_cat_name, found_value = await \
@@ -1960,6 +1976,36 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 return False
         elif _type == 'string' or _type == 'northTask':
             return isinstance(_value, str)
+
+    def _mask_password_value(self, item_type_or_category, value_or_none=None):
+        """Mask password values for audit trail security
+
+        Args:
+            item_type_or_category: Either a string item type (e.g., 'password') or a category dict
+            value_or_none: The value to mask (when first arg is item type), or None (when first arg is category)
+
+        Returns:
+            Masked value (string) or masked category configuration (dict)
+        """
+        # Handle individual item masking (backward compatibility)
+        if isinstance(item_type_or_category, str) and value_or_none is not None:
+            if item_type_or_category == 'password':
+                return '****'
+            return value_or_none
+
+        # Handle category configuration masking
+        category_val = item_type_or_category
+        if not isinstance(category_val, dict):
+            return category_val
+
+        masked_category_val = copy.deepcopy(category_val)
+        for item_name, item_val in masked_category_val.items():
+            if isinstance(item_val, dict) and 'type' in item_val and item_val['type'] == 'password':
+                if 'value' in item_val:
+                    masked_category_val[item_name]['value'] = '****'
+                if 'default' in item_val:
+                    masked_category_val[item_name]['default'] = '****'
+        return masked_category_val
 
     def _clean(self, storage_val, item_val) -> str:
         # For optional attributes

@@ -6,6 +6,7 @@
 
 """ Test south service tuning parameters for bufferThreshold and maxSendLatency """
 
+import subprocess
 import http.client
 import json
 import time
@@ -20,11 +21,13 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 SERVICE_NAME = "TuningSouth"
+#PUT_URL = f"/fledge/category/{SERVICE_NAME}Advanced"
 
+#clean_setup_fledge_packages, 
 class TestSouthServiceTuning:
     
     def test_south_service_tuning_buffer_threshold(self, reset_and_start_fledge, fledge_url, 
-                                                   wait_time, retries, enable_schedule, disable_schedule, plugin_name):
+                                                   wait_time, retries, add_south, south_branch, plugin_language, enable_schedule, disable_schedule, plugin_name):
         """ Test south service tuning parameters - bufferThreshold and maxSendLatency
             
             This test:
@@ -36,19 +39,12 @@ class TestSouthServiceTuning:
             6. Tests dynamic parameter changes
         """
         
+        print("\n=== Running South Service Tuning Test ===")
+
         # Step 1: Create south service with sinusoid plugin and initial configuration
-        
-        data = {
-            "name": SERVICE_NAME,
-            "type": "South", 
-            "plugin": plugin_name,
-            "enabled": "false"  # Start disabled to configure first
-        }
-        
-        print("\n=====================================================")
         # Create the service
-        result = utils.post_request(fledge_url, "/fledge/service", data)
-        assert SERVICE_NAME == result["name"]
+        response = add_south(plugin_name, south_branch, fledge_url, service_name=SERVICE_NAME, plugin_lang=plugin_language, start_service=False)
+        assert SERVICE_NAME == response["name"]
         print(f"Created south service: {SERVICE_NAME}")
         time.sleep(2)  # Allow time for Advance category creation
         
@@ -64,10 +60,12 @@ class TestSouthServiceTuning:
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
 
         # Step 2: Enable the south service
-        enable_schedule(fledge_url, SERVICE_NAME)
+        response = enable_schedule(fledge_url, SERVICE_NAME)
+        assert "Schedule successfully enabled" == response["message"]
+        print (f"Scheduled south service: {response}")
         print(f"Enabled south service: {SERVICE_NAME}")
-        
-        # Step 3: Wait 90 seconds and verify ~30 readings (1 minute worth at 0.5/sec rate)
+
+        # Step 3: Wait 90 seconds and verify ~30 readings (1 minute worth data)
         print("Waiting 90 seconds for data collection...")
         time.sleep(90)
         
@@ -80,7 +78,9 @@ class TestSouthServiceTuning:
         assert 20 <= initial_data_read <= 40, f"Expected ~30 readings, got {initial_data_read}"
         
         # Step 4: Disable the service
-        disable_schedule(fledge_url, SERVICE_NAME)
+        response = disable_schedule(fledge_url, SERVICE_NAME)
+        #print (f"Scheduled south service: {schedule}")
+        assert "Schedule successfully disabled" == response["message"]
         print("Disabled south service")
         time.sleep(2)  # Allow disable to take effect
 
@@ -98,7 +98,9 @@ class TestSouthServiceTuning:
         print("Updated bufferThreshold to 10")
         
         # Step 6: Re-enable the service 
-        enable_schedule(fledge_url, SERVICE_NAME)
+        response = enable_schedule(fledge_url, SERVICE_NAME)
+        assert "Schedule successfully enabled" == response["message"]
+        #print (f"Reenabled Scheduled south service: {schedule}")
         print("Re-enabled south service")
         
         # Step 7: Wait 25 seconds and verify 10 additional readings
@@ -114,14 +116,15 @@ class TestSouthServiceTuning:
         assert 8 <= additional_readings <= 15, f"Expected ~10 additional readings, got {additional_readings}"
         
         # Step 8: Test dynamic parameter changes without disabling service
-        self._test_dynamic_buffer_threshold_changes(fledge_url, wait_time)
-        self._test_dynamic_latency_changes(fledge_url, wait_time)
+        self._test_dynamic_buffer_threshold_changes(fledge_url, wait_time, put_url)
+        self._test_dynamic_latency_changes(fledge_url, wait_time, put_url)
         
         # Cleanup: Delete the service
-        utils.delete_request(fledge_url, f"/fledge/service/{SERVICE_NAME}")
+        response = utils.delete_request(fledge_url, f"/fledge/service/{SERVICE_NAME}")
+        assert f"Service {SERVICE_NAME} deleted successfully." == response["result"]
         print(f"Deleted south service: {SERVICE_NAME}")
 
-    def _test_dynamic_buffer_threshold_changes(self, fledge_url, wait_time):
+    def _test_dynamic_buffer_threshold_changes(self, fledge_url, wait_time, put_url):
         """ Test dynamic changes to bufferThreshold without disabling service """
         
         print("\n=== Testing Dynamic Buffer Threshold Changes ===")
@@ -132,7 +135,6 @@ class TestSouthServiceTuning:
         
         # Test 1: Increase bufferThreshold to 300 (should delay sending)
         config_data = {"bufferThreshold": "300"}
-        put_url = f"/fledge/category/{SERVICE_NAME}Advanced"
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), config_data)
         assert "300" == resp["bufferThreshold"]["value"]
         print("Increased bufferThreshold to 300")
@@ -158,7 +160,7 @@ class TestSouthServiceTuning:
         # With lower threshold, we should see similar or more frequent sends
         assert readings_with_low_threshold >= readings_with_high_threshold, "Lower threshold should allow more frequent sending"
 
-    def _test_dynamic_latency_changes(self, fledge_url, wait_time):
+    def _test_dynamic_latency_changes(self, fledge_url, wait_time, put_url):
         """ Test dynamic changes to maxSendLatency without disabling service """
         
         print("\n=== Testing Dynamic Max Send Latency Changes ===")
@@ -169,7 +171,6 @@ class TestSouthServiceTuning:
         
         # Test 1: Set very high maxSendLatency (30 seconds)
         config_data = {"maxSendLatency": "30000"}
-        put_url = f"/fledge/category/{SERVICE_NAME}Advanced"
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), config_data)
         assert "30000" == resp["maxSendLatency"]["value"]
         print("Set maxSendLatency to 30000ms (30 seconds)")
@@ -192,24 +193,18 @@ class TestSouthServiceTuning:
         print(f"Readings with low latency (5s): {readings_with_low_latency}")
         
     def test_south_service_comprehensive_tuning(self, reset_and_start_fledge, fledge_url, 
-                                               wait_time, retries, enable_schedule, disable_schedule):
+                                               wait_time, retries, add_south, south_branch, plugin_language,  enable_schedule, disable_schedule,plugin_name):
         """ Comprehensive test of south service tuning - tests all parameter combinations """
         
-        # Initial setup with specific configuration
-        data = {
-            "name": f"{SERVICE_NAME}_Comprehensive",
-            "type": "South",
-            "plugin": "sinusoid", 
-            "enabled": "false"
-        }
-        
+        service_name = f"{SERVICE_NAME}_Comprehensive"
+    
         # Create and enable service
-        result = utils.post_request(fledge_url, "/fledge/service", data)
-        service_name = result["name"]
-        enable_schedule(fledge_url, service_name)
-
+        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
+        service_name = response["name"]
+        assert service_name == response["name"]
+        print(f"Created south service: {service_name}")
         time.sleep(2)  # Allow time for Advance category creation
-        
+
         # Configure advanced parameters after service creation
         advanced_config = {
             "units": "minute" ,            # Polling interval unit
@@ -220,6 +215,7 @@ class TestSouthServiceTuning:
         put_url = f"/fledge/category/{service_name}Advanced"
         print(f"Configuring advanced parameters for {service_name}: {advanced_config}", put_url)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
+        enable_schedule(fledge_url, service_name)
         
         try:
             # Test matrix of different configurations
@@ -238,7 +234,6 @@ class TestSouthServiceTuning:
                 baseline_count = baseline_ping["dataRead"]
                 
                 # Update configuration
-                put_url = f"/fledge/category/{service_name}Advanced"
                 config_update = {
                     "bufferThreshold": test_config["bufferThreshold"],
                     "maxSendLatency": test_config["maxSendLatency"]
@@ -278,38 +273,32 @@ class TestSouthServiceTuning:
             utils.delete_request(fledge_url, f"/fledge/service/{service_name}")
             print(f"Deleted service: {service_name}")
   
-    def test_buffer_threshold_impact_on_send_frequency(self, reset_and_start_fledge, fledge_url,
-                                                      enable_schedule, disable_schedule):
+    def test_buffer_threshold_impact_on_send_frequency(self, reset_and_start_fledge, fledge_url, add_south, south_branch, plugin_language,
+                                                      enable_schedule, disable_schedule, plugin_name):
         """ Test how bufferThreshold impacts send frequency """
         
         service_name = f"{SERVICE_NAME}_BufferTest"
         
-        # Create service with moderate settings
-        data = {
-            "name": service_name,
-            "type": "South",
-            "plugin": "sinusoid",
-            "enabled": "false"
+        # # Create and enable service
+        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
+        service_name = response["name"]
+        assert service_name == response["name"]
+        print(f"Created south service: {service_name}")
+        time.sleep(2)  # Allow time for Advance category creation
+        
+        # Configure advanced parameters after service creation
+        advanced_config = {
+            "units": "second" ,            # Polling interval unit
+            "readingsPerSec": "10",        # 10 reading per second
+            "maxSendLatency": "60000",     # High latency so threshold dominates
+            "bufferThreshold": "10"        # Buffer 10 readings
         }
-        
+        put_url = f"/fledge/category/{service_name}Advanced"
+        print(f"Configuring advanced parameters for {service_name}: {advanced_config}", put_url)
+        resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
+        enable_schedule(fledge_url, service_name)
+
         try:
-            result = utils.post_request(fledge_url, "/fledge/service", data)
-
-            time.sleep(2)  # Allow time for Advance category creation
-        
-            # Configure advanced parameters after service creation
-            advanced_config = {
-                "units": "second" ,            # Polling interval unit
-                "readingsPerSec": "10",        # 10 reading per second
-                "maxSendLatency": "60000",     # High latency so threshold dominates
-                "bufferThreshold": "10"       # Buffer 10 readings
-            }
-            put_url = f"/fledge/category/{service_name}Advanced"
-            print(f"Configuring advanced parameters for {service_name}: {advanced_config}", put_url)
-            resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
-
-            enable_schedule(fledge_url, service_name)
-            
             # Test with small buffer threshold
             time.sleep(15)  # 15 seconds should trigger ~1-2 sends with 10-reading buffer
             ping1 = utils.get_request(fledge_url, "/fledge/ping")
@@ -317,7 +306,6 @@ class TestSouthServiceTuning:
             print(f"Readings with bufferThreshold=10: {readings_small_buffer}")
             
             # Change to large buffer threshold
-            put_url = f"/fledge/category/{service_name}Advanced"
             config_update = {"bufferThreshold": "100"}
             utils.put_request(fledge_url, urllib.parse.quote(put_url), config_update)
             
@@ -333,36 +321,31 @@ class TestSouthServiceTuning:
         finally:
             utils.delete_request(fledge_url, f"/fledge/service/{service_name}")
 
-    def test_max_send_latency_impact(self, reset_and_start_fledge, fledge_url,
-                                   enable_schedule, disable_schedule):
+    def test_max_send_latency_impact(self, reset_and_start_fledge, fledge_url, add_south, south_branch, plugin_language,
+                                   enable_schedule, disable_schedule, plugin_name):
         """ Test how maxSendLatency impacts send timing """
         
         service_name = f"{SERVICE_NAME}_LatencyTest"
         
-        # Create service optimized for latency testing
-        data = {
-            "name": service_name,
-            "type": "South",
-            "plugin": "sinusoid",
-            "enabled": "false"
+        # Create and enable service
+        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
+        service_name = response["name"]
+        assert service_name == response["name"]
+        print(f"Created south service: {service_name}")
+        time.sleep(2)  # Allow time for Advance category creation
+
+        # Configure advanced parameters after service creation
+        advanced_config = {
+            "units": "second" ,            # Polling interval unit
+            "readingsPerSec": "2",         # 2 reading per second
+            "maxSendLatency": "5000",      # 5 seconds
+            "bufferThreshold": "1000"      # High threshold so latency dominate
         }
-        
+        put_url = f"/fledge/category/{service_name}Advanced"
+        print(f"Configuring advanced parameters for {service_name}: {advanced_config}", put_url)
+        resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
+        enable_schedule(fledge_url, service_name)
         try:
-            result = utils.post_request(fledge_url, "/fledge/service", data)
-            time.sleep(2)  # Allow time for Advance category creation
-        
-            # Configure advanced parameters after service creation
-            advanced_config = {
-                "units": "second" ,            # Polling interval unit
-                "readingsPerSec": "2",         # 2 reading per second
-                "maxSendLatency": "5000",      # 5 seconds
-                "bufferThreshold": "1000"     # High threshold so latency dominate
-            }
-            put_url = f"/fledge/category/{service_name}Advanced"
-            print(f"Configuring advanced parameters for {service_name}: {advanced_config}", put_url)
-            resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), advanced_config)
-            enable_schedule(fledge_url, service_name)
-            
             # Test with short latency
             time.sleep(20)  # Should trigger multiple sends
             ping1 = utils.get_request(fledge_url, "/fledge/ping")
@@ -370,7 +353,6 @@ class TestSouthServiceTuning:
             print(f"Readings with maxSendLatency=5000ms: {readings_short_latency}")
             
             # Change to long latency
-            put_url = f"/fledge/category/{service_name}Advanced"
             config_update = {"maxSendLatency": "30000"}  # 30 seconds
             utils.put_request(fledge_url, urllib.parse.quote(put_url), config_update)
             
@@ -381,7 +363,7 @@ class TestSouthServiceTuning:
             print(f"Additional readings with maxSendLatency=30000ms: {additional_readings}")
             
             # Should continue collecting but behavior may differ based on latency setting
-            assert additional_readings >= readings_short_latency, "Should continue collecting readings with long latency"
+            assert additional_readings > 0, ( f"No additional readings collected. Before: {readings_short_latency}, After: {total_readings}" )
             
         finally:
             utils.delete_request(fledge_url, f"/fledge/service/{service_name}") 

@@ -699,10 +699,6 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher',
-                                'bucketstorage', 'pipeline']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher, bucketstorage '
-                                            'and pipeline types are supported.')
         if plugin is None and service_type in ('south', 'north'):
             raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
         if plugin and utils.check_reserved(plugin) is False:
@@ -716,6 +712,9 @@ async def add_service(request):
             (type(enabled) is bool and enabled is True))) else False
         
         dryrun = not is_enabled
+        process_name = None
+        script = None
+        priority = None
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
@@ -724,8 +723,15 @@ async def add_service(request):
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
             plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
-            process_name = 'south_c' if service_type == 'south' else 'north_C'
-            script = '["services/south_c"]' if service_type == 'south' else '["services/north_C"]'
+            # FIXME: FOGL-10225 For south, north service type derived values from service info
+            if service_type == 'south':
+                process_name = 'south_c'
+                script = '["services/south_c"]'
+                priority = 100
+            else:
+                process_name = 'north_C'
+                script = '["services/north_C"]'
+                priority = 200
             try:
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
@@ -746,36 +752,19 @@ async def add_service(request):
             except Exception as ex:
                 _logger.error(ex, "Failed to fetch plugin info config item.")
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
-        elif service_type == 'notification':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'notification_c'
-            script = '["services/notification_c"]'
-        elif service_type == 'management':
-            file_names_list = ['{}/python/fledge/services/management/__main__.py'.format(_FLEDGE_ROOT),
-                               '{}/scripts/services/management'.format(_FLEDGE_ROOT),
-                               '{}/scripts/tasks/manage'.format(_FLEDGE_ROOT)]
-            if not all(list(map(os.path.exists, file_names_list))):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'management'
-            script = '["services/management"]'
-        elif service_type == 'dispatcher':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'dispatcher_c'
-            script = '["services/dispatcher_c"]'
-        elif service_type == 'bucketstorage':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucket"):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'bucket_storage_c'
-            script = '["services/bucket_storage_c"]'
-        elif service_type == 'pipeline':
-            process_name = 'pipeline_c'
-            script = '["services/pipeline_c"]'
+        else:
+            for service_name in get_service_installed():
+                if service_name not in _PREBUILT_SERVICES:
+                    service_info = await _fetch_service_info(service_name)
+                    if service_info['type'] == service_type:
+                        process_name = service_info['process']
+                        script = service_info['process_script']
+                        priority = service_info['startup_priority']
+                        break
+        if process_name is None or script is None or priority is None:
+            message = f"""Either the '{service_type}' service type is invalid or the '{service_type.capitalize()}' 
+            service is not installed correctly."""
+            raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -794,12 +783,11 @@ async def add_service(request):
         count = await check_scheduled_processes(storage, process_name, script)
         if count == 0:
             # Now first create the scheduled process entry for the new service
-            column_name = {"name": process_name, "script": script}
-            if service_type == 'management':
-                column_name["priority"] = 300
+            column_name = {"name": process_name, "script": script, "priority": priority}
             payload = PayloadBuilder().INSERT(**column_name).payload()
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
+                await server.Server.scheduler._get_process_scripts()
             except StorageServerError as ex:
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
@@ -807,35 +795,7 @@ async def add_service(request):
                 _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
-        # check that notification service is not already registered, right now notification service LIMIT to 1
-        if service_type == 'notification':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'notification_c' in ps['process_name']:
-                    msg = "A Notification service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
-        elif service_type == 'dispatcher':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'dispatcher_c' in ps['process_name']:
-                    msg = "A Dispatcher service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check the schedule entry for BucketStorage service as LIMIT to 1
-        elif service_type == 'bucketstorage':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'bucket_storage_c' in ps['process_name']:
-                    msg = "A BucketStorage service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check that management service is not already registered, right now management service LIMIT to 1
-        elif service_type == 'management':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'management' in ps['process_name']:
-                    msg = "A Management service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        elif service_type == 'south' or service_type == 'north':
+        if service_type == 'south' or service_type == 'north':
             try:
                 # Create a configuration category from the configuration defined in the plugin
                 category_desc = plugin_config['plugin']['description']
@@ -859,6 +819,12 @@ async def add_service(request):
                 msg = "Failed to create plugin configuration while adding service."
                 _logger.error(ex, msg)
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if process_name in ps['process_name']:
+                    msg = "A '{}' service schedule already exists.".format(name)
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
@@ -1130,3 +1096,4 @@ async def issueOTPToken(request):
     startToken = ServiceRegistry.issueStartupToken(service_name)
 
     return web.json_response({"startupToken": startToken})
+

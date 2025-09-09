@@ -837,7 +837,7 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 -- South, Notification, North Tasks
 --
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',         100  );
--INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',         200 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'pipeline_c',        '["services/pipeline_c"]',        90 );
 INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
 

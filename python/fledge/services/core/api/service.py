@@ -329,16 +329,50 @@ async def _fetch_service_info(service_name: str) -> dict:
 
 
 def get_service_installed() -> List:
-    paths = [_FLEDGE_ROOT + "/services", _FLEDGE_ROOT + "/python/fledge/services/management"]
+    paths = [
+        os.path.join(_FLEDGE_ROOT, "services"),
+        os.path.join(_FLEDGE_ROOT, "python", "fledge", "services")
+    ]
     services = []
     svc_prefix = 'fledge.services.'
+    ignored_items = {'common', 'core', 'south'}
     for _path in paths:
-        for root, dirs, files in os.walk(_path):
-            for _file in files:
-                if _file.startswith(svc_prefix):
-                    services.append(_file.split(svc_prefix)[-1])
-                elif _file == '__main__.py':
-                    services.append('management')
+        if not os.path.exists(_path):
+            continue
+        if _path.endswith("/python/fledge/services"):
+            # Python-based services
+            try:
+                for item in os.listdir(_path):
+                    if item in ignored_items or item.startswith('__'):
+                        continue
+
+                    item_path = os.path.join(_path, item)
+                    if not os.path.isdir(item_path):
+                        continue
+
+                    init_file = os.path.join(item_path, '__init__.py')
+                    main_file = os.path.join(item_path, '__main__.py')
+
+                    if os.path.isfile(init_file) and os.path.isfile(main_file):
+                        services.append(item)
+                    else:
+                        missing = []
+                        if not os.path.isfile(init_file):
+                            missing.append('__init__.py')
+                        if not os.path.isfile(main_file):
+                            missing.append('__main__.py')
+                        _logger.error(
+                            f"'{item}' service is not installed correctly — missing: {', '.join(missing)}"
+                        )
+            except Exception as ex:
+                _logger.warning(f"Failed to list Python services at {_path}: {ex}")
+        else:
+            # C-based services
+            for root, dirs, files in os.walk(_path):
+                for _file in files:
+                    if _file.startswith(svc_prefix):
+                        service_name = _file[len(svc_prefix):]
+                        services.append(service_name)
     return services
 
 

@@ -698,7 +698,7 @@ async def add_service(request):
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
-        service_type = str(service_type).lower()
+        #service_type = str(service_type).lower()
         if plugin is None and service_type in ('south', 'north'):
             raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
         if plugin and utils.check_reserved(plugin) is False:

@@ -53,7 +53,8 @@ class ServiceRecord(object):
     def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
         self._name = s_name
-        self._type = self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error
+        # FIXME: We need to remove this once we have a valid type check in the ServiceRecord.Type
+        self._type = s_type #self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error
         self._protocol = s_protocol
         self._address = s_address
         self._port = None

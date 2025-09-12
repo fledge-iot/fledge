@@ -307,7 +307,7 @@ class ConfigurationValidator:
                             continue
                 
                 # If we tried all addresses and none worked, the host is likely unreachable
-                return False, f"Host '{hostname}' appears to be unreachable - no response on common ports (80, 443, 22, 53)"
+                return False, f"Host '{hostname}' appears to be unreachable - no response on tested ports"
                 
             except socket.gaierror as e:
                 error_msg = str(e).lower()
@@ -326,13 +326,14 @@ class ConfigurationValidator:
             _logger.error(f"Unexpected error during host reachability test for {hostname}: {e}")
             return False, f"Cannot test reachability of '{hostname}' - network error occurred"
     
-    async def check_port_listening(self, hostname, port):
+    async def check_port_listening(self, hostname, port, include_port_in_messages=True):
         """
         Check if a service is listening on the specified host and port.
         
         Args:
             hostname (str): Hostname or IP address
             port (int): Port number
+            include_port_in_messages (bool): Whether to include port details in error messages
             
         Returns:
             tuple: (success, reason)
@@ -348,13 +349,16 @@ class ConfigurationValidator:
             await writer.wait_closed()
             
             _logger.debug(f"Successfully connected to {hostname}:{port}")
-            return True, f"Service is listening on port {port}"
+            success_msg = f"Service is listening on port {port}" if include_port_in_messages else f"Service is listening on {hostname}"
+            return True, success_msg
         except asyncio.TimeoutError:
             _logger.warning(f"Connection timeout to {hostname}:{port}")
-            return False, f"Connection to {hostname}:{port} timed out after 5 seconds"
+            error_msg = f"Connection to {hostname}:{port} timed out after 5 seconds" if include_port_in_messages else f"Connection to {hostname} timed out after 5 seconds"
+            return False, error_msg
         except ConnectionRefusedError:
             _logger.error(f"Connection refused by {hostname}:{port}")
-            return False, f"No service is listening on {hostname}:{port}"
+            error_msg = f"No service is listening on {hostname}:{port}" if include_port_in_messages else f"No service is listening on {hostname}"
+            return False, error_msg
         except socket.gaierror as e:
             error_msg = str(e).lower()
             _logger.error(f"DNS resolution failed for {hostname}: {e}")
@@ -372,23 +376,28 @@ class ConfigurationValidator:
             
             # Handle specific error codes for better user messages
             if error_code == 111 or 'connection refused' in error_msg:
-                return False, f"No service is listening on {hostname}:{port}"
+                error_msg = f"No service is listening on {hostname}:{port}" if include_port_in_messages else f"No service is listening on {hostname}"
+                return False, error_msg
             elif error_code == 113 or 'no route to host' in error_msg:
                 return False, f"Cannot reach host '{hostname}' - check network connectivity"
             elif error_code == 110 or 'connection timed out' in error_msg:
-                return False, f"Connection to {hostname}:{port} timed out - host may be unreachable"
+                error_msg = f"Connection to {hostname}:{port} timed out - host may be unreachable" if include_port_in_messages else f"Connection to {hostname} timed out - host may be unreachable"
+                return False, error_msg
             elif 'network is unreachable' in error_msg:
                 return False, f"Network unreachable to '{hostname}' - check network configuration"
             elif 'host is unreachable' in error_msg:
                 return False, f"Host '{hostname}' is unreachable - check if host is online"
             elif 'multiple exceptions' in error_msg:
                 # Handle IPv6/IPv4 dual stack connection failures
-                return False, f"Cannot connect to {hostname}:{port} - no service available"
+                error_msg = f"Cannot connect to {hostname}:{port} - no service available" if include_port_in_messages else f"Cannot connect to {hostname} - no service available"
+                return False, error_msg
             else:
-                return False, f"Network error connecting to {hostname}:{port}"
+                error_msg = f"Network error connecting to {hostname}:{port}" if include_port_in_messages else f"Network error connecting to {hostname}"
+                return False, error_msg
         except Exception as e:
             _logger.error(f"Unexpected error testing {hostname}:{port}: {e}")
-            return False, f"Connection test failed for {hostname}:{port}"
+            error_msg = f"Connection test failed for {hostname}:{port}" if include_port_in_messages else f"Connection test failed for {hostname}"
+            return False, error_msg
     
     async def test_host_reachable(self, config_items):
         """
@@ -485,6 +494,7 @@ class ConfigurationValidator:
         # Handle separated broker host/port fields first (most specific)
         broker_hosts = [item for item in config_items['brokers'] if 'host' in item['name'].lower()]
         broker_ports = [item for item in config_items['ports'] if 'broker' in item['name'].lower()]
+        is_port_in_config = False # Track if any port is explicitly provided in configuration
 
         # Pair broker hosts with broker ports
         for host_item in broker_hosts:
@@ -503,6 +513,7 @@ class ConfigurationValidator:
                     })
                     connections_to_test.append((hostname, port))
                     processed_combinations.add(combination_key)
+                    is_port_in_config = True
                 break
             
             if not port:
@@ -514,8 +525,7 @@ class ConfigurationValidator:
                         processed_combinations.add(combination_key)
 
                 test_values.append({
-                    host_item['name']: hostname,
-                    "default_ports": "1883,8883"
+                    host_item['name']: hostname
                 })
         
         # Process broker URLs
@@ -529,6 +539,7 @@ class ConfigurationValidator:
                         connections_to_test.append((hostname, port))
                         test_values.append({item['name']: item['value']})
                         processed_combinations.add(combination_key)
+                        user_provided_port = True
             else:
                 # Broker is hostname only (check if not already processed by broker host/port logic)
                 if not any('host' in broker['name'].lower() for broker in config_items['brokers']):
@@ -549,6 +560,7 @@ class ConfigurationValidator:
                                 })
                                 connections_to_test.append((hostname, port))
                                 processed_combinations.add(combination_key)
+                                is_port_in_config = True
                             break
 
                     # If no explicit port, use MQTT defaults
@@ -561,8 +573,7 @@ class ConfigurationValidator:
                                 processed_combinations.add(combination_key)
 
                         test_values.append({
-                            item['name']: item['value'],
-                            "default_ports": "1883,8883"
+                            item['name']: item['value']
                         })
 
         # Process URLs with ports
@@ -570,6 +581,7 @@ class ConfigurationValidator:
             hostname, port, protocol = self.parse_url(item['value'])
             if hostname and port:
                 combination_key = f"{hostname}:{port}"
+                is_port_in_config = True
                 if combination_key not in processed_combinations:
                     connections_to_test.append((hostname, port))
                     test_values.append({item['name']: item['value']})
@@ -579,6 +591,7 @@ class ConfigurationValidator:
         if config_items['ports'] and not broker_hosts:
             port_item = config_items['ports'][0]  # Use first port found
             port = port_item['value']
+            is_port_in_config = True
 
             # Look for corresponding address
             address = None
@@ -624,8 +637,7 @@ class ConfigurationValidator:
                         processed_combinations.add(combination_key)
 
                 test_values.append({
-                    address_item['name']: hostname,
-                    "default_ports": ",".join(map(str, default_ports))
+                    address_item['name']: hostname
                 })
                 break  # Only process first address to avoid duplicates
         
@@ -637,7 +649,7 @@ class ConfigurationValidator:
         failure_reason = None
         
         for hostname, port in connections_to_test:
-            success, reason = await self.check_port_listening(hostname, port)
+            success, reason = await self.check_port_listening(hostname, port, include_port_in_messages=is_port_in_config)
             if not success:
                 all_passed = False
                 failure_reason = reason

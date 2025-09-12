@@ -1174,15 +1174,9 @@ class Server:
                 # Start Alert Manager
                 loop.run_until_complete(cls._get_alerts())
 
-                # If dispatcher installation:
-                # a) not found then add it as a StartUp service
-                # b) found then check the status of its schedule and take action
-                is_dispatcher = loop.run_until_complete(cls.is_dispatcher_running(cls._storage_client_async))
-                if not is_dispatcher:
-                    _logger.info("Dispatcher service installation found on the system, but not in running state. "
-                                 "Therefore, starting the service...")
-                    loop.run_until_complete(cls.add_and_enable_dispatcher())
-                    _logger.info("Dispatcher service started.")
+                # Check dispatcher service installation and status
+                loop.run_until_complete(cls.check_dispatcher_service())
+
                 # dryrun execution of all the tasks that are installed but have schedule type other than STARTUP
                 schedule_list = loop.run_until_complete(cls.scheduler.get_schedules())
                 for sch in schedule_list:
@@ -1578,6 +1572,7 @@ class Server:
                     For BucketStorage type we have used proxy map for interfacing REST API endpoints 
                     to Microservice service API endpoints. Therefore we need to clear the proxy map on restart.
                 """
+                # FIXME: Fetch type from Service Info
                 if services[0]._type == "BucketStorage":
                     cls._API_PROXIES = {}
         except ValueError as err:
@@ -2248,48 +2243,68 @@ class Server:
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
     @classmethod
-    async def is_dispatcher_running(cls, storage):
+    async def check_dispatcher_service(cls):
+        """
+        Check dispatcher service installation and status.
+        Handles both cases:
+        a) Service schedule not found - add it as a StartUp service
+        b) Service schedule found but not enabled - enable it
+        """
         from fledge.services.core.api import service as service_api
-        from fledge.common.storage_client.payload_builder import PayloadBuilder
-
-        # Find the dispatcher service installation
-        get_svc = service_api.get_service_installed()
-        # if installation found:
-        if 'dispatcher' in get_svc:
-            payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "enabled").payload()
-            res = await storage.query_tbl_with_payload('schedules', payload)
-            for sch in res['rows']:
-                if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
-                    _logger.info("Dispatcher service found but not in enabled state. "
-                                 "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
-                    # reset process_script priority for the service
-                    cls.scheduler._process_scripts['dispatcher_c'] = (
-                        cls.scheduler._process_scripts['dispatcher_c'][0], 999)
-                    await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
-                    return True
-                elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':
-                    # As such no action required for the case
-                    return True
-            # If installation not found:
-            return False
-        return True
-
-    @classmethod
-    async def add_and_enable_dispatcher(cls):
-        import datetime as dt
         from fledge.services.core.scheduler.entities import StartUpSchedule
 
-        name = "dispatcher"
-        process_name = 'dispatcher_c'
-        is_enabled = True
-        schedule = StartUpSchedule()
-        schedule.name = name
-        schedule.process_name = process_name
-        schedule.repeat = dt.timedelta(0)
-        schedule.exclusive = True
-        schedule.enabled = False
-        # Save schedule
-        await cls.scheduler.save_schedule(schedule, is_enabled)
+        try:
+            installed_service_name = 'dispatcher'
+            # Check if dispatcher service is installed
+            get_svc = service_api.get_service_installed()
+            if installed_service_name not in get_svc:
+                return
+            # Get dispatcher service info using the service API mechanism
+            service_info = await service_api._fetch_service_info(installed_service_name)
+            if not service_info or 'process' not in service_info:
+                _logger.warning(f"Could not fetch {installed_service_name} service information.")
+                return
+            process_name = service_info['process']
+            # Check if dispatcher service is running/enabled
+            payload = payload_builder.PayloadBuilder().SELECT("id", "schedule_name", "process_name", "enabled").WHERE(
+                ["process_name", "=", process_name]).payload()
+            res = await cls._storage_client_async.query_tbl_with_payload('schedules', payload)
+            if res['rows']:
+                sch = res['rows'][0]
+                if sch['enabled'] == 'f':
+                    _logger.info(f"Dispatcher service found but not in enabled state. "
+                               f"Therefore, {sch['schedule_name']} service is being enabled.")
+                    # Reset process_script priority for the service
+                    if process_name in cls.scheduler._process_scripts:
+                        cls.scheduler._process_scripts[process_name] = (
+                            cls.scheduler._process_scripts[process_name][0], 999)
+                    await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
+                    _logger.info(f"{sch['schedule_name']} service enabled successfully.")
+                    return
+                else:
+                    return
+            # If no schedule found, create and enable dispatcher service
+            _logger.info("Dispatcher service installation found on the system, but not in running state. "
+                        "Therefore, starting the service...")
+            # Create scheduled process entry for the service
+            column_name = {"name": process_name, "script": service_info['process_script']}
+            payload = payload_builder.PayloadBuilder().INSERT(**column_name).payload()
+            await cls._storage_client_async.insert_into_tbl("scheduled_processes", payload)
+            await cls.scheduler._get_process_scripts()
+            # Startup Schedule
+            name = service_info['name']
+            is_enabled = True
+            schedule = StartUpSchedule()
+            schedule.name = name
+            schedule.process_name = process_name
+            schedule.repeat = timedelta(0)
+            schedule.exclusive = True
+            schedule.enabled = False
+            # Save schedule
+            await cls.scheduler.save_schedule(schedule, is_enabled)
+            _logger.info(f"{name} service started successfully.")
+        except Exception as ex:
+            _logger.error(f"Error checking dispatcher service: {str(ex)}")
 
     @classmethod
     def get_token_common(cls, request):

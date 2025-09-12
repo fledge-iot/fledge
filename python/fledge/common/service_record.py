@@ -15,20 +15,7 @@ __version__ = "${VERSION}"
 
 
 class ServiceRecord(object):
-    """Used to information regarding a registered microservice.
-    """
-
-    class Type(IntEnum):
-        """Enumeration for Service Types"""
-
-        Storage = 1
-        Core = 2
-        Southbound = 3
-        Notification = 4
-        Management = 5
-        Northbound = 6
-        Dispatcher = 7
-        BucketStorage = 8
+    """Used to information regarding a registered microservice."""
 
     class Status(IntEnum):
         """Enumeration for Service Status"""
@@ -39,9 +26,6 @@ class ServiceRecord(object):
         Unresponsive = 4
         Restart = 5
 
-    class InvalidServiceType(Exception):
-        # TODO: tell allowed service types?
-        pass
 
     class InvalidServiceStatus(Exception):
         # TODO: tell allowed service status?
@@ -52,8 +36,7 @@ class ServiceRecord(object):
     def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
         self._name = s_name
-        # FIXME: We need to remove this once we have a valid type check in the ServiceRecord.Type
-        self._type = s_type #self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error
+        self._type = s_type
         self._protocol = s_protocol
         self._address = s_address
         self._port = None
@@ -72,7 +55,3 @@ class ServiceRecord(object):
     def __str__(self):
         return self.__repr__()
 
-    def valid_type(self, s_type):
-        if s_type not in ServiceRecord.Type.__members__:
-            raise ServiceRecord.InvalidServiceType
-        return s_type

@@ -178,17 +178,6 @@ class TestService:
             }
         assert 11 == log_patch_info.call_count
 
-    @pytest.mark.parametrize("_type", ["blah", 1, "storage"])
-    async def test_bad_get_service_with_type(self, client, _type):
-        svc_type_members = ServiceRecord.Type._member_names_
-        expected_msg = "{} is not a valid service type. Supported types are {}".format(_type, svc_type_members)
-        resp = await client.get('/fledge/service?type={}'.format(_type))
-        assert 400 == resp.status
-        assert expected_msg == resp.reason
-        result = await resp.text()
-        json_response = json.loads(result)
-        assert {"message": expected_msg} == json_response
-
     async def test_get_service_with_type_not_found(self, client, _type="Notification"):
         expected_msg = "No record found for {} service type".format(_type)
         resp = await client.get('/fledge/service?type={}'.format(_type))

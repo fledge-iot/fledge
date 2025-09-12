@@ -459,11 +459,6 @@ async def get_health(request):
     try:
         if 'type' in request.query and request.query['type'] != '':
             _type = request.query['type']
-            svc_type_members = ServiceRecord.Type._member_names_
-            is_type_exists = _type in svc_type_members
-            if not is_type_exists:
-                raise ValueError('{} is not a valid service type. Supported types are {}'.format(_type,
-                                                                                                 svc_type_members))
             response = get_service_records(_type)
         else:
             response = get_service_records()

@@ -115,7 +115,7 @@ void IngestRate::updateCounters()
 					string message = "Ingest rate of the south service " +
 					       m_service + " falls outside of normal boundaries";
 					m_mgmtClient->raiseAlert(key, message);
-					Logger::getLogger()->warn("%s, rate is %ld with average rate of %f", message, m_thisInterval, m_mean);
+					Logger::getLogger()->warn("Current ingest rate falls outside normal boundaries, rate is %ld with average rate of %f", m_thisInterval, m_mean);
 					m_alerted = true;
 				}
 				else
@@ -129,6 +129,7 @@ void IngestRate::updateCounters()
 				string key = "SouthIngestRate" + m_service;
 				m_mgmtClient->clearAlert(key);
 				m_primed = false;
+				m_alerted = false;
 			}
 			else
 			{

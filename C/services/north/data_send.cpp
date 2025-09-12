@@ -72,7 +72,12 @@ DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *serv
 DataSender::~DataSender()
 {
 	m_logger->info("DataSender shutdown in progress");
-	m_shutdown = true;
+	{
+		lock_guard<std::mutex> lck(m_backoffMutex);
+		m_shutdown = true;
+	}
+	// Wakeup any sleep sender thread
+	m_backoffCV.notify_all();
 	m_thread->join();
 	delete m_thread;
 
@@ -172,7 +177,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 	if (to_send > 0 && sent == 0)
 	{
 		m_repeatedFailure++;
-		// We had readings to send but sent known. This coudl be as a result
+		// We had readings to send but sent known. This could be as a result
 		// of a failed connection north or a bad configuration, we have no way
 		// to tell. If we take no action we will continue to use lots of CPU
 		// and load the system. We instigate a backoff strategy here to try
@@ -188,11 +193,13 @@ unsigned long DataSender::send(ReadingSet *readings)
 			{
 				m_sendBackoffTime = MAX_SEND_BACKOFF;
 			}
-			// Sleep in small periods to prevent blocking shutdown for too long
-			int cnt = (int)m_sendBackoffTime / MIN_SEND_BACKOFF;
-			while (cnt-- > 0 && m_shutdown == false)
 			{
-				this_thread::sleep_for(chrono::milliseconds(MIN_SEND_BACKOFF));
+				unique_lock<mutex> lk(m_backoffMutex);
+				m_backoffCV.wait_for(lk, chrono::milliseconds(m_sendBackoffTime));
+			}
+			if (m_shutdown)
+			{
+				return 0;
 			}
 
 		}
@@ -514,4 +521,17 @@ bool DataSender::createStats(const std::string &key,
 bool DataSender::isDryRun()
 {
 	return m_service->getDryRun();
+}
+
+/**
+ * Notify the data sender that there has been a configuration change.
+ * This is used to wake up early from the wait that is performed when
+ * we have failures to send. Changing the configuration may resolve the
+ * issue causing the send failure.
+ */
+void DataSender::configChange()
+{
+	lock_guard<std::mutex> lck(m_backoffMutex);
+	// Wakeup any sleep sender thread
+	m_backoffCV.notify_all();
 }

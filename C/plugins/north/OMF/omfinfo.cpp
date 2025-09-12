@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2023 Dianomic Systems
+ * Copyright (c) 2023-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -17,11 +17,12 @@ using namespace SimpleWeb;
 /**
  * Constructor for the OMFInformation class
  */
-OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false)
+OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_ocs(NULL), m_connected(false)
 {
 
 	m_logger = Logger::getLogger();
 	m_name = config->getName();
+	m_numBlocks = 1;
 
 	int endpointPort = 0;
 
@@ -57,12 +58,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 		m_PIServerEndpoint = ENDPOINT_ADH;
 		url 		   = ENDPOINT_URL_ADH;
+		m_authUrl 	   = AUTHORIZATION_URL_ADH;
 		std::string region = "uswe";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "euno";
 		else if(ADHRegions.compare("Australia") == 0)
 			region = "auea";
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_ADH;
 	}
 	else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
@@ -70,12 +73,14 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 		Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 		m_PIServerEndpoint = ENDPOINT_OCS;
 		url                = ENDPOINT_URL_OCS;
+		m_authUrl          = AUTHORIZATION_URL_OCS;
 		std::string region = "dat-b";
 		if(ADHRegions.compare("EU-West") == 0)
 			region = "dat-d";
 		else if(ADHRegions.compare("Australia") == 0)
 			Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
 		StringReplace(url, "REGION_PLACEHOLDER", region);
+		StringReplace(m_authUrl, "REGION_PLACEHOLDER", region);
 		endpointPort       = ENDPOINT_PORT_OCS;
 	}
 	else if(PIServerEndpoint.compare("Edge Data Store") == 0)
@@ -226,7 +231,7 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 	size_t start = 0;
 	do {
 		pos = staticData.find(",", start);
-		string item = staticData.substr(start, pos);
+		string item = staticData.substr(start, pos - start);
 		start = pos + 1;
 		size_t pos2 = 0;
 		if ((pos2 = item.find(":")) != string::npos)
@@ -237,8 +242,11 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 			string value = item.substr(pos2 + 1);
 			while (value[0] == ' ')
 				value = value.substr(1);
-			pair<string, string> sData = make_pair(name, value);
-			m_staticData.push_back(sData);
+			if (!name.empty() && !value.empty())
+			{
+				pair<string, string> sData = make_pair(name, value);
+				m_staticData.push_back(sData);
+			}
 		}
 	} while (pos != string::npos);
 
@@ -376,10 +384,9 @@ void OMFInformation::handleOMFTracing()
  */
 OMFInformation::~OMFInformation()
 {
-	if (m_sender)
-		delete m_sender;
-	if (m_omf)
-		delete m_omf;
+	delete m_sender;
+	delete m_omf;
+	delete m_ocs;
 	// TODO cleanup the allocated member variables
 }
 
@@ -391,7 +398,6 @@ OMFInformation::~OMFInformation()
  */
 void OMFInformation::start(const string& storedData)
 {
-
 	m_logger->info("Host: %s", m_hostAndPort.c_str());
 	if ((m_PIServerEndpoint == ENDPOINT_OCS) || (m_PIServerEndpoint == ENDPOINT_ADH))
 	{
@@ -457,76 +463,7 @@ void OMFInformation::start(const string& storedData)
 					  getMaxTypeId());
 	}
 
-	// Retrieve the PI Web API Version
-	m_connected = true;
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		int httpCode = PIWebAPIGetVersion();
-		if (httpCode >= 200 && httpCode < 400)
-		{
-			SetOMFVersion();
-			CheckDataActionCode();
-			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
-				m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
-			m_connected = true;
-		}
-		else
-		{
-			Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
-				m_hostAndPort.c_str(), httpCode);
-			m_connected = false;
-		}
-	}
-	else if (m_PIServerEndpoint == ENDPOINT_EDS)
-	{
-		EDSGetVersion();
-		SetOMFVersion();
-		CheckDataActionCode();
-		Logger::getLogger()->info("Edge Data Store %s OMF Version: %s", m_RestServerVersion.c_str(), m_omfversion.c_str());
-	}
-	else
-	{
-		SetOMFVersion();
-		CheckDataActionCode();
-		Logger::getLogger()->info("OMF Version: %s", m_omfversion.c_str());
-	}
-}
-
-/**
- * Send data to the OMF endpoint
- *
- * @param readings	The block of readings to send
- * @return uint32_t	The number of readings sent
- */
-uint32_t OMFInformation::send(const vector<Reading *>& readings)
-{
-#if INSTRUMENT
-	struct timeval startTime;
-	gettimeofday(&startTime, NULL);
-#endif
-	string version;
-
-	// Check if the endpoint is PI Web API and if the PI Web API server is available
-	if (!IsPIWebAPIConnected())
-	{
-		// Error already reported by IsPIWebAPIConnected
-		return 0;
-	}
-
-	if (m_sender && m_connected == false)
-	{
-		// TODO Make the info when reconnection has been proved to work
-		Logger::getLogger()->warn("Connection failed creating a new sender");
-		delete m_sender;
-		m_sender = NULL;
-	}
-
-	// Exit immediately if the plugin is not stable due to PI Server errors
-	if (m_omf && !m_omf->isPIstable())
-	{
-		return 0;
-	}
-
+	// Allocate an HttpSender subclass to communicate with PI Web API with selected authorization
 	if (!m_sender)
 	{
 		/**
@@ -577,20 +514,66 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		m_sender->setOCSTenantId         (m_OCSTenantId);
 		m_sender->setOCSClientId         (m_OCSClientId);
 		m_sender->setOCSClientSecret     (m_OCSClientSecret);
-
-		if (m_omf)
-		{
-			// Created a new sender after a connection failure
-			m_omf->setSender(*m_sender);
-		}
 	}
 
-	// OCS or ADH - retrieves the authentication token
-	// It is retrieved at every send as it can expire and the configuration is only in OCS and ADH
-	if (m_PIServerEndpoint == ENDPOINT_OCS || m_PIServerEndpoint == ENDPOINT_ADH)
+	// Retrieve the destination data archive version
+	m_connected = true;
+	int httpCode = 200;
+	switch (m_PIServerEndpoint)
 	{
-		m_OCSToken = OCSRetrieveAuthToken();
-		m_sender->setOCSToken  (m_OCSToken);
+	case ENDPOINT_PIWEB_API:
+		httpCode = PIWebAPIGetVersion();
+		if (httpCode >= 200 && httpCode < 400)
+		{
+			SetOMFVersion();
+			CheckDataActionCode();
+			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
+									  m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
+			m_connected = true;
+		}
+		else
+		{
+			Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
+									   m_hostAndPort.c_str(), httpCode);
+			m_connected = false;
+		}
+		break;
+	case ENDPOINT_EDS:
+		httpCode = EDSGetVersion();
+		if (httpCode >= 200 && httpCode < 400)
+		{
+			SetOMFVersion();
+			CheckDataActionCode();
+			Logger::getLogger()->info("Edge Data Store %s OMF Version: %s", m_RestServerVersion.c_str(), m_omfversion.c_str());
+			m_connected = true;
+		}
+		else
+		{
+			Logger::getLogger()->error("Edge Data Store %s is not available. HTTP Code: %d",
+									   m_hostAndPort.c_str(), httpCode);
+			m_connected = false;
+		}
+		break;
+	case ENDPOINT_OCS:
+		SetOMFVersion();
+		CheckDataActionCode();
+		Logger::getLogger()->info("OSIsoft Cloud Services OMF Version: %s", m_omfversion.c_str());
+		break;
+	case ENDPOINT_ADH:
+		SetOMFVersion();
+		CheckDataActionCode();
+		Logger::getLogger()->info("AVEVA Data Hub OMF Version: %s", m_omfversion.c_str());
+		break;
+	case ENDPOINT_CR:
+		SetOMFVersion();
+		CheckDataActionCode();
+		Logger::getLogger()->info("Connector Relay OMF Version: %s", m_omfversion.c_str());
+		break;
+	default:
+		SetOMFVersion();
+		CheckDataActionCode();
+		Logger::getLogger()->info("OMF Version: %s", m_omfversion.c_str());
+		break;
 	}
 
 	// Allocate the OMF class that implements the PI Server data protocol
@@ -601,15 +584,12 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 
 		m_omf->setSendFullStructure(m_sendFullStructure);
 		m_omf->setDelimiter(m_delimiter);
-		m_omf->setDataActionCode(m_dataActionCode);
 
 		// Set PIServerEndpoint configuration
 		m_omf->setNamingScheme(m_NamingScheme);
 		m_omf->setPIServerEndpoint(m_PIServerEndpoint);
 		m_omf->setDefaultAFLocation(m_DefaultAFLocation);
 		m_omf->setAFMap(m_AFMap);
-
-		m_omf->setOMFVersion(m_omfversion);
 
 		// Generates the prefix to have unique asset_id across different levels of hierarchies
 		string AFHierarchyLevel;
@@ -636,10 +616,63 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 			m_omf->setLegacyMode(m_legacy);
 		}
 	}
+
+	// Allocate the OCS class that implements ADH and OCS authentication
+	if (!m_ocs)
+	{
+		if ((m_PIServerEndpoint == ENDPOINT_ADH) || (m_PIServerEndpoint == ENDPOINT_OCS))
+		{
+			m_ocs = new OCS(m_authUrl);
+		}
+	}
+}
+
+/**
+ * Send data to the OMF endpoint
+ *
+ * @param readings	The block of readings to send
+ * @return uint32_t	The number of readings sent
+ */
+uint32_t OMFInformation::send(const vector<Reading *>& readings)
+{
+#if INSTRUMENT
+	struct timeval startTime;
+	gettimeofday(&startTime, NULL);
+#endif
+	// Check if the destination data archive is available
+	if (!IsDataArchiveConnected())
+	{
+		// Error already reported by IsDataArchiveConnected
+		return 0;
+	}
+
+	// For OCS and ADH, retrieve the authentication token
+	if (m_ocs)
+	{
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret);
+		if (!token.empty())
+		{
+			m_OCSToken = token;
+			m_sender->setOCSToken(token);
+		}
+	}
+
+	// Exit immediately if the plugin is not stable due to PI Server errors
+	if (!m_omf->isPIstable())
+	{
+		return 0;
+	}
+
 	// Send the readings data to the PI Server
+	m_omf->setOMFVersion(m_omfversion);
+	m_omf->setDataActionCode(m_dataActionCode);
 	m_omf->setPIconnected(m_connected);
+	m_omf->setNumBlocks(m_numBlocks);
+
 	uint32_t ret = m_omf->sendToServer(readings, m_compression);
+
 	m_connected = m_omf->isPIconnected();
+	m_numBlocks = m_omf->getNumBlocks();
 
 	// Detect typeId change in OMF class
 	if (m_omf->getTypeId() != m_typeId)
@@ -959,73 +992,201 @@ long OMFInformation::getMaxTypeId()
 }
 
 /**
- * Calls the PI Web API to retrieve the version
+ * Calls the PI Web API system information endpoint to get the product version
  * 
  * @param    logMessage	If true, log error messages (default: true)
- * @return   httpCode   HTTP response code
+ * @return   HttpCode	REST response code
  */
 int OMFInformation::PIWebAPIGetVersion(bool logMessage)
 {
-	PIWebAPI *_PIWebAPI;
-
-	_PIWebAPI = new PIWebAPI();
-
-	// Set requested authentication
-	_PIWebAPI->setAuthMethod          (m_PIWebAPIAuthMethod);
-	_PIWebAPI->setAuthBasicCredentials(m_PIWebAPICredentials);
-
-	int httpCode = _PIWebAPI->GetVersion(m_hostAndPort, m_RestServerVersion, logMessage);
-	delete _PIWebAPI;
-
-	return httpCode;
-}
-
-
-
-/**
- * Calls the Edge Data Store product information endpoint to get the EDS version
- * 
- * @return   HttpCode	REST response code
- */
-int OMFInformation::EDSGetVersion()
-{
-	int res;
-
-	HttpSender *endPoint = new SimpleHttp(m_hostAndPort,
-										   m_timeout,
-										   m_timeout,
-										   m_retrySleepTime,
-										   m_maxRetry);
+	int res = 400;
+	unsigned int retries = m_sender->getMaxRetries();
+	m_sender->setMaxRetries(0);
 
 	try
 	{
-		string path = "http://" + m_hostAndPort + "/api/v1/diagnostics/productinformation";
+		string path = "https://" + m_hostAndPort + "/piwebapi/system";
+
 		vector<pair<string, string>> headers;
+		headers.push_back( std::make_pair("Accept", "application/json"));
+
 		m_RestServerVersion.clear();
 
-		res = endPoint->sendRequest("GET", path, headers, std::string(""));
+		res = m_sender->sendRequest("GET", path, headers, std::string(""));
 		if (res >= 200 && res <= 299)
 		{
-			m_RestServerVersion = ParseEDSProductInformation(endPoint->getHTTPResponse());
+			PIWebAPI piwebapi;
+			m_RestServerVersion = piwebapi.ExtractVersion(m_sender->getHTTPResponse());
 		}
 	}
 	catch (const BadRequest &ex)
 	{
-		Logger::getLogger()->error("Edge Data Store productinformation BadRequest exception: %s", ex.what());
+		if (logMessage)
+		{
+			Logger::getLogger()->error("PI Web API system information BadRequest exception: %s", ex.what());
+		}
 		res = 400;
+	}
+	catch (const Unauthorized &e)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
+		}
+		res = 401;
 	}
 	catch (const std::exception &ex)
 	{
-		Logger::getLogger()->error("Edge Data Store productinformation exception: %s", ex.what());
+		if (logMessage)
+		{
+			Logger::getLogger()->error("PI Web API system information exception: %s", ex.what());
+		}
 		res = 400;
 	}
 	catch (...)
 	{
-		Logger::getLogger()->error("Edge Data Store productinformation generic exception");
+		if (logMessage)
+		{
+			Logger::getLogger()->error("PI Web API system information generic exception");
+		}
 		res = 400;
 	}
 
-	delete endPoint;
+	m_sender->setMaxRetries(retries);
+	return res;
+}
+
+/**
+ * Calls the Edge Data Store product information endpoint to get the EDS version
+ * 
+ * @param    logMessage	If true, log error messages (default: true)
+ * @return   HttpCode	REST response code
+ */
+int OMFInformation::EDSGetVersion(bool logMessage)
+{
+	int res = 400;
+	unsigned int retries = m_sender->getMaxRetries();
+	m_sender->setMaxRetries(0);
+
+	try
+	{
+		string path = "http://" + m_hostAndPort + "/api/v1/diagnostics/productinformation";
+		
+		vector<pair<string, string>> headers;
+		headers.push_back( std::make_pair("Accept", "application/json"));
+
+		m_RestServerVersion.clear();
+
+		res = m_sender->sendRequest("GET", path, headers, std::string(""));
+		if (res >= 200 && res <= 299)
+		{
+			m_RestServerVersion = ParseEDSProductInformation(m_sender->getHTTPResponse());
+		}
+	}
+	catch (const BadRequest &ex)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("Edge Data Store productinformation BadRequest exception: %s", ex.what());
+		}
+		res = 400;
+	}
+	catch (const Unauthorized &e)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
+		}
+		res = 401;
+	}
+	catch (const std::exception &ex)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("Edge Data Store productinformation exception: %s", ex.what());
+		}
+		res = 400;
+	}
+	catch (...)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("Edge Data Store productinformation generic exception");
+		}
+		res = 400;
+	}
+
+	m_sender->setMaxRetries(retries);
+	return res;
+}
+
+/**
+ * Calls the ADH Namespace identity endpoint to check the connection to ADH
+ *
+ * @param    logMessage	If true, log error messages (default: true)
+ * @return   HttpCode	REST response code
+ */
+int OMFInformation::IsADHConnected(bool logMessage)
+{
+	if (m_OCSToken.empty())
+	{
+		std::string token = m_ocs->OCSRetrieveAuthToken(m_OCSClientId, m_OCSClientSecret, false);
+		if (!token.empty())
+		{
+			m_OCSToken = token;
+			m_sender->setOCSToken(token);
+		}
+	}
+
+	int res = 400;
+	unsigned int retries = m_sender->getMaxRetries();
+	m_sender->setMaxRetries(0);
+
+	try
+	{
+		string path = m_path;
+		path.resize(path.size() - 4); // remove trailing "/omf"
+
+		vector<pair<string, string>> headers;
+		headers.push_back( std::make_pair("Accept", "application/json"));
+
+		res = m_sender->sendRequest("GET", path, headers, std::string(""));
+	}
+	catch (const BadRequest &ex)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("AVEVA Data Hub health check BadRequest exception: %s", ex.what());
+		}
+		res = 400;
+	}
+	catch (const Unauthorized &e)
+	{
+		// HTTP 401: Land here if the ADH or OCS Token has expired
+		if (logMessage)
+		{
+			Logger::getLogger()->error(MESSAGE_UNAUTHORIZED);
+		}
+		res = 401;
+	}
+	catch (const std::exception &ex)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("AVEVA Data Hub health check exception: %s", ex.what());
+		}
+		res = 400;
+	}
+	catch (...)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("AVEVA Data Hub health check generic exception");
+		}
+		res = 400;
+	}
+
+	m_sender->setMaxRetries(retries);
 	return res;
 }
 
@@ -1098,28 +1259,6 @@ void OMFInformation::CheckDataActionCode()
 			m_dataActionCode = "create";
 		}
 	}
-}
-
-/**
- * Calls the OCS API to retrieve the authentication token
- * 
- * @return   token      Authorization token
- */
-string OMFInformation::OCSRetrieveAuthToken()
-{
-	string token;
-	OCS *ocs;
-
-	if (m_PIServerEndpoint == ENDPOINT_OCS)
-		ocs = new OCS();
-	else if (m_PIServerEndpoint == ENDPOINT_ADH)
-		ocs = new OCS(true);
-
-	token = ocs->retrieveToken(m_OCSClientId , m_OCSClientSecret);
-
-	delete ocs;
-
-	return token;
 }
 
 /**
@@ -1469,60 +1608,119 @@ double OMFInformation::GetElapsedTime(struct timeval *startTime)
 }
 
 /**
- * Check if the PI Web API server is available by reading the product version every 60 seconds.
+ * Check if the destination data archive is available by making a lightweight REST GET call every 60 seconds.
  * Log a message if the connection state changes.
+ * First call to this method will make a REST call.
+ * This method can check connectivity with PI Web API, Edge Data Store and AVEVA Data Hub.
  *
  * @return           Connection status
  */
-bool OMFInformation::IsPIWebAPIConnected()
+bool OMFInformation::IsDataArchiveConnected()
 {
 	static std::chrono::steady_clock::time_point nextCheck(std::chrono::steady_clock::time_point::duration::zero());
-	static bool lastConnected = m_connected;	// Previous value of m_connected
+	static bool lastConnected = m_connected; // Previous value of m_connected
 
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+	if (now >= nextCheck)
 	{
-		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+		int httpCode;
 
-		if (now >= nextCheck)
+		switch (m_PIServerEndpoint)
 		{
-			int httpCode = PIWebAPIGetVersion(false);
-			Logger::getLogger()->debug("PIWebAPIGetVersion: %s HTTP Code: %d Connected: %s LastConnected: %s",
-				m_hostAndPort.c_str(),
-				httpCode,
-				m_connected ? "true" : "false",
-				lastConnected ? "true" : "false");
-
-			if ((httpCode < 200) || (httpCode >= 400))
-			{
-				m_connected = false;
-				if (lastConnected == true)
-				{		
-					Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
-							m_hostAndPort.c_str(), httpCode);
-					lastConnected = false;
-				}
-			}
-			else
-			{
-				m_connected = true;
-				SetOMFVersion();
-				CheckDataActionCode();
-				if (lastConnected == false)
-				{
-					Logger::getLogger()->warn("%s reconnected to %s OMF Version: %s",
-						m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
-					lastConnected = true;
-				}
-			}
-
-			nextCheck = now + std::chrono::seconds(60);
+		case ENDPOINT_PIWEB_API:
+			httpCode = PIWebAPIGetVersion(false);
+			break;
+		case ENDPOINT_EDS:
+			httpCode = EDSGetVersion(false);
+			break;
+		case ENDPOINT_ADH:
+		case ENDPOINT_OCS:
+			httpCode = IsADHConnected(false);
+			break;
+		default:
+			httpCode = 200; // assume all other endpoint types are connected
+			break;
 		}
-	}
-	else
-	{
-		// Endpoints other than PI Web API fail quickly when they are unavailable
-		// so there is no need to check their status in advance.
-		m_connected = true;
+
+		m_connected = ((httpCode < 200) || (httpCode >= 400)) ? false : true;
+
+		Logger::getLogger()->debug("%s: Check %s HTTP Code: %d Connected: %s LastConnected: %s",
+								   __FUNCTION__,
+								   m_hostAndPort.c_str(),
+								   httpCode,
+								   m_connected ? "true" : "false",
+								   lastConnected ? "true" : "false");
+
+		// See if the connection status has changed since the last check.
+		// If so, write a disconnection or reconnection message.
+		if (m_connected == true)
+		{
+			SetOMFVersion();
+			CheckDataActionCode();
+
+			if (lastConnected == false)
+			{
+				switch (m_PIServerEndpoint)
+				{
+				case ENDPOINT_PIWEB_API:
+					Logger::getLogger()->warn("%s reconnected to %s OMF Version: %s",
+											  m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
+					break;
+				case ENDPOINT_EDS:
+					Logger::getLogger()->warn("Edge Data Store %s reconnected to %s OMF Version: %s",
+											  m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
+					break;
+				case ENDPOINT_ADH:
+					Logger::getLogger()->warn("AVEVA Data Hub %s reconnected. OMF Version: %s",
+											  m_hostAndPort.c_str(), m_omfversion.c_str());
+					break;
+				case ENDPOINT_OCS:
+					Logger::getLogger()->warn("OSIsoft Cloud Services %s reconnected. OMF Version: %s",
+											  m_hostAndPort.c_str(), m_omfversion.c_str());
+					break;
+				default:
+					Logger::getLogger()->warn("Destination Data Archive %s reconnected. OMF Version: %s",
+											  m_hostAndPort.c_str(), m_omfversion.c_str());
+					break;
+				}
+
+				lastConnected = true;
+			}
+		}
+		else
+		{
+			if (lastConnected == true)
+			{
+				switch (m_PIServerEndpoint)
+				{
+				case ENDPOINT_PIWEB_API:
+					Logger::getLogger()->error("The PI Web API service %s is not available. HTTP Code: %d",
+											   m_hostAndPort.c_str(), httpCode);
+					break;
+				case ENDPOINT_EDS:
+					Logger::getLogger()->error("Edge Data Store %s is not available. HTTP Code: %d",
+											   m_hostAndPort.c_str(), httpCode);
+					break;
+				case ENDPOINT_ADH:
+					Logger::getLogger()->error("AVEVA Data Hub %s is not available. HTTP Code: %d",
+											   m_hostAndPort.c_str(), httpCode);
+					break;
+				case ENDPOINT_OCS:
+					Logger::getLogger()->error("OSIsoft Cloud Services %s is not available. HTTP Code: %d",
+											   m_hostAndPort.c_str(), httpCode);
+					break;
+				default:
+					Logger::getLogger()->warn("Destination Data Archive %s is not available. HTTP Code: %d",
+											  m_hostAndPort.c_str(), httpCode);
+					break;
+				}
+
+				lastConnected = false;
+			}
+		}
+
+		nextCheck = now + std::chrono::seconds(60);
 	}
 
 	return m_connected;

@@ -188,7 +188,7 @@ void Reading::addDatapoint(Datapoint *value)
 /**
  * Remove a datapoint from the reading
  *
- * @param name	Name of the datapoitn to remove
+ * @param name	Name of the datapoint to remove
  * @return	Pointer to the datapoint removed or NULL if it was not found
  */
 Datapoint *Reading::removeDatapoint(const string& name)

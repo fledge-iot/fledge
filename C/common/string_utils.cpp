@@ -158,23 +158,23 @@ std::string StringSlashFix(const std::string& stringToFix)
 }
 
 /**
- * Strips Line feed and carriage return
+ * Strips Line feed and/or carriage return
  *
+ * @param StringToManage The string to strip
  */
 void StringStripCRLF(std::string& StringToManage)
 {
 	string::size_type pos = 0;
 
-	pos = StringToManage.find ('\r',pos);
-	if (pos != string::npos )
+	while ((pos = StringToManage.find ('\r',pos)) != string::npos)
 	{
-		StringToManage.erase ( pos, 2 );
+		StringToManage.erase ( pos, 1 );
 	}
 
-	pos = StringToManage.find ('\n',pos);
-	if (pos != string::npos )
+	pos = 0;
+	while ((pos = StringToManage.find ('\n',pos)) != string::npos)
 	{
-		StringToManage.erase ( pos, 2 );
+		StringToManage.erase ( pos, 1 );
 	}
 
 }

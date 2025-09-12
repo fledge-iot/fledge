@@ -12,7 +12,6 @@ Quick Start Guide
     datasources
     viewing
     north
-    ../OMF
     backup
     support
     update

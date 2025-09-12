@@ -1,7 +1,5 @@
-import asyncio
 import copy
 import json
-import sys
 import uuid
 
 from unittest.mock import MagicMock, patch
@@ -67,14 +65,9 @@ class TestScriptManagement:
         cat_info = {'write': {'default': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]',
                               'description': 'Dispatcher write operation using automation script', 'type': 'string',
                               'value': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]'}}
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            get_sch = await mock_schedule(script_name)
-            get_cat = await mock_coro(cat_info)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            get_sch = asyncio.ensure_future(mock_schedule(script_name))
-            get_cat = asyncio.ensure_future(mock_coro(cat_info))
+        value = await mock_coro(result)
+        get_sch = await mock_schedule(script_name)
+        get_cat = await mock_coro(cat_info)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
                 with patch.object(server.Server.scheduler, 'get_schedules',
@@ -106,7 +99,7 @@ class TestScriptManagement:
         storage_client_mock = MagicMock(StorageClientAsync)
         result = {"count": 0, "rows": []}
         payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=", "value": "blah"}}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         message = "Script with name {} is not found.".format(script_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
@@ -146,15 +139,9 @@ class TestScriptManagement:
             schedule.process_name = "automation_script"
             return schedule
 
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            get_cat = await mock_coro(cat_info)
-            get_sch = await mock_manual_schedule(script_name)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            get_cat = asyncio.ensure_future(mock_coro(cat_info))
-            get_sch = asyncio.ensure_future(mock_manual_schedule(script_name))
-
+        value = await mock_coro(result)
+        get_cat = await mock_coro(cat_info)
+        get_sch = await mock_manual_schedule(script_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
                 with patch.object(c_mgr, 'get_category_all_items', return_value=get_cat) as patch_get_all_items:
@@ -212,7 +199,7 @@ class TestScriptManagement:
         script_name = "test"
         request_payload = {"name": script_name, "steps": []}
         result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "Script with name {} already exists.".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -237,8 +224,7 @@ class TestScriptManagement:
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_acl':
@@ -267,14 +253,9 @@ class TestScriptManagement:
         result = {"count": 0, "rows": []}
         insert_result = {"response": "inserted", "rows_affected": 1}
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            insert_value = await mock_coro(insert_result)
-            arv = await mock_coro(None)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            insert_value = asyncio.ensure_future(mock_coro(insert_result))
-            arv = asyncio.ensure_future(mock_coro(None))
+        value = await mock_coro(result)
+        insert_value = await mock_coro(insert_result)
+        arv = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value
@@ -307,10 +288,9 @@ class TestScriptManagement:
         insert_result = {"response": "inserted", "rows_affected": 1}
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
-        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        arv = await mock_coro(None)
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_acl':
@@ -324,8 +304,7 @@ class TestScriptManagement:
             else:
                 return {}
 
-        @asyncio.coroutine
-        def i_result(*args):
+        async def i_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -376,7 +355,7 @@ class TestScriptManagement:
         script_name = "test"
         req_payload = {"steps": []}
         result = {"count": 0, "rows": []}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name", "steps", "acl"],
                          "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "No such {} script found.".format(script_name)
@@ -403,8 +382,7 @@ class TestScriptManagement:
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'control_acl':
                 assert acl_query_payload == json.loads(args[1])
@@ -437,16 +415,14 @@ class TestScriptManagement:
         script_result = {"count": 1, "rows": [{"steps": [{"write": {"order": 1, "speed": 420}}]}]}
         update_result = {"response": "updated", "rows_affected": 1}
         steps_payload = payload["steps"]
-        update_value = await mock_coro(update_result) if sys.version_info >= (3, 8) else \
-            asyncio.ensure_future(mock_coro(update_result))
+        update_value = await mock_coro(update_result)
         script_query_payload = {"return": ["name", "steps", "acl"],
                                 "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         insert_result = {"response": "inserted", "rows_affected": 1}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'control_acl':
                 assert acl_query_payload == json.loads(args[1])
@@ -459,8 +435,7 @@ class TestScriptManagement:
             else:
                 return {}
 
-        @asyncio.coroutine
-        def i_result(*args):
+        async def i_result(*args):
             table = args[0]
             payload_ins = args[1]
             if table == "acl_usage":
@@ -468,7 +443,7 @@ class TestScriptManagement:
                         'entity_name': script_name} == json.loads(payload_ins)
                 return insert_result
 
-        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        arv = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -497,7 +472,7 @@ class TestScriptManagement:
         script_name = "test"
         req_payload = {"steps": []}
         result = {"count": 0, "rows": []}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "No such {} script found.".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -533,8 +508,7 @@ class TestScriptManagement:
         delete_sch_result = (True, 'Schedule deleted successfully.')
         message = '{} script deleted successfully.'.format(script_name)
 
-        @asyncio.coroutine
-        def query_schedule(*args):
+        async def query_schedule(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -543,8 +517,7 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def d_schedule(*args):
+        async def d_schedule(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -553,19 +526,11 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return delete_result
 
-        if sys.version_info >= (3, 8):
-            del_cat_and_child = await mock_coro(delete_result)
-            get_sch = await mock_schedule(script_name)
-            disable_sch = await mock_coro(disable_sch_result)
-            delete_sch = await mock_coro(delete_sch_result)
-            arv = await mock_coro(None)
-        else:
-            del_cat_and_child = asyncio.ensure_future(mock_coro(delete_result))
-            get_sch = asyncio.ensure_future(mock_schedule(script_name))
-            disable_sch = asyncio.ensure_future(mock_coro(disable_sch_result))
-            delete_sch = asyncio.ensure_future(mock_coro(delete_sch_result))
-            arv = asyncio.ensure_future(mock_coro(None))
-
+        del_cat_and_child = await mock_coro(delete_result)
+        get_sch = await mock_schedule(script_name)
+        disable_sch = await mock_coro(disable_sch_result)
+        delete_sch = await mock_coro(delete_sch_result)
+        arv = await mock_coro(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively',
                               return_value=del_cat_and_child) as patch_delete_cat_and_child:
@@ -614,8 +579,7 @@ class TestScriptManagement:
                                                        "and": {"column": "entity_name", "condition": "=",
                                                                "value": script_name}}}
 
-        @asyncio.coroutine
-        def query_result(*args):
+        async def query_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -624,8 +588,7 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return {"count": 0, "rows": []}
 
-        @asyncio.coroutine
-        def d_result(*args):
+        async def d_result(*args):
             table = args[0]
             payload = args[1]
             if table == 'control_script':
@@ -634,8 +597,7 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return delete_result
 
-        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
-
+        arv = await mock_coro(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively', side_effect=Exception):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -663,7 +625,7 @@ class TestScriptManagement:
         ({"parameters": {}}, "parameters cannot be an empty."),
     ])
     async def test_bad_schedule_script_with_parameters(self, client, payload, message):
-        resp = await client.post('/fledge/control/script/{}/schedule', data=json.dumps(payload))
+        resp = await client.post('/fledge/control/script/test/schedule', data=json.dumps(payload))
         assert 400 == resp.status
         assert message == resp.reason
         result = await resp.text()
@@ -701,8 +663,7 @@ class TestScriptManagement:
     ])
     async def test_schedule_script_not_found(self, client, code, message, get_script_result, payload):
         script_name = "test"
-        value = await mock_coro(get_script_result) if sys.version_info >= (3, 8) else \
-            asyncio.ensure_future(mock_coro(get_script_result))
+        value = await mock_coro(get_script_result)
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -724,13 +685,8 @@ class TestScriptManagement:
         result = {"count": 1, "rows": [{"name": script_name, "steps": [
             {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
         server.Server.scheduler = Scheduler(None, None)
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            get_sch = await mock_schedule(script_name)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            get_sch = asyncio.ensure_future(mock_schedule(script_name))
-
+        value = await mock_coro(result)
+        get_sch = await mock_schedule(script_name)
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
         message = "{} schedule already exists.".format(script_name)
@@ -758,21 +714,12 @@ class TestScriptManagement:
             {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
         cat_child_result = {'children': ['dispatcherAdvanced', schedule_cat_name]}
         server.Server.scheduler = Scheduler(None, None)
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            sch = await mock_coro("")
-            queue = await mock_coro(True)
-            cat = await mock_coro(None)
-            child = await mock_coro(cat_child_result)
-            get_sch = await mock_schedule(sch_name)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            sch = asyncio.ensure_future(mock_coro(""))
-            queue = asyncio.ensure_future(mock_coro(True))
-            cat = asyncio.ensure_future(mock_coro(None))
-            child = asyncio.ensure_future(mock_coro(cat_child_result))
-            get_sch = asyncio.ensure_future(mock_schedule(sch_name))
-
+        value = await mock_coro(result)
+        sch = await mock_coro("")
+        queue = await mock_coro(True)
+        cat = await mock_coro(None)
+        child = await mock_coro(cat_child_result)
+        get_sch = await mock_schedule(sch_name)
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
         message = "Schedule and configuration is created for control script {}".format(script_name)

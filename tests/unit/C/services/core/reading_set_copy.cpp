@@ -135,6 +135,7 @@ TEST(READINGSET, DeepCopyCheckAppend)
     Reading *in = new Reading("Pressure", value);
     readings1->push_back(in);
     ReadingSet *readingSet1 = new ReadingSet(readings1);
+    delete readings1;
 
     vector<Reading *> *readings2 = new vector<Reading *>;
     long integerValue2 = 400;
@@ -143,11 +144,14 @@ TEST(READINGSET, DeepCopyCheckAppend)
     Reading *in2 = new Reading("Pressure", value2);
     readings2->push_back(in2);
     ReadingSet *readingSet2 = new ReadingSet(readings2);
+    delete readings2;
 
     readingSet2->copy(*readingSet1);
 
     int size = readingSet2->getAllReadings().size();
     ASSERT_EQ(size, 2);
+    delete readingSet2;
+    delete readingSet1;
 }
 
 TEST(READINGSET, DeepCopyCheckAddress)
@@ -160,6 +164,7 @@ TEST(READINGSET, DeepCopyCheckAddress)
     readings1->push_back(in);
 
     ReadingSet *readingSet1 = new ReadingSet(readings1);
+    delete readings1;
     ReadingSet *readingSet2 = new ReadingSet();
     readingSet2->copy(*readingSet1);
 
@@ -170,4 +175,6 @@ TEST(READINGSET, DeepCopyCheckAddress)
     auto dp2 = r2[0]->getReadingData();
 
     ASSERT_NE(dp1, dp2);
+    delete readingSet1;
+    delete readingSet2;
 }

@@ -80,6 +80,12 @@ class TestConfiguration:
                             ]
                   },
                   {
+                     'key': 'SUPPORT_BUNDLE',
+                     'description': 'Support Bundle Configuration',
+                     'displayName': 'Support Bundle',
+                     'children': []
+                  },
+                  {
                      'key': 'SMNTR',
                      'description': 'Service Monitor',
                      'displayName': 'Service Monitor',
@@ -98,9 +104,21 @@ class TestConfiguration:
                       'children': []
                   },
                   {
+                      "key": "RESOURCE_LIMIT",
+                      "description": "Resource Limit of South Service",
+                      "displayName": "Resource Limit",
+                      "children": []
+                  },
+                  {
                       'key': 'CONFIGURATION',
                       'description': 'Core Configuration Manager',
                       'displayName': 'Configuration Manager',
+                      'children': []
+                  },
+                  {
+                      'key': 'FEATURES',
+                      'description': 'Control the inclusion of system features',
+                      'displayName': 'Features',
                       'children': []
                   }
               ]

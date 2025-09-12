@@ -121,14 +121,15 @@ get_pip_break_system_flag() {
     PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
     PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
 
-    # Default to empty flag
-    FLAG=""
-
     # Set the FLAG only for Python versions 3.11 or higher
-    if [ "$PYTHON_MAJOR" -gt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 11 ]; }; then
+    if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 11 ] && [ "$PYTHON_MINOR" -lt 12 ]; then
         FLAG="--break-system-packages"
+    elif [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 12 ]; then
+        FLAG="--user --break-system-packages"
+    else
+        # Default to empty flag
+        FLAG=""
     fi
-
     # Return the FLAG (via echo)
     echo "$FLAG"
 }

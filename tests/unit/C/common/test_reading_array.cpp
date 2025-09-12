@@ -73,6 +73,7 @@ TEST(TESTReading, TestReadingForListType )
 
     ASSERT_EQ(dp[2]->getName(),"floor3");
     ASSERT_EQ(dp[2]->getData().toString(),"[38.25, 60.89, 40.28]");
+    delete readings[0];
 }
 
 TEST(TESTReading, TestReadingForNestedListType )
@@ -86,6 +87,6 @@ TEST(TESTReading, TestReadingForNestedListType )
 
     ASSERT_EQ(dp[0]->getName(),"pressure");
     ASSERT_EQ(dp[0]->getData().toString(),"{\"floor1\":30, \"floor2\":34, \"floor3\":[38, 60, 40]}");
-    
+    delete readings[0];
 }
 

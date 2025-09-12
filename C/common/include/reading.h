@@ -38,7 +38,7 @@ class Reading {
 		Reading(const std::string& asset, const std::string& datapoints);
 		Reading(const Reading& orig);
 
-		~Reading();	// This should bbe virtual
+		virtual	~Reading();
 		void				addDatapoint(Datapoint *value);
 		Datapoint			*removeDatapoint(const std::string& name);
 		Datapoint			*getDatapoint(const std::string& name) const;

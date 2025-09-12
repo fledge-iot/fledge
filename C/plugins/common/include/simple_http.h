@@ -54,6 +54,7 @@ class SimpleHttp: public HttpSender
 
 		std::string getHostPort()     { return m_host_port; };
 		std::string getHTTPResponse() { return m_HTTPResponse; };
+		unsigned int getMaxRetries()  { return m_max_retry; };
 
 		// OCS configurations
 		void setOCSNamespace         (std::string& OCSNamespace)          {m_OCSNamespace    = OCSNamespace; }
@@ -61,7 +62,7 @@ class SimpleHttp: public HttpSender
 		void setOCSClientId          (std::string& OCSClientId)           {m_OCSClientId     = OCSClientId; }
 		void setOCSClientSecret      (std::string& OCSClientSecret)       {m_OCSClientSecret = OCSClientSecret; }
 		void setOCSToken             (std::string& OCSToken)              {m_OCSToken        = OCSToken; }
-
+		void setMaxRetries           (unsigned int retries)               {m_max_retry = retries; };
 
 	private:
 		// Make private the copy constructor and operator=

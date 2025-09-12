@@ -5,6 +5,7 @@
 .. |purge_01| image:: images/purge_01.jpg
 .. |purge_02| image:: images/purge_02.jpg
 .. |purge_03| image:: images/purge_03.jpg
+.. |postgres_01| image:: images/postgres_01.jpg
 
 
 
@@ -34,7 +35,7 @@ configuration.
 
 As standard Fledge comes with 3 storage plugins
 
-  - **SQLite**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store. The plugin uses multiple SQLite database to store different assets, allowing for high bandwidth data at the expense of limiting the number of assets that a single instance can ingest.,
+  - **SQLite**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store. The plugin uses multiple SQLite database to store different assets, allowing for high bandwidth data at the expense of limiting the number of assets that a single instance can ingest.
 
   - **SQLiteLB**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store. This version of the SQLite plugin uses a single readings database and is better suited for environments that do not have very high bandwidth data. It does not limit the number of distinct assets that can be ingested.
 
@@ -65,7 +66,11 @@ user interface to set the storage engine and its options.
 
      - *sqlite* - the SQLite file based storage engine.
 
-     - *postgres* - the PostgreSQL server. Note the Postgres server is not installed by default when Fledge is installed and must be installed before it can be used.
+     - *postgres* - the PostgreSQL server.
+       
+       .. note::
+
+          The PostgreSQL server is not installed by default when Fledge is installed and must be installed before it can be used. See :ref:`InstallingPostgreSQL`.
 
   - The *Readings Plugin* may be set to any of the above and may also be set to use the SQLite In Memory plugin by entering the value *sqlitememory* into the configuration field.
 
@@ -90,7 +95,7 @@ user interface to set the storage engine and its options.
    migrated to the new storage system and this data may be lost if it has
    not been sent onward from Fledge.
 
-   If selecting the Postgres storage engine then PostgreSQL must be installed and running with a fledge user created in order for Fledge to start successfully.
+   If selecting the PostgreSQL storage engine then PostgreSQL must be installed and running with a fledge user created in order for Fledge to start successfully.
 
 
 SQLite Plugin Configuration
@@ -146,139 +151,55 @@ start to diminish.
 
   - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
 
-Using a Remote PostgreSQL Server
---------------------------------
+PostgreSQL Plugin Configuration
+-------------------------------
 
-Follow the steps below to set up PostgreSQL on a remote machine and enable remote connections securely.
+Fledge supports PostgreSQL as a storage solution for both configuration and reading data. It can be used to store either one or both types of data, or just one in combination with another storage plugin.
 
-1. Install PostgreSQL on the Remote Machine
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Refer to the section *Installing A PostgreSQL server* for detailed PostgreSQL installation instructions.
+.. note::
 
-2. Configure PostgreSQL to Allow Remote Connections
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-By default, PostgreSQL only listens for connections on the local machine. To allow remote access, you need to modify the PostgreSQL configuration file, `postgresql.conf`.
+   PostgreSQL is not installed as part of the installation of Fledge. If you wish to make use of the PostgreSQL storage plugin you may need to install PostgreSQL on the Fledge host or another host that Fledge can communicate with. Installing PostgreSQL in both these configuration is covered in the section, :ref:`PostgreSQL`.
 
-**Steps:**
+The PostgreSQL storage engine has further options that may be used to
+configure its behavior. To access these configuration parameters click
+on the *postgres* option under the *Storage* category in the configuration
+page.
 
-1. Open the configuration file for editing:
++---------------+
+| |postgres_01| |
++---------------+
 
-   .. code-block:: bash
+There are a number of configuration items that can be used to tune the performance of the PostgeSQL storage plugin.
 
-       sudo nano /etc/postgresql/<version>/main/postgresql.conf
+  - **Pool Size**: The number of connections to create in the database connection pool.
 
-   Replace `<version>` with the installed PostgreSQL version (e.g., `12`, `14`, etc.).
+  - **Max. Insert Rows**: The maximum number of readings that will be inserted within a single SQL statement. 
 
-2. Locate the following line in the configuration file:
+.. _PostgreSQL:
 
-   .. code-block:: ini
+PostgreSQL Installation
+=======================
 
-       #listen_addresses = 'localhost'
+PostgreSQL may be installed locally on the same Linux host as Fledge or remotely on a separate host. This option to install PostgreSQL on a separate host makes it an ideal choice for containerised environments, where a stateless Fledge installation is a common goal. This allows all configuration state and buffered readings can held outside of the Fledge container, in a separate PostgreSQL container.
 
-3. Update the line to:
+.. note::
 
-   .. code-block:: ini
+    Some state, such as scripts, may need to be stored outside the database. These will also need to be managed in order to achieve a truly stateless Fledge installation in all cases.
 
-       listen_addresses = '*'
+.. _InstallingPostgreSQL:
 
-   This setting tells PostgreSQL to listen for connections on all available network interfaces.
-
-**Important:**
-
-- For **production environments**, avoid using `'*'` unless absolutely necessary. Instead, restrict connections to specific IP addresses to enhance security.
-
-4. Save the file and exit the editor.
-
-
-3. Update Client Authentication Rules
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-PostgreSQL uses the `pg_hba.conf` file (Host-Based Authentication) to control how clients authenticate and connect to the database. To allow remote connections, you need to update the rules in this file.
-
-**Steps:**
-
-1. Open the `pg_hba.conf` file for editing:
-
-   .. code-block:: bash
-
-       sudo nano /etc/postgresql/<version>/main/pg_hba.conf
-
-2. Add the following entry at the end of the file:
-
-   .. code-block:: ini
-
-       host    all    all    0.0.0.0/0    trust
-
-**Explanation of the Parameters:**
-
-- **host**: This specifies that the rule applies to TCP/IP connections.
-- **all** (first occurrence): This applies the rule to all databases.
-- **all** (second occurrence): This applies the rule to all users.
-- **0.0.0.0/0**: This allows connections from all IPv4 addresses. You can replace this with a specific IP range for better security (e.g., `192.168.1.0/24`).
-- **trust**: This disables password authentication. While convenient for testing, it is **not recommended for production setups**. Use `md5` or `scram-sha-256` for secure authentication in production.
-
-**Example for Secure Setup:**
-For a production environment, replace `trust` with `md5` for password-based authentication:
-
-   .. code-block:: ini
-
-       host    all    all    0.0.0.0/0    md5
-
-3. Save the file and exit the editor.
-
-
-4. Restart the PostgreSQL Service
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-After making changes to the configuration files, you need to restart the PostgreSQL service to apply the updates.
-
-**Final Notes:**
-
-- Once the configuration is complete, ensure that the machine's firewall settings allow incoming connections to PostgreSQL's default port (5432).
-- For increased security, consider enabling SSL connections to encrypt client-server communication.
-
-5. Setting Up PostgreSQL Client on the Local Machine
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This section explains how to set up the PostgreSQL client on the local machine (the machine where Fledge executes).
-
-1. **Install PostgreSQL Client**
-
-   The PostgreSQL client tools are required to allow Fledge to interact with a remote PostgreSQL server. Install the `postgresql-client` package using the package manager for your system.
-
-
-2. **Export PostgreSQL Environment Variables**
-
-   Configure environment variables to specify the connection details for the PostgreSQL server. These variables ensure that Fledge can communicate with the server seamlessly.
-
-   The environment variables include the host, user, and password for the PostgreSQL server. 
-
-   .. code-block:: bash
-
-       export PGHOST=<host_ip_address>
-       export PGUSER=<postgres_user_name>
-       export PGPASSWORD=<postgres_user_password>
-
-   **Explanation of Variables:**
-
-   - `PGHOST`: The IP address or hostname of the PostgreSQL server.
-   - `PGUSER`: The username for the PostgreSQL database (e.g., `postgres`).
-   - `PGPASSWORD`: The password for the specified user.
-
-
-
-Installing A PostgreSQL server
-==============================
+Installing A PostgreSQL Server
+------------------------------
 
 The precise commands needed to install a PostgreSQL server vary for system
-to system, in general a packaged version of PostgreSQL is best used and
-these are often available within the standard package repositories for
+to system, in general a packaged version of PostgreSQL is best used.
+These are often available within the standard package repositories for
 your system.
 
 Ubuntu Install
---------------
+~~~~~~~~~~~~~~
 
-On Ubuntu or other apt based distributions the command to install postgres:
+On Ubuntu or other apt based distributions the command to install PostgreSQL would be:
 
 .. code-block:: console
 
@@ -305,7 +226,7 @@ A more generic command is:
   sudo -u postgres createuser -d $(whoami)
 
 Red Hat Install
----------------
+~~~~~~~~~~~~~~~
 
 On Red Hat or other yum based distributions to install postgres:
 
@@ -345,11 +266,160 @@ Confirm if the just started service above is running by checking its status usin
 
     sudo systemctl status postgresql-13
 
-Next, you must create a PostgreSQL user that matches your Linux user.
+Next, you **must** create a PostgreSQL user that matches your Linux user.
 
 .. code-block:: console
 
   sudo -u postgres createuser -d $(whoami)
+
+.. note::
+
+   The example above is based on the use of PostgreSQL version 13, this is the latest verified version at the time of writing. Use of later versions should not cause any problems should version 13 not be available for your platform or there is a local requirement to use a different version. Likewise older version can be used, Fledge has been tested using version 9 and later.
+
+
+Using a Remote PostgreSQL Server
+--------------------------------
+
+Follow the steps below to set up PostgreSQL on a remote machine and enable secure network connections to the PostgreSQL server.
+
+   #. Install PostgreSQL on the remote machine
+
+      Refer to the section :ref:`InstallingPostgreSQL` for detailed PostgreSQL installation instructions.
+
+   #. Configure PostgreSQL to allow network connections
+
+      By default, PostgreSQL only listens for connections on the local machine. To allow access over the network, from other hosts or containers, you need to modify the PostgreSQL configuration file, `postgresql.conf`.
+
+      - Open the configuration file for editing:
+
+         .. code-block:: bash
+
+             sudo nano /etc/postgresql/<version>/main/postgresql.conf
+
+         Replace `<version>` with the installed PostgreSQL version (e.g. `12`, `14`, etc.).
+
+      - Locate the following line in the configuration file:
+
+         .. code-block:: ini
+
+              #listen_addresses = 'localhost'
+
+      - Update the line to:
+
+         .. code-block:: ini
+
+            listen_addresses = '*'
+
+         This setting instructs PostgreSQL to listen for connections on all available network interfaces.
+
+         .. note::
+
+            In production environments, avoid using `'*'` unless absolutely necessary. Instead, restrict connections to specific IP addresses to enhance security.
+
+      - Save the file and exit the editor.
+
+
+   #. Update client authentication rules
+
+      PostgreSQL uses the `pg_hba.conf` file (Host-Based Authentication) to control how clients authenticate and connect to the database. To allow network connections, you need to update the rules in this file.
+
+      - Open the `pg_hba.conf` file for editing:
+
+         .. code-block:: bash
+
+            sudo nano /etc/postgresql/<version>/main/pg_hba.conf
+
+      - Add the following entry at the end of the file:
+
+         .. code-block:: ini
+
+            host    all    all    0.0.0.0/0    trust
+
+         Each entry in the file consists of five fields, these fields are described below:
+
+            .. list-table::
+               :widths: 25 55 20
+               :header-rows: 1
+
+               * - Field
+                 - Description
+                 - Example
+               * - Connection
+                 - This specifies that the rule applies to TCP/IP connections.
+                 - host
+               * - Database
+                 - The name of the database to which the rule is applied. The reserve name *all* applies the rule to all databases.
+                 - all
+               * - User
+                 - The user to which the rule applies. The reserved username of *all* may be used to apply the rule to all users.
+                 - all
+               * - Address
+                 - The network mask which defines the sub-networks from which connections are allowed. The example provided permits connections from all IPv4 addresses. For improved security replace this with a specific network mask (e.g. `192.168.1.0/24` limits connections to just those from the network 192.168.1.xxx). Either IPV4 or IPV6 network masks may be supplied.
+                 - 0.0.0.0/0
+               * - Authentication Method
+                 - The authentication method to be used. The trust method disables password authentication. While trust is convenient for testing, it is not recommended for production environments. For secure authentication in production, use `md5` or `scram-sha-256`.
+                 - trust
+
+        An example entry for use in a production environment, might be as follows:
+
+        .. code-block:: ini
+
+           host    all    all    0.0.0.0/0    md5
+
+        .. note::
+
+           Security can be further strengthened by enforcing SSL encryption on connections. This is done by specifying a connection type of *hostssl* rather than *host* in the configuration record. You must also enable SSL support in PostgreSQL, refer to the PostgreSQL documentation for settings required for this.
+
+      - Save the file and exit the editor.
+
+
+   #. Restart the PostgreSQL Service
+
+      In order for the changes to take affect it is necessary to restart PostgreSQL.
+
+      .. note::
+
+         Once the configuration is complete, ensure that the machine's firewall settings allow incoming connections to PostgreSQL's default port (5432).
+
+   #. Setting Up PostgreSQL Client on the Local Machine
+
+      This section explains how to set up the PostgreSQL client on the machine running Fledge.
+
+      - Install PostgreSQL Client
+
+         The PostgreSQL client tools are required to allow Fledge to interact with a remote PostgreSQL server. Install the `postgresql-client` package using your system's package manager.
+
+      - Export PostgreSQL Environment Variables
+
+         Configure environment variables to specify the connection details for the PostgreSQL server. These variables ensure that Fledge can communicate with the server seamlessly.
+
+         The environment variables include the host, user, password and optionally port, for the PostgreSQL server. 
+
+         .. code-block:: bash
+
+             export PGHOST=<host_ip_address>
+             export PGUSER=<postgres_user_name>
+             export PGPASSWORD=<postgres_user_password>
+             export PGPORT=<postgres_port>
+
+         These may be set in the login script run by the user who runs Fledge or if using a container, you may pass these into the Fledge container at startup using the *-e* flag to the container.
+
+         The description of each of the environment variables supported is shown below.
+
+         .. list-table::
+            :header-rows: 1
+
+            * - Environment Variable
+              - Description
+            * - PGHOST
+              - The IP address or hostname of the PostgreSQL server.
+            * - PGUSER
+              - The username for the PostgreSQL database (e.g. `postgres`).
+            * - PGPASSWORD
+              - The password for the specified user.
+            * - PGPORT
+              - An optional environment variable that can be specified if the PostgreSQL installation is not listening on the default PostgreSQL port of 5432.
+
 
 
 Storage Management

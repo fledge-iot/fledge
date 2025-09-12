@@ -1,0 +1,240 @@
+---
+description: "Core Python development rules for Fledge - code style, imports, file structure, and naming conventions"
+globs: "*.py,python/**/*"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Python Core Development Rules
+
+## Python Version & Platform Requirements
+
+### Supported Python Versions
+- **Minimum**: Python 3.8.10
+- **Maximum**: Python 3.12
+- **Target Range**: Python 3.8.10 - 3.12 (inclusive)
+- Always test compatibility across the full supported range
+
+### Deployment Platforms
+- **Ubuntu**: LTS versions, 20.04 onwards
+  - **Architectures**: x86_64 & aarch64
+- **Raspberry Pi OS**: Bullseye and Bookworm distributions
+  - **Architectures**: aarch64 & armv7l
+
+### Dependencies Management
+- **Runtime Dependencies**: [python/requirements.txt](mdc:python/requirements.txt)
+- **Development Dependencies**: [python/requirements-dev.txt](mdc:python/requirements-dev.txt)
+- **Testing Dependencies**: [python/requirements-test.txt](mdc:python/requirements-test.txt)
+- **Use exact versions** for production dependencies
+- **Consider ARM compatibility** for Raspberry Pi deployment
+- **Test across Python versions** and target architectures
+- **Edge Devices**: Resource-constrained environments with limited CPU/memory
+- Consider platform-specific limitations and optimizations
+
+### Supported Architectures
+- **Ubuntu**: x86_64 & aarch64 architectures
+- **Raspberry Pi OS**: aarch64 & armv7l architectures
+- **Cross-Platform Testing**: Ensure compatibility across all supported architectures
+- **Performance Considerations**: ARM-based architectures may have different performance characteristics
+
+### Compatibility Guidelines
+- Use language features available in Python 3.8.10+ only
+- Test on all supported architectures: x86_64, aarch64, and armv7l
+- Consider performance implications on ARM-based edge devices (aarch64, armv7l)
+- Handle platform-specific dependencies appropriately
+- Validate package availability across all target architectures
+
+## Code Style & Standards
+- Follow PEP 8 style guidelines strictly
+- Use type hints where appropriate for better code documentation (Python 3.8.10+ compatible)
+- Maximum line length: 120 characters
+- Use 4 spaces for indentation (never tabs)
+- Import order: standard library, third-party, local imports
+- Use double quotes for strings consistently
+- Use descriptive variable and function names
+
+### Import Management & Circular Dependencies
+- **Avoid Circular Imports**: Prevent circular dependency issues that can cause import failures
+- **Local Imports**: Use local imports only as a last resort when no other option exists
+- **Import Testing**: Ensure local imports actually work and don't break during runtime
+- **Dependency Design**: Restructure code to eliminate need for circular imports when possible
+
+### Circular Import Prevention Strategies
+```python
+# BAD: Top-level import causing circular dependency
+from fledge.services.core import server  # This can cause circular import
+
+# BETTER: Local import as last resort (with comment explaining why)
+def get_server_instance():
+    """Get server instance with local import to avoid circular dependency."""
+    # Require a local import in order to avoid circular import references
+    from fledge.services.core import server
+    return server
+
+# BEST: Dependency injection or refactoring to avoid the need
+class MyHandler:
+    def __init__(self, server_instance=None):
+        self._server = server_instance
+    
+    def process_request(self):
+        if self._server:
+            return self._server.get_info()
+
+# ALTERNATIVE: Use interfaces/protocols to break dependencies
+from typing import Protocol
+
+class ServerProtocol(Protocol):
+    def get_info(self) -> dict: ...
+    def shutdown(self) -> None: ...
+
+class MyService:
+    def __init__(self, server: ServerProtocol):
+        self._server = server
+```
+
+### Local Import Guidelines
+When local imports are unavoidable:
+- **Document Reasoning**: Always comment why local import is necessary
+- **Test Thoroughly**: Ensure the import works in all execution contexts
+- **Minimal Scope**: Keep local imports as close to usage as possible
+- **Error Handling**: Handle potential import failures gracefully
+- **Consider Alternatives**: Always look for architectural solutions first
+
+```python
+def handle_server_operation():
+    """Handle operation requiring server access."""
+    try:
+        # Local import to avoid circular dependency - server imports this module
+        from fledge.services.core import server
+        
+        # Verify the import worked
+        if not hasattr(server, 'expected_method'):
+            raise ImportError("Server module not properly initialized")
+            
+        return server.expected_method()
+        
+    except ImportError as ex:
+        _logger.error(ex, "Failed to import server module")
+        raise RuntimeError("Server not available") from ex
+```
+
+### Documentation Standards
+- **Docstrings**: Use pydoc-compatible docstrings for all public functions, classes, and modules
+- **Docstring Format**: Follow PEP 257 and Google/NumPy style for consistency
+- **Mandatory Docstrings**: Required for:
+  - All public functions and methods
+  - All public classes
+  - All modules (module-level docstring)
+  - Complex private functions (use judgment)
+- **Missing Docstrings**: Complain/flag when docstrings are missing for public APIs
+
+### Docstring Examples
+```python
+def get_user_data(user_id: int, include_settings: bool = False) -> dict:
+    """Retrieve user data from the database.
+    
+    Args:
+        user_id: The unique identifier for the user
+        include_settings: Whether to include user settings in response
+        
+    Returns:
+        dict: User data with keys 'id', 'name', 'email', and optionally 'settings'
+        
+    Raises:
+        ValueError: If user_id is not a positive integer
+        DatabaseError: If database connection fails
+        
+    Example:
+        >>> user_data = get_user_data(123, include_settings=True)
+        >>> print(user_data['name'])
+        'John Doe'
+    """
+    pass
+
+class DeviceManager:
+    """Manages IoT device connections and data collection.
+    
+    This class handles the lifecycle of IoT devices including discovery,
+    connection management, and data retrieval from various sensor types.
+    
+    Attributes:
+        device_count: Number of currently connected devices
+        connection_timeout: Timeout in seconds for device connections
+        
+    Example:
+        >>> manager = DeviceManager()
+        >>> manager.connect_device("sensor_01")
+        >>> data = manager.get_device_data("sensor_01")
+    """
+    pass
+```
+
+### Docstring Quality Standards
+- **Clear and Concise**: Describe what the function/class does, not how
+- **Parameter Documentation**: Document all parameters with types and descriptions
+- **Return Value Documentation**: Describe return types and structure
+- **Exception Documentation**: List all exceptions that may be raised
+- **Usage Examples**: Include practical examples for complex functions
+- **pydoc Compatibility**: Ensure docstrings render correctly with `python -m pydoc module_name`
+
+### Naming Conventions
+- **Variables**: Use snake_case for all variable names
+  ```python
+  user_id = 123
+  device_name = "sensor_01"
+  connection_timeout = 30
+  ```
+- **Functions/Methods**: Use snake_case for all function and method names
+  ```python
+  def get_user_data():
+      pass
+  
+  def process_sensor_reading(reading_value):
+      pass
+  ```
+- **Classes**: Use PascalCase for class names (following PEP 8)
+  ```python
+  class DeviceManager:
+      pass
+  
+  class SensorDataProcessor:
+      pass
+  ```
+- **Constants**: Use UPPER_SNAKE_CASE for constants
+  ```python
+  MAX_RETRY_COUNT = 3
+  DEFAULT_TIMEOUT_SECONDS = 30
+  API_BASE_URL = "https://api.example.com"
+  ```
+
+### API Response Naming
+- **API Response Keys**: Always use camelCase for JSON response keys
+  ```python
+  # Correct API response format
+  response = {
+      "userId": 123,
+      "deviceName": "sensor_01",
+      "lastReadingTime": "2024-01-01T12:00:00Z",
+      "sensorData": {
+          "temperature": 25.5,
+          "humidity": 60.2
+      }
+  }
+  ```
+- **Internal Code**: Use snake_case everywhere else (variables, function names, etc.)
+- **Database Fields**: Use snake_case for database column names and internal data structures
+
+## File Structure & Organization
+- Python code lives in [python/fledge/](mdc:python/fledge/) directory
+- Follow the existing module structure:
+  - [python/fledge/common/](mdc:python/fledge/common/) - shared utilities and common functionality
+  - [python/fledge/services/](mdc:python/fledge/services/) - core services implementation
+  - [python/fledge/tasks/](mdc:python/fledge/tasks/) - background tasks and scheduled operations
+  - [python/fledge/plugins/](mdc:python/fledge/plugins/) - plugin interfaces and base classes
+
+### Core Microservice Architecture
+- **`server.py`**: The heart of the core microservice - central orchestration and service management
+- **Core Service Location**: [python/fledge/services/core/server.py](mdc:python/fledge/services/core/server.py)
+- **Critical Component**: Handles microservice lifecycle, service discovery, and core coordination
+- **Service Entry Point**: Primary entry point for the core Fledge service
+- **Integration Hub**: Coordinates between all other services, plugins, and components

@@ -78,8 +78,8 @@ async def get_plugins_available(request: web.Request) -> web.Response:
         if not package_type:
             prefix_list = ['fledge-filter-', 'fledge-north-', 'fledge-notify-', 'fledge-rule-', 'fledge-south-']
             plugins = [p for p in plugins if str(p).startswith(tuple(prefix_list))]
-    except ValueError as e:
-        raise web.HTTPBadRequest(reason=e)
+    except ValueError as err:
+        raise web.HTTPBadRequest(reason=str(err))
     except PackageError as e:
         msg = "Fetch available plugins package request failed."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)

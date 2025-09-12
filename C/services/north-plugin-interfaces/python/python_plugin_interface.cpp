@@ -53,12 +53,13 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 	fcn += "    loop = asyncio.new_event_loop()\n"; 
 	fcn += "    asyncio.set_event_loop(loop)\n";
 	fcn += "    coroObj = plugin_send_module_func(handle, readings, \"000001\")\n";
-	fcn += "    futures = [coroObj]\n";
-	fcn += "    done, result = loop.run_until_complete(asyncio.wait(futures))\n"; 
+	fcn += "    task = loop.create_task(coroObj)\n";
+	fcn += "    done, _ = loop.run_until_complete(asyncio.wait([task]))\n";
 	fcn += "    numSent = 0\n";
 	fcn += "    for t in done:\n";
 	fcn += "        retCode, lastId, numSent = t.result()\n";
 	fcn += "    return numSent\n";
+
 
 	PyRun_SimpleString(fcn.c_str());
 	PyObject* mod = PyImport_ImportModule("__main__");

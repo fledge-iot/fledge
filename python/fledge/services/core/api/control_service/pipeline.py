@@ -490,6 +490,10 @@ async def _check_parameters(payload, request):
             if (source_name in south_schedules and des_name in south_schedules) or (
                     source_name in north_schedules and des_name in north_schedules):
                 raise ValueError(error_msg)
+            if source_name in south_schedules:
+                raise ValueError("South services can not be the source for control pipelines.")
+            if des_name in north_schedules:
+                raise ValueError("North services can not be the destination for control pipelines.")
         # Script
         if source_type == 6 and des_type == 4:
             raise ValueError(error_msg)
@@ -507,7 +511,21 @@ async def _validate_lookup_name(lookup_name, _type, value):
 
     async def get_schedules():
         schedules = await server.Server.scheduler.get_schedules()
-        if _type == 5:
+        if _type == 2:
+            if lookup_name == "source":
+                # Source can not be a south service
+                south_north_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "south_c"]
+                error_message = "South services can not be the source for control pipelines."
+            else:
+                # Destination can not be a north service
+                south_north_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "north_C"]
+                error_message = "North services can not be the destination for control pipelines."
+            if value in south_north_schedules:
+                raise ValueError(error_message)
+            if not any(sch.name == value for sch in schedules
+                       if sch.schedule_type == 1 and sch.process_name in ('south_c', 'north_C')):
+                raise ValueError("'{}' not a valid service.".format(value))
+        elif _type == 5:
             # Verify against all type of schedules
             if not any(sch.name == value for sch in schedules):
                 raise ValueError("'{}' not a valid schedule name.".format(value))

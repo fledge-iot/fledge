@@ -1,0 +1,1 @@
+-- no downgrade is necessary for the version, as the Python-based North task became obsolete a considerable time ago; therefore, it is not worthwhile to include the entry for its scheduled process

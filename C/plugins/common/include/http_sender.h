@@ -45,9 +45,11 @@ class HttpSender
 
 		virtual std::string getHostPort() = 0;
 		virtual std::string getHTTPResponse() = 0;
+		virtual unsigned int getMaxRetries() = 0;
 
 		virtual void setAuthMethod          (std::string& authMethod) = 0;
 		virtual void setAuthBasicCredentials(std::string& authBasicCredentials) = 0;
+		virtual void setMaxRetries          (unsigned int retries) = 0;
 
 		// OCS configurations
 		virtual void setOCSNamespace         (std::string& OCSNamespace) = 0;

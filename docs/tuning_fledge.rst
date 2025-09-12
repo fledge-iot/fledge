@@ -13,6 +13,13 @@
 .. |poll_type| image:: images/poll_type.png
 .. |config_cache| image:: images/config_cache.jpg
 .. |core_log_level| image:: images/core_log_level.jpg
+.. |PurgeConfig| image:: images/PurgeConfig.png
+.. |PurgeSystemConfig| image:: images/PurgeSystemConfig.png
+.. |PurgeCycles| image:: images/PurgeCycles.png
+.. |PurgeSchedules| image:: images/PurgeSchedules.png
+.. |TaskLog| image:: images/TaskLog.png
+.. |resource_limit_south_advanced| image:: images/resource_limit_south_advanced.png
+.. |support_bundle_configuration| image:: images/support_bundle_configuration.png
 
 ***************
 Tuning Fledge
@@ -268,6 +275,50 @@ In these circumstances, it is recommended to disable or severely limit the buffe
    Data arrives at the buffering subsystem **after** it has passed through the processing pipeline in the south service. Therefore if the pipeline does data compression, for example using the delta filter, this may reduce the arrival rate of data at the buffering subsystem and convert high bandwidth data from the plugin to low bandwidth data to send to the storage subsystem.
 
 The system imposes an upper limit of 600000 milliseconds (10 minutes) on the maximum send latency to prevent it being set so high that it appears that the south service is no longer functioning. This is really only an issue in situations where the south service does not receive high rates of data and the send latency is set very high. In these cases the data may reside in the south service for a long period, during which it is not accessible to other services within the system. There is also a risk, in these circumstances, that data for a long period of time might be lost if there was a failure that caused the south service to terminate before sending the data to the storage service.
+
+
+Resource Limit of South Services
+================================
+
+South service within Fledge will buffer readings before forwarding them onto the internal storage service. The default behavior is to buffer all readings until they reach a certain age or a certain number. When this occurs, they will be sent to the storage layer. The thresholds that cause data to be sent to the storage layer can be configured and are discussed in **South Service Advanced Configuration**.
+
+If there is a problem sending readings to the storage layer, the south service will continue to buffer the data until that fault is cleared. This behavior will cause the south service to consume increasing amounts of system memory until the fault clears. This can be undesirable if that consumption is not checked. The resource limit configuration for the south service allows the administrator to control the buffering that will occur in this case.
+
++---------------------------------+
+| |resource_limit_south_advanced| |
++---------------------------------+
+
+The following parameters are available for configuration:
+
+  - **South Service Buffering** : Defines whether the buffering for South Services is unlimited or capped. If set to `"Limited"`, additional configuration options become applicable.  
+
+  - **South Service Buffer Size** : Specifies the maximum number of readings that can be buffered in the South Service. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+
+  - **Discard Policy** : Determines the policy for discarding readings when the buffer limit is reached. This setting is only valid when the *South Service Buffering* option is set to `"Limited"`.  
+
+     - **Discard Oldest**: Removes the oldest readings to keep the buffer size within the limit.  
+
+     - **Reduce Fidelity**: Reduces the fidelity of buffered readings by discarding every second reading, starting from the oldest. This policy tracks the next reading to discard to avoid repeated reduction of fidelity for the same data.  
+     
+     - **Discard Newest**: Discards the newest readings to maintain the buffer size.  
+
+Access Control
+--------------
+Only users with administrative privileges can modify the **Resource Limit** configuration items.
+
+Buffering Behavior and Discard Policies
+---------------------------------------
+When the **South Service Buffering** option is set to `"Limited"`, the following behaviors apply based on the configured **Discard Policy**:
+
+1. **Discard Oldest**:  
+   The oldest readings in the buffer are removed until the buffer size is within the configured limit.  
+
+2. **Reduce Fidelity**:  
+   Every second reading is discarded, starting from the oldest, to reduce the number of buffered readings. The discard mechanism tracks the last removed reading to ensure fidelity reduction is evenly distributed and does not repeatedly affect the same data. If the reading associated with the tracked timestamp is no longer in the queue, the discard mechanism adjusts to the current state of the queue.  
+
+3. **Discard Newest**:  
+   The newest readings are discarded as they arrive, ensuring the buffer size remains within the configured limit.  
+
 
 North Advanced Configuration
 ============================
@@ -762,6 +813,113 @@ When collection is enabled the following counters will be collected for the stor
       - The size of the JSON payload in the delete calls to the storage layer for the given table.
       - There is little an end user can influence regarding the payload size, however it gives an indication of bandwidth usage for the storage API.
 
+Purge
+=====
+
+The purpose of the purge processes within Fledge is to control the usage of the storage system. Fledge has two different purge processes that run, each of which purges a different aspect of the storage within the system.
+
+  - **System Purge** - The system purge process is responsible for purging the logs held internally within the Fledge storage system. There are three types of log information held in the storage system: statistics, the audit trail, and task execution history.
+
+    .. note::
+
+        The *System Logs*, or message logs, are not held within the Fledge storage system but are rather sent to the Linux system logging facility, *syslog*. This is configured within the Linux system itself to rotate, compress and ultimately remove logs using the system defined log rotation settings.
+
+  - **Purge** - The purge process is responsible for purging the readings data from the system. 
+
+Purge System
+------------
+
+The log purging is perhaps the simpler of the two purge process to discuss as it has the least impact on the performance of the system. The configuration of the process itself can be found under the *Configuration* menu option in the *Utilities::Purge System* category.
+
++---------------------+
+| |PurgeSystemConfig| |
++---------------------+
+
+The configuration options merely allow you to set the number of days worth of data that should be retained for each of the three log categories: audit, tasks and statistics. The important consideration here is that the various logs should not be allowed to grow to such an extent that you risk exhausting the storage system, but should retain sufficient information to be able to examine enough history of the system.
+
+The other dimension to consider is that performance is known to degrade as these tables become large. It is therefore not simply keeping an extensive history just because you have the storage to do so. Reducing the history kept can improve the performance.
+
+Typically the statistics that are held will take the most space in the system, especially if you are collecting per asset ingest statistics and you collect data for many assets.  There are actually two forms of statistics kept; the absolute counters and the history snapshot of the statistics. The history snapshot records the statistics values every 15 seconds and create an entry in the statistics history table for each statistic every 15 seconds. It is these statistic history entries that are purged and not the absolute statistics counters. Hence the retention period for statistics, the statistics history, is generally lower.
+
+.. note::
+
+   The 15 second statistics history update can itself be tuned by changing the frequency with which the statistics history task is run. This is done via the *Schedules* menu item by changing the interval for the *stats collection* task. Changing this will impact the dashboard seen in the Fledge as this shows values from the statistics history table. The values shown are the deltas in the statistics between each run of the stats collection task. Therefore by default the rates shown in the dashboard are per 15 second intervals.
+
+Similar decisions should be made for the task and the audit log data. In the case of the audit log you should consider what use is being made of that data and how frequently it is updated. Typically systems do not undergo much reconfiguration after the initial setup period. Therefore most of the audit data is likely to be around significant events that occur, such as a restart or failure. If you are making heavy use of the notification or control features of Fledge then these will increase the growth rate of the audit log as these are auditable events.
+
+.. note::
+
+   The audit log is also used by the *FogLAMP Manage* product to determine if changes have been made locally to the instance. Therefore the retention period for audit log data must be greater that the frequency with which that product is collecting this data from the instance.
+
+The task log is used internally within Fledge to track the state of running tasks as well as to give the history of tasks that have run for support purposes; this data is included in the support bundles. Therefore the retention should be such that there is sufficient history to cover any period that might be needed to diagnose issues within Fledge. Also the period should not be so small that it risks the data for a running task being purged before the task has completed. As a guideline it must never be less than 1 day. It is recommended to keep at least 7 days to allow for some history to be available for diagnostic purposes.
+
+As well as the configuration of the retention period for the various logs the other tuning that can be done is the frequency of the execution of the system purge process. This is done in the *Schedules* menu item and is the tasks named *purge_system*. The default is to run it every 23 hours and 50 minutes.
+
+.. note::
+
+   If you run the system purge every 24 hours and you retain 7 days worth of data for the statistics, you will have 8 days of data stored at the peak of storage use. This is because when the process runs it will reduce the data down to 7 days, but as soon as it has completed new data will accumulate until it is next run a day later. The same is obviously also true for the task and audit data.
+
+Purge Process
+-------------
+
+The purge process is probably the more important process to tune of the two. It manages the storage for the reading data that is the more dynamic and larger data set of the two controlled by purge processes. As with the purge system process above, the configuration of how the purge process runs is available in the *Configuration* menu item in the category *Utilities::Purge*.
+
++---------------+
+| |PurgeConfig| |
++---------------+
+
+The details of each of the options are covered elsewhere in the documentation, but the salient points will be repeated here. The operation of the purge process reduces the number of readings that are retained in the readings storage subsystem using two parameters:
+
+   - the age of the reading
+
+   - the number of readings
+
+The age is set in hours. Any reading older than this age is a candidate to be removed from the readings data. The purge process also looks at the number of readings stored and will remove the oldest, even if they are newer than the age to be retained if the number exceeds the *Max rows of data to retain* value.
+
+These are the candidates to be removed, but may not be removed depending upon the sent status of the readings and the configuration item *Retain Unsent Data*.
+
+Candidate data that has already been sent to all the defined north destinations in the system will always be removed regardless of the *Retain Unsent Data* setting. Data that has not be marked as a candidate for removal will be retained event after it has been sent to all the north destinations.
+
+If the *Retain Unsent Data* setting is set to *retain unsent to any destination*, then candidate data will be removed if it has been sent to at least one north destination. Data that has not be sent to any destination will be retained.
+
+As with the purge system process the purge process is also run by a schedule that is accessed via the *Schedules* menu item.
+
++------------------+
+| |PurgeSchedules| |
++------------------+
+
+The frequency of running the purge process is very important, since it as the same effect as described for the purge system execution, but the impact is much higher. Consider a system that wants to retain data for 12 hours. If the purge process is set to run every 12 hours the number of readings over time would be as shown in the graph below
+
++---------------+
+| |PurgeCycles| |
++---------------+
+
+The red line indicates the configured retention point for the readings. Each point where the blue line drops is an execution of the purge process.
+
+This assumes we started with a system with no readings. We read in data for 12 hours and then run the purge process. This is shown as removing a small number of readings to reduce the retained readings to those less than 12 hours old. The initial run is in fact not likely to find any data to remove, or at most a handful of readings, depending on how long it takes the purge process to start executing.
+
+The system now continues to ingest data and will accumulate another 12 hours of data before purge is run again and the data reduced to the newest 12 hours of data.
+
+.. note::
+
+   We are assuming that either unsent data is not retained or we are sending all data north immediately as it is received.
+
+This means that at a peak we are storing 24 hours of data, or twice what we wish to retain. Running the purge process more frequently than the retention period will not remove any more data than defined within the retention period, but will reduce the peaks of data that are stored. The other impact of this, not shown in the graph above, is that purge is **not an instantaneous process**. It takes time to purge the data and with some storage engines the system is blocked from ingesting more data during the purge. In this case the services will buffer the data in memory whilst waiting to gain access to the storage. Purging more often will decrease the number of readings that are removed for each execution and hence reduce the time that the ingest is locked out of the storage system. This reduces the time, and memory resources, that services have to buffer data in memory.
+
+.. note::
+
+   Since all data must go via the storage system from south service to the north services and tasks, the period when services are buffering in memory because the purge process is running, will increase the latency for data to traverse from the south to the north.
+
+There are many advantages to running the purge process more frequently than the retention period. Running it too frequently, however, can cause increase in latency for readings. In addition, if one purge process does not complete before another starts, issues can be seen whereby the purge process dominates the usage of the storage subsystem. If this happens, readings build up in the service memory buffers, eventually causing issues with excessive memory usage. The execution interval for the purge process must be balanced to not create issues with memory and storage utilisation.
+
+The *Logs::Tasks* menu item can be used to view the execution duration of the *purge* and other tasks and provides useful information for tuning the schedule of the purge process.
+
++-----------+
+| |TaskLog| |
++-----------+
+
+It is recommended that the interval between running the purge task should be no lower than 10 times the duration of the purge task itself.
+
 Using Performance Counters
 ==========================
 
@@ -820,4 +978,19 @@ Care should be taken when using performance counters, as with almost any system 
 .. note::
 
   Performance counters can be a very useful tool when tuning or debugging Fledge systems, but should **never** be left on during production use.
+
+
+Support Bundle Configuration
+============================
+
+The support bundle is a collection of diagnostic data about the Fledge instance, used to identify and troubleshoot system issues more effectively. 
+The following configuration parameters control the automatic generation and retention of support bundles:
+
++--------------------------------+
+| |support_bundle_configuration| |
++--------------------------------+
+
+ - **Auto Generate On Failure**: This option controls whether a support bundle is automatically created when a service failure occurs. By default, this is set to **true**. When enabled, a support bundle is generated and saved in the **support** directory within the Fledge data directory. An alert is also triggered to notify the user that the bundle has been created.
+
+ - **Bundles To Retain**: This setting defines how many support bundles should be retained. The minimum value is **1**, and the default number of bundles that can be retained is **3**. If the number of stored bundles exceeds this limit, the oldest one is automatically deleted to make room for the new bundle. Setting this value too high will increase the storage requirements for the Fledge instance.
 

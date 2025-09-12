@@ -23,7 +23,10 @@
 
 #set -x
 
-
+# Fetch environment variables for remote syslog configuration
+SYSLOG_UDP_ENABLED=${SYSLOG_UDP_ENABLED:-false} # Enable/disable remote syslog (default: false)
+LOG_IP=${LOG_IP:-"127.0.0.1"}                   # Remote syslog server IP (default: localhost)
+LOG_PORT=${LOG_PORT:-5140}                       # Remote syslog server port (default: 514)
 ## The Loggging Handler
 #
 # Paramaters: $1 - Module
@@ -78,7 +81,13 @@ write_log() {
   # Log to syslog
   if [[ "$5" =~ ^(logonly|all)$ ]]; then
       tag="Fledge ${1}[${BASHPID}] ${severity}: ${2}"
-      logger -t "${tag}" "${4}"
+      if [[ "${SYSLOG_UDP_ENABLED,,}" == "true" ]]; then
+          # Send log to remote syslog server using logger
+          logger --server "${LOG_IP}" --port "${LOG_PORT}" -t ${tag} "${4}"
+      else
+          # Log locally
+          logger -t "${tag}" "${4}"
+      fi
   fi
 
   # Log to Stdout

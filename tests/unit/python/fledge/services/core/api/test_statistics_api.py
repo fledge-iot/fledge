@@ -6,10 +6,7 @@
 
 """ Test fledge/services/core/api/statistics.py """
 
-import asyncio
 import json
-import sys
-
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
@@ -41,12 +38,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv) as query_patch:
@@ -65,12 +57,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
@@ -113,8 +100,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -167,8 +153,7 @@ class TestStatistics:
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -204,8 +189,7 @@ class TestStatistics:
         p1 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -234,8 +218,7 @@ class TestStatistics:
         p3 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -272,12 +255,7 @@ class TestStatistics:
         async def mock_coro():
             return result
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-        
+        _rv = await mock_coro()
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.get("/fledge/statistics/history?limit={}".format(request_limit))
@@ -288,8 +266,7 @@ class TestStatistics:
         p1 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -312,8 +289,7 @@ class TestStatistics:
         p2 = {"return": ["schedule_interval"],
               "where": {"column": "process_name", "condition": "=", "value": "stats collector"}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -341,8 +317,7 @@ class TestStatistics:
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
         p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -374,8 +349,8 @@ class TestStatistics:
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p2 = {'aggregate': {'column': '*', 'operation': 'count'}}
         p3 = {"where": {"and": {"column": "key", "condition": "=", "value": "READINGS", "or": {"column": "key", "condition": "=", "value": "PURGED", "or": {"column": "key", "condition": "=", "value": "UNSENT"}}}, "column": "1", "condition": "=", "value": 1}, "return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"direction": "desc", "column": "history_ts"}}
-        @asyncio.coroutine
-        def q_result(*args):
+
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -411,8 +386,7 @@ class TestStatistics:
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'}, 'return': ['schedule_interval']}
         p3 = {"return": [{"column": "history_ts", "alias": "history_ts", "format": "YYYY-MM-DD HH24:MI:SS.MS"}, "key", "value"], "sort": {"column": "history_ts", "direction": "desc"}, "where": {"column": "1", "condition": "=", "value": 1, "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "limit": 1}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -443,8 +417,7 @@ class TestStatistics:
               "where": {"column": "1", "condition": "=", "value": 1,
                         "and": {"column": "key", "condition": "=", "value": "blah"}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             payload = args[1]
 
@@ -503,13 +476,8 @@ class TestStatistics:
             return return_value
 
         storage_rows = {"rows": [{"value": 15}, {"value": 10}, {"value": 5}, {"value": 15}], "count": 4}
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock({"rows": [{"schedule_interval": "00:00:15"}]})
-            _rv2 = await async_mock(storage_rows)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock({"rows": [{"schedule_interval": "00:00:15"}]}))
-            _rv2 = asyncio.ensure_future(async_mock(storage_rows))
-
+        _rv1 = await async_mock({"rows": [{"schedule_interval": "00:00:15"}]})
+        _rv2 = await async_mock(storage_rows)
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
             with patch.object(mock_async_storage_client, 'query_tbl_with_payload',

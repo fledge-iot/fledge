@@ -103,9 +103,9 @@ async def auth_middleware(app, handler):
                 await validate_requests(request)
             except User.SessionTimeout as e:
                 await User.Objects.delete_token(token)
-                raise web.HTTPUnauthorized(reason=e)
+                raise web.HTTPUnauthorized(reason=str(e))
             except (jwt.DecodeError, jwt.ExpiredSignatureError, User.InvalidToken, User.TokenExpired) as e:
-                raise web.HTTPUnauthorized(reason=e)
+                raise web.HTTPUnauthorized(reason=str(e))
             except jwt.exceptions.InvalidAlgorithmError:
                 raise web.HTTPUnauthorized(reason="The token has expired, login again.")
         else:
@@ -214,11 +214,15 @@ async def validate_requests(request):
                 '/fledge/control/request'):
             raise web.HTTPForbidden
     # Viewer user
-    elif int(request.user["role_id"]) == 3 and request.method != 'GET':
-        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
-                               '/fledge/extension/bucket/match']
-        if not str(request.rel_url).endswith(tuple(supported_endpoints)):
-            raise web.HTTPForbidden
+    elif int(request.user["role_id"]) == 3:
+        if request.method != 'GET':
+            supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout',
+                                   '/fledge/extension/bucket/match', '/fledge/plugin/validate']
+            if not str(request.rel_url).endswith(tuple(supported_endpoints)):
+                raise web.HTTPForbidden
+        else:
+            if '/debug?action=' in str(request.rel_url):
+                raise web.HTTPForbidden
     # Data Viewer user
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':

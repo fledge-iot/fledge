@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 	Isolate the pipeline from the destination
+curl -s -X PUT -d'{"state":"discard"}' http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/isolate|jq

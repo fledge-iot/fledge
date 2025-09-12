@@ -11,7 +11,7 @@ import logging
 import traceback
 from logging.handlers import SysLogHandler
 from functools import wraps
-
+import socket
 
 __author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017-2023 OSIsoft, LLC"
@@ -30,6 +30,38 @@ FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'
 """Log destination environment variable"""
 default_destination = SYSLOG
 """Default destination of logger"""
+
+log_udp = os.getenv('SYSLOG_UDP_ENABLED', 'False')
+
+def get_format() -> str:
+    """Set the format for the logger
+
+    Args:
+        fmt: format string
+    """
+        # TODO: Consider using %r with message when using syslog .. \n looks better than #
+    if log_udp.lower() == 'false':
+        fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(get_process_name())
+    else:
+        fmt = '{} {}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(socket.gethostname(), get_process_name())
+    return fmt
+
+def get_syslog_handler():
+    """Defines a syslog handler
+
+    Returns:
+         logging handler object : the syslog handler
+    """
+    # Retrieve LOG_PORT and LOG_IP from environment variables
+    if log_udp.lower() == 'true':
+        log_port = os.getenv('SYSLOG_PORT', '5140')
+        log_ip = os.getenv('SYSLOG_IP', '127.0.0.1') 
+        syslog_address = (log_ip, int(log_port))
+        syslog_handler = SysLogHandler(address=syslog_address)
+    else:
+        syslog_handler = SysLogHandler(address='/dev/log')
+
+    return syslog_handler
 
 
 def set_default_destination(destination: int):
@@ -102,15 +134,13 @@ def setup(logger_name: str = None,
         destination = default_destination
 
     if destination == SYSLOG:
-        handler = SysLogHandler(address='/dev/log')
+        handler = get_syslog_handler()
     elif destination == CONSOLE:
         handler = logging.StreamHandler()  # stderr
     else:
         raise ValueError("Invalid destination {}".format(destination))
 
-    # TODO: Consider using %r with message when using syslog .. \n looks better than #
-    fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(get_process_name())
-    formatter = logging.Formatter(fmt=fmt)
+    formatter = logging.Formatter(fmt=get_format())
     handler.setFormatter(formatter)
     if level is not None:
         logger.setLevel(level)
@@ -177,9 +207,7 @@ class FLCoreLogger:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            process_name = get_process_name()
-            fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(process_name)
-            cls.formatter = logging.Formatter(fmt=fmt)
+            cls.formatter = logging.Formatter(fmt=get_format())
         return cls._instance
 
     def get_syslog_handler(self):
@@ -188,7 +216,7 @@ class FLCoreLogger:
         Returns:
              logging handler object : the syslog handler
         """
-        syslog_handler = SysLogHandler(address='/dev/log')
+        syslog_handler = get_syslog_handler()
         syslog_handler.setFormatter(self.formatter)
         syslog_handler.name = "syslogHandler"
         return syslog_handler

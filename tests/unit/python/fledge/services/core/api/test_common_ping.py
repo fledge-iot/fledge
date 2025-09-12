@@ -13,7 +13,6 @@ This test file assumes those 2 units are tested
 """
 
 import re
-import asyncio
 import json
 import ssl
 import socket
@@ -22,8 +21,6 @@ import pathlib
 import time
 from unittest.mock import MagicMock, patch
 import pytest
-import sys
-
 import aiohttp
 from aiohttp import web
 
@@ -74,12 +71,7 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
     async def mock_coro(*args, **kwargs):
         return result
     
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv = await mock_coro()
-    else:
-        _rv = asyncio.ensure_future(mock_coro())
-    
+    _rv = await mock_coro()
     host_name, ip_addresses = get_machine_detail
     attrs = {"query_tbl_with_payload.return_value": await mock_coro()}
     mock_storage_client_async = MagicMock(spec=StorageClientAsync, **attrs)
@@ -134,12 +126,7 @@ async def test_ping_http_allow_ping_false(aiohttp_server, aiohttp_client, loop, 
         ]}
         return result
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv = await mock_coro()
-    else:
-        _rv = asyncio.ensure_future(mock_coro())
-    
+    _rv = await mock_coro()
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
@@ -187,21 +174,14 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
         return {"value": "true"}
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv1 = await mock_coro()
-        _rv2 = await mock_get_category_item()
-    else:
-        _rv1 = asyncio.ensure_future(mock_coro())
-        _rv2 = asyncio.ensure_future(mock_get_category_item())
-    
+    _rv1 = await mock_coro()
+    _rv2 = await mock_get_category_item()
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
@@ -250,21 +230,14 @@ async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_
         {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
         return {"value": "false"}
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv1 = await mock_coro()
-        _rv2 = await mock_get_category_item()
-    else:
-        _rv1 = asyncio.ensure_future(mock_coro())
-        _rv2 = asyncio.ensure_future(mock_get_category_item())
-    
+    _rv1 = await mock_coro()
+    _rv2 = await mock_get_category_item()
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
@@ -301,16 +274,10 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv = await mock_coro()
-    else:
-        _rv = asyncio.ensure_future(mock_coro())
-    
+    _rv = await mock_coro()
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
@@ -371,16 +338,10 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
         {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
     ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv = await mock_coro()
-    else:
-        _rv = asyncio.ensure_future(mock_coro())
-    
+    _rv = await mock_coro()
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
@@ -435,21 +396,14 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
                 {"value": 100, "key": "Readings Sent", "description": "Readings Sent North"},
                ]}
 
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         return result
 
     async def mock_get_category_item():
         return {"value": "true"}
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv1 = await mock_coro()
-        _rv2 = await mock_get_category_item()
-    else:
-        _rv1 = asyncio.ensure_future(mock_coro())
-        _rv2 = asyncio.ensure_future(mock_get_category_item())    
-    
+    _rv1 = await mock_coro()
+    _rv2 = await mock_get_category_item()
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
@@ -502,8 +456,7 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
 
 
 async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_client, loop, get_machine_detail):
-    @asyncio.coroutine
-    def mock_coro(*args, **kwargs):
+    async def mock_coro(*args, **kwargs):
         result = {"rows": [
             {"value": 1, "key": "PURGED", "description": "blah6"},
             {"value": 2, "key": "READINGS", "description": "blah1"},
@@ -517,14 +470,8 @@ async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx
     async def mock_get_category_item():
         return {"value": "false"}
 
-    # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-        _rv1 = await mock_coro()
-        _rv2 = await mock_get_category_item()
-    else:
-        _rv1 = asyncio.ensure_future(mock_coro())
-        _rv2 = asyncio.ensure_future(mock_get_category_item())    
-    
+    _rv1 = await mock_coro()
+    _rv2 = await mock_get_category_item()
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'debug') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):

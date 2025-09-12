@@ -1,6 +1,4 @@
-import asyncio
 import json
-import sys
 from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
@@ -36,9 +34,7 @@ class TestAlerts:
         server.Server._alert_manager = None
 
     async def test_get_all(self, client):
-        rv = await self.async_mock([]) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(self.async_mock([]))
-
+        rv = await self.async_mock([])
         with patch.object(server.Server._alert_manager, 'get_all', return_value=rv):
             resp = await client.get('/fledge/alert')
             assert 200 == resp.status
@@ -58,9 +54,7 @@ class TestAlerts:
             assert 1 == patch_logger.call_count
 
     async def test_delete(self, client):
-        rv = await self.async_mock("Nothing to delete.") \
-            if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
-            asyncio.ensure_future(self.async_mock("Nothing to delete.")))
+        rv = await self.async_mock("Nothing to delete.")
         with patch.object(server.Server._alert_manager, 'delete', return_value=rv):
             resp = await client.delete('/fledge/alert')
             assert 200 == resp.status

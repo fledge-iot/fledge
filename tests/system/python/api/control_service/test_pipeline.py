@@ -18,6 +18,7 @@ CP_3 = "CP@!23"
 CP_4 = "1234"
 
 SINUSOID_SVC_NAME = "Sine #1"
+OMF_SVC_NAME = "OMF #1"
 RENAME_FILTER_NAME = "DP_R1"
 META_FILTER_NAME = "Mi @com"
 
@@ -25,11 +26,12 @@ payload1 = {"name": CP_1, "enabled": True, "execution": "shared", "source": {"ty
             "destination": {"type": 1}}
 payload2 = {"name": CP_2, "enabled": False, "execution": "shared", "source": {"type": 3},
             "destination": {"type": 5}}
-payload3 = {"execution": "Shared", "source": {"type":2, "name": SINUSOID_SVC_NAME},
-            "destination": {"type":5, "name": ""}, "filters": [RENAME_FILTER_NAME], "enabled": True, "name": CP_3}
-payload4 = {"execution": "Shared", "source": {"type":2, "name": SINUSOID_SVC_NAME},
-            "destination": {"type":3, "name": "sinusoid"}, "filters": [META_FILTER_NAME, RENAME_FILTER_NAME],
+payload3 = {"execution": "Shared", "source": {"type": 2, "name": OMF_SVC_NAME},
+            "destination": {"type": 5, "name": ""}, "filters": [RENAME_FILTER_NAME], "enabled": True, "name": CP_3}
+payload4 = {"execution": "Shared", "source": {"type": 2, "name": OMF_SVC_NAME},
+            "destination": {"type": 3, "name": "sinusoid"}, "filters": [META_FILTER_NAME, RENAME_FILTER_NAME],
             "enabled": True, "name": CP_4}
+
 
 def verify_audit_details(conn, name, source):
     conn.request("GET", '/fledge/audit?source={}'.format(source))
@@ -82,7 +84,7 @@ def verify_details(conn, data, cpid):
         assert 1 == jdoc_pipeline['id']
         assert data['name'] == jdoc_pipeline['name']
         assert "Service" == jdoc_pipeline['source']['type']
-        assert SINUSOID_SVC_NAME == jdoc_pipeline['source']['name']
+        assert OMF_SVC_NAME == jdoc_pipeline['source']['name']
         assert "Broadcast" == jdoc_pipeline['destination']['type']
         assert "" == jdoc_pipeline['destination']['name']
         assert data['enabled'] == jdoc_pipeline['enabled']
@@ -92,7 +94,7 @@ def verify_details(conn, data, cpid):
         assert 2 == jdoc_pipeline['id']
         assert data['name'] == jdoc_pipeline['name']
         assert "Service" == jdoc_pipeline['source']['type']
-        assert SINUSOID_SVC_NAME == jdoc_pipeline['source']['name']
+        assert OMF_SVC_NAME == jdoc_pipeline['source']['name']
         assert "Asset" == jdoc_pipeline['destination']['type']
         assert "sinusoid" == jdoc_pipeline['destination']['name']
         assert data['enabled'] == jdoc_pipeline['enabled']
@@ -198,6 +200,8 @@ class TestPipelineFilters:
         plugin_and_service.add_south_service("sinusoid", fledge_url, SINUSOID_SVC_NAME, None, True)
         # Sleep is required to get asset readings
         time.sleep(20)
+        # Add north service
+        plugin_and_service.add_north_service("OMF", fledge_url, OMF_SVC_NAME, None, True)
         # Create filters
         plugin_and_service.create_filter(fledge_url, RENAME_FILTER_NAME, "rename", config=None)
         plugin_and_service.create_filter(fledge_url, META_FILTER_NAME, "metadata", config=None)

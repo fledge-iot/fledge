@@ -37,10 +37,10 @@ class PIWebAPI
 		void    setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
 		int     GetVersion(const string& host, string &version, bool logMessage = true);
+		string  ExtractVersion(const string& response);
 		string  errorMessageHandler(const string& msg);
 
 	private:
-		string  ExtractVersion(const string& response);
 		string  extractSection(const string& msg, const string& toSearch);
 		string  extractMessageFromJSon(const string& json);
 

@@ -221,8 +221,8 @@ StorageService::StorageService(const string& myName) : m_name(myName),
 {
 unsigned short servicePort;
 
+	logger = new Logger(myName);	// Do this first to make sure we have the right logger
 	config = new StorageConfiguration();
-	logger = new Logger(myName);
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);

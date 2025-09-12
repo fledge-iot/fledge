@@ -1048,6 +1048,12 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.setItemDisplayName("assets", "Asset Subset");
 	defaultConfig.setItemAttribute("assets",
 			ConfigCategory::ITEM_TYPE_ATTR, "string");
+	// Create kvlist of asset for defining a subset
+	defaultConfig.addItem("assetsKvl", "Subset of assets to send Kvl",
+			"kvlist", "{}", "{}");
+	defaultConfig.setItemDisplayName("assetsKvl", "Asset Subset Kvl");
+	defaultConfig.setItemAttribute("assetsKvl",
+			ConfigCategory::ITEM_TYPE_ATTR, "string");
 
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			"boolean", "false", "false");

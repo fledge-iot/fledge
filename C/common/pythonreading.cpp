@@ -105,15 +105,34 @@ PythonReading::PythonReading(PyObject *pyReading)
 			// or reading['ema']
 			if (PyUnicode_Check(dKey))   
 			{
-				m_values.emplace_back(new Datapoint(
-					string(PyUnicode_AsUTF8(dKey)),
-					*dataPoint));
+				const char *keyStr = PyUnicode_AsUTF8(dKey);
+				if (keyStr)
+				{
+					m_values.emplace_back(new Datapoint(string(keyStr), *dataPoint));
+				}
+				else
+				{
+					PyErr_Clear(); // FIX
+					Logger::getLogger()->error("Failed to decode unicode key in list-of-dicts");
+				}
+				
+			}
+			else if (PyBytes_Check(dKey))
+			{
+				char *keyStr = PyBytes_AsString(dKey);
+				if (keyStr)
+				{
+					m_values.emplace_back(new Datapoint(string(keyStr), *dataPoint));
+				}
+				else
+				{
+					PyErr_Clear(); // FIX
+					Logger::getLogger()->error("Failed to decode bytes key in list-of-dicts");
+				}
 			}
 			else
 			{
-				m_values.emplace_back(new Datapoint(
-					string(PyBytes_AsString(dKey)),
-					*dataPoint));
+				Logger::getLogger()->error("Unsupported dict key type in list-of-dicts");
 			}
 
 			// Remove temp objects
@@ -213,13 +232,27 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	}
 	else if (PyBytes_Check(value))		// String		T_STRING
 	{
-		string str = PyBytes_AsString(value);
+		char *s = PyBytes_AsString(value); // borrowed
+		if (!s)
+		{
+			PyErr_Clear(); // FIX: clear Python error
+			Logger::getLogger()->error("Failed to decode bytes as string in datapoint");
+			return NULL;
+		}
+		string str(s);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
 	else if (PyUnicode_Check(value))	// String		T_STRING
 	{
-		string str = PyUnicode_AsUTF8(value);
+		const char *s = PyUnicode_AsUTF8(value); // borrowed
+		if (!s)
+		{
+			PyErr_Clear(); // FIX
+			Logger::getLogger()->error("Failed to decode unicode string in datapoint");
+			return NULL;
+		}
+		string str(s);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
@@ -233,14 +266,36 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			DatapointValue *dpv = getDatapointValue(dValue);
 			if (dpv)
 			{
-		               if (PyUnicode_Check(dKey))
-                               {
-                                     values->emplace_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dpv));
-                               }
-                               else
-                               {
-                                     values->emplace_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
-                               }
+				if (PyUnicode_Check(dKey))
+				{
+					const char *keyStr = PyUnicode_AsUTF8(dKey);
+					if (keyStr)
+					{
+						values->emplace_back(new Datapoint(string(keyStr), *dpv));
+					}
+					else
+					{
+						PyErr_Clear(); // FIX
+						Logger::getLogger()->error("Failed to decode unicode key in datapoint dict");
+					}
+				}
+				else if (PyBytes_Check(dKey))
+				{
+					char *keyStr = PyBytes_AsString(dKey);
+					if (keyStr)
+					{
+						values->emplace_back(new Datapoint(string(keyStr), *dpv));
+					}
+					else
+					{
+						PyErr_Clear(); // FIX
+						Logger::getLogger()->error("Failed to decode bytes key in datapoint dict");
+					}
+				}
+				else
+				{
+					Logger::getLogger()->error("Unsupported dict key type in datapoint");
+				}
 				// Remove temp objects
 				delete dpv;
 			}
@@ -250,10 +305,16 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	else if (PyList_Check(value))	// List of data points or floats
 	{
 		Py_ssize_t listSize = PyList_Size(value);
+		if (listSize == 0)
+		{
+			Logger::getLogger()->error("Empty list in datapoint");
+			return NULL;
+		}
 		// Find out what the list contains
 		PyObject *item0 = PyList_GetItem(value, 0);
 		if (item0 == NULL)
 		{
+			Logger::getLogger()->error("Failed to access list[0] in datapoint");
 			return NULL;
 		}
 		if (PyFloat_Check(item0))	// List of floats	T_FLOAT_ARRAY
@@ -261,7 +322,13 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			vector<double> values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
-				double d = PyFloat_AS_DOUBLE(PyList_GetItem(value, i));
+				PyObject *item = PyList_GetItem(value, i);
+				if (!item || !PyFloat_Check(item))
+				{
+					Logger::getLogger()->error("Non-float element in float list datapoint");
+					continue;
+				}
+				double d = PyFloat_AS_DOUBLE(item);
 				values.push_back(d);
 			}
 			dataPoint = new DatapointValue(values);
@@ -271,11 +338,22 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			vector<vector<double>* > values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
-				vector<double> *row = new vector<double>;
 				PyObject *pyRow = PyList_GetItem(value, i);
+				if (!pyRow || !PyList_Check(pyRow))
+				{
+					Logger::getLogger()->error("Invalid row in 2D list datapoint");
+					continue;
+				}
+				vector<double> *row = new vector<double>;
 				for (Py_ssize_t j = 0; j < PyList_Size(pyRow); j++)
 				{
-					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
+					PyObject *item = PyList_GetItem(pyRow, j);
+					if (!item || !PyFloat_Check(item))
+					{
+						Logger::getLogger()->error("Non-float in 2D list datapoint");
+						continue;
+					}
+					double d = PyFloat_AS_DOUBLE(item);
 					row->push_back(d);
 				}
 				values.push_back(row);
@@ -290,14 +368,46 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
 				PyObject *item = PyList_GetItem(value, i);
-				if (PyDict_Check(item))
+				if (item && PyDict_Check(item))
 				{
+					// Py_ssize_t dPos = 0;
 					PyObject *key, *val;
-					PyDict_Next(item, 0, &key, &val);
-					DatapointValue *dpv = getDatapointValue(val);
-					if (dpv)
+					if (PyDict_Next(item, 0, &key, &val))
 					{
-						values->emplace_back(new Datapoint(string(PyBytes_AsString(key)), *dpv));
+						DatapointValue *dpv = getDatapointValue(val);
+						if (dpv)
+						{
+							if (PyUnicode_Check(key))
+							{
+								const char *keyStr = PyUnicode_AsUTF8(key);
+								if (keyStr)
+								{
+									values->emplace_back(new Datapoint(string(keyStr), *dpv));
+								}
+								else
+								{
+									PyErr_Clear(); // FIX
+									Logger::getLogger()->error("Failed to decode unicode key in list-of-dicts");
+								}
+							}
+							else if (PyBytes_Check(key))
+							{
+								char *keyStr = PyBytes_AsString(key);
+								if (keyStr)
+								{
+									values->emplace_back(new Datapoint(string(keyStr), *dpv));
+								}
+								else
+								{
+									PyErr_Clear(); // FIX
+									Logger::getLogger()->error("Failed to decode bytes key in list-of-dicts");
+								}
+							}
+							else
+							{
+								Logger::getLogger()->error("Unsupported dict key type in list-of-dicts");
+							}
+						}
 						// Remove temp objects
 						delete dpv;
 					}
@@ -309,6 +419,11 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	else if (PyArray_Check(value))	// Numpy array
 	{
 		PyArrayObject *array = (PyArrayObject *)value;
+		if (!PyArray_ISCONTIGUOUS(array)) // FIX
+		{
+			Logger::getLogger()->error("Non-contiguous numpy array not supported in datapoint");
+			return NULL;
+		}
 		int item_size = PyArray_ITEMSIZE(array);
 		if (PyArray_NDIM(array) == 1)	// Databuffer	T_DATABUFFER
 		{
@@ -353,9 +468,16 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	}
 	else
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
-		PyTypeObject *type = value->ob_type;
-		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);
+		Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
+		if (value->ob_type && value->ob_type->tp_name)
+		{
+			Logger::getLogger()->error("Unsupported type '%s' in Python reading",
+									value->ob_type->tp_name);
+		}
+		else
+		{
+			Logger::getLogger()->error("Unsupported type with unknown ob_type in Python reading");
+		}
 	}
 
 	return dataPoint;

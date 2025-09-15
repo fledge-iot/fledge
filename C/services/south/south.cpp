@@ -47,8 +47,7 @@ using namespace std;
 // Displays service information in JSON format
 static void printServiceInfoAsJSON()
 {
-	static std::string serviceInfoJSON = R"({"name":"South Service","description":"Fledge South Service To Ingress Data","type":"south","process_name":"south_c","process_script":"[services/south_c]"})" ;
-
+	static std::string serviceInfoJSON = R"({"name":"South Service","description":"Service To Ingress Data","type":")" + std::string(SERVICE_TYPE) + R"(","process":"south_c","process_script":"[\"services/south_c\"]","startup_priority":100})";
 	std::cout << serviceInfoJSON << std::endl;
 }
 

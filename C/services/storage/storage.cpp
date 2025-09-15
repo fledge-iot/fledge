@@ -29,6 +29,7 @@
 #define NO_EXIT_STACKTRACE		0	// Set to 1 to make storage loop after stacktrace
 						// This is useful to be able to attach a debbugger
 
+#define SERVICE_TYPE "Storage"
 extern int makeDaemon(void);
 
 using namespace std;
@@ -85,8 +86,7 @@ int	size;
 // Displays service information in JSON format
 static void printServiceInfoAsJSON()
 {
-        static std::string serviceInfoJSON = R"({"name":"Storage Service","description":"The storage service buffers data within a single Fledge instance","type":"storage","process_name":"storage","process_script":"[services/storage_c]"})" ;
-
+		static std::string serviceInfoJSON = R"({"name":"Storage Service","description":"Service buffers data within a single instance","type":")" + std::string(SERVICE_TYPE) + R"(","process":"storage","process_script":"[\"services/storage\"]"})";
         std::cout << serviceInfoJSON << std::endl;
 }
 
@@ -106,10 +106,10 @@ string	       logLevel = "warning";
 	for (int i = 1; i < argc; i++)
 	{
 		if (!strcmp(argv[i], "--info"))
-                {
-                        printServiceInfoAsJSON();
-                        return 0;
-                }
+		{
+			printServiceInfoAsJSON();
+			return 0;
+		}
 		if (!strcmp(argv[i], "-d"))
 		{
 			daemonMode = false;
@@ -324,7 +324,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short listenerPort = api->getListenerPort();
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
+		ServiceRecord record(m_name, SERVICE_TYPE, "http", "localhost", listenerPort, managementListener);
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 

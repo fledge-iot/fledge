@@ -129,8 +129,7 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
 // Displays service information in JSON format
 static void printServiceInfoAsJSON()
 {
-	static std::string serviceInfoJSON = R"({"name":"North Service","description":"Fledge North Service To Egress Data","type":"north","process_name":"north_C","process_script":"[services/north_C]"})" ;
-
+	static std::string serviceInfoJSON = R"({"name":"North Service","description":"Service To Egress Data","type":")" + std::string(SERVICE_TYPE) + R"(","process":"north_C","process_script":"[\"services/north_C\"]","startup_priority":200})";
 	std::cout << serviceInfoJSON << std::endl;
 }
 

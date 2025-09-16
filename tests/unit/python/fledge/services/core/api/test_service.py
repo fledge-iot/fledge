@@ -439,13 +439,13 @@ class TestService:
             json_response = json.loads(result)
             assert {"message": msg} == json_response
 
-    @pytest.mark.parametrize("svc_name, svc_type, svc_process, svc_script, svc_priority, enabled", [
-        ("Mgt Server", "Management", "management", "[\"services/management\"]", 300, None),
-        ("NF Server", "Notification", "notification_c", "[\"services/notification_c\"]", 30, "true"),
-        ("DS Server", "Dispatcher", "dispatcher_c", "[\"services/dispatcher_c\"]", 20, "false"),
-        ("BS Server", "BucketStorage", "bucket_storage_c", "[\"services/bucket_storage_c\"]", 10, None)
+    @pytest.mark.parametrize("svc_name, svc_type, svc_process, svc_script, svc_priority, enabled, svc_installed", [
+        ("Mgt Server", "Management", "management", "[\"services/management\"]", 300, None, ["management"]),
+        ("NF Server", "Notification", "notification_c", "[\"services/notification_c\"]", 30, "true", ["notification"]),
+        ("DS Server", "Dispatcher", "dispatcher_c", "[\"services/dispatcher_c\"]", 20, "false", ["dispatcher"]),
+        ("BS Server", "BucketStorage", "bucket_storage_c", "[\"services/bucket_storage_c\"]", 10, None, ["bucket"])
     ])
-    async def test_add_external_service(self, client, svc_name, svc_type, svc_process, svc_script, svc_priority, enabled):
+    async def test_add_external_service(self, client, svc_name, svc_type, svc_process, svc_script, svc_priority, enabled, svc_installed):
         async def async_mock_get_schedule():
             schedule = StartUpSchedule()
             schedule.schedule_id = sch_id
@@ -464,16 +464,18 @@ class TestService:
             "process_script": svc_script,
             "startup_priority": svc_priority
         }
+        svc_installed.extend(["storage", "south", "north"])
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        _rv0 = await self.async_mock(svc_installed)
         _rv1 = await self.async_mock(svc_info)
         _rv2 = await self.async_mock(None)
         _rv3 = await self.async_mock(0)
         _rv4 = await self.async_mock({'count': 1})
         _rv5 = await self.async_mock({'count': 1, 'rows': [{'process_name': "blah"}]})
         _rv6 = await async_mock_get_schedule()
-        with patch('os.path.exists', return_value=True):
+        with patch.object(service, 'get_service_installed', return_value=_rv0) as patch_svc_installed:
             with patch.object(service, '_fetch_service_info', return_value=_rv1):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_info:
@@ -484,6 +486,7 @@ class TestService:
                                         with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=_rv6) as patch_schedule_by_name:
                                             resp = await client.post('/fledge/service', data=payload)
                                             server.Server.scheduler = None
+                                            print(resp.reason)
                                             assert 200 == resp.status
                                             result = await resp.text()
                                             json_response = json.loads(result)
@@ -493,15 +496,15 @@ class TestService:
                             patch_schedules.assert_called_once_with(storage_client_mock, data['name'])
                         patch_scheduled_processes.assert_called_once_with(storage_client_mock, svc_info['process'], svc_info['process_script'])
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+        assert 2 == patch_svc_installed.call_count
 
-
-    @pytest.mark.parametrize("svc_name, svc_type, svc_process, svc_script, svc_priority", [
-        ("Mgt Server", "Management", "management", "[\"services/management\"]", 300),
-        ("NF Server", "Notification", "notification_c", "[\"services/notification_c\"]", 30),
-        ("DS Server", "Dispatcher", "dispatcher_c", "[\"services/dispatcher_c\"]", 20),
-        ("BS Server", "BucketStorage", "bucket_storage_c", "[\"services/bucket_storage_c\"]", 10)
+    @pytest.mark.parametrize("svc_name, svc_type, svc_process, svc_script, svc_priority, svc_installed", [
+        ("Mgt Server", "Management", "management", "[\"services/management\"]", 300, ["management"]),
+        ("NF Server", "Notification", "notification_c", "[\"services/notification_c\"]", 30, ["notification"]),
+        ("DS Server", "Dispatcher", "dispatcher_c", "[\"services/dispatcher_c\"]", 20, ["dispatcher"]),
+        ("BS Server", "BucketStorage", "bucket_storage_c", "[\"services/bucket_storage_c\"]", 10, ["bucket"])
     ])
-    async def test_dupe_external_service_schedule(self, client, svc_name, svc_type, svc_process, svc_script, svc_priority):
+    async def test_dupe_external_service_schedule(self, client, svc_name, svc_type, svc_process, svc_script, svc_priority, svc_installed):
         payload = json.dumps({"name": svc_name, "type": svc_type})
         data = json.loads(payload)
         svc_info = {
@@ -515,12 +518,14 @@ class TestService:
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        svc_installed.extend(["storage", "south", "north"])
+        _rv0 = await self.async_mock(svc_installed)
         _rv1 = await self.async_mock(svc_info)
         _rv2 = await self.async_mock(None)
         _rv3 = await self.async_mock(0)
         _rv4 = await self.async_mock({'count': 1})
         _rv5 = await self.async_mock({'count': 1, 'rows': [{'process_name': svc_info['process']}]})
-        with patch('os.path.exists', return_value=True):
+        with patch.object(service, 'get_service_installed', return_value=_rv0) as patch_svc_installed:
             with patch.object(service, '_fetch_service_info', return_value=_rv1):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_info:
@@ -537,6 +542,7 @@ class TestService:
                             patch_schedules.assert_called_once_with(storage_client_mock, data['name'])
                         patch_scheduled_processes.assert_called_once_with(storage_client_mock, svc_info['process'], svc_info['process_script'])
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+        assert 2 == patch_svc_installed.call_count
 
     async def test_add_service_with_config(self, client):
         payload = '{"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": "false",' \

@@ -496,7 +496,7 @@ class TestService:
                             patch_schedules.assert_called_once_with(storage_client_mock, data['name'])
                         patch_scheduled_processes.assert_called_once_with(storage_client_mock, svc_info['process'], svc_info['process_script'])
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
-        assert 2 == patch_svc_installed.call_count
+        patch_svc_installed.assert_called_once_with()
 
     @pytest.mark.parametrize("svc_name, svc_type, svc_process, svc_script, svc_priority, svc_installed", [
         ("Mgt Server", "Management", "management", "[\"services/management\"]", 300, ["management"]),
@@ -542,7 +542,7 @@ class TestService:
                             patch_schedules.assert_called_once_with(storage_client_mock, data['name'])
                         patch_scheduled_processes.assert_called_once_with(storage_client_mock, svc_info['process'], svc_info['process_script'])
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
-        assert 2 == patch_svc_installed.call_count
+        patch_svc_installed.assert_called_once_with()
 
     async def test_add_service_with_config(self, client):
         payload = '{"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": "false",' \

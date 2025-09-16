@@ -688,8 +688,6 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason="'{}' is reserved for Fledge and can not be used as service name!".format(name))
         if service_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
-
-        #service_type = str(service_type).lower()
         if plugin is None and service_type in ('south', 'north'):
             raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
         if plugin and utils.check_reserved(plugin) is False:
@@ -753,8 +751,7 @@ async def add_service(request):
                         priority = service_info['startup_priority']
                         break
         if process_name is None or script is None or priority is None:
-            message = f"""Either the '{service_type}' service type is invalid or the '{service_type.capitalize()}' 
-            service is not installed correctly."""
+            message = f"The '{service_type}' service has not been installed correctly."
             raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
@@ -814,7 +811,7 @@ async def add_service(request):
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if process_name in ps['process_name']:
-                    msg = "A '{}' service schedule already exists.".format(name)
+                    msg = f"A {process_name} service type schedule already exists."
                     raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup

@@ -78,11 +78,6 @@ class TestInstance:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
         assert "AlreadyExistsWithTheSameAddressAndManagementPort" in str(excinfo)
 
-    async def test_register_wrong_type(self):
-        with pytest.raises(ServiceRecord.InvalidServiceType) as excinfo:
-            Service.register("StorageService1", "WrongType", "127.0.0.1", 9999, 1999)
-        assert "InvalidServiceType" in str(excinfo)
-
     async def test_register_invalid_port(self):
         with pytest.raises(NonNumericPortError) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", "808a", 1999)

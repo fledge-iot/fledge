@@ -1442,7 +1442,7 @@ def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, custom_p
             print(f"Attempt {attempt + 1}: Connection failed - {type(e).__name__}: {e}")
         
         if attempt < max_retries - 1:
-            sleep_time = wait_time * 2
+            sleep_time = wait_time * 5
             print(f"Waiting {sleep_time}s before next attempt...")
             time.sleep(sleep_time)
     else:

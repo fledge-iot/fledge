@@ -4,7 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import json, os, pathlib
+import json, os, pathlib, subprocess
 from pathlib import PosixPath
 
 from unittest.mock import patch, mock_open, Mock, MagicMock
@@ -137,15 +137,26 @@ class TestBundleSupport:
 
     async def test_create_support_bundle_exception(self, client):
         msg = "Failed to create support bundle."
-        with patch.object(SupportBuilder, "__init__", return_value=None):
-            with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
-                with patch.object(support._logger, "error") as patch_logger:
-                    resp = await client.post('/fledge/support')
-                    assert 500 == resp.status
-                    assert msg == resp.reason
-                assert 1 == patch_logger.call_count
-                args = patch_logger.call_args
-                assert msg == args[0][1]
+        mock_config = {
+            "support_bundle_retain_count": {
+                "value": "3",
+                "description": "Number of support bundles to retain (minimum 1)",
+                "type": "integer",
+                "default": "3",
+                "minimum": "1",
+                "displayName": "Bundles To Retain"
+            }
+        }
+        with patch.object(support, 'get_support_bundle_config', return_value=mock_config):
+            with patch.object(SupportBuilder, "__init__", return_value=None):
+                with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
+                    with patch.object(support._logger, "error") as patch_logger:
+                        resp = await client.post('/fledge/support')
+                        assert 500 == resp.status
+                        assert msg == resp.reason
+                    assert 1 == patch_logger.call_count
+                    args = patch_logger.call_args
+                    assert msg == args[0][1]
 
     async def test_get_syslog_entries_all_ok(self, client):
         def mock_syslog():

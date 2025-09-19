@@ -291,7 +291,7 @@ class ConfigurationValidator:
                 combined_output = stderr_str + stdout_str
                 
                 if 'name or service not known' in combined_output or 'cannot resolve' in combined_output:
-                    return False, f"Unable to` resolve the hostname '{hostname}' - please check the hostname is correct"
+                    return False, f"Unable to resolve the hostname '{hostname}' - please check the hostname is correct"
                 elif 'network is unreachable' in combined_output:
                     return False, f"Network unreachable to the hostname '{hostname}' - check network configuration"
                 elif 'host unreachable' in combined_output or 'no route to host' in combined_output:

@@ -62,12 +62,16 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient *mgtClient, b
   defConfigSecurity.setItemDisplayName("assetsSec", "Asset Subset");
   defConfigSecurity.setItemAttribute("assetsSec",
                                      ConfigCategory::ITEM_TYPE_ATTR, "string");
+  defConfigSecurity.setItemAttribute("assetsSec",
+                                     ConfigCategory::VALIDITY_ATTR, "AuthenticatedCaller == \"true\"");
   // Create kvlist of asset for defining a subset
   defConfigSecurity.addItem("assetsKvlSec", "Subset of assets to send Kvl",
                             "kvlist", "{}", "{}");
   defConfigSecurity.setItemDisplayName("assetsKvlSec", "Asset Subset Kvl");
   defConfigSecurity.setItemAttribute("assetsKvlSec",
                                      ConfigCategory::ITEM_TYPE_ATTR, "string");
+  defConfigSecurity.setItemAttribute("assetsKvlSec",
+                                     ConfigCategory::VALIDITY_ATTR, "AuthenticatedCaller == \"true\"");
 
   // Create/Update category name (we pass keep_original_items=true)
   mgtClient->addCategory(defConfigSecurity, true);

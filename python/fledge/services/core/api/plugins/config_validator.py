@@ -30,8 +30,10 @@ class ConfigurationValidator:
     """
     Configuration Validation System
     
-    Provides connectivity validation for plugin configurations
-    through ICMP ping tests and TCP connection attempts.
+    Provides connectivity validation for plugin configurations through:
+    - ICMP ping tests for host reachability (preferred method)
+    - TCP connection attempts for service availability
+    - Automatic fallback to TCP connectivity testing in restricted container environments
     """
     
     # Configuration item names to check (case insensitive)
@@ -215,15 +217,109 @@ class ConfigurationValidator:
         )
         return bool(url_pattern.match(value))
     
-    async def ping_host(self, hostname):
+    def _detect_container_environment(self):
         """
-        Perform host reachability test using socket connection.
+        Detect if running in a containerized environment.
         
-        This method uses socket-based connectivity testing instead of ICMP ping
-        to work in containerized environments where ping may not be available.
+        Returns:
+            bool: True if running in a container, False otherwise
+        """
+        try:
+            # Check for Docker container indicators
+            with open('/proc/1/cgroup', 'r') as f:
+                content = f.read()
+                if 'docker' in content or 'container' in content:
+                    return True
+            
+            # Check for container environment variables
+            import os
+            container_vars = ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST', 'container']
+            if any(var in os.environ for var in container_vars):
+                return True
+                
+            # Check for .dockerenv file
+            if os.path.exists('/.dockerenv'):
+                return True
+                
+        except (FileNotFoundError, PermissionError, Exception):
+            pass
+            
+        return False
+
+    async def _icmp_ping(self, hostname, timeout=3):
+        """
+        Perform ICMP ping using system ping command.
         
-        For Docker hostnames, this test simply validates DNS resolution since
-        Docker internal hosts may only have specific services running.
+        Args:
+            hostname (str): Hostname or IP address to ping
+            timeout (int): Timeout in seconds
+            
+        Returns:
+            tuple: (success, reason) or (None, reason) if ICMP unavailable
+        """
+        try:
+            import subprocess
+            import asyncio
+            
+            # Use ping command with specific parameters for reliability
+            # -c 1: send only 1 packet
+            # -W timeout: wait timeout seconds for response
+            # -q: quiet output (only summary)
+            cmd = ['ping', '-c', '1', '-W', str(timeout), '-q', hostname]
+            
+            _logger.debug(f"Running ICMP ping: {' '.join(cmd)}")
+            
+            # Run ping command asynchronously
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), 
+                timeout=timeout + 2  # Allow extra time for process cleanup
+            )
+            
+            if process.returncode == 0:
+                _logger.debug(f"ICMP ping to the host '{hostname}' successful")
+                return True, f"Host '{hostname}' is reachable (ICMP ping successful)"
+            else:
+                # Parse ping output for better error messages
+                stderr_str = stderr.decode('utf-8', errors='ignore').lower()
+                stdout_str = stdout.decode('utf-8', errors='ignore').lower()
+                combined_output = stderr_str + stdout_str
+                
+                if 'name or service not known' in combined_output or 'cannot resolve' in combined_output:
+                    return False, f"Unable to` resolve the hostname '{hostname}' - please check the hostname is correct"
+                elif 'network is unreachable' in combined_output:
+                    return False, f"Network unreachable to the hostname '{hostname}' - check network configuration"
+                elif 'host unreachable' in combined_output or 'no route to host' in combined_output:
+                    return False, f"Host '{hostname}' is unreachable - check if host is online and network path exists"
+                elif '100% packet loss' in combined_output or 'no answer' in combined_output:
+                    return False, f"Host '{hostname}' does not respond to ping - may be down or blocking ICMP"
+                else:
+                    return False, f"Host '{hostname}' ping failed - host may be unreachable or blocking ICMP"
+                    
+        except asyncio.TimeoutError:
+            _logger.warning(f"ICMP ping to the host '{hostname}' timed out")
+            return False, f"Ping to '{hostname}' timed out - host may be unreachable"
+        except FileNotFoundError:
+            _logger.debug("Ping command not found - falling back to TCP connectivity test")
+            return None, "ICMP ping not available"
+        except PermissionError:
+            _logger.debug("Permission denied for ICMP ping - falling back to TCP connectivity test")
+            return None, "ICMP ping not permitted"
+        except Exception as e:
+            _logger.debug(f"ICMP ping failed with error: {e}")
+            return None, f"ICMP ping unavailable: {e}"
+
+    async def _tcp_connectivity_test(self, hostname):
+        """
+        Test host connectivity using TCP socket connections.
+        
+        This method provides better error differentiation between host down 
+        vs no service listening compared to the previous implementation.
         
         Args:
             hostname (str): Hostname or IP address to test
@@ -235,7 +331,6 @@ class ConfigurationValidator:
             # First try to resolve the hostname
             _logger.debug(f"Attempting to resolve hostname: {hostname}")
             
-            # Use getaddrinfo to resolve hostname and test connectivity
             import socket
             try:
                 # Resolve hostname to IP addresses
@@ -253,78 +348,138 @@ class ConfigurationValidator:
                     _logger.debug(f"Docker hostname detected: {hostname}")
                     return True, f"Docker hostname '{hostname}' is resolvable and assumed reachable"
                 
-                # Special handling for localhost and loopback addresses - these are always considered reachable if they resolve
+                # Special handling for localhost and loopback addresses
                 if hostname.lower() in ['localhost', '127.0.0.1', '::1'] or hostname.startswith('127.'):
                     _logger.debug(f"Localhost/loopback address detected: {hostname}")
                     return True, f"Localhost address '{hostname}' is always reachable"
 
-                # Try to connect to each resolved address on a common port
-                # We'll try port 80 (HTTP) as it's commonly open and fast to test
+                # Test connectivity to each resolved address
+                connection_refused_count = 0
+                timeout_count = 0
+                total_attempts = 0
+                host_unreachable_count = 0
+                network_unreachable_count = 0
+                
+                # Improved port selection for better detection
+                test_ports = [80, 443, 22, 53, 23, 21]  # HTTP, HTTPS, SSH, DNS, Telnet, FTP
+                
                 for family, socktype, proto, canonname, sockaddr in addr_info:
                     if family in (socket.AF_INET, socket.AF_INET6):
-                        try:
-                            # Extract IP address from sockaddr
-                            ip_addr = sockaddr[0]
-                            
-                            # Test connectivity using a socket connection to port 80
-                            # This is faster and more reliable than ping in containers
-                            test_port = 80  # HTTP port - commonly accessible
-                            _logger.debug(f"Testing connectivity to {ip_addr}:{test_port}")
-                            # Create socket connection with short timeout
+                        ip_addr = sockaddr[0]
+                        
+                        for test_port in test_ports:
+                            total_attempts += 1
                             try:
+                                _logger.debug(f"Testing connectivity to {ip_addr}:{test_port}")
+                                
                                 with socket.socket(family, socket.SOCK_STREAM) as sock:
-                                    sock.settimeout(3)  # 3 second timeout
-
-                                    result = await asyncio.get_event_loop().run_in_executor(
+                                    sock.settimeout(2)  # Short timeout for responsiveness
+                                    
+                                    await asyncio.get_event_loop().run_in_executor(
                                         None, sock.connect, (ip_addr, test_port)
                                     )
+                                    
                                     _logger.debug(f"Successfully connected to {ip_addr}:{test_port}")
-                                    return True, f"Host '{hostname}' is reachable"
-
-                            except (socket.timeout, OSError) as conn_err:
-                                _logger.debug(f"Connection to {ip_addr}:{test_port} failed: {conn_err}")
-                                
-                                # Try a few more common ports to increase success rate
-                                for alt_port in [443, 22, 53]:  # HTTPS, SSH, DNS
-                                    try:
-                                        with socket.socket(family, socket.SOCK_STREAM) as sock:
-                                            sock.settimeout(2)  # Shorter timeout for alt ports
-
-                                            await asyncio.get_event_loop().run_in_executor(
-                                                None, sock.connect, (ip_addr, alt_port)
-                                            )
-                                            _logger.debug(f"Successfully connected to {ip_addr}:{alt_port}")
-                                            return True, f"Host '{hostname}' is reachable"
-                                        
-                                    except (socket.timeout, OSError):
-                                        continue
-                                
-                                # If we get here, the host might be up but not responding on tested ports
-                                # This is still considered "reachable" from a network perspective
+                                    return True, f"Host '{hostname}' is reachable (TCP connection successful)"
+                                    
+                            except (socket.timeout, asyncio.TimeoutError):
+                                timeout_count += 1
+                                _logger.debug(f"Connection to {ip_addr}:{test_port} timed out")
                                 continue
-                        except Exception as e:
-                            _logger.debug(f"Error testing {ip_addr}: {e}")
-                            continue
+                                
+                            except ConnectionRefusedError:
+                                connection_refused_count += 1
+                                _logger.debug(f"Connection to {ip_addr}:{test_port} refused")
+                                continue
+                                
+                            except OSError as e:
+                                error_code = getattr(e, 'errno', None)
+                                error_msg = str(e).lower()
+                                
+                                if error_code == 111 or 'connection refused' in error_msg:
+                                    connection_refused_count += 1
+                                elif error_code == 110 or 'timed out' in error_msg or 'timeout' in error_msg:
+                                    timeout_count += 1
+                                elif error_code == 113 or 'no route to host' in error_msg:
+                                    host_unreachable_count += 1
+                                elif 'network is unreachable' in error_msg:
+                                    network_unreachable_count += 1
+                                elif 'host is unreachable' in error_msg:
+                                    host_unreachable_count += 1
+                                else:
+                                    timeout_count += 1  # Treat unknown errors as timeouts
+                                continue
+                                
+                            except Exception as e:
+                                _logger.debug(f"Unexpected error testing {ip_addr}:{test_port}: {e}")
+                                timeout_count += 1
+                                continue
                 
-                # If we tried all addresses and none worked, the host is likely unreachable
-                return False, f"Host '{hostname}' appears to be unreachable - no response on tested ports"
+                # Analyze results to provide better error messages based on network stack responses
+                if network_unreachable_count > 0:
+                    return False, f"Network unreachable to '{hostname}' - check network configuration"
+                elif host_unreachable_count > 0:
+                    return False, f"Host '{hostname}' is unreachable - check if host is online and network path exists"
+                elif connection_refused_count == total_attempts:
+                    # All connections refused - host is up but no tested services are running
+                    return True, f"Host '{hostname}' is reachable but no common services are running on tested ports"
+                elif timeout_count == total_attempts:
+                    # All connections timed out - host is likely down or blocking connections
+                    return False, f"Host '{hostname}' appears to be down or blocking connections (all connection attempts timed out)"
+                elif connection_refused_count > 0:
+                    # Some connections refused - host is likely up
+                    return True, f"Host '{hostname}' is reachable (host responded with connection refused, indicating it's online)"
+                else:
+                    # No clear pattern - host is likely unreachable
+                    return False, f"Host '{hostname}' appears to be unreachable - no successful connections established"
                 
             except socket.gaierror as e:
                 error_msg = str(e).lower()
-                _logger.error(f"DNS resolution failed for {hostname}: {e}")
+                _logger.error(f"DNS resolution failed for the hostname '{hostname}': {e}")
                 
-                if 'name or service not known' in error_msg or 'nodename nor servname provided' in error_msg:
+                if 'name or service not known' in error_msg or 'nodename nor service name provided' in error_msg:
                     return False, f"Cannot resolve hostname '{hostname}' - please check the hostname is correct"
                 elif 'temporary failure' in error_msg:
                     return False, f"Temporary DNS failure for '{hostname}' - please try again later"
                 else:
                     return False, f"DNS lookup failed for '{hostname}'"
-        except asyncio.TimeoutError:
-            _logger.warning(f"Host reachability test timed out for {hostname}")
-            return False, f"Connection test to '{hostname}' timed out - host may be unreachable"
+                    
         except Exception as e:
-            _logger.error(f"Unexpected error during host reachability test for {hostname}: {e}")
-            return False, f"Cannot test reachability of '{hostname}' - network error occurred"
+            _logger.error(f"Unexpected error during TCP connectivity test for the hostname '{hostname}': {e}")
+            return False, f"Cannot test connectivity to the hostname '{hostname}' - network error occurred"
+
+    async def ping_host(self, hostname):
+        """
+        Perform host reachability test using ICMP ping when available,
+        falling back to TCP connectivity testing in restricted environments.
+        
+        This method tries ICMP ping first (most reliable and appropriate for host reachability),
+        and only falls back to TCP socket testing when ICMP is not available due to
+        container restrictions or permissions.
+        
+        Args:
+            hostname (str): Hostname or IP address to test
+            
+        Returns:
+            tuple: (success, reason)
+        """
+        try:
+            # Detect if we're in a container environment
+            in_container = self._detect_container_environment()
+            
+            # Try ICMP ping first if not in container or if explicitly available
+            if not in_container:
+                icmp_result, icmp_reason = await self._icmp_ping(hostname)
+                if icmp_result is not None:  # None means ICMP not available
+                    return icmp_result, icmp_reason
+                    
+            # Fall back to TCP connectivity test
+            _logger.debug(f"Using TCP connectivity test for the hostname '{hostname}' (container environment: {in_container})")
+            return await self._tcp_connectivity_test(hostname)
+            
+        except Exception as e:
+            _logger.error(f"Unexpected error during host reachability test for the hostname '{hostname}': {e}")
+            return False, f"Unable to test reachability of the hostname '{hostname}' - error occurred: {e}"
     
     async def check_port_listening(self, hostname, port, include_port_in_messages=True):
         """
@@ -349,7 +504,7 @@ class ConfigurationValidator:
             await writer.wait_closed()
             
             _logger.debug(f"Successfully connected to {hostname}:{port}")
-            success_msg = f"Service is listening on port {port}" if include_port_in_messages else f"Service is listening on {hostname}"
+            success_msg = f"Service is listening on port {port}" if include_port_in_messages else f"Connection successfully established on {hostname}"
             return True, success_msg
         except asyncio.TimeoutError:
             _logger.warning(f"Connection timeout to {hostname}:{port}")
@@ -357,39 +512,35 @@ class ConfigurationValidator:
             return False, error_msg
         except ConnectionRefusedError:
             _logger.error(f"Connection refused by {hostname}:{port}")
-            error_msg = f"No service is listening on {hostname}:{port}" if include_port_in_messages else f"No service is listening on {hostname}"
+            error_msg = f"No service is listening on {hostname}:{port}" if include_port_in_messages else f"Host {hostname} is reachable, but no service is listening on any of the ports tested"
             return False, error_msg
         except socket.gaierror as e:
             error_msg = str(e).lower()
             _logger.error(f"DNS resolution failed for {hostname}: {e}")
             
             if 'name or service not known' in error_msg or 'nodename nor servname provided' in error_msg:
-                return False, f"Cannot resolve hostname '{hostname}' - please check the hostname is correct"
+                return False, f"Unable to resolve hostname '{hostname}' - please verify the hostname is correct"
             elif 'temporary failure' in error_msg:
-                return False, f"Temporary DNS failure for '{hostname}' - please try again later"
+                return False, f"Temporary DNS failure for hostname '{hostname}' - please try again later"
             else:
-                return False, f"DNS lookup failed for '{hostname}'"
+                return False, f"DNS lookup failed for hostname '{hostname}'"
         except OSError as e:
             error_code = getattr(e, 'errno', None)
             error_msg = str(e).lower()
             _logger.error(f"Network error connecting to {hostname}:{port}: {e}")
             
             # Handle specific error codes for better user messages
-            if error_code == 111 or 'connection refused' in error_msg:
-                error_msg = f"No service is listening on {hostname}:{port}" if include_port_in_messages else f"No service is listening on {hostname}"
-                return False, error_msg
-            elif error_code == 113 or 'no route to host' in error_msg:
-                return False, f"Cannot reach host '{hostname}' - check network connectivity"
+            
+            if error_code == 113 or 'no route to host' in error_msg:
+                return False, f"Unable to reach host '{hostname}' - please check your network connectivity"
             elif error_code == 110 or 'connection timed out' in error_msg:
-                error_msg = f"Connection to {hostname}:{port} timed out - host may be unreachable" if include_port_in_messages else f"Connection to {hostname} timed out - host may be unreachable"
+                error_msg = f"Connection to {hostname}:{port} timed out - the host may be unreachable" if include_port_in_messages else f"Connection to {hostname} timed out - host may be unreachable"
                 return False, error_msg
             elif 'network is unreachable' in error_msg:
-                return False, f"Network unreachable to '{hostname}' - check network configuration"
-            elif 'host is unreachable' in error_msg:
-                return False, f"Host '{hostname}' is unreachable - check if host is online"
+                return False, f"Network is unreachable to '{hostname}' - please check your network configuration"
             elif 'multiple exceptions' in error_msg:
                 # Handle IPv6/IPv4 dual stack connection failures
-                error_msg = f"Cannot connect to {hostname}:{port} - no service available" if include_port_in_messages else f"Cannot connect to {hostname} - no service available"
+                error_msg = f"Unable to connect to {hostname}:{port} - no service is available" if include_port_in_messages else f"Cannot connect to {hostname} - no service available"
                 return False, error_msg
             else:
                 error_msg = f"Network error connecting to {hostname}:{port}" if include_port_in_messages else f"Network error connecting to {hostname}"
@@ -539,7 +690,7 @@ class ConfigurationValidator:
                         connections_to_test.append((hostname, port))
                         test_values.append({item['name']: item['value']})
                         processed_combinations.add(combination_key)
-                        user_provided_port = True
+                        is_port_in_config = True
             else:
                 # Broker is hostname only (check if not already processed by broker host/port logic)
                 if not any('host' in broker['name'].lower() for broker in config_items['brokers']):

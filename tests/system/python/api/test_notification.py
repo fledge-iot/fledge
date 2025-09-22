@@ -82,16 +82,13 @@ class TestNotificationServiceAPI:
 
         # GET service type
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", '/fledge/service/info/{}'.format(SERVICE))
+        conn.request("GET", f'/fledge/service/info/{SERVICE}')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        SERVICE_TYPE = jdoc['type']
-
         # Add service
-        conn = http.client.HTTPConnection(fledge_url)
-        data = {"name": SERVICE_NAME, "type": SERVICE_TYPE, "enabled": "true"}
+        data = {"name": SERVICE_NAME, "type": jdoc['type'], "enabled": "true"}
         conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status

@@ -135,31 +135,6 @@ class ServiceInfoCache(object):
 # service info cache instance
 _service_info_cache = ServiceInfoCache()
 
-# TODO: FOGL-1022 - This is a temporary solution to get the service info for the prebuilt services.
-# Prebuilt services configuration
-_PREBUILT_SERVICES = {
-    "south": {
-        "name": "south",
-        "description": "Service used to interact with device, API and generic sources of data",
-        "type": "south",
-        "process": "south",
-        "process_script": "south_c"
-    },
-    "north": {
-        "name": "north",
-        "description": "Service used to interact with device, API and generic sources of data",
-        "type": "north",
-        "process": "north",
-        "process_script": "north_C"
-    },
-    "storage": {
-        "name": "storage",
-        "description": "The storage service buffers data within a single Fledge instance",
-        "type": "storage",
-        "process": "storage",
-        "process_script": "storage"
-    }
-}
 
 #################################
 #  Service
@@ -204,12 +179,11 @@ async def _fetch_service_info(service_name: str) -> dict:
     Returns:
         Service info dictionary with service details, or empty response if all methods fail
     """
-    # Check cache first for non-prebuilt services
-    if service_name not in _PREBUILT_SERVICES:
-        cached_info = _service_info_cache.get(service_name)
-        if cached_info is not None:
-            _logger.debug(f"Retrieved service info for {service_name} from cache")
-            return cached_info
+    # Check cache first
+    cached_info = _service_info_cache.get(service_name)
+    if cached_info is not None:
+        _logger.debug(f"Retrieved service info for {service_name} from cache")
+        return cached_info
 
     def _create_empty_service_response(name: str) -> dict:
         return {
@@ -291,10 +265,9 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(service_path, service_name=service_name)
             if service_info:
-                # Cache successful result for non-prebuilt services
-                if service_name not in _PREBUILT_SERVICES:
-                    _service_info_cache.update(service_name, service_info)
-                    _logger.debug(f"Cached service info for {service_name}")
+                # Cache successful result
+                _service_info_cache.update(service_name, service_info)
+                _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -310,10 +283,9 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(python_service_path, is_python=True, service_name=service_name)
             if service_info:
-                # Cache successful result for non-prebuilt services
-                if service_name not in _PREBUILT_SERVICES:
-                    _service_info_cache.update(service_name, service_info)
-                    _logger.debug(f"Cached service info for {service_name}")
+                # Cache successful result
+                _service_info_cache.update(service_name, service_info)
+                _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -394,10 +366,6 @@ async def get_service_info(request):
         installed_services = get_service_installed()
         services = []
         for service_name in installed_services:
-            # Check if it's a prebuilt service
-            if service_name in _PREBUILT_SERVICES:
-                services.append(_PREBUILT_SERVICES[service_name])
-                continue
             service_info = await _fetch_service_info(service_name)
             services.append(service_info)
         response = {"services": services}
@@ -432,12 +400,8 @@ async def get_service_info_by_name(request):
             msg = f"Service '{service_name}' not found in installed services."
             raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
 
-        # Check if it's a prebuilt service
-        if service_name in _PREBUILT_SERVICES:
-            service_info = _PREBUILT_SERVICES[service_name]
-        else:
-            # Try to get service info from C or Python service
-            service_info = await _fetch_service_info(service_name)
+        # Get service info from C or Python service
+        service_info = await _fetch_service_info(service_name)
         return web.json_response(service_info)
     except Exception as ex:
         msg = str(ex)
@@ -712,15 +676,10 @@ async def add_service(request):
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
             plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, normalized_type, plugin)
-            # FIXME: FOGL-10225 For south, north service type derived values from service info
-            if normalized_type == 'south':
-                process_name = 'south_c'
-                script = '["services/south_c"]'
-                priority = 100
-            else:
-                process_name = 'north_C'
-                script = '["services/north_C"]'
-                priority = 200
+            service_info = await _fetch_service_info(normalized_type)
+            process_name = service_info['process']
+            script = service_info['process_script']
+            priority = service_info['startup_priority']
             try:
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, normalized_type)
                 plugin_config = plugin_info['config']
@@ -743,13 +702,12 @@ async def add_service(request):
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         else:
             for service_name in get_service_installed():
-                if service_name not in _PREBUILT_SERVICES:
-                    service_info = await _fetch_service_info(service_name)
-                    if service_info['type'] == normalized_type:
-                        process_name = service_info['process']
-                        script = service_info['process_script']
-                        priority = service_info['startup_priority']
-                        break
+                service_info = await _fetch_service_info(service_name)
+                if service_info['type'] == normalized_type:
+                    process_name = service_info['process']
+                    script = service_info['process_script']
+                    priority = service_info['startup_priority']
+                    break
         if process_name is None or script is None or priority is None:
             message = f"The '{normalized_type}' service has not been installed correctly."
             raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))

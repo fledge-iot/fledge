@@ -662,6 +662,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 if needed_value == 0:
                     raise ValueError('For {} category, missing entry name {} for item name {}'.format(
                         category_name, needed_key, item_name))
+            
+            # validate default empty value for list and kvlist type
+            if get_entry_val("type") == 'list' and get_entry_val("default") == '{}':
+                raise ValueError('Default value of list type item {} for category {} is not correct'.
+                                 format(item_name, category_name))
+            if get_entry_val("type") == 'kvlist' and get_entry_val("default") == '[]':
+                raise ValueError('Default value of kvlist type item {} for category {} is not correct'.
+                                 format(item_name, category_name))
+            
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
                 raise ValueError(

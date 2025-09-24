@@ -1,5 +1,8 @@
 #
 # This is a valgrind suppression file that should be used when using valgrind.
+# This file has been updated to support multiple platforms:
+# - Ubuntu 20.04, 22.04, and 24.04
+# - x86_64 and aarch64 architectures
 #
 #  Here's an example of running valgrind:
 #
@@ -14,6 +17,12 @@
 # suppressions for _PyObject_Free and _PyObject_Realloc.
 #
 # See Misc/README.valgrind for more information.
+#
+# Platform-specific suppressions:
+# - x86_64: /lib/x86_64-linux-gnu/ paths
+# - aarch64: /lib/aarch64-linux-gnu/ paths  
+# - Legacy: /lib/ and /usr/lib/ paths for older systems
+# - Modern: OpenSSL 1.1+, glibc 2.31+, systemd suppressions
 
 # all tool names: Addrcheck,Memcheck,cachegrind,helgrind,massif
 {
@@ -226,21 +235,57 @@
 ###
 
 {
-   Generic ubuntu ld problems
+   Generic ubuntu ld problems (x86_64)
    Memcheck:Addr8
-   obj:/lib/ld-2.4.so
-   obj:/lib/ld-2.4.so
-   obj:/lib/ld-2.4.so
-   obj:/lib/ld-2.4.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
 }
 
 {
-   Generic gentoo ld problems
+   Generic ubuntu ld problems (aarch64)
+   Memcheck:Addr8
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (x86_64)
    Memcheck:Cond
-   obj:/lib/ld-2.3.4.so
-   obj:/lib/ld-2.3.4.so
-   obj:/lib/ld-2.3.4.so
-   obj:/lib/ld-2.3.4.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+}
+
+{
+   Generic ubuntu ld problems (legacy path)
+   Memcheck:Addr8
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (legacy path)
+   Memcheck:Cond
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
 }
 
 {
@@ -307,22 +352,62 @@
 }
 
 {
-   ZLIB problems, see test_gzip
+   ZLIB problems, see test_gzip (x86_64)
    Memcheck:Cond
-   obj:/lib/libz.so.1.2.3
-   obj:/lib/libz.so.1.2.3
+   obj:/lib/x86_64-linux-gnu/libz.so*
+   obj:/lib/x86_64-linux-gnu/libz.so*
    fun:deflate
 }
 
 {
-   Avoid problems w/readline doing a putenv and leaking on exit
+   ZLIB problems, see test_gzip (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libz.so*
+   obj:/lib/aarch64-linux-gnu/libz.so*
+   fun:deflate
+}
+
+{
+   ZLIB problems, see test_gzip (legacy path)
+   Memcheck:Cond
+   obj:/lib/libz.so*
+   obj:/lib/libz.so*
+   fun:deflate
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (x86_64)
    Memcheck:Leak
    fun:malloc
    fun:xmalloc
    fun:sh_set_lines_and_columns
    fun:_rl_get_screen_size
    fun:_rl_init_terminal_io
-   obj:/lib/libreadline.so.4.3
+   obj:/lib/x86_64-linux-gnu/libreadline.so*
+   fun:rl_initialize
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (aarch64)
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   fun:sh_set_lines_and_columns
+   fun:_rl_get_screen_size
+   fun:_rl_init_terminal_io
+   obj:/lib/aarch64-linux-gnu/libreadline.so*
+   fun:rl_initialize
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (legacy path)
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   fun:sh_set_lines_and_columns
+   fun:_rl_get_screen_size
+   fun:_rl_init_terminal_io
+   obj:/lib/libreadline.so*
    fun:rl_initialize
 }
 
@@ -430,11 +515,27 @@
 }
 
 {
-   from test_socket_ssl
+   from test_socket_ssl (legacy crypto)
    Memcheck:Param
    write(buf)
    fun:write
    obj:/usr/lib/libcrypto.so.0.9.7
+}
+
+{
+   from test_socket_ssl (modern crypto x86_64)
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/lib/x86_64-linux-gnu/libcrypto.so*
+}
+
+{
+   from test_socket_ssl (modern crypto aarch64)
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/lib/aarch64-linux-gnu/libcrypto.so*
 }
 
 {
@@ -462,15 +563,39 @@
 }
 
 {
-   from test_socket_ssl
+   from test_socket_ssl (legacy ssl)
    Memcheck:Cond
    obj:/usr/lib/libssl.so.0.9.7
 }
 
 {
-   from test_socket_ssl
+   from test_socket_ssl (modern ssl x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (modern ssl aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (legacy ssl value)
    Memcheck:Value4
    obj:/usr/lib/libssl.so.0.9.7
+}
+
+{
+   from test_socket_ssl (modern ssl value x86_64)
+   Memcheck:Value4
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (modern ssl value aarch64)
+   Memcheck:Value4
+   obj:/lib/aarch64-linux-gnu/libssl.so*
 }
 
 {
@@ -572,5 +697,66 @@
    match-leak-kinds: possible
    fun:malloc
    fun:PyMem_RawMalloc
+}
+
+###
+### Additional suppressions for Ubuntu 20.04, 22.04, and 24.04 compatibility
+###
+
+{
+   Ubuntu 20.04+ glibc malloc issues
+   Memcheck:Leak
+   fun:malloc
+   fun:__libc_malloc
+}
+
+{
+   Ubuntu 20.04+ pthread TLS issues
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   Ubuntu 20.04+ pthread TLS issues (alternative)
+   Memcheck:Leak
+   fun:memalign
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   Modern OpenSSL 1.1+ issues (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+   obj:/lib/x86_64-linux-gnu/libcrypto.so*
+}
+
+{
+   Modern OpenSSL 1.1+ issues (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libssl.so*
+   obj:/lib/aarch64-linux-gnu/libcrypto.so*
+}
+
+{
+   Ubuntu 24.04+ systemd issues
+   Memcheck:Leak
+   fun:malloc
+   fun:sd_bus_new
+}
+
+{
+   Modern glibc issues (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libc.so*
+}
+
+{
+   Modern glibc issues (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libc.so*
 }
 

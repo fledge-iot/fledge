@@ -736,6 +736,11 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
          ValueError,"For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ## BAD List DEFAULT VALUE: Dictionary is being used instead of list
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{}", "items": "object",
+                      "properties": {"width": {"description": "", "default": "", "type": ""}}, "listName": ""}},
+         ValueError,"For {} category, listName cannot be empty for item name {}".format(CAT_NAME, ITEM_NAME)),
+
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": ""}},
          ValueError, "For {} category, permissions entry value must be a list of string for item name {}; "
@@ -3935,6 +3940,10 @@ class TestConfigurationManager:
                                 'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
         ("{\"key\": \"2.5\"}", {'description': 'A list of expressions and values', 'type': 'kvlist',
                                 'default': '{\"key\": \"2.2\"}', 'order': '2', 'items': 'float', 'value': '{\"2.5\"}',
+                                'listSize': '1', 'minimum': '2', 'maximum': '2.5'}),
+        # BAD KVLIST DEFAULT VALUE : List is used instead of dictionary
+        ("{\"key\": \"2.5\"}", {'description': 'A list of expressions and values', 'type': 'kvlist',
+                                'default': '[]', 'order': '2', 'items': 'float', 'value': '{\"2.5\"}',
                                 'listSize': '1', 'minimum': '2', 'maximum': '2.5'})
     ])
     def test_good__validate_value_per_optional_attribute(self, new_value_entry, storage_value_entry):

@@ -38,11 +38,7 @@ class TestSouthServiceTuning:
 
         # Step 1: Create south service with sinusoid plugin and initial configuration
         # Create the service
-        response = add_south(plugin_name, south_branch, fledge_url, service_name=SERVICE_NAME, plugin_lang=plugin_language, start_service=False)
-        assert SERVICE_NAME == response["name"]
-        print(f"Created south service: {SERVICE_NAME}")
-        time.sleep(2)  # Allow time for Advance category creation
-        
+        self._add_south_service(SERVICE_NAME, fledge_url, plugin_name, add_south, south_branch, plugin_language)
         # Configure advanced parameters after service creation
         advanced_config = {
             "units": "minute" ,            # Polling interval unit
@@ -113,6 +109,13 @@ class TestSouthServiceTuning:
         response = utils.delete_request(fledge_url, f"/fledge/service/{SERVICE_NAME}")
         assert f"Service {SERVICE_NAME} deleted successfully." == response["result"]
         print(f"Deleted south service: {SERVICE_NAME}")
+
+    def _add_south_service(self, service_name, fledge_url, plugin_name, add_south, south_branch, plugin_language):
+        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
+        service_name = response["name"]
+        assert service_name == response["name"]
+        print(f"Created south service: {service_name}")
+        time.sleep(2)  # Allow time for Advance category creation
 
     def _set_advance_config(self, fledge_url, service_name, config):
         """ Helper to set advanced configuration """
@@ -196,11 +199,7 @@ class TestSouthServiceTuning:
         service_name = f"{SERVICE_NAME}_Comprehensive"
     
         # Create and enable service
-        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
-        service_name = response["name"]
-        assert service_name == response["name"]
-        print(f"Created south service: {service_name}")
-        time.sleep(2)  # Allow time for Advance category creation
+        self._add_south_service(service_name, fledge_url, plugin_name, add_south, south_branch, plugin_language)
 
         # Configure advanced parameters after service creation
         advanced_config = {
@@ -275,11 +274,7 @@ class TestSouthServiceTuning:
         service_name = f"{SERVICE_NAME}_BufferTest"
         
         # # Create and enable service
-        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
-        service_name = response["name"]
-        assert service_name == response["name"]
-        print(f"Created south service: {service_name}")
-        time.sleep(2)  # Allow time for Advance category creation
+        self._add_south_service(service_name, fledge_url, plugin_name, add_south, south_branch, plugin_language)
         
         # Configure advanced parameters after service creation
         advanced_config = {
@@ -321,11 +316,7 @@ class TestSouthServiceTuning:
         service_name = f"{SERVICE_NAME}_LatencyTest"
         
         # Create and enable service
-        response = add_south(plugin_name, south_branch, fledge_url, service_name=service_name, plugin_lang=plugin_language, start_service=False)
-        service_name = response["name"]
-        assert service_name == response["name"]
-        print(f"Created south service: {service_name}")
-        time.sleep(2)  # Allow time for Advance category creation
+        self._add_south_service(service_name, fledge_url, plugin_name, add_south, south_branch, plugin_language)
 
         # Configure advanced parameters after service creation
         advanced_config = {

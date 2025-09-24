@@ -4185,3 +4185,55 @@ class TestConfigurationManager:
                 patch_read_val.assert_called_once_with(category_name)
             patch_storage.update_tbl.assert_not_called()
         patch_get_all_items.assert_called_once_with(category_name)
+
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        # Test cases for the NEW validation logic for list type with empty dict default values
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{}", "items": "string"}}, ValueError,
+         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not correct"),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{  }", "items": "integer"}}, ValueError,
+         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not correct"),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{'single': 'quotes'}", "items": "string"}}, ValueError,
+         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not a valid JSON string"),
+    ])
+    async def test__validate_category_val_list_default_validation_bad(self, config, exc_name, reason):
+        """Test the new validation logic for list type default values that should fail"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=True)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+    
+    @pytest.mark.parametrize("config", [
+        # Valid list configurations that should pass the new validation
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "string"}}),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"item1\", \"item2\"]", "items": "string"}}),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1\", \"2\", \"3\"]", "items": "integer"}}),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"1.1\", \"2.2\"]", "items": "float"}}),
+        # Test with object items and proper properties
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[{\"name\": \"test\"}]", "items": "object", 
+                      "properties": {"name": {"type": "string", "default": "", "description": "Test name"}}}}),
+    ])
+    async def test__validate_category_val_list_default_validation_good(self, config):
+        """Test valid list configurations pass the new validation"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                 set_value_val_from_default_val=True)
+        assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['default']
+        assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['value']
+    
+    @pytest.mark.parametrize("config", [
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[ ]", "items": "string"}}),
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{ }", "items": "string"}}),
+    ])
+    async def test__validate_category_val_list_kvlist_edge_cases_good(self, config):
+        """Test list and kvlist validation with empty default values with spaces"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                 set_value_val_from_default_val=True)
+        assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['default']
+        assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['value']

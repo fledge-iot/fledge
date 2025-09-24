@@ -663,14 +663,37 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise ValueError('For {} category, missing entry name {} for item name {}'.format(
                         category_name, needed_key, item_name))
             
-            # validate default empty value for list and kvlist type
-            if get_entry_val("type") == 'list' and get_entry_val("default") == '{}':
-                raise ValueError('Default value of list type item {} for category {} is not correct'.
-                                 format(item_name, category_name))
-            if get_entry_val("type") == 'kvlist' and get_entry_val("default") == '[]':
-                raise ValueError('Default value of kvlist type item {} for category {} is not correct'.
-                                 format(item_name, category_name))
-            
+            # validate default value for list and kvlist type
+            if get_entry_val("type") == 'list':
+                default_val = get_entry_val("default")
+                # Check if default_val is a string representing an empty dict, which is not valid for 'list' type
+                if isinstance(default_val, str):
+                    try:
+                        parsed_default = json.loads(default_val)
+                    except (ValueError, TypeError):
+                        raise ValueError(
+                            f'Default value for {category_name} category, for list type item {item_name} is not a valid JSON string'
+                        )
+                    if isinstance(parsed_default, dict) and not parsed_default:
+                        raise ValueError(
+                            f'Default value for {category_name} category, for list type item {item_name} is not correct'
+                        )
+                else:
+                    # If not a string, ensure it's not an empty dict
+                    if isinstance(default_val, dict) and not default_val:
+                        raise ValueError(
+                            f'Default value for {category_name} category, for list type item {item_name} is not correct'
+                        )
+            kvlist_type = get_entry_val("type")
+            default_val = get_entry_val("default")
+            if kvlist_type == 'kvlist':
+                # Ensure default_val is not a string representing an empty list
+                if (isinstance(default_val, str) and default_val.strip() == '[]') or \
+                   (isinstance(default_val, list) and len(default_val) == 0):
+                    raise ValueError(
+                        f'Default value for {category_name} category, for kvlist type item {item_name} is not correct'
+                    )
+
             # validate data type value
             if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
                 raise ValueError(

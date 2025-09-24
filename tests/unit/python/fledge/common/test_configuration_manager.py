@@ -4189,12 +4189,12 @@ class TestConfigurationManager:
 
     @pytest.mark.parametrize("config, exc_name, reason", [
         # Test cases for the NEW validation logic for list type with empty dict default values
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "", "items": "string"}}, TypeError,
+         "For {} category, default value should be passed array list in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{}", "items": "string"}}, ValueError,
-         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not correct"),
-        ({ITEM_NAME: {"description": "test", "type": "list", "default": "{  }", "items": "integer"}}, ValueError,
-         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not correct"),
+         "Default value for {} category, for list type item {} must be a list".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{'single': 'quotes'}", "items": "string"}}, ValueError,
-         f"Default value for {CAT_NAME} category, for list type item {ITEM_NAME} is not a valid JSON string"),
+         "Default value for {} category, for list type item {} must be a list".format(CAT_NAME, ITEM_NAME)),
     ])
     async def test__validate_category_val_list_default_validation_bad(self, config, exc_name, reason):
         """Test the new validation logic for list type default values that should fail"""
@@ -4206,6 +4206,25 @@ class TestConfigurationManager:
         assert excinfo.type is exc_name
         assert reason == str(excinfo.value)
     
+    @pytest.mark.parametrize("config, exc_name, reason", [
+        # Test cases for the NEW validation logic for kvlist type with empty list default values
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "", "items": "string"}}, TypeError,
+        "For {} category, default value should be passed KV pair list in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "[]", "items": "string"}}, TypeError,
+         "For {} category, KV pair invalid in default value for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[{'single': 'quotes'}]", "items": "string"}}, TypeError,
+        "For {} category, default value should be passed array list in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+    ])
+    async def test__validate_category_val_kvlist_default_validation_bad(self, config, exc_name, reason):
+        """Test the new validation logic for kvlist type default values that should fail"""
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=True)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
     @pytest.mark.parametrize("config", [
         # Valid list configurations that should pass the new validation
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "[]", "items": "string"}}),
@@ -4224,16 +4243,23 @@ class TestConfigurationManager:
                                                  set_value_val_from_default_val=True)
         assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['default']
         assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['value']
-    
+
     @pytest.mark.parametrize("config", [
-        ({ITEM_NAME: {"description": "test", "type": "list", "default": "[ ]", "items": "string"}}),
-        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{ }", "items": "string"}}),
+        # Valid kvlist configurations that should pass the new validation
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{}", "items": "string"}}),
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{\"key\":\"val1\"}", "items": "string"}}),
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{\"key\":\"2\"}", "items": "integer"}}),
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{\"key\":\"2.2\"}", "items": "float"}}),
+        # Test with object items and proper properties
+        ({ITEM_NAME: {"description": "test", "type": "kvlist", "default": "{\"name\": \"test name\", \"default\": \"\", \"description\": \"test description\"}", "items": "object", 
+                       "properties": {"name": {"type": "string", "default": "", "description": "Test name"}}}}),
     ])
-    async def test__validate_category_val_list_kvlist_edge_cases_good(self, config):
-        """Test list and kvlist validation with empty default values with spaces"""
+    async def test__validate_category_val_kvlist_default_validation_good(self, config):
+        """Test valid kvlist configurations pass the new validation"""
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
                                                  set_value_val_from_default_val=True)
         assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['default']
         assert config[ITEM_NAME]['default'] == res[ITEM_NAME]['value']
+    

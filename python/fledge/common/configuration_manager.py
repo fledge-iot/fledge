@@ -279,6 +279,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
 
+        def _parse_if_str(val):
+            import ast
+            if isinstance(val, str):
+                try:
+                    return ast.literal_eval(val)
+                except (ValueError, SyntaxError):
+                    raise ValueError(f"Invalid default value format: {val}")
+            return val
+        
         def _validate_optional_attribute_string_type(optional_key_name, optional_key_value, config_item_name):
             if not isinstance(optional_key_value, str):
                 raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
@@ -664,38 +673,25 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         category_name, needed_key, item_name))
             
             # validate default value for list and kvlist type
-            if get_entry_val("type") == 'list':
-                default_val = get_entry_val("default")
-                # Check if default_val is a string representing an empty dict, which is not valid for 'list' type
-                if isinstance(default_val, str):
-                    try:
-                        parsed_default = json.loads(default_val)
-                    except (ValueError, TypeError):
-                        raise ValueError(
-                            f'Default value for {category_name} category, for list type item {item_name} is not a valid JSON string'
-                        )
-                    if isinstance(parsed_default, dict) and not parsed_default:
-                        raise ValueError(
-                            f'Default value for {category_name} category, for list type item {item_name} is not correct'
-                        )
-                else:
-                    # If not a string, ensure it's not an empty dict
-                    if isinstance(default_val, dict) and not default_val:
-                        raise ValueError(
-                            f'Default value for {category_name} category, for list type item {item_name} is not correct'
-                        )
-            kvlist_type = get_entry_val("type")
             default_val = get_entry_val("default")
-            if kvlist_type == 'kvlist':
-                # Ensure default_val is not a string representing an empty list
-                if (isinstance(default_val, str) and default_val.strip() == '[]') or \
-                   (isinstance(default_val, list) and len(default_val) == 0):
-                    raise ValueError(
-                        f'Default value for {category_name} category, for kvlist type item {item_name} is not correct'
-                    )
+            entry_type = get_entry_val("type")
+            parsed_default = None
+            if entry_type == 'list' or entry_type == 'kvlist':
+                parsed_default = _parse_if_str(default_val)
+                if entry_type == 'list':
+                    if not isinstance(parsed_default, list):
+                        raise ValueError(
+                            f"Default value for {category_name} category, for list type item {item_name} must be a list"
+                        )
+
+                elif entry_type == 'kvlist':
+                    if not isinstance(parsed_default, dict):
+                        raise ValueError(
+                            f"Default value for {category_name} category, for kvlist type item {item_name} must be a dict"
+                        )
 
             # validate data type value
-            if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
+            if self._validate_type_value(entry_type, default_val) is False:
                 raise ValueError(
                     'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
             if 'readonly' in item_val:

@@ -21,7 +21,7 @@ SERVICE_NAME = "TuningSouth"
 
 class TestSouthServiceTuning:
     
-    def test_south_service_tuning_buffer_threshold(self, clean_setup_fledge_packages, reset_and_start_fledge, fledge_url, 
+    def test_south_service_tuning_buffer_threshold(self, reset_and_start_fledge, fledge_url, 
                                                    wait_time, retries, add_south, south_branch, plugin_language, enable_schedule, disable_schedule, plugin_name):
         """ Test south service tuning parameters - bufferThreshold and maxSendLatency
             

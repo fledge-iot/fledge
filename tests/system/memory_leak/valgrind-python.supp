@@ -1,0 +1,762 @@
+#
+# This is a valgrind suppression file that should be used when using valgrind.
+# This file has been updated to support multiple platforms:
+# - Ubuntu 20.04, 22.04, and 24.04
+# - x86_64 and aarch64 architectures
+#
+#  Here's an example of running valgrind:
+#
+#	cd python/dist/src
+#	valgrind --tool=memcheck --suppressions=Misc/valgrind-python.supp \
+#		./python -E ./Lib/test/regrtest.py -u gui,network
+#
+# You must edit Objects/obmalloc.c and uncomment Py_USING_MEMORY_DEBUGGER
+# to use the preferred suppressions with address_in_range.
+#
+# If you do not want to recompile Python, you can uncomment
+# suppressions for _PyObject_Free and _PyObject_Realloc.
+#
+# See Misc/README.valgrind for more information.
+#
+# Platform-specific suppressions:
+# - x86_64: /lib/x86_64-linux-gnu/ paths
+# - aarch64: /lib/aarch64-linux-gnu/ paths  
+# - Legacy: /lib/ and /usr/lib/ paths for older systems
+# - Modern: OpenSSL 1.1+, glibc 2.31+, systemd suppressions
+
+# all tool names: Addrcheck,Memcheck,cachegrind,helgrind,massif
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Addr4
+   fun:address_in_range
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Value4
+   fun:address_in_range
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 8 (x86_64 aka amd64)
+   Memcheck:Value8
+   fun:address_in_range
+}
+
+{
+   ADDRESS_IN_RANGE/Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   fun:address_in_range
+}
+
+#
+# Leaks (including possible leaks)
+#    Hmmm, I wonder if this masks some real leaks.  I think it does.
+#    Will need to fix that.
+#
+
+{
+   Suppress leaking the GIL after a fork.
+   Memcheck:Leak
+   fun:malloc
+   fun:PyThread_allocate_lock
+   fun:PyEval_ReInitThreads
+}
+
+{
+   Suppress leaking the autoTLSkey.  This looks like it shouldn't leak though.
+   Memcheck:Leak
+   fun:malloc
+   fun:PyThread_create_key
+   fun:_PyGILState_Init
+   fun:Py_InitializeEx
+   fun:Py_Main
+}
+
+{
+   Hmmm, is this a real leak or like the GIL?
+   Memcheck:Leak
+   fun:malloc
+   fun:PyThread_ReInitTLS
+}
+
+{
+   Handle PyMalloc confusing valgrind (possibly leaked)
+   Memcheck:Leak
+   fun:realloc
+   fun:_PyObject_GC_Resize
+   fun:COMMENT_THIS_LINE_TO_DISABLE_LEAK_WARNING
+}
+
+{
+   Handle PyMalloc confusing valgrind (possibly leaked)
+   Memcheck:Leak
+   fun:malloc
+   fun:_PyObject_GC_New
+   fun:COMMENT_THIS_LINE_TO_DISABLE_LEAK_WARNING
+}
+
+{
+   Handle PyMalloc confusing valgrind (possibly leaked)
+   Memcheck:Leak
+   fun:malloc
+   fun:_PyObject_GC_NewVar
+   fun:COMMENT_THIS_LINE_TO_DISABLE_LEAK_WARNING
+}
+
+#
+# Leaks: dlopen() called without dlclose()
+#
+
+{
+   dlopen() called without dlclose()
+   Memcheck:Leak
+   fun:malloc
+   fun:malloc
+   fun:strdup
+   fun:_dl_load_cache_lookup
+}
+{
+   dlopen() called without dlclose()
+   Memcheck:Leak
+   fun:malloc
+   fun:malloc
+   fun:strdup
+   fun:_dl_map_object
+}
+{
+   dlopen() called without dlclose()
+   Memcheck:Leak
+   fun:malloc
+   fun:*
+   fun:_dl_new_object
+}
+{
+   dlopen() called without dlclose()
+   Memcheck:Leak
+   fun:calloc
+   fun:*
+   fun:_dl_new_object
+}
+{
+   dlopen() called without dlclose()
+   Memcheck:Leak
+   fun:calloc
+   fun:*
+   fun:_dl_check_map_versions
+}
+
+
+#
+# Non-python specific leaks
+#
+
+{
+   Handle pthread issue (possibly leaked)
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   Handle pthread issue (possibly leaked)
+   Memcheck:Leak
+   fun:memalign
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Addr4
+   fun:_PyObject_Free
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Value4
+   fun:_PyObject_Free
+}
+
+{
+   ADDRESS_IN_RANGE/Use of uninitialised value of size 8
+   Memcheck:Addr8
+   fun:_PyObject_Free
+}
+
+{
+   ADDRESS_IN_RANGE/Use of uninitialised value of size 8
+   Memcheck:Value8
+   fun:_PyObject_Free
+}
+
+{
+   ADDRESS_IN_RANGE/Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   fun:_PyObject_Free
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Addr4
+   fun:_PyObject_Realloc
+}
+
+{
+   ADDRESS_IN_RANGE/Invalid read of size 4
+   Memcheck:Value4
+   fun:_PyObject_Realloc
+}
+
+{
+   ADDRESS_IN_RANGE/Use of uninitialised value of size 8
+   Memcheck:Addr8
+   fun:_PyObject_Realloc
+}
+
+{
+   ADDRESS_IN_RANGE/Use of uninitialised value of size 8
+   Memcheck:Value8
+   fun:_PyObject_Realloc
+}
+
+{
+   ADDRESS_IN_RANGE/Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   fun:_PyObject_Realloc
+}
+
+###
+### All the suppressions below are for errors that occur within libraries
+### that Python uses.  The problems to not appear to be related to Python's
+### use of the libraries.
+###
+
+{
+   Generic ubuntu ld problems (x86_64)
+   Memcheck:Addr8
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+}
+
+{
+   Generic ubuntu ld problems (aarch64)
+   Memcheck:Addr8
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+   obj:/lib/x86_64-linux-gnu/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+   obj:/lib/aarch64-linux-gnu/ld-*.so
+}
+
+{
+   Generic ubuntu ld problems (legacy path)
+   Memcheck:Addr8
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+}
+
+{
+   Generic gentoo ld problems (legacy path)
+   Memcheck:Cond
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+   obj:/lib/ld-*.so
+}
+
+{
+   DBM problems, see test_dbm
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   fun:dbm_close
+}
+
+{
+   DBM problems, see test_dbm
+   Memcheck:Value8
+   fun:memmove
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   fun:dbm_store
+   fun:dbm_ass_sub
+}
+
+{
+   DBM problems, see test_dbm
+   Memcheck:Cond
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   fun:dbm_store
+   fun:dbm_ass_sub
+}
+
+{
+   DBM problems, see test_dbm
+   Memcheck:Cond
+   fun:memmove
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   obj:/usr/lib/libdb1.so.2
+   fun:dbm_store
+   fun:dbm_ass_sub
+}
+
+{
+   GDBM problems, see test_gdbm
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:gdbm_open
+
+}
+
+{
+   Uninitialised byte(s) false alarm, see bpo-35561
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+   fun:pyepoll_internal_ctl
+}
+
+{
+   ZLIB problems, see test_gzip (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libz.so*
+   obj:/lib/x86_64-linux-gnu/libz.so*
+   fun:deflate
+}
+
+{
+   ZLIB problems, see test_gzip (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libz.so*
+   obj:/lib/aarch64-linux-gnu/libz.so*
+   fun:deflate
+}
+
+{
+   ZLIB problems, see test_gzip (legacy path)
+   Memcheck:Cond
+   obj:/lib/libz.so*
+   obj:/lib/libz.so*
+   fun:deflate
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (x86_64)
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   fun:sh_set_lines_and_columns
+   fun:_rl_get_screen_size
+   fun:_rl_init_terminal_io
+   obj:/lib/x86_64-linux-gnu/libreadline.so*
+   fun:rl_initialize
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (aarch64)
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   fun:sh_set_lines_and_columns
+   fun:_rl_get_screen_size
+   fun:_rl_init_terminal_io
+   obj:/lib/aarch64-linux-gnu/libreadline.so*
+   fun:rl_initialize
+}
+
+{
+   Avoid problems w/readline doing a putenv and leaking on exit (legacy path)
+   Memcheck:Leak
+   fun:malloc
+   fun:xmalloc
+   fun:sh_set_lines_and_columns
+   fun:_rl_get_screen_size
+   fun:_rl_init_terminal_io
+   obj:/lib/libreadline.so*
+   fun:rl_initialize
+}
+
+# Valgrind emits "Conditional jump or move depends on uninitialised value(s)"
+# false alarms on GCC builtin strcmp() function. The GCC code is correct.
+#
+# Valgrind bug: https://bugs.kde.org/show_bug.cgi?id=264936
+{
+   bpo-38118: Valgrind emits false alarm on GCC builtin strcmp()
+   Memcheck:Cond
+   fun:PyUnicode_Decode
+}
+
+
+###
+### These occur from somewhere within the SSL, when running
+###  test_socket_sll.  They are too general to leave on by default.
+###
+###{
+###   somewhere in SSL stuff
+###   Memcheck:Cond
+###   fun:memset
+###}
+###{
+###   somewhere in SSL stuff
+###   Memcheck:Value4
+###   fun:memset
+###}
+###
+###{
+###   somewhere in SSL stuff
+###   Memcheck:Cond
+###   fun:MD5_Update
+###}
+###
+###{
+###   somewhere in SSL stuff
+###   Memcheck:Value4
+###   fun:MD5_Update
+###}
+
+# Fedora's package "openssl-1.0.1-0.1.beta2.fc17.x86_64" on x86_64
+# See http://bugs.python.org/issue14171
+{
+   openssl 1.0.1 prng 1
+   Memcheck:Cond
+   fun:bcmp
+   fun:fips_get_entropy
+   fun:FIPS_drbg_instantiate
+   fun:RAND_init_fips
+   fun:OPENSSL_init_library
+   fun:SSL_library_init
+   fun:init_hashlib
+}
+
+{
+   openssl 1.0.1 prng 2
+   Memcheck:Cond
+   fun:fips_get_entropy
+   fun:FIPS_drbg_instantiate
+   fun:RAND_init_fips
+   fun:OPENSSL_init_library
+   fun:SSL_library_init
+   fun:init_hashlib
+}
+
+{
+   openssl 1.0.1 prng 3
+   Memcheck:Value8
+   fun:_x86_64_AES_encrypt_compact
+   fun:AES_encrypt
+}
+
+#
+# All of these problems come from using test_socket_ssl
+#
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:BN_bin2bn
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:BN_num_bits_word
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Value4
+   fun:BN_num_bits_word
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:BN_mod_exp_mont_word
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:BN_mod_exp_mont
+}
+
+{
+   from test_socket_ssl (legacy crypto)
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/usr/lib/libcrypto.so.0.9.7
+}
+
+{
+   from test_socket_ssl (modern crypto x86_64)
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/lib/x86_64-linux-gnu/libcrypto.so*
+}
+
+{
+   from test_socket_ssl (modern crypto aarch64)
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:/lib/aarch64-linux-gnu/libcrypto.so*
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:RSA_verify
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Value4
+   fun:RSA_verify
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Value4
+   fun:DES_set_key_unchecked
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Value4
+   fun:DES_encrypt2
+}
+
+{
+   from test_socket_ssl (legacy ssl)
+   Memcheck:Cond
+   obj:/usr/lib/libssl.so.0.9.7
+}
+
+{
+   from test_socket_ssl (modern ssl x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (modern ssl aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (legacy ssl value)
+   Memcheck:Value4
+   obj:/usr/lib/libssl.so.0.9.7
+}
+
+{
+   from test_socket_ssl (modern ssl value x86_64)
+   Memcheck:Value4
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl (modern ssl value aarch64)
+   Memcheck:Value4
+   obj:/lib/aarch64-linux-gnu/libssl.so*
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:BUF_MEM_grow_clean
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:memcpy
+   fun:ssl3_read_bytes
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Cond
+   fun:SHA1_Update
+}
+
+{
+   from test_socket_ssl
+   Memcheck:Value4
+   fun:SHA1_Update
+}
+
+{
+   test_buffer_non_debug
+   Memcheck:Addr4
+   fun:PyUnicodeUCS2_FSConverter
+}
+
+{
+   test_buffer_non_debug
+   Memcheck:Addr4
+   fun:PyUnicode_FSConverter
+}
+
+{
+   wcscmp_false_positive
+   Memcheck:Addr8
+   fun:wcscmp
+   fun:_PyOS_GetOpt
+   fun:Py_Main
+   fun:main
+}
+
+# Additional suppressions for the unified decimal tests:
+{
+   test_decimal
+   Memcheck:Addr4
+   fun:PyUnicodeUCS2_FSConverter
+}
+
+{
+   test_decimal2
+   Memcheck:Addr4
+   fun:PyUnicode_FSConverter
+}
+
+# General Python suppressions for multiple versions
+{
+   Python _PyObject_New possibly lost
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:_PyObject_New
+}
+
+{
+   Python initialization still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:Py_InitializeFromConfig
+}
+
+{
+   Python wide string copy still reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_PyWideStringList_Copy
+}
+
+{
+   Python PyMem_Malloc possibly lost
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:PyMem_Malloc
+}
+
+{
+   Python PyMem_RawMalloc possibly lost  
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:PyMem_RawMalloc
+}
+
+###
+### Additional suppressions for Ubuntu 20.04, 22.04, and 24.04 compatibility
+###
+
+{
+   Ubuntu 20.04+ glibc malloc issues
+   Memcheck:Leak
+   fun:malloc
+   fun:__libc_malloc
+}
+
+{
+   Ubuntu 20.04+ pthread TLS issues
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   Ubuntu 20.04+ pthread TLS issues (alternative)
+   Memcheck:Leak
+   fun:memalign
+   fun:_dl_allocate_tls_storage
+   fun:_dl_allocate_tls
+}
+
+{
+   Modern OpenSSL 1.1+ issues (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libssl.so*
+   obj:/lib/x86_64-linux-gnu/libcrypto.so*
+}
+
+{
+   Modern OpenSSL 1.1+ issues (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libssl.so*
+   obj:/lib/aarch64-linux-gnu/libcrypto.so*
+}
+
+{
+   Ubuntu 24.04+ systemd issues
+   Memcheck:Leak
+   fun:malloc
+   fun:sd_bus_new
+}
+
+{
+   Modern glibc issues (x86_64)
+   Memcheck:Cond
+   obj:/lib/x86_64-linux-gnu/libc.so*
+}
+
+{
+   Modern glibc issues (aarch64)
+   Memcheck:Cond
+   obj:/lib/aarch64-linux-gnu/libc.so*
+}
+

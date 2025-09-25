@@ -217,34 +217,6 @@ class ConfigurationValidator:
         )
         return bool(url_pattern.match(value))
     
-    def _detect_container_environment(self):
-        """
-        Detect if running in a containerized environment.
-        
-        Returns:
-            bool: True if running in a container, False otherwise
-        """
-        try:
-            # Check for Docker container indicators
-            with open('/proc/1/cgroup', 'r') as f:
-                content = f.read()
-                if 'docker' in content or 'container' in content:
-                    return True
-            
-            # Check for container environment variables
-            import os
-            container_vars = ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST', 'container']
-            if any(var in os.environ for var in container_vars):
-                return True
-                
-            # Check for .dockerenv file
-            if os.path.exists('/.dockerenv'):
-                return True
-                
-        except (FileNotFoundError, PermissionError, Exception):
-            pass
-            
-        return False
 
     async def _icmp_ping(self, hostname, timeout=3):
         """
@@ -464,14 +436,11 @@ class ConfigurationValidator:
             tuple: (success, reason)
         """
         try:
-            # Detect if we're in a container environment
-            in_container = self._detect_container_environment()
             
-            # Try ICMP ping first if not in container or if explicitly available
-            if not in_container:
-                icmp_result, icmp_reason = await self._icmp_ping(hostname)
-                if icmp_result is not None:  # None means ICMP not available
-                    return icmp_result, icmp_reason
+            # Try ICMP ping first
+            icmp_result, icmp_reason = await self._icmp_ping(hostname)
+            if icmp_result is not None:  # None means ICMP not available
+                return icmp_result, icmp_reason
                     
             # Fall back to TCP connectivity test
             _logger.debug(f"Using TCP connectivity test for the hostname '{hostname}' (container environment: {in_container})")
@@ -576,7 +545,7 @@ class ConfigurationValidator:
                 test_values.append({item['name']: item['value']})
             else:
                 return {
-                    "description": "Host Reachable",
+                    "description": "Host Reachability",
                     "result": "fail",
                     "detail": {"reason": f"Invalid URL format '{item['value']}' - please check the URL is correct"},
                     "values": [{item['name']: item['value']}]
@@ -592,7 +561,7 @@ class ConfigurationValidator:
                     test_values.append({item['name']: item['value']})
                 else:
                     return {
-                        "description": "Host Reachable",
+                        "description": "Host Reachability",
                         "result": "fail",
                         "detail": {"reason": f"Invalid URL format '{item['value']}' - please check the URL is correct"},
                         "values": [{item['name']: item['value']}]
@@ -618,7 +587,7 @@ class ConfigurationValidator:
                 break
         
         result = {
-            "description": "Host Reachable",
+            "description": "Host Reachability",
             "result": "pass" if all_passed else "fail",
             "values": test_values
         }
@@ -807,7 +776,7 @@ class ConfigurationValidator:
                 break
         
         result = {
-            "description": "Listening",
+            "description": "Port Connectivity",
             "result": "pass" if all_passed else "fail",
             "values": test_values
         }

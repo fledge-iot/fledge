@@ -114,7 +114,7 @@ class TestConfigurationValidator:
             
             # Verify HostReachable test results
             assert 'HostReachable' in json_response
-            assert json_response['HostReachable']['description'] == 'Host Reachable'
+            assert json_response['HostReachable']['description'] == 'Host Reachability'
             assert json_response['HostReachable']['result'] == expected_host_result
             
             # Check for detail on failed host reachable
@@ -124,7 +124,7 @@ class TestConfigurationValidator:
             
             # Verify Listening test results
             assert 'Listening' in json_response
-            assert json_response['Listening']['description'] == 'Listening'
+            assert json_response['Listening']['description'] == 'Port Connectivity'
             assert json_response['Listening']['result'] == expected_listening_result
             
             # Check for detail on failed listening

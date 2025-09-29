@@ -456,13 +456,13 @@ class TestConfiguration:
         conf = {
             config_item1: {'type': 'boolean', 'description': 'A Boolean check', 'default': 'False', 'order': '1'},
             config_item2: {'type': 'list', 'description': 'A list of variables', 'listName': 'items',
-                           'items': 'string', 'default': '{"items": ["a", "b"]}', 'displayName': 'ListName',
+                           'items': 'string', 'default': '["a", "b"]', 'displayName': 'ListName',
                            'order': '2'},
             config_item3: {'type': 'list', 'description': 'A list of variables', 'items': 'string',
                            'default': '["foo", "bar"]', 'displayName': 'Simple List', 'order': '3'},
             config_item4: {'type': 'list', 'description': 'A list of datapoints to read PLC registers definitions',
                            'items': 'object', 'listName': 'map-items', 'displayName': 'PLC Map',
-                           'default': '{"map-items": [{"datapoint": "voltage", "register": "10", "type": "integer"}]}',
+                           'default': '[{"datapoint": "voltage", "register": "10", "type": "integer"}]',
                            'properties': {
                                'datapoint': {'description': 'The datapoint name to create', 'displayName': 'Datapoint',
                                              'type': 'string', 'default': ''},

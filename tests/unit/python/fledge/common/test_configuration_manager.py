@@ -646,20 +646,22 @@ class TestConfigurationManager:
          "For {} category, items value should either be in string, float, integer, object or enumeration for "
          "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
-         "For {} category, default value should be passed array list in string format for item name {}".format(
+         "For {} category, default value should be a list of values in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
-        # Test that list type cannot have dict as default
         ({ITEM_NAME: {"description": "test list with dict default", "type": "list", "default": "{\"key\": \"value\"}", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed array list in string format for item name {}".format(
+         "For {} category, default value should be a list of values in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
-        # Test that list type cannot have empty string as default
         ({ITEM_NAME: {"description": "test list with empty default", "type": "list", "default": "", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed array list in string format for item name {}".format(
+         "For {} category, default value should be a list of values in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
-        # Test that list type cannot have empty object as default
         ({ITEM_NAME: {"description": "test list with empty object default", "type": "list", "default": "{}", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed array list in string format for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test list enumeration", "type": "list", "default": "{\"key\": \"option1\"}", "items": "enumeration",
+        "options": ["option1", "option2"]}}, TypeError,
+        "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test list object", "type": "list", "default": "{\"key\": {\"prop\": \"value\"}}", "items": "object",
+        "properties": {"key": {"description": "Test", "type": "string", "default": ""}}}}, TypeError,
+        "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"AJ\"]", "items": "float"}}, ValueError,
         "For {} category, all elements should be of same <class 'float'> type in default value for item name {}".format(
             CAT_NAME, ITEM_NAME)),
@@ -777,23 +779,20 @@ class TestConfigurationManager:
          "For {} category, items value should either be in string, float, integer, object or enumeration for "
          "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed KV pair list in string format for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
-        # Test that kvlist type cannot have list as default
+         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with list default", "type": "kvlist", "default": "[\"item1\", \"item2\"]", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed KV pair list in string format for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
-        # Test that kvlist type cannot have empty string as default
+         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with empty default", "type": "kvlist", "default": "", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed KV pair list in string format for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
-        # Test that kvlist type cannot have empty array as default
+         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with empty array default", "type": "kvlist", "default": "[]", "items": "string"}}, TypeError,
-         "For {} category, default value should be passed KV pair list in string format for item name {}".format(
-             CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\"}", "items": "string"}},
-         TypeError, "For {} category, KV pair invalid in default value for item name {}".format(
-            CAT_NAME, ITEM_NAME)),
+         TypeError, "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test kvlist enumeration", "type": "kvlist", "default": "[\"option1\"]", "items": "enumeration", "options": ["option1", "option2"]}},
+        TypeError, "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        ({ITEM_NAME: {"description": "test kvlist object", "type": "kvlist", "default": "[{\"prop\": \"value\"}]", "items": "object", "properties": {"prop":
+        {"description": "Test", "type": "string", "default": ""}}}}, TypeError,
+        "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1\"}", "items": "float"}},
          ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
                      "item name {}".format(CAT_NAME, ITEM_NAME)),
@@ -817,10 +816,10 @@ class TestConfigurationManager:
                       "listSize": "blah"}}, ValueError, "For {} category, listSize value must be an integer value for "
                                                         "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "[\"1\"]", "items": "float",
-                      "listSize": "1"}}, TypeError, "For {} category, KV pair invalid in default value for item name "
+                      "listSize": "1"}}, TypeError, "For {} category, default value should be a list of KV pairs in string format for item name "
                                                     "{}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"1\"}", "items": "float",
-                      "listSize": "1"}}, TypeError, "For {} category, KV pair invalid in default value for item name "
+                      "listSize": "1"}}, TypeError, "For {} category, default value should be a list of KV pairs in string format for item name "
                                                     "{}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": {} }", "items": "float",
                       "listSize": "1"}}, ValueError, "For {} category, all elements should be of same <class 'float'> "

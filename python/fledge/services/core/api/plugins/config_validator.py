@@ -583,7 +583,7 @@ class ConfigurationValidator:
             success, reason = await self.ping_host(hostname)
             if (success):
                 isHostReachable = True
-            if not success:
+            else:
                 failure_reason = reason
         
         result = {
@@ -772,7 +772,7 @@ class ConfigurationValidator:
             success, reason = await self.check_port_listening(hostname, port, include_port_in_messages=is_port_in_config)
             if (success):
                 isPortConnectivity = True
-            if not success:
+            else:
                 failure_reason = reason
         
         result = {

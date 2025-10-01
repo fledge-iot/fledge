@@ -576,23 +576,23 @@ class ConfigurationValidator:
             return None  # No applicable tests
         
         # Test all unique hosts
-        all_passed = True
+        isHostReachable = False
         failure_reason = None
         
         for hostname in hosts_to_test:
             success, reason = await self.ping_host(hostname)
+            if (success):
+                isHostReachable = True
             if not success:
-                all_passed = False
                 failure_reason = reason
-                break
         
         result = {
             "description": "Host Reachability",
-            "result": "pass" if all_passed else "fail",
+            "result": "pass" if isHostReachable else "fail",
             "values": test_values
         }
         
-        if not all_passed:
+        if not isHostReachable:
             result["detail"] = {"reason": failure_reason}
             
         return result
@@ -739,10 +739,10 @@ class ConfigurationValidator:
 
                 if 'ip' in field_name:
                     # IP fields often used for industrial protocols
-                    default_ports = [102, 44818, 502, 80, 443]  # S7, EtherNet/IP, Modbus, HTTP, HTTPS
+                    default_ports = [102, 502, 80, 443]  # S7, Modbus, HTTP, HTTPS
                 elif 'address' in field_name:
                     # Address fields commonly used for network services
-                    default_ports = [502, 80, 443]  # Modbus, HTTP, HTTPS
+                    default_ports = [502, 80, 443, 44818]  # Modbus, HTTP, HTTPS, EtherNet/IP
                 elif 'host' in field_name or 'server' in field_name:
                     # Host/server fields typically web services
                     default_ports = [80, 443]  # HTTP, HTTPS
@@ -765,23 +765,23 @@ class ConfigurationValidator:
             return None  # No applicable tests
         
         # Test all connections
-        all_passed = True
+        isPortConnectivity = False
         failure_reason = None
         
         for hostname, port in connections_to_test:
             success, reason = await self.check_port_listening(hostname, port, include_port_in_messages=is_port_in_config)
+            if (success):
+                isPortConnectivity = True
             if not success:
-                all_passed = False
                 failure_reason = reason
-                break
         
         result = {
             "description": "Port Connectivity",
-            "result": "pass" if all_passed else "fail",
+            "result": "pass" if isPortConnectivity else "fail",
             "values": test_values
         }
         
-        if not all_passed:
+        if not isPortConnectivity:
             result["detail"] = {"reason": failure_reason}
             
         return result

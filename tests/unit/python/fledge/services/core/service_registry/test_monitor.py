@@ -7,7 +7,7 @@ import sys
 import asyncio
 
 import aiohttp
-from fledge.services.core.service_registry.monitor import Monitor
+from fledge.services.core.service_registry.monitor import Monitor, MonitorRegistry
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.service_record import ServiceRecord
@@ -261,3 +261,210 @@ class TestMonitor:
         
         # Verify no tasks were created
         assert len(created_tasks) == 0
+
+
+class TestMonitorRegistry:
+    """Test cases for MonitorRegistry functionality"""
+
+    def setup_method(self):
+        """Clear the registry before each test"""
+        MonitorRegistry._monitors = {}
+
+    def teardown_method(self):
+        """Clean up registry after each test"""
+        MonitorRegistry._monitors = {}
+
+    def test_register_monitor(self):
+        """Test registering a monitor instance"""
+        monitor = Monitor()
+        
+        # Register monitor
+        MonitorRegistry.register('test_monitor', monitor)
+        
+        # Verify it was registered
+        assert MonitorRegistry.get('test_monitor') is monitor
+        assert len(MonitorRegistry.get_all()) == 1
+
+
+    def test_get_default_monitor(self):
+        """Test getting monitor with default ID"""
+        monitor = Monitor()
+        MonitorRegistry.register('default', monitor)
+        
+        # Should return the same monitor for default ID
+        assert MonitorRegistry.get() is monitor
+        assert MonitorRegistry.get('default') is monitor
+
+    def test_unregister_monitor(self):
+        """Test unregistering a monitor instance"""
+        monitor = Monitor()
+        MonitorRegistry.register('test_monitor', monitor)
+        
+        # Verify it's registered
+        assert MonitorRegistry.get('test_monitor') is monitor
+        
+        # Unregister it
+        result = MonitorRegistry.unregister('test_monitor')
+        
+        # Verify it was returned and removed
+        assert result is monitor
+        assert MonitorRegistry.get('test_monitor') is None
+        assert len(MonitorRegistry.get_all()) == 0
+ 
+
+class TestMonitorWithRegistry:
+    """Test Monitor class integration with MonitorRegistry"""
+
+    def setup_method(self):
+        """Clean up before each test"""
+        MonitorRegistry._monitors = {}
+        ServiceRegistry._registry = []
+
+    def teardown_method(self):
+        """Clean up after each test"""
+        MonitorRegistry._monitors = {}
+        ServiceRegistry._registry = []
+
+    @pytest.mark.asyncio
+    async def test_monitor_registers_itself_during_read_config(self):
+        """Test that Monitor registers itself during _read_config"""
+        monitor = Monitor()
+        
+        # Mock dependencies
+        mock_storage = MagicMock(spec=StorageClientAsync)
+        mock_config = {
+            'sleep_interval': {'value': '5'},
+            'ping_timeout': {'value': '1'},
+            'max_attempts': {'value': '15'},
+            'restart_failed': {'value': 'auto'}
+        }
+        mock_support_config = {
+            'auto_support_bundle': {'value': 'false'}
+        }
+        
+        with patch.object(connect, 'get_storage_async', return_value=mock_storage):
+            with patch('fledge.common.configuration_manager.ConfigurationManager') as mock_cfg_mgr_class:
+                mock_cfg_mgr = MagicMock()
+                mock_cfg_mgr_class.return_value = mock_cfg_mgr
+                mock_cfg_mgr.create_category = MagicMock()
+                mock_cfg_mgr.get_category_all_items.side_effect = [mock_config, mock_support_config]
+                mock_cfg_mgr.register_interest = MagicMock()
+                
+                # Call _read_config
+                await monitor._read_config()
+        
+        # Verify monitor registered itself
+        assert MonitorRegistry.get('default') is monitor
+
+    @pytest.mark.asyncio
+    async def test_monitor_unregisters_itself_during_stop(self):
+        """Test that Monitor unregisters itself during stop"""
+        monitor = Monitor()
+        
+        # Manually register monitor first
+        MonitorRegistry.register('default', monitor)
+        assert MonitorRegistry.get('default') is monitor
+        
+        # Mock the configuration manager
+        mock_cfg_mgr = MagicMock()
+        monitor._cfg_manager = mock_cfg_mgr
+        
+        # Mock the monitor loop task
+        mock_task = MagicMock()
+        monitor._monitor_loop_task = mock_task
+        
+        # Call stop
+        await monitor.stop()
+        
+        # Verify monitor unregistered itself
+        assert MonitorRegistry.get('default') is None
+
+
+class TestMonitorConfigCallback:
+    """Test module-level callback function with MonitorRegistry"""
+
+    def setup_method(self):
+        """Clean up before each test"""
+        MonitorRegistry._monitors = {}
+
+    def teardown_method(self):
+        """Clean up after each test"""
+        MonitorRegistry._monitors = {}
+
+    @pytest.mark.asyncio
+    async def test_run_callback_with_registered_monitor(self):
+        """Test run callback when monitor is registered"""
+        monitor = Monitor()
+        # Mock handle_config_change as async method
+        async def mock_handle_config_change(category_name):
+            pass  # Successful call
+        monitor._handle_config_change = mock_handle_config_change
+        # Track if the method was called
+        call_tracker = {'called': False, 'category': None}
+        async def tracked_mock_handle_config_change(category_name):
+            call_tracker['called'] = True
+            call_tracker['category'] = category_name
+        monitor._handle_config_change = tracked_mock_handle_config_change
+        # Register monitor
+        MonitorRegistry.register('default', monitor)
+        # Import and call the run function
+        from fledge.services.core.service_registry.monitor import run
+        await run('SMNTR')
+        # Verify the monitor's handle_config_change was called
+        assert call_tracker['called'] is True
+        assert call_tracker['category'] == 'SMNTR'
+
+    @pytest.mark.asyncio
+    async def test_run_callback_with_no_registered_monitor(self):
+        """Test run callback when no monitor is registered"""
+        # Ensure no monitor is registered
+        assert MonitorRegistry.get('default') is None
+        # Mock logger setup to capture warning
+        with patch('fledge.services.core.service_registry.monitor.logger.setup') as mock_logger_setup:
+            mock_logger = MagicMock()
+            mock_logger_setup.return_value = mock_logger
+            # Import and call the run function
+            from fledge.services.core.service_registry.monitor import run
+            await run('SMNTR')
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once_with("Monitor instance not available for config change callback")
+
+    @pytest.mark.asyncio
+    async def test_run_callback_handles_exception(self):
+        """Test run callback handles exceptions in monitor's handle_config_change"""
+        monitor = Monitor()
+        # Mock handle_config_change to raise an exception - make it async
+        async def mock_handle_config_change(category_name):
+            raise Exception("Test exception")
+        monitor._handle_config_change = mock_handle_config_change
+        # Mock logger for error logging - patch the logger to avoid MagicMock async issues
+        with patch.object(monitor, '_logger') as mock_logger:
+            # Register monitor
+            MonitorRegistry.register('default', monitor)
+            # Import and call the run function
+            from fledge.services.core.service_registry.monitor import run
+            # Should not raise exception, should handle it gracefully
+            await run('SMNTR')
+        # Verify error was logged
+        mock_logger.error.assert_called_once_with(
+            "Error in configuration change callback for {}: {}".format('SMNTR', 'Test exception'))
+
+    @pytest.mark.asyncio
+    async def test_run_callback_with_support_bundle_category(self):
+        """Test run callback with SUPPORT_BUNDLE category"""
+        monitor = Monitor()
+        # Track if the method was called
+        call_tracker = {'called': False, 'category': None}
+        async def tracked_mock_handle_config_change(category_name):
+            call_tracker['called'] = True
+            call_tracker['category'] = category_name
+        monitor._handle_config_change = tracked_mock_handle_config_change
+        # Register monitor
+        MonitorRegistry.register('default', monitor)
+        # Import and call the run function
+        from fledge.services.core.service_registry.monitor import run
+        await run('SUPPORT_BUNDLE')
+        # Verify the monitor's handle_config_change was called with correct category
+        assert call_tracker['called'] is True
+        assert call_tracker['category'] == 'SUPPORT_BUNDLE'
+

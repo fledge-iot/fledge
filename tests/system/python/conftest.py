@@ -1367,56 +1367,74 @@ def pytest_configure():
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
 
 
-def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None):
+def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, custom_port=None, https_enabled=False):
     """ Restarts the Fledge service and waits until it becomes responsive
 
     Args:
         fledge_url (str): base fledge url
         wait_time (int): Seconds between retries
         auth_token (str): Authorization Token (Optional)
+        custom_port (int, optional): Custom port. Defaults to None.
+        https_enabled (bool, optional): Whether to use HTTPS instead of HTTP. Defaults to False.
     Raises:
         AssertionError: If Fledge failed to restart
 
     Returns:
         JSON Document
     """
+    import ssl
     from contextlib import closing
     headers = {"authorization": auth_token} if auth_token else {}
-
+        
     with closing(http.client.HTTPConnection(fledge_url)) as connection:
         connection.request("PUT", '/fledge/restart', headers=headers, body=json.dumps({}))
-        r = connection.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
+        response = connection.getresponse()
+        assert response.status == 200
+        response_data = response.read().decode()
+        jdoc = json.loads(response_data)
         assert "Fledge restart has been scheduled." == jdoc['message']
 
     print(f"Waiting for Fledge to restart... (Initial wait: {wait_time}s)")
     time.sleep(wait_time)
     start_time = time.time()
     max_retries = 5
-    jdoc = {}
+    
+    # After restart, Fledge runs on default ports, not the original URL port
+    host = fledge_url.split(':')[0]
+    port = custom_port if custom_port is not None else (1995 if https_enabled else 8081)
+    
+    # Prepare connection configuration once (parameters don't change between attempts)
+    if https_enabled:
+        connection = http.client.HTTPSConnection(host, port, context=ssl._create_unverified_context())
+    else:
+        connection = http.client.HTTPConnection(host, port)
+    
     for attempt in range(max_retries):
         try:
-            with closing(http.client.HTTPConnection(fledge_url)) as connection:
-                connection.request("GET", "/fledge/ping", headers=headers)
-                response = connection.getresponse()
+            with closing(connection) as conn:
+                conn.request("GET", "/fledge/ping", headers=headers)
+                response = conn.getresponse()
                 if response.status == 200:
-                    r = response.read().decode()
-                    jdoc = json.loads(r)
+                    response_data = response.read().decode()
+                    jdoc = json.loads(response_data)
                     break
                 elif response.status == 401:
                     jdoc = {"message": "Unauthorized"}
                     break
-        except:
-            pass  # Continue trying
-        time.sleep(wait_time * 5)
-    if not jdoc:
+                else:
+                    print(f"Attempt {attempt + 1}: Got HTTP status {response.status}")
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: Connection failed - {type(e).__name__}: {e}")
+        
+        if attempt < max_retries - 1:
+            sleep_time = wait_time * 5
+            print(f"Waiting {sleep_time}s before next attempt...")
+            time.sleep(sleep_time)
+    else:
         elapsed = round(time.time() - start_time, 2)
         raise AssertionError(f"Failed to restart Fledge after {elapsed} seconds.")
-    else:
-        # Additional time is necessary to ensure that other endpoints are prepared
-        time.sleep(wait_time * 5)
+    
+    time.sleep(wait_time * 5)
     return jdoc
 
 
@@ -1463,4 +1481,3 @@ def azure_storage_container(request):
 @pytest.fixture
 def run_time(request):
     return request.config.getoption("--run-time")
-

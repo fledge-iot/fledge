@@ -487,6 +487,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                  'for item name {}'.format(category_name, item_name))
                             list_size = int(item_val['listSize'])
                         msg = "array" if item_val['type'] == 'list' else "KV pair"
+                        expected_type = list if item_val['type'] == 'list' else dict
+                        expected_format = "a list of values" if expected_type is list else "a list of KV pairs"
+                        error_message = f"For {category_name} category, default value should be {expected_format} in string format for item name {item_name}"
+                        try:
+                            eval_default_val = ast.literal_eval(default_val)
+                            if not isinstance(eval_default_val, expected_type):
+                                raise TypeError(error_message)
+                        except:
+                            raise TypeError(error_message)
                         if entry_name == 'items' and entry_val not in ("object", "enumeration"):
                             try:
                                 eval_default_val = ast.literal_eval(default_val)

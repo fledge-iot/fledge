@@ -152,7 +152,7 @@ case "$1" in
         rm -f $PID_FILE
         exit 1
       else
-        fledge_stop
+        kill -TERM $PID
         echo "Fledge stopped [$PID]"
       fi
     fi
@@ -161,7 +161,19 @@ case "$1" in
 
   restart)
 
-    $0 fledge_stop
+    get_pid
+    if [ $PID -eq 0 ]; then
+      echo "Fledge not running"
+    else
+      ps -p $PID
+      if [ $? -eq 1 ]; then
+        echo "Fledge not running (process dead but PID file exists)"
+        rm -f $PID_FILE
+      else
+        kill -TERM $PID
+        echo "Fledge stopped [$PID]"
+      fi
+    fi
     $0 fledge_start
     ;;
 

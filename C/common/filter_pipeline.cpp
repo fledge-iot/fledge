@@ -610,19 +610,39 @@ string FilterPipeline::readingsToJSON(vector<shared_ptr<Reading>> readings)
 
 /**
  * Replay the data in the first saved buffer to the filter pipeline
+ *
+ * @return bool	Returns true if data has been replayed, otehrwise retuns false
  */
-void FilterPipeline::replayDebugger()
+bool FilterPipeline::replayDebugger()
 {
 ReadingSet 		*replay;
 vector<Reading *>	*readings = new vector<Reading *>;
 PipelineElement		*first = m_filters[0]; 
 
-	vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
-	for (int i = 0; i < buf.size(); i++)
+	if (first)
 	{
-		readings->emplace_back(new Reading(*buf[i].get()));
+		vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
+		for (int i = 0; i < buf.size(); i++)
+		{
+			if (buf[i])
+			{
+				readings->emplace_back(new Reading(*buf[i].get()));
+			}
+		}
+		replay = new ReadingSet(readings);
+			
+		if (replay)
+		{
+			first->ingest(replay);
+		}
+		else
+		{
+			return false;
+		}
 	}
-	replay = new ReadingSet(readings);
-
-	first->ingest(replay);
+	else
+	{
+		return false;
+	}
+	return true;
 }

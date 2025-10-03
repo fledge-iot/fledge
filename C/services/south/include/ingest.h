@@ -168,10 +168,16 @@ public:
 				std::lock_guard<std::mutex> guard(m_isolateMutex);
 				return m_isolate;
 			};
-	void		replayDebugger()
+	bool		replayDebugger()
 			{
 				if (m_filterPipeline)
-					m_filterPipeline->replayDebugger();
+				{
+					return m_filterPipeline->replayDebugger();
+				}
+				else
+				{
+					return false;
+				}
 			};
 
 private:

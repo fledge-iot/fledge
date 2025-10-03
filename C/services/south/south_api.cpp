@@ -747,8 +747,14 @@ void SouthApi::replayDebugger(Response response, Request /*request*/)
 		string responsePayload;
 		if (m_service->debuggerAttached())
 		{
-			m_service->replayDebugger();
-			responsePayload = QUOTE({ "status" : "ok" });
+			if (m_service->replayDebugger())
+			{
+				responsePayload = QUOTE({ "status" : "ok" });
+			}
+			else
+			{
+				responsePayload = QUOTE({ "status" : "No data to replay" });
+			}
 		}
 		else
 		{

@@ -360,7 +360,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 # Validate bucket type and mandatory properties item_name
                 elif 'type' in item_val and get_entry_val("type") == 'bucket':
                     if 'properties' not in item_val:
-                        raise KeyError('For {} category, properties KV pair must be required '
+                        raise KeyError('For {} category, properties key-value pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
                     if entry_name == 'properties':
                         prop_val = get_entry_val('properties')
@@ -371,7 +371,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
                                              ''.format(category_name, item_name))
                         if 'key' not in prop_val:
-                            raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
+                            raise ValueError('For {} category, key key-value pair must exist in properties for item name {}'
                                              ''.format(category_name, item_name))
                         d = {entry_name: entry_val}
                         expected_item_entries.update(d)
@@ -402,7 +402,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
                     if 'items' not in item_val:
-                        raise KeyError('For {} category, items KV pair must be required '
+                        raise KeyError('For {} category, items key-value pair must be required '
                                        'for item name {}.'.format(category_name, item_name))
                     if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
                         if 'keyName' in item_val:
@@ -437,7 +437,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 category_name, item_name))
                         if entry_val == 'object':
                             if 'properties' not in item_val:
-                                raise KeyError('For {} category, properties KV pair must be required for item name {}'
+                                raise KeyError('For {} category, properties key-value pair must be required for item name {}'
                                                ''.format(category_name, item_name))
                             prop_val = get_entry_val('properties')
                             if not isinstance(prop_val, dict):
@@ -486,9 +486,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 raise ValueError('For {} category, listSize value must be an integer value '
                                                  'for item name {}'.format(category_name, item_name))
                             list_size = int(item_val['listSize'])
-                        msg = "array" if item_val['type'] == 'list' else "KV pair"
+                        msg = "array" if item_val['type'] == 'list' else "key-value pair"
                         expected_type = list if item_val['type'] == 'list' else dict
-                        expected_format = "a list of values" if expected_type is list else "a list of KV pairs"
+                        expected_format = "a list of items" if expected_type is list else "an object with key-value pair"
                         error_message = f"For {category_name} category, default value should be {expected_format} in string format for item name {item_name}"
                         try:
                             eval_default_val = ast.literal_eval(default_val)
@@ -515,11 +515,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                 if ks not in unique_list:
                                                     unique_list.append(ks)
                                                 else:
-                                                    raise ArithmeticError("For category {}, duplicate KV pair found "
+                                                    raise ArithmeticError("For category {}, duplicate key-value pair found "
                                                                           "for item name {}".format(
                                                         category_name, item_name))
                                             else:
-                                                raise ArithmeticError("For {} category, KV pair invalid in default "
+                                                raise ArithmeticError("For {} category, key-value pair invalid in default "
                                                                       "value for item name {}".format(
                                                     category_name, item_name))
                                 if list_size >= 0:
@@ -542,7 +542,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                                                    type_check, item_name)
                             if item_val['type'] == 'kvlist':
                                 if not isinstance(eval_default_val, dict):
-                                    raise TypeError("For {} category, KV pair invalid in default value for item name {}"
+                                    raise TypeError("For {} category, key-value pair invalid in default value for item name {}"
                                                     "".format(category_name, item_name))
                                 for k, v in eval_default_val.items():
                                     try:
@@ -945,7 +945,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     ev_options = cat_info[item_name]['options']
                     if cat_info[item_name]['type'] == 'kvlist':
                         if not isinstance(eval_new_val, dict):
-                            raise TypeError("New value should be in KV pair format")
+                            raise TypeError("New value should be in key-value pair format")
                         for ek, ev in eval_new_val.items():
                             if ev == '':
                                 raise ValueError('For {}, enum value cannot be empty'.format(ek))
@@ -2141,7 +2141,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         if config_item_type in ("list", "kvlist"):
             if storage_value_entry['items'] not in ('object', 'enumeration'):
-                msg = "array" if config_item_type == 'list' else "KV pair"
+                msg = "array" if config_item_type == 'list' else "key-value pair"
                 try:
                     eval_new_val = ast.literal_eval(new_value_entry)
                 except:
@@ -2162,9 +2162,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 if ks not in unique_list:
                                     unique_list.append(ks)
                                 else:
-                                    raise TypeError("For config item {} duplicate KV pair found".format(item_name))
+                                    raise TypeError("For config item {} duplicate key-value pair found".format(item_name))
                             else:
-                                raise TypeError("For config item {} KV pair invalid".format(item_name))
+                                raise TypeError("For config item {} key-value pair invalid".format(item_name))
                 if 'listSize' in storage_value_entry:
                     list_size = int(storage_value_entry['listSize'])
                     if list_size >= 0:
@@ -2181,7 +2181,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
                 if config_item_type == 'kvlist':
                     if not isinstance(eval_new_val, dict):
-                        raise TypeError("For config item {} KV pair invalid".format(item_name))
+                        raise TypeError("For config item {} key-value pair invalid".format(item_name))
                     for k, v in eval_new_val.items():
                         try:
                             eval_s = v

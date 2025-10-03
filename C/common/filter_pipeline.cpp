@@ -434,6 +434,11 @@ bool FilterPipeline::attachDebugger()
 bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
 {
 	bool ret = true;
+	if (pipeline.size() == 0)
+	{
+		// Makes no sense to attach the debugger to an empty pipeline
+		return false;
+	}
 	for (auto& elem : pipeline)
 	{
 		if (!elem->attachDebugger())
@@ -617,7 +622,17 @@ bool FilterPipeline::replayDebugger()
 {
 ReadingSet 		*replay;
 vector<Reading *>	*readings = new vector<Reading *>;
-PipelineElement		*first = m_filters[0]; 
+PipelineElement		*first;
+       
+	if (m_filters.size() > 0)
+	{
+		first = m_filters[0]; 
+	}
+	else
+	{
+		// No filters to replay to
+		return false;
+	}
 
 	if (first)
 	{

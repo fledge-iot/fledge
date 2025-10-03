@@ -594,13 +594,13 @@ class TestConfigurationManager:
 
     @pytest.mark.parametrize("config, exc_name, reason", [
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, KeyError,
-         "'For {} category, properties KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+         "'For {} category, properties key-value pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "property": '{"a": 1}'}},
-         KeyError, "'For {} category, properties KV pair must be required for item name {}.'".format(
+         KeyError, "'For {} category, properties key-value pair must be required for item name {}.'".format(
             CAT_NAME, ITEM_NAME)),
         ({"item": {"description": "test description", "type": "string", "default": "A", "value": "B"},
           ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A"}}, KeyError,
-         "'For {} category, properties KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+         "'For {} category, properties key-value pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": '{"a": 1}'}},
          ValueError, "For {} category, properties must be JSON object for item name {}; got <class 'str'>".format(
             CAT_NAME, ITEM_NAME)),
@@ -608,7 +608,7 @@ class TestConfigurationManager:
          ValueError, "For {} category, properties JSON object cannot be empty for item name {}".format(
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": "A", "properties": {"k": "v"}}},
-         ValueError, "For {} category, key KV pair must exist in properties for item name {}".format(
+         ValueError, "For {} category, key key-value pair must exist in properties for item name {}".format(
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "bucket", "default": {}, "properties": {"key": "v"}}},
          TypeError, "For {} category, entry value must be a string for item name {} and entry name default; "
@@ -638,7 +638,7 @@ class TestConfigurationManager:
 
     @pytest.mark.parametrize("config, exc_name, reason", [
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A"}}, KeyError,
-         "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+         "'For {} category, items key-value pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": []}}, TypeError,
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
@@ -646,22 +646,22 @@ class TestConfigurationManager:
          "For {} category, items value should either be in string, float, integer, object or enumeration for "
          "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test description", "type": "list", "default": "A", "items": "float"}}, TypeError,
-         "For {} category, default value should be a list of values in string format for item name {}".format(
+         "For {} category, default value should be a list of items in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test list with dict default", "type": "list", "default": "{\"key\": \"value\"}", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of values in string format for item name {}".format(
+         "For {} category, default value should be a list of items in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test list with empty default", "type": "list", "default": "", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of values in string format for item name {}".format(
+         "For {} category, default value should be a list of items in string format for item name {}".format(
              CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test list with empty object default", "type": "list", "default": "{}", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be a list of items in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test list enumeration", "type": "list", "default": "{\"key\": \"option1\"}", "items": "enumeration",
         "options": ["option1", "option2"]}}, TypeError,
-        "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        "For {} category, default value should be a list of items in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test list object", "type": "list", "default": "{\"key\": {\"prop\": \"value\"}}", "items": "object",
         "properties": {"key": {"description": "Test", "type": "string", "default": ""}}}}, TypeError,
-        "For {} category, default value should be a list of values in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        "For {} category, default value should be a list of items in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "[\"AJ\"]", "items": "float"}}, ValueError,
         "For {} category, all elements should be of same <class 'float'> type in default value for item name {}".format(
             CAT_NAME, ITEM_NAME)),
@@ -698,7 +698,7 @@ class TestConfigurationManager:
                       "items": "string"}}, ValueError, "For {} category, default value array elements are not unique "
                                                      "for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
-                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                      "property": {}}}, KeyError, "'For {} category, properties key-value pair must be required for item name "
                                                   "{}'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": 1}}, ValueError,
@@ -769,9 +769,20 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "test", "type": "list", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": {"width": {"description": "", "default": "", "type": ""}}, "permissions": ["", "A"]}},
          ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
-                     "".format(CAT_NAME, ITEM_NAME)),
+                     "".format(CAT_NAME, ITEM_NAME))
+    ])
+    async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with pytest.raises(Exception) as excinfo:
+            await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                               set_value_val_from_default_val=False)
+        assert excinfo.type is exc_name
+        assert reason == str(excinfo.value)
+
+    @pytest.mark.parametrize("config, exc_name, reason", [
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A"}}, KeyError,
-         "'For {} category, items KV pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
+         "'For {} category, items key-value pair must be required for item name {}.'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": []}}, TypeError,
          "For {} category, entry value must be a string for item name {} and entry name items; "
          "got <class 'list'>".format(CAT_NAME, ITEM_NAME)),
@@ -779,20 +790,20 @@ class TestConfigurationManager:
          "For {} category, items value should either be in string, float, integer, object or enumeration for "
          "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "A", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with list default", "type": "kvlist", "default": "[\"item1\", \"item2\"]", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with empty default", "type": "kvlist", "default": "", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist with empty array default", "type": "kvlist", "default": "[]", "items": "string"}}, TypeError,
-         "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\"}", "items": "string"}},
-         TypeError, "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+         TypeError, "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist enumeration", "type": "kvlist", "default": "[\"option1\"]", "items": "enumeration", "options": ["option1", "option2"]}},
-        TypeError, "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        TypeError, "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "test kvlist object", "type": "kvlist", "default": "[{\"prop\": \"value\"}]", "items": "object", "properties": {"prop":
         {"description": "Test", "type": "string", "default": ""}}}}, TypeError,
-        "For {} category, default value should be a list of KV pairs in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
+        "For {} category, default value should be an object with key-value pair in string format for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1\"}", "items": "float"}},
          ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
                      "item name {}".format(CAT_NAME, ITEM_NAME)),
@@ -816,10 +827,10 @@ class TestConfigurationManager:
                       "listSize": "blah"}}, ValueError, "For {} category, listSize value must be an integer value for "
                                                         "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "[\"1\"]", "items": "float",
-                      "listSize": "1"}}, TypeError, "For {} category, default value should be a list of KV pairs in string format for item name "
+                      "listSize": "1"}}, TypeError, "For {} category, default value should be an object with key-value pair in string format for item name "
                                                     "{}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"1\"}", "items": "float",
-                      "listSize": "1"}}, TypeError, "For {} category, default value should be a list of KV pairs in string format for item name "
+                      "listSize": "1"}}, TypeError, "For {} category, default value should be an object with key-value pair in string format for item name "
                                                     "{}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": {} }", "items": "float",
                       "listSize": "1"}}, ValueError, "For {} category, all elements should be of same <class 'float'> "
@@ -827,27 +838,27 @@ class TestConfigurationManager:
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key2\": \"val2\"}", "items": "float", "listSize": "1"}},
-         ValueError, "For {} category, default value KV pair list size limit to 1 for item name {}".format(
+         ValueError, "For {} category, default value key-value pair list size limit to 1 for item name {}".format(
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "listSize": "2"}},
-         ValueError, "For category {}, duplicate KV pair found for item name {}".format(CAT_NAME, ITEM_NAME)),
+         ValueError, "For category {}, duplicate key-value pair found for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key1\": \"val2\"}", "items": "float", "listSize": "2"}},
          ValueError, "For {} category, all elements should be of same <class 'float'> type in default value for "
                      "item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key1\": \"val2\", \"key3\": \"val2\"}", "items": "float",
-                      "listSize": "2"}}, ValueError, "For {} category, default value KV pair list size limit to 2 for"
+                      "listSize": "2"}}, ValueError, "For {} category, default value key-value pair list size limit to 2 for"
                                                      " item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "float",
-                      "listSize": "0"}}, ValueError, "For {} category, default value KV pair list size limit to 0 "
+                      "listSize": "0"}}, ValueError, "For {} category, default value key-value pair list size limit to 0 "
                                                      "for item name {}".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object"
-                      }}, KeyError, "'For {} category, properties KV pair must be required for item name {}'".format(
+                      }}, KeyError, "'For {} category, properties key-value pair must be required for item name {}'".format(
             CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
-                      "property": {}}}, KeyError, "'For {} category, properties KV pair must be required for item name "
+                      "property": {}}}, KeyError, "'For {} category, properties key-value pair must be required for item name "
                                                   "{}'".format(CAT_NAME, ITEM_NAME)),
         ({ITEM_NAME: {"description": "expression", "type": "kvlist", "default": "{\"key\": \"1.0\"}", "items": "object",
                       "properties": 1}}, ValueError,
@@ -973,9 +984,9 @@ class TestConfigurationManager:
         ({ITEM_NAME: {"description": "expression", "type": "kvlist",
                       "default": "{\"key\": \"1.0\", \"key\": \"val2\"}", "items": "float", "permissions": [2]}},
          ValueError, "For {} category, permissions entry values must be a string and non-empty for item name {}."
-                     "".format(CAT_NAME, ITEM_NAME)),
+                     "".format(CAT_NAME, ITEM_NAME))
     ])
-    async def test__validate_category_val_list_type_bad(self, config, exc_name, reason):
+    async def test__validate_category_val_kvlist_type_bad(self, config, exc_name, reason):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with pytest.raises(Exception) as excinfo:
@@ -1008,7 +1019,17 @@ class TestConfigurationManager:
                      "properties": {"datapoint": {"description": "The datapoint name to create", "displayName":
                          "Datapoint", "type": "string", "default": ""}}}},
         {"include": {"description": "A simple list", "type": "list", "default": "[\"integer\", \"float\"]",
-                     "items": "enumeration", "options": ["integer", "float"]}},
+                     "items": "enumeration", "options": ["integer", "float"]}}
+    ])
+    async def test__validate_category_val_list_type_good(self, config):
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
+                                                 set_value_val_from_default_val=True)
+        assert config['include']['default'] == res['include']['default']
+        assert config['include']['default'] == res['include']['value']
+
+    @pytest.mark.parametrize("config", [
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
                     "default": "{}", "order": "1", "displayName": "labels"}},
         {"include": {"description": "A list of expressions and values", "type": "kvlist", "items": "string",
@@ -1036,7 +1057,7 @@ class TestConfigurationManager:
             "{\"key1\": \"integer\", \"key2\": \"float\"}", "items": "enumeration", "options": ["integer", "float"],
                      "permissions": ["admin"]}}
     ])
-    async def test__validate_category_val_list_type_good(self, config):
+    async def test__validate_category_val_kvlist_type_good(self, config):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         res = await c_mgr._validate_category_val(category_name=CAT_NAME, category_val=config,
@@ -3511,7 +3532,7 @@ class TestConfigurationManager:
         ('list', {ITEM_NAME: "{}"}, TypeError, 'New value should be passed in list'),
         ('list', {ITEM_NAME: "[]"}, ValueError, 'enum value cannot be empty'),
         ('list', {ITEM_NAME: "[\"1\"]"}, ValueError, 'For 1, new value does not exist in options enum'),
-        ('kvlist', {ITEM_NAME: "[]"}, TypeError, 'New value should be in KV pair format'),
+        ('kvlist', {ITEM_NAME: "[]"}, TypeError, 'New value should be in key-value pair format'),
         ('kvlist', {ITEM_NAME: "{\"key1\":\"\"}"}, ValueError, 'For key1, enum value cannot be empty'),
         ('kvlist', {ITEM_NAME: "{\"key1\":\"b1\",\"key2\":\"b\"}"}, ValueError,
          'For key1, new value does not exist in options enum')
@@ -3758,28 +3779,28 @@ class TestConfigurationManager:
          "For config item {} you cannot set the new value, beyond the range (2,2.5)", ValueError),
         ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
               'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
-         "For config item {} value should be passed KV pair list in string format", TypeError),
+         "For config item {} value should be passed key-value pair list in string format", TypeError),
         ("{\"key\": \"1\", \"key2\": \"2\"}",
          {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}', 'order': '2',
           'items': 'integer', 'listSize': '1', 'value': '{\"key\": \"2\"}'},
-         "For config item {} value KV pair list size limit to 1", TypeError),
+         "For config item {} value key-value pair list size limit to 1", TypeError),
         ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
               'items': 'string', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
-         "For config item {} value should be passed KV pair list in string format", TypeError),
+         "For config item {} value should be passed key-value pair list in string format", TypeError),
         ("", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
               'items': 'string', 'listSize': '1', 'value': '[\"bar\"]'},
-         "For config item {} value should be passed KV pair list in string format", TypeError),
+         "For config item {} value should be passed key-value pair list in string format", TypeError),
         ("{\"key\": \"val\", \"key2\": \"val2\"}",
          {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"val\"}', 'order': '2',
           'items': 'string', 'listSize': '1', 'value': '{\"key\": \"val\"}'},
-         "For config item {} value KV pair list size limit to 1", TypeError),
+         "For config item {} value key-value pair list size limit to 1", TypeError),
         ("{\"key\": \"1.2\", \"key2\": \"0.9\", \"key3\": \"444.12\"}",
          {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1.2\", \"key2\": \"0.9\"}',
           'order': '2', 'items': 'float', 'listSize': '2', 'value': '{\"key\": \"1.2\", \"key2\": \"0.9\"}'},
-         "For config item {} value KV pair list size limit to 2", TypeError),
+         "For config item {} value key-value pair list size limit to 2", TypeError),
         ("{\"key\": \"1.2\", \"key\": \"1.23\"}", {'description': 'Simple list', 'type': 'kvlist', 'default': '{\"key\": \"11.12\"}',
                                   'order': '2', 'items': 'float', 'value': '{\"key\": \"1.4\"}'},
-         "For config item {} duplicate KV pair found", TypeError),
+         "For config item {} duplicate key-value pair found", TypeError),
         ("{\"key\": \"val\"}", {'description': 'expression', 'type': 'kvlist', 'default': '{\"key\": \"1\"}',
                                'items': 'integer', 'value': '{\"key\": \"13\"}'},
          "For config item {} all elements should be of same integer type", ValueError),

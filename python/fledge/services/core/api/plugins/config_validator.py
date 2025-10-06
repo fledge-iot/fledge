@@ -581,7 +581,7 @@ class ConfigurationValidator:
         
         for hostname in hosts_to_test:
             success, reason = await self.ping_host(hostname)
-            if (success):
+            if success:
                 isHostReachable = True
             else:
                 failure_reason = reason
@@ -770,13 +770,13 @@ class ConfigurationValidator:
         
         for hostname, port in connections_to_test:
             success, reason = await self.check_port_listening(hostname, port, include_port_in_messages=is_port_in_config)
-            if (success):
+            if success:
                 isPortConnectivity = True
             else:
                 failure_reason = reason
         
         result = {
-            "description": "Port Connectivity",
+            "description": "Listening",
             "result": "pass" if isPortConnectivity else "fail",
             "values": test_values
         }

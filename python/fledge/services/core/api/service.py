@@ -821,6 +821,12 @@ async def add_service(request):
                     for k, v in config.items():
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
             except Exception as ex:
+                if "Invalid character found" in ex.args[0]:
+                    msg = "Failed to create service. {}".format(ex.args[0])
+                    _logger.error(ex, msg)
+                    raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+                
+                # Cleanup the category created for the service
                 await config_mgr.delete_category_and_children_recursively(name)
                 msg = "Failed to create plugin configuration while adding service."
                 _logger.error(ex, msg)
@@ -847,6 +853,11 @@ async def add_service(request):
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
+            if "Invalid character found" in ex.args[0]:
+                    msg = "Failed to create service. {}".format(ex.args[0])
+                    _logger.error(ex, msg)
+                    raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+            # Cleanup the category created for the service
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.error(ex, "Failed to create service.")
             raise web.HTTPInternalServerError(reason='Failed to create service.')

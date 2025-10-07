@@ -12,6 +12,7 @@
 
 #include <string>
 #include <algorithm>
+#include <vector>
 
 #define _FLEDGE_ROOT_PATH    "/usr/local/fledge"
 
@@ -79,5 +80,26 @@ static bool stringToBool(const std::string& str)
     std::string lowerStr = str;
     std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
     return (lowerStr == "true" || lowerStr == "1");
+}
+
+/** 
+ * @brief Validates if a given string is a valid identifier.
+ * A valid identifier is defined as a string that does not contain any disallowed characters.
+ * 
+ * @param str The string to validate as an identifier.
+ * @return true if the string is a valid identifier; false otherwise.
+*/
+static bool isValidIdentifier(const std::string& str)
+{
+    std::vector<std::string> disallowed_characters = { "\\" };
+    
+    for (const auto& ch : disallowed_characters)
+    {
+        if (str.find(ch) != std::string::npos)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 #endif

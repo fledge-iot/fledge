@@ -24,6 +24,7 @@
 #include <thread>
 #include <bearer_token.h>
 #include <acl.h>
+#include "utils.h"
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -145,6 +146,11 @@ class ManagementClient {
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
 		{
 			try {
+				if (!isValidIdentifier(t.getName()))
+				{
+					m_logger->error("The category name '%s' contains invalid characters.", t.getName().c_str());
+					return false;
+				}
 				std::string url = "/fledge/service/category";
 
                                 // Build the JSON payload

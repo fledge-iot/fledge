@@ -91,8 +91,9 @@ static bool stringToBool(const std::string& str)
 */
 static bool isValidIdentifier(const std::string& str)
 {
-    std::vector<std::string> disallowed_characters = { "\\" };
-    
+    if (str.empty()) return false;
+    // Check for disallowed characters
+    static const std::vector<std::string> disallowed_characters = { "\\" };
     for (const auto& ch : disallowed_characters)
     {
         if (str.find(ch) != std::string::npos)

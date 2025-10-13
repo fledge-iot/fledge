@@ -414,7 +414,7 @@ void SouthApi::attachDebugger(Response response, Request /*request*/)
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "status" : "Failed to attach the debugger to the pipeline" });
+			string responsePayload = QUOTE({ "status" : "Failed to attach the debugger to the pipeline. A pipeline must contain at least one filter in order to attach the debugger to the pipeline." });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}

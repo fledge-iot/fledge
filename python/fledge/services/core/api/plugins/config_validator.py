@@ -281,8 +281,8 @@ class ConfigurationValidator:
         """
         Test host connectivity using TCP socket connections.
         
-        This method provides better error differentiation between host down 
-        vs no service listening compared to the previous implementation.
+        This method attempts to resolve the hostname and then tries to
+        create a TCP socket connection to a common port (e.g., port 7 - echo).
         
         Args:
             hostname (str): Hostname or IP address to test
@@ -293,120 +293,36 @@ class ConfigurationValidator:
         try:
             # First try to resolve the hostname
             _logger.debug(f"Attempting to resolve hostname: {hostname}")
-            
-            import socket
-            try:
-                # Resolve hostname to IP addresses
-                addr_info = await asyncio.get_event_loop().run_in_executor(
-                    None, socket.getaddrinfo, hostname, None
-                )
-                
-                if not addr_info:
-                    return False, "Hostname could not be resolved"
-                
-                _logger.debug(f"Resolved {hostname} to {len(addr_info)} addresses")
-                
-                # Special handling for Docker internal hostnames
-                if hostname in ['host.docker.internal', 'gateway.docker.internal'] or hostname.endswith('.docker.internal'):
-                    _logger.debug(f"Docker hostname detected: {hostname}")
-                    return True, f"Docker hostname '{hostname}' is resolvable and assumed reachable"
-                
-                # Special handling for localhost and loopback addresses
-                if hostname.lower() in ['localhost', '127.0.0.1', '::1'] or hostname.startswith('127.'):
-                    _logger.debug(f"Localhost/loopback address detected: {hostname}")
-                    return True, f"Localhost address '{hostname}' is always reachable"
 
-                # Test connectivity to each resolved address
-                connection_refused_count = 0
-                timeout_count = 0
-                total_attempts = 0
-                host_unreachable_count = 0
-                network_unreachable_count = 0
-                
-                # Improved port selection for better detection
-                test_ports = [80, 443, 22, 53, 23, 21]  # HTTP, HTTPS, SSH, DNS, Telnet, FTP
-                
-                for family, socktype, proto, canonname, sockaddr in addr_info:
-                    if family in (socket.AF_INET, socket.AF_INET6):
-                        ip_addr = sockaddr[0]
-                        
-                        for test_port in test_ports:
-                            total_attempts += 1
-                            try:
-                                _logger.debug(f"Testing connectivity to {ip_addr}:{test_port}")
-                                
-                                with socket.socket(family, socket.SOCK_STREAM) as sock:
-                                    sock.settimeout(2)  # Short timeout for responsiveness
-                                    
-                                    await asyncio.get_event_loop().run_in_executor(
-                                        None, sock.connect, (ip_addr, test_port)
-                                    )
-                                    
-                                    _logger.debug(f"Successfully connected to {ip_addr}:{test_port}")
-                                    return True, f"Host '{hostname}' is reachable (TCP connection successful)"
-                                    
-                            except (socket.timeout, asyncio.TimeoutError):
-                                timeout_count += 1
-                                _logger.debug(f"Connection to {ip_addr}:{test_port} timed out")
-                                continue
-                                
-                            except ConnectionRefusedError:
-                                connection_refused_count += 1
-                                _logger.debug(f"Connection to {ip_addr}:{test_port} refused")
-                                continue
-                                
-                            except OSError as e:
-                                error_code = getattr(e, 'errno', None)
-                                error_msg = str(e).lower()
-                                
-                                if error_code == 111 or 'connection refused' in error_msg:
-                                    connection_refused_count += 1
-                                elif error_code == 110 or 'timed out' in error_msg or 'timeout' in error_msg:
-                                    timeout_count += 1
-                                elif error_code == 113 or 'no route to host' in error_msg:
-                                    host_unreachable_count += 1
-                                elif 'network is unreachable' in error_msg:
-                                    network_unreachable_count += 1
-                                elif 'host is unreachable' in error_msg:
-                                    host_unreachable_count += 1
-                                else:
-                                    timeout_count += 1  # Treat unknown errors as timeouts
-                                continue
-                                
-                            except Exception as e:
-                                _logger.debug(f"Unexpected error testing {ip_addr}:{test_port}: {e}")
-                                timeout_count += 1
-                                continue
-                
-                # Analyze results to provide better error messages based on network stack responses
-                if network_unreachable_count > 0:
-                    return False, f"Network unreachable to '{hostname}' - check network configuration"
-                elif host_unreachable_count > 0:
-                    return False, f"Host '{hostname}' is unreachable - check if host is online and network path exists"
-                elif connection_refused_count == total_attempts:
-                    # All connections refused - host is up but no tested services are running
-                    return True, f"Host '{hostname}' is reachable but no common services are running on tested ports"
-                elif timeout_count == total_attempts:
-                    # All connections timed out - host is likely down or blocking connections
-                    return False, f"Host '{hostname}' appears to be down or blocking connections (all connection attempts timed out)"
-                elif connection_refused_count > 0:
-                    # Some connections refused - host is likely up
-                    return True, f"Host '{hostname}' is reachable (host responded with connection refused, indicating it's online)"
-                else:
-                    # No clear pattern - host is likely unreachable
-                    return False, f"Host '{hostname}' appears to be unreachable - no successful connections established"
-                
+            # 1. DNS resolution (runs in thread executor to avoid blocking)
+            loop = asyncio.get_event_loop()
+            try:
+                addr_info = await loop.run_in_executor(None, socket.getaddrinfo, hostname, None)
             except socket.gaierror as e:
-                error_msg = str(e).lower()
-                _logger.error(f"DNS resolution failed for the hostname '{hostname}': {e}")
-                
-                if 'name or service not known' in error_msg or 'nodename nor service name provided' in error_msg:
-                    return False, f"Cannot resolve hostname '{hostname}' - please check the hostname is correct"
-                elif 'temporary failure' in error_msg:
-                    return False, f"Temporary DNS failure for '{hostname}' - please try again later"
-                else:
-                    return False, f"DNS lookup failed for '{hostname}'"
-                    
+                _logger.error(f"DNS resolution failed for hostname '{hostname}': {e}")
+                return False, f"Cannot resolve hostname '{hostname}'"
+
+            if not addr_info:
+                return False, f"Hostname '{hostname}' could not be resolved"
+
+            # 2. Simple routing reachability test (non-blocking)
+            for family, _, _, _, sockaddr in addr_info:
+                ip_addr = sockaddr[0]
+                _logger.debug(f"Testing route to {ip_addr}")
+
+                try:
+                    # Try to create a socket and connect with timeout 0
+                    # to a non-existent port, expecting a fast network error
+                    with socket.socket(family, socket.SOCK_STREAM) as sock:
+                        sock.settimeout(1)
+                        sock.connect_ex((ip_addr, 7))  # Port 7 (echo) usually closed but routable
+                        # If connect_ex returns fast, the route exists
+                        return True, f"Host '{hostname}' is reachable"
+                except OSError as e:
+                    _logger.debug(f"Network error testing {ip_addr}: {e}")
+                    continue
+
+            return False, f"Host '{hostname}' appears unreachable - no routable address found"
         except Exception as e:
             _logger.error(f"Unexpected error during TCP connectivity test for the hostname '{hostname}': {e}")
             return False, f"Cannot test connectivity to the hostname '{hostname}' - network error occurred"

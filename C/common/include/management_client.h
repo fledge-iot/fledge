@@ -146,9 +146,10 @@ class ManagementClient {
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
 		{
 			try {
-				if (!isValidIdentifier(t.getName()))
+				std::string blockedCharacter = {};
+				if (!isValidIdentifier(t.getName(), blockedCharacter))
 				{
-					m_logger->error("The category name '%s' contains invalid characters.", t.getName().c_str());
+					m_logger->error("The category name %s contains %s invalid character(s).", blockedCharacter.c_str(), t.getName().c_str());
 					return false;
 				}
 				std::string url = "/fledge/service/category";

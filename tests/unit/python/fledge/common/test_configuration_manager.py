@@ -4224,7 +4224,7 @@ class TestConfigurationManager:
                         else:
                             with pytest.raises(ValueError) as excinfo:
                                 await c_mgr.create_category(category_name, test_config, "test description")
-                            assert "Invalid character found in category name" in str(excinfo.value)
+                            assert "Invalid character" in str(excinfo.value)
                     else:
                         # Should not raise an exception
                         result = await c_mgr.create_category(category_name, test_config, "test description")

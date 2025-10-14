@@ -87,9 +87,10 @@ static bool stringToBool(const std::string& str)
  * A valid identifier is defined as a string that does not contain any disallowed characters.
  * 
  * @param str The string to validate as an identifier.
+ * @param blockedCharacter A reference to a string that will be set to the first disallowed character found in the input string, if any.
  * @return true if the string is a valid identifier; false otherwise.
 */
-static bool isValidIdentifier(const std::string& str)
+static bool isValidIdentifier(const std::string& str, std::string& blockedCharacter)
 {
     if (str.empty()) return false;
     // Check for disallowed characters
@@ -98,6 +99,7 @@ static bool isValidIdentifier(const std::string& str)
     {
         if (str.find(ch) != std::string::npos)
         {
+            blockedCharacter = ch;
             return false;
         }
     }

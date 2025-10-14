@@ -1431,7 +1431,7 @@ class TestScheduler:
         ("valid_schedule", False, None, None),
         ("valid-schedule", False, None, None),
         ("valid_schedule_123", False, None, None),
-        ("invalid\\schedule", True, ValueError, "Invalid character found in schedule name"),
+        ("invalid\\schedule", True, ValueError, "Invalid character"),
         ("invalid/schedule", False, None, None),  # Forward slash is allowed
         ("", True, ValueError, "name can not be empty"),
         (None, True, ValueError, "name can not be empty"),

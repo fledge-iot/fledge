@@ -1447,8 +1447,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         category_val_prepared = ''
         try:
             # Don't allow invalid character in category name
-            if not common_utils.is_valid_identifier(category_name):
-                raise ValueError("Invalid character found in category name {}".format(category_name))
+            is_valid_identifier, blocked_character = common_utils.is_valid_identifier(category_name)
+            if not is_valid_identifier:
+                raise ValueError("Invalid character {} found in category name {}".format(blocked_character, category_name))
             
             # validate new category_val, set "value" from default
             category_val_prepared = await self._validate_category_val(category_name, category_value, True)

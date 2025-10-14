@@ -49,11 +49,11 @@ def is_valid_identifier(string):
     """
     disallowed_characters = ["\\"]
     if string is None or not isinstance(string, str) or string == "":
-        return False
+        return False , ""
     for ch in disallowed_characters:
         if ch in string:    # check if disallowed char exists anywhere
-            return False
-    return True
+            return False, ch
+    return True, ""
 
    
 

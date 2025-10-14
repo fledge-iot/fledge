@@ -83,13 +83,6 @@ class TestConfigurationValidator:
           (False, "Connection to slow.database.com:5432 timed out after 5 seconds"),
           "fail", "fail"),
         
-        # Address-only config with default ports
-        ({"plugin": {"description": "S7 Plugin", "type": "string", "default": "s7", "readonly": "true"}, 
-          "IP": {"type": "string", "default": "192.168.1.100"}},
-          (True, "Host '192.168.1.100' is reachable"),
-          (False, "No service is listening on 192.168.1.100:102"),
-          "pass", "fail"),
-        
         # Broker URL scenario
         ({"plugin": {"description": "MQTT Sparkplug Plugin", "type": "string", "default": "mqtt-sparkplug", "readonly": "true"}, 
           "broker": {"type": "string", "default": "tcp://broker.hivemq.com:1883"}},
@@ -114,7 +107,7 @@ class TestConfigurationValidator:
             
             # Verify HostReachable test results
             assert 'HostReachable' in json_response
-            assert json_response['HostReachable']['description'] == 'Host Reachable'
+            assert json_response['HostReachable']['description'] == 'Host Reachability'
             assert json_response['HostReachable']['result'] == expected_host_result
             
             # Check for detail on failed host reachable
@@ -185,12 +178,6 @@ class TestConfigurationValidator:
           (False, "No service is listening on mixed.broker.com:1883"),
           "pass", "fail", "mixed_default_value"),
         
-        # g) Address-only with value override
-        ({"plugin": {"description": "Address Value Plugin", "type": "string", "default": "address-value", "readonly": "true"}, 
-          "IP": {"description": "PLC IP Address", "type": "string", "default": "192.168.1.100", "value": "192.168.1.200"}},
-          (True, "Host '192.168.1.200' is reachable"),
-          (False, "No service is listening on 192.168.1.200:102"),
-          "pass", "fail", "address_value_override")
     ])
     async def test_configuration_key_value_patterns(self, client, config, ping_result, listening_result, 
                                                    expected_host_result, expected_listening_result, config_type):

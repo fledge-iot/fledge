@@ -343,8 +343,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
                                  .format(category_name, item_name, type(entry_val)))
             if not prop_val:
-                raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
-                                 ''.format(category_name, item_name))
+                raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'.format(category_name, item_name))
             if 'key' not in prop_val:
                 raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
                                  ''.format(category_name, item_name))
@@ -593,15 +592,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         updates[entry_name] = entry_val
         return updates
 
-    def _validate_item_entries_complete(self, category_name, item_name, expected_item_entries):
+    def _check_required_entries_present(self, category_name, item_name, expected_item_entries):
         """Check all expected entries are present"""
         for needed_key, needed_value in expected_item_entries.items():
             if needed_value == 0:
                 raise ValueError('For {} category, missing entry name {} for item name {}'.format(
                     category_name, needed_key, item_name))
 
-    def _finalize_item_validation(self, category_name, item_name, item_val, get_entry_val, set_value_val_from_default_val):
-        """Final type validation and value cleanup"""
+    def _cleanup_and_set_defaults(self, category_name, item_name, item_val, get_entry_val, set_default_val):
+        """type validation and value cleanup"""
         # validate data type value
         if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
             raise ValueError(
@@ -612,7 +611,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
         if 'mandatory' in item_val:
             item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
-        if set_value_val_from_default_val:
+        if set_default_val:
             item_val['default'] = self._clean(item_val, item_val['default'])
             item_val['value'] = item_val['default']
 
@@ -700,8 +699,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 expected_item_entries[entry_name] = 1
             
             # Finalize item validation
-            self._validate_item_entries_complete(category_name, item_name, expected_item_entries)
-            self._finalize_item_validation(category_name, item_name, item_val, get_entry_val, 
+            self._check_required_entries_present(category_name, item_name, expected_item_entries)
+            self._cleanup_and_set_defaults(category_name, item_name, item_val, get_entry_val, 
                                           set_value_val_from_default_val)
         
         return category_val_copy

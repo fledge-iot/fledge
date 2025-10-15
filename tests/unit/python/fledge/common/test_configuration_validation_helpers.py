@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Unit tests for refactored helper methods in ConfigurationManager.
+Unit tests for validation helper methods in ConfigurationManager.
 
 This test file specifically tests the helper methods extracted from _validate_list_type
 and other validation helper methods:
@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton
 from fledge.common.storage_client.storage_client import StorageClientAsync
 
-__author__ = "Fledge Development Team"
+__author__ = "Devki Nandan Ghildiyal"
 __copyright__ = "Copyright (c) 2025 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"

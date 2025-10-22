@@ -40,6 +40,22 @@ def check_reserved(string):
             return False
     return True
 
+def is_valid_identifier(string):
+    """
+    Check if the given string is a valid identifier which doesn't have any disallowed characters.
+   
+    :param string: The string to check.
+    :return: True if the string is a valid identifier, False otherwise.
+    """
+    disallowed_characters = ["\\"]
+    if string is None or not isinstance(string, str) or string == "":
+        return False , ""
+    for ch in disallowed_characters:
+        if ch in string:    # check if disallowed char exists anywhere
+            return False, ch
+    return True, ""
+
+   
 
 def check_fledge_reserved(string):
     reserved = [

@@ -1068,6 +1068,10 @@ class Scheduler(object):
         # TODO should these checks be moved to the storage layer?
         if schedule.name is None or len(schedule.name) == 0:
             raise ValueError("name can not be empty")
+        # Don't allow invalid character in the schedule name
+        is_valid_identifier, blocked_character = common_utils.is_valid_identifier(schedule.name)
+        if not is_valid_identifier:
+                raise ValueError("Invalid character {} found in schedule name {}".format(blocked_character, schedule.name))
 
         if schedule.repeat is not None and not isinstance(schedule.repeat, datetime.timedelta):
             raise ValueError('repeat must be of type datetime.timedelta')

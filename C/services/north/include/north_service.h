@@ -121,10 +121,16 @@ class NorthService : public ServiceAuthHandler {
 							if (m_dataLoad)
 								m_dataLoad->stepDebugger(steps);
 						}
-		void				replayDebugger()
+		bool				replayDebugger()
 						{
 							if (m_dataLoad)
-								m_dataLoad->replayDebugger();
+							{
+								return m_dataLoad->replayDebugger();
+							}
+							else
+							{
+								return false;
+							}
 						};
 		std::string			debugState();
 		bool				debuggerAttached()

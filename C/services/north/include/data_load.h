@@ -105,10 +105,16 @@ class DataLoad : public ServiceHandler {
 						std::lock_guard<std::mutex> guard(m_isolateMutex);
 						return m_isolate;
 					};
-		void			replayDebugger()
+		bool			replayDebugger()
 					{
 						if (m_pipeline)
-							m_pipeline->replayDebugger();
+						{
+							return m_pipeline->replayDebugger();
+						}
+						else
+						{
+							return false;
+						}
 					};
 		void			suspendIngest(bool suspend)
 					{

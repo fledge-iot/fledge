@@ -414,7 +414,7 @@ void SouthApi::attachDebugger(Response response, Request /*request*/)
 		}
 		else
 		{
-			string responsePayload = QUOTE({ "status" : "Failed to attach the debugger to the pipeline" });
+			string responsePayload = QUOTE({ "status" : "Failed to attach the debugger to the pipeline. A pipeline must contain at least one filter in order to attach the debugger to the pipeline." });
 			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 	}
@@ -747,8 +747,14 @@ void SouthApi::replayDebugger(Response response, Request /*request*/)
 		string responsePayload;
 		if (m_service->debuggerAttached())
 		{
-			m_service->replayDebugger();
-			responsePayload = QUOTE({ "status" : "ok" });
+			if (m_service->replayDebugger())
+			{
+				responsePayload = QUOTE({ "status" : "ok" });
+			}
+			else
+			{
+				responsePayload = QUOTE({ "status" : "No data to replay" });
+			}
 		}
 		else
 		{

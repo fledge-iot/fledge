@@ -11,8 +11,8 @@
 #        wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
 # 2. Add the repository location to your sources list.
 #    Add the following lines to your "/etc/apt/sources.list" or separate /etc/apt/sources.list.d/fledge.list file.
-#        Below example for ubuntu18.04 64bit machine
-#        echo "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / " > /etc/apt/sources.list.d/fledge.list
+#        Below example for ubuntu20.04 64bit machine
+#        echo "deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / " > /etc/apt/sources.list.d/fledge.list
 ##
 
 __author__="Amarendra K Sinha, Ashish Jabble"

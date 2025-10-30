@@ -64,7 +64,7 @@ public:
 	void		setDebuggerBuffer(unsigned int size);
 	std::string	getDebuggerBuffer();
 	std::string	getDebuggerBuffer(const std::string& name);
-	void		replayDebugger();
+	bool		replayDebugger();
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);

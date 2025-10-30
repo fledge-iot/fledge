@@ -26,7 +26,10 @@ import sys
 import datetime
 
 try:
-    subprocess.run(["python3 -m pip install azure-storage-blob==12.13.1"], shell=True, check=True)
+    cmd = "python3 -m pip install azure-storage-blob==12.13.1"
+    if utils.detect_os() == "Ubuntu 24":
+        cmd = cmd + " --upgrade urllib3==2.5.0 --upgrade requests==2.32.5 --break-system-packages"
+    subprocess.run([cmd], shell=True, check=True)
 except subprocess.CalledProcessError:
     assert False, "Failed to install azure-storage-blob module"
 

@@ -9,8 +9,6 @@ import json
 from unittest.mock import MagicMock, patch, call
 from aiohttp import web
 import pytest
-import sys
-
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -42,13 +40,7 @@ class TestFilters:
             return {"rows": []}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await get_filters()
-        else:
-            _rv = asyncio.ensure_future(get_filters())
-        
+        _rv = await get_filters()        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 resp = await client.get('/fledge/filter')
@@ -77,13 +69,7 @@ class TestFilters:
             return {"count": 1}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await get_filters()
-        else:
-            _rv = asyncio.ensure_future(get_filters())
-        
+        _rv = await get_filters()        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 with patch.object(_LOGGER, 'error') as patch_logger:
@@ -114,13 +100,7 @@ class TestFilters:
         result = {"filter": {"config": cat_info, "name": filter_name, "plugin": "python35", "users": []}}
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(cat_info)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(cat_info))
-        
+        _rv = await self.async_mock(cat_info)       
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -140,15 +120,8 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         filter_result = {'count': 0, 'rows': []}
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv2 = await self.async_mock(filter_result)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 = asyncio.ensure_future(self.async_mock(filter_result))
-        
+        _rv1 = await self.async_mock(cat_info)
+        _rv2 = await self.async_mock(filter_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_with_payload_patch:
@@ -162,13 +135,7 @@ class TestFilters:
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
-        
+        _rv = await self.async_mock(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}'.format(filter_name))
@@ -233,12 +200,7 @@ class TestFilters:
     async def test_create_filter_value_error_1(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock({"result": "test"})
-        else:
-            _rv = asyncio.ensure_future(self.async_mock({"result": "test"}))        
+        _rv = await self.async_mock({"result": "test"})
         msg = "This 'test' filter already exists"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
@@ -252,12 +214,7 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         plugin_name = 'benchmark'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
+        _rv = await self.async_mock(None)
         msg = "Can not get 'plugin_info' detail from plugin '{}'".format(plugin_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
@@ -275,12 +232,7 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         plugin_name = 'benchmark'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
+        _rv = await self.async_mock(None)
         msg = "Loaded plugin 'python35', type 'south', doesn't match the specified one '{}', type 'filter'".format(
             plugin_name)
         ret_val = {"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string',
@@ -301,14 +253,8 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         plugin_name = 'filter'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(None)
-            _rv2 = await self.async_mock({'count': 0, 'rows': []})
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(None))
-            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
+        _rv1 = await self.async_mock(None)
+        _rv2 = await self.async_mock({'count': 0, 'rows': []})
         msg = "filter_config must be a JSON object"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
@@ -343,13 +289,7 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         plugin_name = 'filter'
         name = 'test'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
-        
+        _rv = await self.async_mock(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={
@@ -393,19 +333,10 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         plugin_name = 'filter'
         name = 'test'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(None)
-            _rv2 = await self.async_mock({'count': 0, 'rows': []})
-            _se1 = await self.async_mock(None)
-            _se2 = await self.async_mock({})
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(None))
-            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
-            _se1 = asyncio.ensure_future(self.async_mock(None))
-            _se2 = asyncio.ensure_future(self.async_mock({}))
-        
+        _rv1 = await self.async_mock(None)
+        _rv2 = await self.async_mock({'count': 0, 'rows': []})
+        _se1 = await self.async_mock(None)
+        _se2 = await self.async_mock({})
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=[_se1, _se2]) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, "type": "filter"}) as api_utils_patch:
@@ -456,17 +387,9 @@ class TestFilters:
         delete_result = {'response': 'deleted', 'rows_affected': 1}
         update_result = {'rows_affected': 1, "response": "updated"}
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(None)
-            _rv2 = await self.async_mock(delete_result)
-            _rv3 = await self.async_mock(update_result)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(None))
-            _rv2 = asyncio.ensure_future(self.async_mock(delete_result))
-            _rv3 = asyncio.ensure_future(self.async_mock(update_result))
-
+        _rv1 = await self.async_mock(None)
+        _rv2 = await self.async_mock(delete_result)
+        _rv3 = await self.async_mock(update_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                 with patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv2) as delete_tbl_patch:
@@ -488,12 +411,7 @@ class TestFilters:
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         message = "No such filter '{}' found".format(filter_name)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock({'count': 0, 'rows': []})
-        else:
-            _rv = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
-        
+        _rv = await self.async_mock({'count': 0, 'rows': []})
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.delete('/fledge/filter/{}'.format(filter_name))
@@ -507,11 +425,8 @@ class TestFilters:
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         message = 'string indices must be integers'
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            rv1 = await self.async_mock("blah")
-        else:
-            rv1 = asyncio.ensure_future(self.async_mock("blah"))
+        
+        rv1 = await self.async_mock("blah")
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1):
@@ -527,14 +442,8 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         message = ("The filter '{}' is currently being used within a pipeline. "
                    "To delete the filter, you must first remove it from the pipeline.").format(filter_name)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _se1 = await self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]})
-            _se2 = await self.async_mock({'count': 0, 'rows': ["Random"]})
-        else:
-            _se1 = asyncio.ensure_future(self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]}))
-            _se2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': ["Random"]}))
-        
+        _se1 = await self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]})
+        _se2 = await self.async_mock({'count': 0, 'rows': ["Random"]})
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se2]):
@@ -609,12 +518,7 @@ class TestFilters:
         user = "bench"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
+        _rv = await self.async_mock(None)
         msg = "No such '{}' category found.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
@@ -628,12 +532,7 @@ class TestFilters:
         user = "bench"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
+        _rv = await self.async_mock(None)
         msg = "No such '{}' category found.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
@@ -650,14 +549,8 @@ class TestFilters:
         user = "bench"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv2 = await self.async_mock({'count': 1, 'rows': []})
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 = asyncio.ensure_future(self.async_mock({'count': 1, 'rows': []}))
+        _rv1 = await self.async_mock(cat_info)
+        _rv2 = await self.async_mock({'count': 1, 'rows': []})
         msg = "No such 'AssetFilter' filter found in filters table."
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
@@ -689,14 +582,8 @@ class TestFilters:
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv3 = await self.async_mock(None)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv3 = asyncio.ensure_future(self.async_mock(None))
+        _rv1 = await self.async_mock(cat_info)
+        _rv3 = await self.async_mock(None)
         msg = 'No detail found for user: {} and filter: filter'.format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items',
@@ -748,14 +635,7 @@ class TestFilters:
         filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv3 = await self.async_mock(None)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv3 = asyncio.ensure_future(self.async_mock(None))
+        _rv1 = await self.async_mock(cat_info)
         msg = ("The filter '{}' is currently in use. To update the filter pipeline, "
                "you must first remove it from the '{}' instance.").format(filter_name, 'S1')
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -777,13 +657,7 @@ class TestFilters:
         user = "bench"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(cat_info)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(cat_info))
-        
+        _rv = await self.async_mock(cat_info)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',  side_effect=StorageServerError(None, None, error='something went wrong')):
@@ -816,17 +690,10 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         cat_child = {'children': ['Benchmark Filters', 'BenchmarkAdvanced', 'Benchmark_{}'.format(filter_name),
                                   filter_name]}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv3 = await self.async_mock(None)
-            _rv4 = await self.async_mock(update_filter_val['filter'])
-            _rv5 = await self.async_mock(cat_child)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv3 = asyncio.ensure_future(self.async_mock(None))
-            _rv4 = asyncio.ensure_future(self.async_mock(update_filter_val['filter']))
-            _rv5 = asyncio.ensure_future(self.async_mock(cat_child))
+        _rv1 = await self.async_mock(cat_info)
+        _rv3 = await self.async_mock(None)
+        _rv4 = await self.async_mock(update_filter_val['filter'])
+        _rv5 = await self.async_mock(cat_child)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=query_result):
@@ -880,19 +747,10 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         cat_child = {'children': ['Benchmark Filters', 'BenchmarkAdvanced', 'Benchmark_{}'.format(filter_name),
                                   filter_name]}
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await self.async_mock(cat_info)
-            _rv3 = await self.async_mock(None)
-            _rv4 = await self.async_mock(new_item_val['filter'])
-            _rv5 = await self.async_mock(cat_child)
-        else:
-            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
-            _rv3 = asyncio.ensure_future(self.async_mock(None))
-            _rv4 = asyncio.ensure_future(self.async_mock(new_item_val['filter']))
-            _rv5 = asyncio.ensure_future(self.async_mock(cat_child))
-
+        _rv1 = await self.async_mock(cat_info)
+        _rv3 = await self.async_mock(None)
+        _rv4 = await self.async_mock(new_item_val['filter'])
+        _rv5 = await self.async_mock(cat_child)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=query_result):
@@ -927,13 +785,7 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         user = "Coap"
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(d)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(d))
-        
+        _rv = await self.async_mock(d)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
@@ -947,13 +799,7 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         user = "Blah"
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
-        
+        _rv = await self.async_mock(None)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
@@ -965,12 +811,7 @@ class TestFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
         user = "Blah"
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock({})
-        else:
-            _rv = asyncio.ensure_future(self.async_mock({}))
+        _rv = await self.async_mock({})
         msg = "No filter pipeline exists for {}.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
@@ -1026,13 +867,7 @@ class TestFilters:
         }
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = MagicMock(ConfigurationManager)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await asyncio.sleep(.1)
-        else:
-            _rv = asyncio.ensure_future(asyncio.sleep(.1))
-        
+        _rv = await asyncio.sleep(.1)
         mock_connect = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
         delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv)
         cache_manager = mocker.patch.object(c_mgr, '_cacheManager')
@@ -1148,15 +983,8 @@ class TestFilters:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr_mock = ConfigurationManager(storage_client_mock)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await self.async_mock(None)
-            _rv2 = await self.async_mock({'count': 0, 'rows': []})
-        else:
-            _rv = asyncio.ensure_future(self.async_mock(None))
-            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
-
+        _rv = await self.async_mock(None)
+        _rv2 = await self.async_mock({'count': 0, 'rows': []})
         mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
         delete_child_category_mock = mocker.patch.object(c_mgr_mock, 'delete_child_category',
                                                          return_value=(await self.async_mock(None)))
@@ -1236,15 +1064,8 @@ class TestFilters:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr_mock = MagicMock(ConfigurationManager)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await asyncio.sleep(.1)
-            _rv2 = await mock()
-        else:
-            _rv = asyncio.ensure_future(asyncio.sleep(.1))
-            _rv2 = asyncio.ensure_future(mock())
-
+        _rv = await asyncio.sleep(.1)
+        _rv2 = await mock()
         connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
         get_category_mock = mocker.patch.object(c_mgr_mock, 'get_category_all_items', side_effect=get_cat)
         create_category_mock = mocker.patch.object(c_mgr_mock, 'create_category', return_value=_rv2)

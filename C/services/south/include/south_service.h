@@ -127,10 +127,16 @@ class SouthService : public ServiceAuthHandler {
 							std::lock_guard<std::mutex> guard(m_suspendMutex);
 							m_steps = steps;
 						}
-		void				replayDebugger()
+		bool				replayDebugger()
 						{
 							if (m_ingest)
-								m_ingest->replayDebugger();
+							{
+								return m_ingest->replayDebugger();
+							}
+							else
+							{
+								return false;
+							}
 						};
 		std::string			debugState();
 		bool				debuggerAttached()

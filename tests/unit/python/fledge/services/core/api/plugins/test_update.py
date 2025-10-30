@@ -8,9 +8,6 @@ import json
 import uuid
 from unittest.mock import patch, MagicMock
 import pytest
-import sys
-import asyncio
-
 from aiohttp import web
 
 from fledge.common.configuration_manager import ConfigurationManager
@@ -76,13 +73,7 @@ class TestPluginUpdate:
         }]}
         msg = '{} package update already in progress.'.format(pkg_name)
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(select_row_resp)
-        else:
-            _rv = asyncio.ensure_future(async_mock(select_row_resp))
-
+        _rv = await async_mock(select_row_resp)
         plugin_installed = [{"name": plugin_installed_dirname, "type": _type, "description": "{} plugin".format(_type),
                              "version": "2.1.0", "installedDirectory": "{}/{}".format(_type, plugin_installed_dirname),
                              "packageName": pkg_name}]
@@ -151,21 +142,11 @@ class TestPluginUpdate:
                            {'plugin': 'http_north', 'service': svc_name}]
         sch_info = [{'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'enabled': 'f'}]
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(tracked_plugins)
-            _rv2 = await async_mock(sch_info)
-            _rv3 = await async_mock(insert)
-            _se1 = await async_mock({'count': 0, 'rows': []})
-            _se2 = await async_mock(insert_row)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 = asyncio.ensure_future(async_mock(sch_info))
-            _rv3 = asyncio.ensure_future(async_mock(insert))
-            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))           
-        
+        _rv1 = await async_mock(tracked_plugins)
+        _rv2 = await async_mock(sch_info)
+        _rv3 = await async_mock(insert)
+        _se1 = await async_mock({'count': 0, 'rows': []})
+        _se2 = await async_mock(insert_row)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se2]) as query_tbl_patch:
@@ -237,25 +218,13 @@ class TestPluginUpdate:
         sch_info = [{'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'enabled': 't'}]
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(tracked_plugins)
-            _rv2 = await async_mock(sch_info)
-            _rv3 = await async_mock(insert)
-            _rv4 = await async_mock(delete)
-            _rv5 = await async_mock((True, "Schedule successfully disabled"))
-            _se1 = await async_mock(select_row_resp)
-            _se2 = await async_mock(insert_row)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 = asyncio.ensure_future(async_mock(sch_info))
-            _rv3 = asyncio.ensure_future(async_mock(insert))
-            _rv4 = asyncio.ensure_future(async_mock(delete))
-            _rv5 = asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
-            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))    
-
+        _rv1 = await async_mock(tracked_plugins)
+        _rv2 = await async_mock(sch_info)
+        _rv3 = await async_mock(insert)
+        _rv4 = await async_mock(delete)
+        _rv5 = await async_mock((True, "Schedule successfully disabled"))
+        _se1 = await async_mock(select_row_resp)
+        _se2 = await async_mock(insert_row)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se2]) as query_tbl_patch:
@@ -332,23 +301,12 @@ class TestPluginUpdate:
                                                                            'service': svc_name}]
         sch_info = [{'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'enabled': 'f'}]
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(tracked_plugins)
-            _rv2 = await async_mock(sch_info)
-            _rv3 = await async_mock(insert)
-            _se1 = await async_mock({'count': 0, 'rows': []})
-            _se2 = await async_mock(insert_row)
-            _se3 = await async_mock(filter_row)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 = asyncio.ensure_future(async_mock(sch_info))
-            _rv3 = asyncio.ensure_future(async_mock(insert))
-            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))
-            _se3 = asyncio.ensure_future(async_mock(filter_row))
-        
+        _rv1 = await async_mock(tracked_plugins)
+        _rv2 = await async_mock(sch_info)
+        _rv3 = await async_mock(insert)
+        _se1 = await async_mock({'count': 0, 'rows': []})
+        _se2 = await async_mock(insert_row)
+        _se3 = await async_mock(filter_row)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se3, _se2]) as query_tbl_patch:
@@ -418,27 +376,14 @@ class TestPluginUpdate:
         sch_info = [{'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'enabled': 't'}]
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(tracked_plugins)
-            _rv2 = await async_mock(sch_info)
-            _rv3 = await async_mock(insert)
-            _rv4 = await async_mock(delete)
-            _rv5 = await async_mock((True, "Schedule successfully disabled"))
-            _se1 = await async_mock(select_row_resp)
-            _se2 = await async_mock(insert_row)
-            _se3 = await async_mock(filter_row)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 = asyncio.ensure_future(async_mock(sch_info))
-            _rv3 = asyncio.ensure_future(async_mock(insert))
-            _rv4 = asyncio.ensure_future(async_mock(delete))
-            _rv5 = asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
-            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))
-            _se3 = asyncio.ensure_future(async_mock(filter_row))
-        
+        _rv1 = await async_mock(tracked_plugins)
+        _rv2 = await async_mock(sch_info)
+        _rv3 = await async_mock(insert)
+        _rv4 = await async_mock(delete)
+        _rv5 = await async_mock((True, "Schedule successfully disabled"))
+        _se1 = await async_mock(select_row_resp)
+        _se2 = await async_mock(insert_row)
+        _se3 = await async_mock(filter_row)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se3, _se2]) as query_tbl_patch:
@@ -515,20 +460,11 @@ class TestPluginUpdate:
                 "log_file_uri": ""
             }]}
         sch_info = {'count': 1, 'rows': [{'id': '6637c9ff-7090-4774-abca-07dee59a0610', 'enabled': 'f'}]}
-        storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(insert)
-            _se1 = await async_mock({'count': 0, 'rows': []})
-            _se2 = await async_mock(insert_row)
-            _se3 = await async_mock(sch_info)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(insert))
-            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))
-            _se3 = asyncio.ensure_future(async_mock(sch_info))
-        
+        storage_client_mock = MagicMock(StorageClientAsync)        
+        _rv1 = await async_mock(insert)
+        _se1 = await async_mock({'count': 0, 'rows': []})
+        _se2 = await async_mock(insert_row)
+        _se3 = await async_mock(sch_info)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se3, _se2]) as query_tbl_patch:
@@ -603,25 +539,13 @@ class TestPluginUpdate:
                                                                                "value": "true"}}
         disable_notification = {"description": "Enabled", "type": "boolean", "default": "true", "value": "false"}
         storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock(read_all_child_category_names)
-            _rv2 = await async_mock(read_cat_val)
-            _rv3 = await async_mock(disable_notification)
-            _rv4 = await async_mock(insert)
-            _se1 = await async_mock({'count': 0, 'rows': []})
-            _se2 = await async_mock(insert_row)
-            _se3 = await async_mock(sch_info)
-        else:
-            _rv1 = asyncio.ensure_future(async_mock(read_all_child_category_names))
-            _rv2 = asyncio.ensure_future(async_mock(read_cat_val))
-            _rv3 = asyncio.ensure_future(async_mock(disable_notification))
-            _rv4 = asyncio.ensure_future(async_mock(insert))
-            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 = asyncio.ensure_future(async_mock(insert_row))
-            _se3 = asyncio.ensure_future(async_mock(sch_info))        
-        
+        _rv1 = await async_mock(read_all_child_category_names)
+        _rv2 = await async_mock(read_cat_val)
+        _rv3 = await async_mock(disable_notification)
+        _rv4 = await async_mock(insert)
+        _se1 = await async_mock({'count': 0, 'rows': []})
+        _se2 = await async_mock(insert_row)
+        _se3 = await async_mock(sch_info)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se3, _se2]) as query_tbl_patch:

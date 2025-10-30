@@ -11,8 +11,6 @@ import uuid
 import time
 import json
 from unittest.mock import MagicMock, call
-import sys
-
 import copy
 import pytest
 from fledge.services.core.scheduler.scheduler import Scheduler, AuditLogger, ConfigurationManager
@@ -40,12 +38,7 @@ async def mock_process():
 class TestScheduler:
 
     async def scheduler_fixture(self, mocker):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_process()
-        else:
-            _rv = asyncio.ensure_future(mock_process())
-        
+        _rv = await mock_process()
         scheduler = Scheduler()
         scheduler._logger.level = logging.INFO
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
@@ -187,13 +180,7 @@ class TestScheduler:
         # Now queue task and assert that the task has been queued
         await scheduler.queue_task(schedule.id)
         assert isinstance(scheduler._schedule_executions[schedule.id], scheduler._ScheduleExecution)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_process()
-        else:
-            _rv = asyncio.ensure_future(mock_process())
-
+        _rv = await mock_process()
         mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=_rv)
         mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock()))
         mocker.patch.object(scheduler, '_resume_check_schedules')
@@ -512,12 +499,7 @@ class TestScheduler:
                     },
             }
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await get_cat()
-        else:
-            _rv = asyncio.ensure_future(get_cat())
-        
+        _rv = await get_cat()
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
@@ -1444,6 +1426,52 @@ class TestScheduler:
     async def test_cleanup(self):
         scheduler = Scheduler()
         scheduler._logger.level = logging.WARNING
+
+    @pytest.mark.parametrize("schedule_name, should_raise, expected_exception_type, expected_message", [
+        ("valid_schedule", False, None, None),
+        ("valid-schedule", False, None, None),
+        ("valid_schedule_123", False, None, None),
+        ("invalid\\schedule", True, ValueError, "Invalid character"),
+        ("invalid/schedule", False, None, None),  # Forward slash is allowed
+        ("", True, ValueError, "name can not be empty"),
+        (None, True, ValueError, "name can not be empty"),
+        ("schedule with spaces", False, None, None),  # Spaces are allowed
+        ("schedule.with.dots", False, None, None),  # Dots are allowed
+        ("UPPERCASE_SCHEDULE", False, None, None),
+        ("MixedCase123", False, None, None),
+    ])
+    @pytest.mark.asyncio
+    async def test_save_schedule_identifier_validation(self, mocker, schedule_name, should_raise, expected_exception_type, expected_message):
+        """Test that schedule names are validated for invalid characters"""
+        # GIVEN
+        scheduler = Scheduler()
+        scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
+        scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
+        scheduler._ready = True
+        scheduler._paused = False
+
+        # Create a schedule with the test name
+        schedule = ManualSchedule()
+        schedule.name = schedule_name
+        schedule.schedule_id = uuid.uuid4()
+        schedule.process_name = "test_process"
+        schedule.exclusive = True
+        schedule.enabled = True
+
+        # WHEN/THEN
+        if should_raise:
+            with pytest.raises(expected_exception_type) as excinfo:
+                await scheduler.save_schedule(schedule)
+            assert expected_message in str(excinfo.value)
+        else:
+            # Mock the storage operations for valid cases
+            mocker.patch.object(scheduler._storage_async, 'insert_into_tbl', return_value={'response': 'OK'})
+            mocker.patch.object(scheduler, '_schedule_first_task')
+            mocker.patch.object(scheduler, '_resume_check_schedules')
+
+            # Should not raise an exception
+            result = await scheduler.save_schedule(schedule)
+            assert result is None
 
 
 class MockStorage(StorageClientAsync):

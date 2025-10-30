@@ -31,16 +31,7 @@ install_gtest_from_package() {
 
     # Install the libgtest-dev package
     sudo apt-get install -y libgtest-dev
-
-    if [[ "${OS_VERSION}" == "18.04" || "${OS_CODENAME}" == "buster" ]]; then
-        echo "Building Google Test libraries manually..."
-        cd /usr/src/gtest
-        sudo cmake -E make_directory build
-        sudo cmake -E chdir build cmake ..
-        sudo cmake --build build
-        sudo cp build/libgtest* /usr/lib
-    fi
-    
+   
     echo "Google Test has been successfully installed."
 }
 

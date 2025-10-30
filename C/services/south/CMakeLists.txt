@@ -35,12 +35,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    if("${OS_NAME}" STREQUAL "mendel")
-        # We will explicitly set include path later for NumPy.
-        find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
-    else()
-        find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
-    endif()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
 endif()
 
 file(GLOB south_src "*.cpp")
@@ -49,19 +44,7 @@ file(GLOB south_src "*.cpp")
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    if("${OS_NAME}" STREQUAL "mendel")
-        # The following command gets the location of NumPy.
-        execute_process(
-            COMMAND python3
-                -c "import numpy; print(numpy.get_include())"
-                OUTPUT_VARIABLE Python3_NUMPY_INCLUDE_DIRS
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        # Now we can add include directories as usual.
-        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
-    else()
-        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
-    endif()
+    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)

@@ -434,6 +434,11 @@ bool FilterPipeline::attachDebugger()
 bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
 {
 	bool ret = true;
+	if (pipeline.size() == 0)
+	{
+		// Makes no sense to attach the debugger to an empty pipeline
+		return false;
+	}
 	for (auto& elem : pipeline)
 	{
 		if (!elem->attachDebugger())
@@ -610,19 +615,49 @@ string FilterPipeline::readingsToJSON(vector<shared_ptr<Reading>> readings)
 
 /**
  * Replay the data in the first saved buffer to the filter pipeline
+ *
+ * @return bool	Returns true if data has been replayed, otehrwise retuns false
  */
-void FilterPipeline::replayDebugger()
+bool FilterPipeline::replayDebugger()
 {
 ReadingSet 		*replay;
 vector<Reading *>	*readings = new vector<Reading *>;
-PipelineElement		*first = m_filters[0]; 
-
-	vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
-	for (int i = 0; i < buf.size(); i++)
+PipelineElement		*first;
+       
+	if (m_filters.size() > 0)
 	{
-		readings->emplace_back(new Reading(*buf[i].get()));
+		first = m_filters[0]; 
 	}
-	replay = new ReadingSet(readings);
+	else
+	{
+		// No filters to replay to
+		return false;
+	}
 
-	first->ingest(replay);
+	if (first)
+	{
+		vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
+		for (int i = 0; i < buf.size(); i++)
+		{
+			if (buf[i])
+			{
+				readings->emplace_back(new Reading(*buf[i].get()));
+			}
+		}
+		replay = new ReadingSet(readings);
+			
+		if (replay)
+		{
+			first->ingest(replay);
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+	return true;
 }

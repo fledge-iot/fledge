@@ -6,11 +6,8 @@
 
 """Test tasks/statistics/statistics_history.py"""
 
-import asyncio
 from unittest.mock import patch, MagicMock
 import pytest
-import sys
-
 import ast
 from fledge.common.logger import FLCoreLogger
 from fledge.common.process import FledgeProcess
@@ -47,12 +44,7 @@ class TestStatisticsHistory:
         mock_process.assert_called_once_with()
 
     async def test_update_previous_value(self):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(None)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(None))
-        
+        _rv = await mock_coro(None)
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(FLCoreLogger, "get_logger"):
                 sh = StatisticsHistory()
@@ -80,14 +72,8 @@ class TestStatisticsHistory:
                                     'ts': '2018-08-31 17:03:17.597055+05:30'
                                     }]
                           }
-                # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-                    _rv1 = await mock_coro(retval)
-                    _rv2 = await mock_coro(None)
-                else:
-                    _rv1 = asyncio.ensure_future(mock_coro(retval))
-                    _rv2 = asyncio.ensure_future(mock_coro(None))
-
+                _rv1 = await mock_coro(retval)
+                _rv2 = await mock_coro(None)
                 with patch.object(sh._storage_async, "query_tbl", return_value=_rv1) as mock_keys:
                     with patch.object(sh, "_bulk_update_previous_value", return_value=_rv2) as mock_update:
                         with patch.object(sh._storage_async, "insert_into_tbl", return_value=_rv2) as mock_bulk_insert:

@@ -59,11 +59,11 @@ class Reading {
 		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
 		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
 		void				setId(unsigned long id) { m_id = id; };
-		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; };
+		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; m_timestamp.tv_usec = 0; };
 		void				setTimestamp(struct timeval tm) { m_timestamp = tm; };
 		void				setTimestamp(const std::string& timestamp);
 		void				getTimestamp(struct timeval *tm) { *tm = m_timestamp; };
-		void				setUserTimestamp(unsigned long uTs) { m_userTimestamp.tv_sec = (time_t)uTs; };
+		void				setUserTimestamp(unsigned long uTs) { m_userTimestamp.tv_sec = (time_t)uTs; m_userTimestamp.tv_usec = 0; };
 		void				setUserTimestamp(struct timeval tm) { m_userTimestamp = tm; };
 		void				setUserTimestamp(const std::string& timestamp);
 		void				getUserTimestamp(struct timeval *tm) { *tm = m_userTimestamp; };

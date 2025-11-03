@@ -230,3 +230,63 @@ TEST(ReadingTest, MultipleSub)
 	res = reading.substitute(s);
 	ASSERT_STREQ(res.c_str(), "test3 first second first");
 }
+
+TEST(ReadingTest, TimestampMethods)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	
+	// Set timestamp using unsigned long
+	unsigned long ts = 1735689600; // 2025-01-01 00:00:00 UTC
+	reading.setTimestamp(ts);
+	ASSERT_EQ(reading.getTimestamp(), ts);
+	
+	// microseconds should be zero when setting using unsigned long
+	struct timeval tv_out_long;
+	reading.getTimestamp(&tv_out_long);
+	ASSERT_EQ(tv_out_long.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out_long.tv_usec, 0);
+	
+	// Set timestamp using struct timeval
+	struct timeval tv;
+	tv.tv_sec = 1735689600; // 2025-01-01 00:00:00 UTC
+	tv.tv_usec = 123456;
+	reading.setTimestamp(tv);
+	ASSERT_EQ(reading.getTimestamp(), 1735689600);
+	
+	// Get timestamp using struct timeval
+	struct timeval tv_out;
+	reading.getTimestamp(&tv_out);
+	ASSERT_EQ(tv_out.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out.tv_usec, 123456);
+}
+
+TEST(ReadingTest, UserTimestampMethods)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	
+	// Set user timestamp using unsigned long
+	unsigned long uts = 1735689600; // 2025-01-01 00:00:00 UTC
+	reading.setUserTimestamp(uts);
+	ASSERT_EQ(reading.getUserTimestamp(), uts);
+
+	// microseconds should be zero when setting using unsigned long
+	struct timeval tv_out_long;
+	reading.getUserTimestamp(&tv_out_long);
+	ASSERT_EQ(tv_out_long.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out_long.tv_usec, 0);
+	
+	// Set user timestamp using struct timeval
+	struct timeval tv;
+	tv.tv_sec = 1735689600; // 2025-01-01 00:00:00 UTC
+	tv.tv_usec = 654321;
+	reading.setUserTimestamp(tv);
+	ASSERT_EQ(reading.getUserTimestamp(), 1735689600);
+	
+	// Get user timestamp using struct timeval
+	struct timeval tv_out;
+	reading.getUserTimestamp(&tv_out);
+	ASSERT_EQ(tv_out.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out.tv_usec, 654321);
+}

@@ -4185,3 +4185,47 @@ class TestConfigurationManager:
                 patch_read_val.assert_called_once_with(category_name)
             patch_storage.update_tbl.assert_not_called()
         patch_get_all_items.assert_called_once_with(category_name)
+
+    @pytest.mark.parametrize("category_name, should_raise", [
+        ("valid_category", False),
+        ("valid-category", False),
+        ("valid_category_123", False),
+        ("invalid\\category", True),
+        ("invalid/category", False),  # Forward slash is allowed
+        ("", True),
+        (None, True),
+        ("category with spaces", False),  # Spaces are allowed
+        ("category.with.dots", False),  # Dots are allowed
+    ])
+    async def test_create_category_identifier_validation(self, reset_singleton, category_name, should_raise):
+        """Test that category names are validated for invalid characters"""
+        # GIVEN
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+
+        test_config = {
+            "test_item": {
+                "description": "test description",
+                "type": "string",
+                "default": "test default"
+            }
+        }
+
+        # Mock the storage operations
+        with patch.object(c_mgr._storage, 'insert_into_tbl', return_value={'response': 'OK'}):
+            with patch.object(AuditLogger, '__init__', return_value=None):
+                with patch.object(AuditLogger, 'information', return_value=None):
+                    # WHEN/THEN
+                    if should_raise:
+                        if category_name is None:
+                            with pytest.raises(TypeError) as excinfo:
+                                await c_mgr.create_category(category_name, test_config, "test description")
+                            assert "category_name must be a string" in str(excinfo.value)
+                        else:
+                            with pytest.raises(ValueError) as excinfo:
+                                await c_mgr.create_category(category_name, test_config, "test description")
+                            assert "Invalid character" in str(excinfo.value)
+                    else:
+                        # Should not raise an exception
+                        result = await c_mgr.create_category(category_name, test_config, "test description")
+                        assert result is None

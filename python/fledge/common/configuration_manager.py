@@ -276,24 +276,352 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for item_name_storage, item_val_storage in category_val_storage_copy.items():
                 category_val_new_copy[item_name_storage] = item_val_storage
         return category_val_new_copy
+    
+    def _validate_optional_string_attribute(self, category_name, optional_key_name, optional_key_value, config_item_name):
+        """Validate optional attributes that must be non-empty strings"""
+        if not isinstance(optional_key_value, str):
+            raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
+                category_name, optional_key_name, config_item_name, type(optional_key_value)))
+        final_optional_key_value = optional_key_value.strip()
+        if not final_optional_key_value:
+            raise ValueError('For {} category, {} cannot be empty for item name {}'.format(
+                category_name, optional_key_name, config_item_name))
+        return final_optional_key_value
+
+    def _validate_permissions_entry(self, category_name, entry_name, item_name, entry_val):
+        """Validate permissions entry - must be non-empty list of non-empty strings"""
+        if not isinstance(entry_val, list):
+            raise ValueError(
+                'For {} category, {} entry value must be a list of string for item name {}; got {}.'
+                ''.format(category_name, entry_name, item_name, type(entry_val)))
+        if not entry_val:
+            raise ValueError(
+                'For {} category, {} entry value must not be empty for item name '
+                '{}.'.format(category_name, entry_name, item_name))
+        if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
+            raise ValueError('For {} category, {} entry values must be a string and non-empty '
+                             'for item name {}.'.format(category_name, entry_name, item_name))
+
+    def _validate_enumeration_type(self, category_name, item_name, item_val, entry_name, entry_val, get_entry_val):
+        """Validate enumeration type with options and default value"""
+        updates = {}
+        if 'options' not in item_val:
+            raise KeyError('For {} category, options required for enumeration type'.format(category_name))
+        if entry_name == 'options':
+            if type(entry_val) is not list:
+                raise TypeError('For {} category, entry value must be a list for item name {} and '
+                                'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                               type(entry_val)))
+            if not entry_val:
+                raise ValueError('For {} category, entry value cannot be empty list for item_name {} and '
+                                 'entry_name {}; got {}'.format(category_name, item_name, entry_name,
+                                                                entry_val))
+            if get_entry_val("default") not in entry_val:
+                raise ValueError('For {} category, entry value does not exist in options list for item name'
+                                 ' {} and entry_name {}; got {}'.format(category_name, item_name,
+                                                                        entry_name,
+                                                                        get_entry_val("default")))
+            updates[entry_name] = entry_val
+        elif entry_name == "permissions":
+            self._validate_permissions_entry(category_name, entry_name, item_name, entry_val)
+        else:
+            if type(entry_val) is not str:
+                raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                               type(entry_val)))
+        return updates
+
+    def _validate_bucket_type(self, category_name, item_name, item_val, entry_name, entry_val, get_entry_val):
+        """Validate bucket type with properties and permissions"""
+        updates = {}
+        if 'properties' not in item_val:
+            raise KeyError('For {} category, properties KV pair must be required '
+                           'for item name {}.'.format(category_name, item_name))
+        if entry_name == 'properties':
+            prop_val = get_entry_val('properties')
+            if not isinstance(prop_val, dict):
+                raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
+                                 .format(category_name, item_name, type(entry_val)))
+            if not prop_val:
+                raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'.format(category_name, item_name))
+            if 'key' not in prop_val:
+                raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
+                                 ''.format(category_name, item_name))
+            updates[entry_name] = entry_val
+        elif "permissions" in item_val:
+            permissions = item_val['permissions']
+            self._validate_permissions_entry(category_name, 'permissions', item_name, permissions)
+            item_val['permissions'] = permissions
+        else:
+            if type(entry_val) is not str:
+                raise TypeError('For {} category, entry value must be a string for item name {} and '
+                                'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                               type(entry_val)))
+        return updates
+
+    def _validate_list_items_object(self, category_name, item_name, prop_val):
+        """Validate object type items with required properties structure"""
+        if not isinstance(prop_val, dict):
+            raise ValueError(
+                'For {} category, properties must be JSON object for item name {}; got {}'
+                .format(category_name, item_name, type(prop_val)))
+        if not prop_val:
+            raise ValueError(
+                'For {} category, properties JSON object cannot be empty for item name {}'
+                ''.format(category_name, item_name))
+        for kp, vp in prop_val.items():
+            if isinstance(vp, dict):
+                prop_keys = list(vp.keys())
+                if not prop_keys:
+                    raise ValueError('For {} category, {} properties cannot be empty for '
+                                     'item name {}'.format(category_name, kp, item_name))
+                diff = {'description', 'default', 'type'} - set(prop_keys)
+                if diff:
+                    raise ValueError('For {} category, {} properties must have type, description, '
+                                     'default keys for item name {}'.format(category_name,
+                                                                            kp, item_name))
+            else:
+                raise TypeError('For {} category, Properties must be a JSON object for {} key '
+                                'for item name {}'.format(category_name, kp, item_name))
+
+    def _validate_list_items_enumeration(self, category_name, item_name, item_val, entry_name):
+        """Validate enumeration type items with options"""
+        if 'options' not in item_val:
+            raise KeyError('For {} category, options required for item name {}'.format(
+                category_name, item_name))
+        options = item_val['options']
+        if type(options) is not list:
+            raise TypeError('For {} category, entry value must be a list for item name {} and '
+                            'entry name {}; got {}'.format(category_name, item_name,
+                                                           entry_name, type(options)))
+        if not options:
+            raise ValueError(
+                'For {} category, options cannot be empty list for item_name {} and '
+                'entry_name {}'.format(category_name, item_name, entry_name))
+
+    def _validate_list_default_values(self, category_name, item_name, item_val, entry_val, default_val, list_size):
+        """Validate default values for list/kvlist types including uniqueness and type checking"""
+        msg = "array" if item_val['type'] == 'list' else "KV pair"
+        try:
+            eval_default_val = ast.literal_eval(default_val)
+            if item_val['type'] == 'list':
+                if len(eval_default_val) > len(set(eval_default_val)):
+                    raise ArithmeticError("For {} category, default value {} elements are not "
+                                          "unique for item name {}".format(category_name, msg,
+                                                                           item_name))
+            else:
+                if isinstance(eval_default_val, dict) and eval_default_val:
+                    nv = default_val.replace("{", "")
+                    unique_list = []
+                    for pair in nv.split(','):
+                        if pair:
+                            k, v = pair.split(':')
+                            ks = k.strip()
+                            if ks not in unique_list:
+                                unique_list.append(ks)
+                            else:
+                                raise ArithmeticError("For category {}, duplicate KV pair found "
+                                                      "for item name {}".format(
+                                    category_name, item_name))
+                        else:
+                            raise ArithmeticError("For {} category, KV pair invalid in default "
+                                                  "value for item name {}".format(
+                                category_name, item_name))
+            if list_size >= 0:
+                if len(eval_default_val) > list_size:
+                    raise ArithmeticError("For {} category, default value {} list size limit to "
+                                          "{} for item name {}".format(category_name, msg,
+                                                                       list_size, item_name))
+        except ArithmeticError as err:
+            raise ValueError(err)
+        except:
+            raise TypeError("For {} category, default value should be passed {} list in string "
+                            "format for item name {}".format(category_name, msg, item_name))
+        type_check = str
+        if entry_val == 'integer':
+            type_check = int
+        elif entry_val == 'float':
+            type_check = float
+        type_mismatched_message = ("For {} category, all elements should be of same {} type "
+                                   "in default value for item name {}").format(category_name,
+                                                                               type_check, item_name)
+        if item_val['type'] == 'kvlist':
+            if not isinstance(eval_default_val, dict):
+                raise TypeError("For {} category, KV pair invalid in default value for item name {}"
+                                "".format(category_name, item_name))
+            for k, v in eval_default_val.items():
+                try:
+                    eval_s = v if entry_val == "string" else ast.literal_eval(v)
+                except:
+                    raise ValueError(type_mismatched_message)
+                if not isinstance(eval_s, type_check):
+                    raise ValueError(type_mismatched_message)
+        else:
+            for s in eval_default_val:
+                try:
+                    eval_s = s if entry_val == "string" else ast.literal_eval(s)
+                except:
+                    raise ValueError(type_mismatched_message)
+                if not isinstance(eval_s, type_check):
+                    raise ValueError(type_mismatched_message)
+
+    def _validate_enumeration_default_values(self, category_name, item_name, item_val, default_val):
+        """Validate that enumeration default values exist in options"""
+        eval_default_val = ast.literal_eval(default_val)
+        ev_options = item_val['options']
+        if item_val['type'] == 'kvlist':
+            for ek, ev in eval_default_val.items():
+                if ev not in ev_options:
+                    raise ValueError('For {} category, {} value does not exist in options '
+                                     'for item name {} and entry_name {}'.format(
+                        category_name, ev, item_name, ek))
+        else:
+            for s in eval_default_val:
+                if s not in ev_options:
+                    raise ValueError('For {} category, {} value does not exist in options for item '
+                                     'name {}'.format(category_name, s, item_name))
+
+    def _validate_items_entry(self, category_name, item_name, item_val, entry_name, entry_val, get_entry_val):
+        """Validate the items entry including object, enumeration, and default value validation"""
+        if entry_val not in ("string", "float", "integer", "object", "enumeration"):
+            raise ValueError("For {} category, items value should either be in string, float, "
+                             "integer, object or enumeration for item name {}".format(
+                category_name, item_name))
+        
+        if entry_val == 'object':
+            if 'properties' not in item_val:
+                raise KeyError('For {} category, properties KV pair must be required for item name {}'
+                               ''.format(category_name, item_name))
+            prop_val = get_entry_val('properties')
+            self._validate_list_items_object(category_name, item_name, prop_val)
+        
+        if entry_val == 'enumeration':
+            self._validate_list_items_enumeration(category_name, item_name, item_val, entry_name)
+        
+        default_val = get_entry_val("default")
+        list_size = -1
+        if 'listSize' in item_val:
+            list_size = item_val['listSize']
+            if not isinstance(list_size, str):
+                raise TypeError('For {} category, listSize type must be a string for item name {}; '
+                                'got {}'.format(category_name, item_name, type(list_size)))
+            if self._validate_type_value('listSize', list_size) is False:
+                raise ValueError('For {} category, listSize value must be an integer value '
+                                 'for item name {}'.format(category_name, item_name))
+            list_size = int(item_val['listSize'])
+        
+        if entry_val not in ("object", "enumeration"):
+            self._validate_list_default_values(category_name, item_name, item_val, entry_val, default_val, list_size)
+        elif entry_val == "enumeration":
+            self._validate_enumeration_default_values(category_name, item_name, item_val, default_val)
+
+    def _validate_list_type(self, category_name, item_name, item_val, entry_name, entry_val, get_entry_val):
+        """Validate list/kvlist types with items, properties, options, and listSize"""
+        updates = {}
+        if entry_name not in ('properties', 'options', 'permissions') and not isinstance(entry_val, str):
+            raise TypeError('For {} category, entry value must be a string for item name {} and '
+                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
+                                                           type(entry_val)))
+        if 'items' not in item_val:
+            raise KeyError('For {} category, items KV pair must be required '
+                           'for item name {}.'.format(category_name, item_name))
+        if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
+            if 'keyName' in item_val:
+                item_val['keyName'] = self._validate_optional_string_attribute(
+                    category_name, 'keyName', item_val['keyName'], item_name)
+                updates[entry_name] = entry_val
+            if 'keyDescription' in item_val:
+                item_val['keyDescription'] = self._validate_optional_string_attribute(
+                    category_name, 'keyDescription', item_val['keyDescription'], item_name)
+                updates[entry_name] = entry_val
+        if 'listName' in item_val:
+            item_val['listName'] = self._validate_optional_string_attribute(
+                category_name, 'listName', item_val['listName'], item_name)
+        elif "permissions" in item_val:
+            permissions = item_val['permissions']
+            self._validate_permissions_entry(category_name, 'permissions', item_name, permissions)
+        if entry_name == 'items':
+            self._validate_items_entry(category_name, item_name, item_val, entry_name, entry_val, get_entry_val)
+            updates[entry_name] = entry_val
+        if entry_name in ('properties', 'options'):
+            updates[entry_name] = entry_val
+        return updates
+
+    def _validate_json_type_with_schema(self, category_name, item_name, item_val, entry_name, entry_val):
+        """Validate JSON type with optional schema"""
+        updates = {}
+        if 'schema' in item_val:
+            if type(item_val['schema']) is not dict:
+                raise TypeError('For {} category, {} item name and schema entry value must be an object; '
+                                'got {}'.format(category_name, item_name, type(entry_val)))
+            if not item_val['schema']:
+                raise ValueError('For {} category, {} item name and schema entry value can not be empty.'
+                                 ''.format(category_name, item_name))
+            updates[entry_name] = entry_val
+        return updates
+
+    def _validate_optional_entries(self, category_name, item_name, item_val, entry_name, entry_val):
+        """Validate optional configuration entries (readonly, deprecated, mandatory, min, max, etc.)"""
+        updates = {}
+        if entry_name == 'readonly' or entry_name == 'deprecated' or entry_name == 'mandatory':
+            if self._validate_type_value('boolean', entry_val) is False:
+                raise ValueError('For {} category, entry value must be boolean for item name {}; got {}'
+                                 .format(category_name, entry_name, type(entry_val)))
+            else:
+                if entry_name == 'mandatory' and entry_val == 'true':
+                    if not len(item_val['default'].strip()):
+                        raise ValueError(
+                            'For {} category, A default value must be given for {}'.format(category_name,
+                                                                                           item_name))
+        elif entry_name == 'minimum' or entry_name == 'maximum':
+            if (self._validate_type_value('integer', entry_val) or
+                self._validate_type_value('float', entry_val)) is False:
+                raise ValueError('For {} category, entry value must be an integer or float for item name '
+                                 '{}; got {}'.format(category_name, entry_name, type(entry_val)))
+        elif entry_name == "permissions":
+            self._validate_permissions_entry(category_name, entry_name, item_name, entry_val)
+        elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
+            if not isinstance(entry_val, str):
+                raise ValueError('For {} category, entry value must be string for item name {}; got {}'
+                                 .format(category_name, entry_name, type(entry_val)))
+        else:
+            if (self._validate_type_value('integer', entry_val) or
+                    self._validate_type_value('listSize', entry_val)) is False:
+                raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
+                                 .format(category_name, entry_name, type(entry_val)))
+        updates[entry_name] = entry_val
+        return updates
+
+    def _check_required_entries_present(self, category_name, item_name, expected_item_entries):
+        """Check all expected entries are present"""
+        for needed_key, needed_value in expected_item_entries.items():
+            if needed_value == 0:
+                raise ValueError('For {} category, missing entry name {} for item name {}'.format(
+                    category_name, needed_key, item_name))
+
+    def _cleanup_and_set_defaults(self, category_name, item_name, item_val, get_entry_val, set_default_val):
+        """type validation and value cleanup"""
+        # validate data type value
+        if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
+            raise ValueError(
+                'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
+        if 'readonly' in item_val:
+            item_val['readonly'] = self._clean('boolean', item_val['readonly'])
+        if 'deprecated' in item_val:
+            item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
+        if 'mandatory' in item_val:
+            item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
+        if set_default_val:
+            item_val['default'] = self._clean(item_val, item_val['default'])
+            item_val['value'] = item_val['default']
 
     async def _validate_category_val(self, category_name, category_val, set_value_val_from_default_val=True):
-
-        def _validate_optional_attribute_string_type(optional_key_name, optional_key_value, config_item_name):
-            if not isinstance(optional_key_value, str):
-                raise TypeError('For {} category, {} type must be a string for item name {}; got {}'.format(
-                    category_name, optional_key_name, config_item_name, type(optional_key_value)))
-            final_optional_key_value = optional_key_value.strip()
-            if not final_optional_key_value:
-                raise ValueError('For {} category, {} cannot be empty for item name {}'.format(
-                    category_name, optional_key_name, config_item_name))
-            return final_optional_key_value
-
         require_entry_value = not set_value_val_from_default_val
         if type(category_val) is not dict:
             raise TypeError('For {} category, category value must be a dictionary; got {}'
                             .format(category_name, type(category_val)))
         category_val_copy = copy.deepcopy(category_val)
+        
         for item_name, item_val in category_val_copy.items():
             if type(item_name) is not str:
                 raise TypeError('For {} category, item name {} must be a string; got {}'
@@ -313,333 +641,44 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             def get_entry_val(k):
                 v = [val for name, val in item_val.items() if name == k]
                 return v[0]
+            
             for entry_name, entry_val in item_val.copy().items():
                 if type(entry_name) is not str:
                     raise TypeError('For {} category, entry name {} must be a string for item name {}; got {}'
                                     .format(category_name, entry_name, item_name, type(entry_name)))
 
-                # Validate enumeration type and mandatory options item_name
+                # Validate different types using extracted helper functions
                 if 'type' in item_val and get_entry_val("type") == 'enumeration':
-                    if 'options' not in item_val:
-                        raise KeyError('For {} category, options required for enumeration type'.format(category_name))
-                    if entry_name == 'options':
-                        if type(entry_val) is not list:
-                            raise TypeError('For {} category, entry value must be a list for item name {} and '
-                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
-                                                                           type(entry_val)))
-                        if not entry_val:
-                            raise ValueError('For {} category, entry value cannot be empty list for item_name {} and '
-                                             'entry_name {}; got {}'.format(category_name, item_name, entry_name,
-                                                                            entry_val))
-                        if get_entry_val("default") not in entry_val:
-                            raise ValueError('For {} category, entry value does not exist in options list for item name'
-                                             ' {} and entry_name {}; got {}'.format(category_name, item_name,
-                                                                                    entry_name,
-                                                                                    get_entry_val("default")))
-                        else:
-                            d = {entry_name: entry_val}
-                            expected_item_entries.update(d)
-                    elif entry_name == "permissions":
-                        if not isinstance(entry_val, list):
-                            raise ValueError(
-                                'For {} category, {} entry value must be a list of string for item name {}; got {}.'
-                                ''.format(category_name, entry_name, item_name, type(entry_val)))
-                        if not entry_val:
-                            raise ValueError(
-                                'For {} category, {} entry value must not be empty for item name '
-                                '{}.'.format(category_name, entry_name, item_name))
-                        else:
-                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
-                                raise ValueError('For {} category, {} entry values must be a string and non-empty '
-                                                 'for item name {}.'.format(category_name, entry_name, item_name))
-                    else:
-                        if type(entry_val) is not str:
-                            raise TypeError('For {} category, entry value must be a string for item name {} and '
-                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
-                                                                           type(entry_val)))
-                # Validate bucket type and mandatory properties item_name
+                    updates = self._validate_enumeration_type(category_name, item_name, item_val, entry_name, 
+                                                              entry_val, get_entry_val)
+                    expected_item_entries.update(updates)
                 elif 'type' in item_val and get_entry_val("type") == 'bucket':
-                    if 'properties' not in item_val:
-                        raise KeyError('For {} category, properties KV pair must be required '
-                                       'for item name {}.'.format(category_name, item_name))
-                    if entry_name == 'properties':
-                        prop_val = get_entry_val('properties')
-                        if not isinstance(prop_val, dict):
-                            raise ValueError('For {} category, properties must be JSON object for item name {}; got {}'
-                                             .format(category_name, item_name, type(entry_val)))
-                        if not prop_val:
-                            raise ValueError('For {} category, properties JSON object cannot be empty for item name {}'
-                                             ''.format(category_name, item_name))
-                        if 'key' not in prop_val:
-                            raise ValueError('For {} category, key KV pair must exist in properties for item name {}'
-                                             ''.format(category_name, item_name))
-                        d = {entry_name: entry_val}
-                        expected_item_entries.update(d)
-                    elif "permissions" in item_val:
-                        permissions = item_val['permissions']
-                        if not isinstance(permissions, list):
-                            raise ValueError(
-                                'For {} category, permissions entry value must be a list of string for item name {}; '
-                                'got {}.'.format(category_name, item_name, type(permissions)))
-                        if not permissions:
-                            raise ValueError(
-                                'For {} category, permissions entry value must not be empty for item name {}.'.format(
-                                    category_name, item_name))
-                        else:
-                            if not all(isinstance(ev, str) and ev != '' for ev in permissions):
-                                raise ValueError('For {} category, permissions entry values must be a string and '
-                                                 'non-empty for item name {}.'.format(category_name, item_name))
-                        item_val['permissions'] = permissions
-                    else:
-                        if type(entry_val) is not str:
-                            raise TypeError('For {} category, entry value must be a string for item name {} and '
-                                            'entry name {}; got {}'.format(category_name, item_name, entry_name,
-                                                                           type(entry_val)))
-                # Validate list type and mandatory items
+                    updates = self._validate_bucket_type(category_name, item_name, item_val, entry_name, 
+                                                         entry_val, get_entry_val)
+                    expected_item_entries.update(updates)
                 elif 'type' in item_val and get_entry_val("type") in ('list', 'kvlist'):
-                    if entry_name not in ('properties', 'options', 'permissions') and not isinstance(entry_val, str):
-                        raise TypeError('For {} category, entry value must be a string for item name {} and '
-                                        'entry name {}; got {}'.format(category_name, item_name, entry_name,
-                                                                       type(entry_val)))
-                    if 'items' not in item_val:
-                        raise KeyError('For {} category, items KV pair must be required '
-                                       'for item name {}.'.format(category_name, item_name))
-                    if item_val['type'] == 'kvlist' and item_val['items'] == 'object':
-                        if 'keyName' in item_val:
-                            item_val['keyName'] = _validate_optional_attribute_string_type('keyName',
-                                                                                           item_val['keyName'], item_name)
-                            expected_item_entries.update({entry_name: entry_val})
-                        if 'keyDescription' in item_val:
-                            item_val['keyDescription'] = _validate_optional_attribute_string_type(
-                                'keyDescription', item_val['keyDescription'], item_name)
-                            expected_item_entries.update({entry_name: entry_val})
-                    if 'listName' in item_val:
-                        item_val['listName'] = _validate_optional_attribute_string_type('listName',
-                                                                     item_val['listName'], item_name)
-                    elif "permissions" in item_val:
-                        permissions = item_val['permissions']
-                        if not isinstance(permissions, list):
-                            raise ValueError(
-                                'For {} category, permissions entry value must be a list of string for item name {}; '
-                                'got {}.'.format(category_name, item_name, type(permissions)))
-                        if not permissions:
-                            raise ValueError(
-                                'For {} category, permissions entry value must not be empty for item name {}.'.format(
-                                    category_name, item_name))
-                        else:
-                            if not all(isinstance(ev, str) and ev != '' for ev in permissions):
-                                raise ValueError('For {} category, permissions entry values must be a string and '
-                                                 'non-empty for item name {}.'.format(category_name, item_name))
-                    if entry_name == 'items':
-                        if entry_val not in ("string", "float", "integer", "object", "enumeration"):
-                            raise ValueError("For {} category, items value should either be in string, float, "
-                                             "integer, object or enumeration for item name {}".format(
-                                category_name, item_name))
-                        if entry_val == 'object':
-                            if 'properties' not in item_val:
-                                raise KeyError('For {} category, properties KV pair must be required for item name {}'
-                                               ''.format(category_name, item_name))
-                            prop_val = get_entry_val('properties')
-                            if not isinstance(prop_val, dict):
-                                raise ValueError(
-                                    'For {} category, properties must be JSON object for item name {}; got {}'
-                                    .format(category_name, item_name, type(prop_val)))
-                            if not prop_val:
-                                raise ValueError(
-                                    'For {} category, properties JSON object cannot be empty for item name {}'
-                                    ''.format(category_name, item_name))
-                            for kp, vp in prop_val.items():
-                                if isinstance(vp, dict):
-                                    prop_keys = list(vp.keys())
-                                    if not prop_keys:
-                                        raise ValueError('For {} category, {} properties cannot be empty for '
-                                                         'item name {}'.format(category_name, kp, item_name))
-                                    diff = {'description', 'default', 'type'} - set(prop_keys)
-                                    if diff:
-                                        raise ValueError('For {} category, {} properties must have type, description, '
-                                                         'default keys for item name {}'.format(category_name,
-                                                                                                kp, item_name))
-                                else:
-                                    raise TypeError('For {} category, Properties must be a JSON object for {} key '
-                                                    'for item name {}'.format(category_name, kp, item_name))
-                        if entry_val == 'enumeration':
-                            if 'options' not in item_val:
-                                raise KeyError('For {} category, options required for item name {}'.format(
-                                    category_name, item_name))
-                            options = item_val['options']
-                            if type(options) is not list:
-                                raise TypeError('For {} category, entry value must be a list for item name {} and '
-                                                'entry name {}; got {}'.format(category_name, item_name,
-                                                                               entry_name, type(options)))
-                            if not options:
-                                raise ValueError(
-                                    'For {} category, options cannot be empty list for item_name {} and '
-                                    'entry_name {}'.format(category_name, item_name, entry_name))
-                        default_val = get_entry_val("default")
-                        list_size = -1
-                        if 'listSize' in item_val:
-                            list_size = item_val['listSize']
-                            if not isinstance(list_size, str):
-                                raise TypeError('For {} category, listSize type must be a string for item name {}; '
-                                                'got {}'.format(category_name, item_name, type(list_size)))
-                            if self._validate_type_value('listSize', list_size) is False:
-                                raise ValueError('For {} category, listSize value must be an integer value '
-                                                 'for item name {}'.format(category_name, item_name))
-                            list_size = int(item_val['listSize'])
-                        msg = "array" if item_val['type'] == 'list' else "KV pair"
-                        if entry_name == 'items' and entry_val not in ("object", "enumeration"):
-                            try:
-                                eval_default_val = ast.literal_eval(default_val)
-                                if item_val['type'] == 'list':
-                                    if len(eval_default_val) > len(set(eval_default_val)):
-                                        raise ArithmeticError("For {} category, default value {} elements are not "
-                                                              "unique for item name {}".format(category_name, msg,
-                                                                                               item_name))
-                                else:
-                                    if isinstance(eval_default_val, dict) and eval_default_val:
-                                        nv = default_val.replace("{", "")
-                                        unique_list = []
-                                        for pair in nv.split(','):
-                                            if pair:
-                                                k, v = pair.split(':')
-                                                ks = k.strip()
-                                                if ks not in unique_list:
-                                                    unique_list.append(ks)
-                                                else:
-                                                    raise ArithmeticError("For category {}, duplicate KV pair found "
-                                                                          "for item name {}".format(
-                                                        category_name, item_name))
-                                            else:
-                                                raise ArithmeticError("For {} category, KV pair invalid in default "
-                                                                      "value for item name {}".format(
-                                                    category_name, item_name))
-                                if list_size >= 0:
-                                    if len(eval_default_val) > list_size:
-                                        raise ArithmeticError("For {} category, default value {} list size limit to "
-                                                              "{} for item name {}".format(category_name, msg,
-                                                                                           list_size, item_name))
-                            except ArithmeticError as err:
-                                raise ValueError(err)
-                            except:
-                                raise TypeError("For {} category, default value should be passed {} list in string "
-                                                "format for item name {}".format(category_name, msg, item_name))
-                            type_check = str
-                            if entry_val == 'integer':
-                                type_check = int
-                            elif entry_val == 'float':
-                                type_check = float
-                            type_mismatched_message = ("For {} category, all elements should be of same {} type "
-                                                       "in default value for item name {}").format(category_name,
-                                                                                                   type_check, item_name)
-                            if item_val['type'] == 'kvlist':
-                                if not isinstance(eval_default_val, dict):
-                                    raise TypeError("For {} category, KV pair invalid in default value for item name {}"
-                                                    "".format(category_name, item_name))
-                                for k, v in eval_default_val.items():
-                                    try:
-                                        eval_s = v if entry_val == "string" else ast.literal_eval(v)
-                                    except:
-                                        raise ValueError(type_mismatched_message)
-                                    if not isinstance(eval_s, type_check):
-                                        raise ValueError(type_mismatched_message)
-                            else:
-                                for s in eval_default_val:
-                                    try:
-                                        eval_s = s if entry_val == "string" else ast.literal_eval(s)
-                                    except:
-                                        raise ValueError(type_mismatched_message)
-                                    if not isinstance(eval_s, type_check):
-                                        raise ValueError(type_mismatched_message)
-                        elif entry_name == 'items' and entry_val == "enumeration":
-                            eval_default_val = ast.literal_eval(get_entry_val("default"))
-                            ev_options = item_val['options']
-                            if item_val['type'] == 'kvlist':
-                                for ek, ev in eval_default_val.items():
-                                    if ev not in ev_options:
-                                        raise ValueError('For {} category, {} value does not exist in options '
-                                                         'for item name {} and entry_name {}'.format(
-                                            category_name, ev, item_name, ek))
-                            else:
-                                for s in eval_default_val:
-                                    if s not in ev_options:
-                                        raise ValueError('For {} category, {} value does not exist in options for item '
-                                                         'name {}'.format(category_name, s, item_name))
-                        d = {entry_name: entry_val}
-                        expected_item_entries.update(d)
-                    if entry_name in ('properties', 'options'):
-                        d = {entry_name: entry_val}
-                        expected_item_entries.update(d)
+                    updates = self._validate_list_type(category_name, item_name, item_val, entry_name, 
+                                                       entry_val, get_entry_val)
+                    expected_item_entries.update(updates)
                 elif entry_name == "permissions":
-                    if not isinstance(entry_val, list):
-                        raise ValueError(
-                            'For {} category, {} entry value must be a list of string for item name {}; got {}.'
-                            ''.format(category_name, entry_name, item_name, type(entry_val)))
-                    if not entry_val:
-                        raise ValueError(
-                            'For {} category, {} entry value must not be empty for item name '
-                            '{}.'.format(category_name, entry_name, item_name))
-                    else:
-                        if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
-                            raise ValueError('For {} category, {} entry values must be a string and non-empty '
-                                             'for item name {}.'.format(category_name, entry_name, item_name))
+                    self._validate_permissions_entry(category_name, entry_name, item_name, entry_val)
                 elif 'type' in item_val and get_entry_val("type") == 'JSON':
-                    if 'schema' in item_val:
-                        if type(item_val['schema']) is not dict:
-                            raise TypeError('For {} category, {} item name and schema entry value must be an object; '
-                                            'got {}'.format(category_name, item_name, type(entry_val)))
-                        if not item_val['schema']:
-                            raise ValueError('For {} category, {} item name and schema entry value can not be empty.'
-                                             ''.format(category_name, item_name))
-                        d = {entry_name: entry_val}
-                        expected_item_entries.update(d)
+                    updates = self._validate_json_type_with_schema(category_name, item_name, item_val, 
+                                                                   entry_name, entry_val)
+                    expected_item_entries.update(updates)
                 else:
                     if type(entry_val) is not str:
                         raise TypeError('For {} category, entry value must be a string for item name {} and '
                                         'entry name {}; got {}'.format(category_name, item_name, entry_name,
                                                                        type(entry_val)))
 
-                # If Entry item exists in optional list, then update expected item entries
+                # Validate optional entries
                 if entry_name in optional_item_entries:
-                    if entry_name == 'readonly' or entry_name == 'deprecated' or entry_name == 'mandatory':
-                        if self._validate_type_value('boolean', entry_val) is False:
-                            raise ValueError('For {} category, entry value must be boolean for item name {}; got {}'
-                                             .format(category_name, entry_name, type(entry_val)))
-                        else:
-                            if entry_name == 'mandatory' and entry_val == 'true':
-                                if not len(item_val['default'].strip()):
-                                    raise ValueError(
-                                        'For {} category, A default value must be given for {}'.format(category_name,
-                                                                                                       item_name))
-                    elif entry_name == 'minimum' or entry_name == 'maximum':
-                        if (self._validate_type_value('integer', entry_val) or
-                            self._validate_type_value('float', entry_val)) is False:
-                            raise ValueError('For {} category, entry value must be an integer or float for item name '
-                                             '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name == "permissions":
-                        if not isinstance(entry_val, list):
-                            raise ValueError(
-                                'For {} category, {} entry value must be a list of string for item name {}; got {}.'
-                                ''.format(category_name, entry_name, item_name, type(entry_val)))
-                        if not entry_val:
-                            raise ValueError(
-                                'For {} category, {} entry value must not be empty for item name '
-                                '{}.'.format(category_name, entry_name, item_name))
-                        else:
-                            if not all(isinstance(ev, str) and ev != '' for ev in entry_val):
-                                raise ValueError('For {} category, {} entry values must be a string and non-empty '
-                                                 'for item name {}.'.format(category_name, entry_name, item_name))
-                    elif entry_name in ('displayName', 'group', 'rule', 'validity', 'listName'):
-                        if not isinstance(entry_val, str):
-                            raise ValueError('For {} category, entry value must be string for item name {}; got {}'
-                                             .format(category_name, entry_name, type(entry_val)))
-                    else:
-                        if (self._validate_type_value('integer', entry_val) or
-                                self._validate_type_value('listSize', entry_val)) is False:
-                            raise ValueError('For {} category, entry value must be an integer for item name {}; got {}'
-                                             .format(category_name, entry_name, type(entry_val)))
-
-                    d = {entry_name: entry_val}
-                    expected_item_entries.update(d)
+                    updates = self._validate_optional_entries(category_name, item_name, item_val, 
+                                                             entry_name, entry_val)
+                    expected_item_entries.update(updates)
+                
+                # Handle unrecognized entries and type validation
                 num_entries = expected_item_entries.get(entry_name)
                 if set_value_val_from_default_val and entry_name == 'value':
                     raise ValueError('Specifying value_name and value_val for item_name {} is not allowed if '
@@ -658,23 +697,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                          ' valid type strings are: {}'.format(category_name, item_name,
                                                                               _valid_type_strings))
                 expected_item_entries[entry_name] = 1
-            for needed_key, needed_value in expected_item_entries.items():
-                if needed_value == 0:
-                    raise ValueError('For {} category, missing entry name {} for item name {}'.format(
-                        category_name, needed_key, item_name))
-            # validate data type value
-            if self._validate_type_value(get_entry_val("type"), get_entry_val("default")) is False:
-                raise ValueError(
-                    'For {} category, unrecognized value for item name {}'.format(category_name, item_name))
-            if 'readonly' in item_val:
-                item_val['readonly'] = self._clean('boolean', item_val['readonly'])
-            if 'deprecated' in item_val:
-                item_val['deprecated'] = self._clean('boolean', item_val['deprecated'])
-            if 'mandatory' in item_val:
-                item_val['mandatory'] = self._clean('boolean', item_val['mandatory'])
-            if set_value_val_from_default_val:
-                item_val['default'] = self._clean(item_val, item_val['default'])
-                item_val['value'] = item_val['default']
+            
+            # Finalize item validation
+            self._check_required_entries_present(category_name, item_name, expected_item_entries)
+            self._cleanup_and_set_defaults(category_name, item_name, item_val, get_entry_val, 
+                                          set_value_val_from_default_val)
+        
         return category_val_copy
 
     async def _create_new_category(self, category_name, category_val, category_description, display_name=None):
@@ -1446,6 +1474,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         category_val_prepared = ''
         try:
+            # Don't allow invalid character in category name
+            is_valid_identifier, blocked_character = common_utils.is_valid_identifier(category_name)
+            if not is_valid_identifier:
+                raise ValueError("Invalid character {} found in category name {}".format(blocked_character, category_name))
+            
             # validate new category_val, set "value" from default
             category_val_prepared = await self._validate_category_val(category_name, category_value, True)
             # Evaluate value as per rule if defined

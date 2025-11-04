@@ -540,9 +540,14 @@ void NorthApi::replayDebugger(Response response, Request /*request*/)
 		if (m_service->debuggerAttached())
 		{
 			// TODO Handle pre-requisites
-			m_service->replayDebugger();
-
-			responsePayload = QUOTE({ "status" : "ok" });
+			if (m_service->replayDebugger())
+			{
+				responsePayload = QUOTE({ "status" : "ok" });
+			}
+			else
+			{
+				responsePayload = QUOTE({ "status" : "No data to replay" });
+			}
 		}
 		else
 		{

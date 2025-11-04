@@ -51,19 +51,31 @@ def clean_setup_fledge_packages(package_build_version):
 
 
 @pytest.fixture
-def reset_and_start_fledge(storage_plugin):
+def reset_and_start_fledge(storage_plugin, readings_plugin, authentication):
     """Fixture that kills fledge, reset database and starts fledge again
-        storage_plugin: Fixture that defines the storage plugin to be used for tests
+        storage_plugin: A fixture that specifies the storage plugin to be used in the tests.
+        readings_plugin: A fixture that specifies the readings plugin to be used in the tests.
+        authentication: A fixture that defines the authentication method to be used for the tests. By default 'optional'
     """
-
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
-    storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
+    assert storage_plugin in ["sqlite", "postgres", "sqlitelb"]
+    assert readings_plugin in ["Use main plugin", "sqlitememory", "sqlite", "postgres", "sqlitelb"]
     subprocess.run(
         ["echo $(jq -c --arg STORAGE_PLUGIN_VAL {} '.plugin.value=$STORAGE_PLUGIN_VAL' "
-         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin_val)],
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin)],
         shell=True, check=True)
+    subprocess.run(
+        ["echo $(jq -c --arg READINGS_PLUGIN_VAL \"{}\" '.readingPlugin.value=$READINGS_PLUGIN_VAL' "
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(readings_plugin)],
+        shell=True, check=True)
+    if authentication == 'optional':
+        subprocess.run(["sed -i \"s/'default': 'mandatory'/'default': 'optional'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
+    else:
+        subprocess.run(["sed -i \"s/'default': 'optional'/'default': 'mandatory'/g\" "
+                        "$FLEDGE_ROOT/python/fledge/services/core/server.py"], shell=True, check=True)
     subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
@@ -805,7 +817,6 @@ def read_data_from_pi_asset_server():
                             if el["Name"].endswith(f"{asset}.{_head}"):
                                 for itm in el["Items"]:
                                     _recoded_value_list.append(itm["Value"])
-                                    # pprint(_data_pi)
                                 _data_pi[_head] = _recoded_value_list
 
             return _data_pi
@@ -942,8 +953,11 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
-    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
-
+    parser.addoption("--num-assets", action="store", default=300, type=int, 
+                     help="Total number of assets that need to be created")
+    parser.addoption("--north-historian", action="store", default="EdgeDataStore",
+                     help="Name of the North Historian to which the data will be sent")
+    
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
     parser.addoption("--filter-name", action="store", default="Meta #1", help="Filter name to be added to pipeline")
@@ -1056,6 +1070,21 @@ def pytest_addoption(parser):
     parser.addoption("--run-time", action="store", default="60",
                     help="The number of minute for which a test should run")
 
+    parser.addoption("--plugin-name", action="store", default="sinusoid",
+                    help="The name of the plugin")
+    
+    parser.addoption("--plugin-language", action="store", default="python",
+                    help="Language of the plugin python/c")
+
+
+@pytest.fixture
+def plugin_name(request):
+    return request.config.getoption("--plugin-name")
+
+@pytest.fixture
+def plugin_language(request):
+    return request.config.getoption("--plugin-language")
+
 @pytest.fixture
 def num_assets(request):
     return request.config.getoption("--num-assets")
@@ -1144,6 +1173,9 @@ def asset_name(request):
 def fledge_url(request):
     return request.config.getoption("--fledge-url")
 
+@pytest.fixture
+def authentication(request):
+    return "optional"
 
 @pytest.fixture
 def wait_time(request):
@@ -1157,6 +1189,9 @@ def wait_fix(request):
 def retries(request):
     return request.config.getoption("--retries")
 
+@pytest.fixture
+def north_historian(request):
+    return request.config.getoption("--north-historian")
 
 @pytest.fixture
 def pi_host(request):
@@ -1346,6 +1381,78 @@ def pytest_configure():
     pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
 
+
+def restart_and_wait_for_fledge(fledge_url, wait_time, auth_token=None, custom_port=None, https_enabled=False):
+    """ Restarts the Fledge service and waits until it becomes responsive
+
+    Args:
+        fledge_url (str): base fledge url
+        wait_time (int): Seconds between retries
+        auth_token (str): Authorization Token (Optional)
+        custom_port (int, optional): Custom port. Defaults to None.
+        https_enabled (bool, optional): Whether to use HTTPS instead of HTTP. Defaults to False.
+    Raises:
+        AssertionError: If Fledge failed to restart
+
+    Returns:
+        JSON Document
+    """
+    import ssl
+    from contextlib import closing
+    headers = {"authorization": auth_token} if auth_token else {}
+        
+    with closing(http.client.HTTPConnection(fledge_url)) as connection:
+        connection.request("PUT", '/fledge/restart', headers=headers, body=json.dumps({}))
+        response = connection.getresponse()
+        assert response.status == 200
+        response_data = response.read().decode()
+        jdoc = json.loads(response_data)
+        assert "Fledge restart has been scheduled." == jdoc['message']
+
+    print(f"Waiting for Fledge to restart... (Initial wait: {wait_time}s)")
+    time.sleep(wait_time)
+    start_time = time.time()
+    max_retries = 5
+    
+    # After restart, Fledge runs on default ports, not the original URL port
+    host = fledge_url.split(':')[0]
+    port = custom_port if custom_port is not None else (1995 if https_enabled else 8081)
+    
+    # Prepare connection configuration once (parameters don't change between attempts)
+    if https_enabled:
+        connection = http.client.HTTPSConnection(host, port, context=ssl._create_unverified_context())
+    else:
+        connection = http.client.HTTPConnection(host, port)
+    
+    for attempt in range(max_retries):
+        try:
+            with closing(connection) as conn:
+                conn.request("GET", "/fledge/ping", headers=headers)
+                response = conn.getresponse()
+                if response.status == 200:
+                    response_data = response.read().decode()
+                    jdoc = json.loads(response_data)
+                    break
+                elif response.status == 401:
+                    jdoc = {"message": "Unauthorized"}
+                    break
+                else:
+                    print(f"Attempt {attempt + 1}: Got HTTP status {response.status}")
+        except Exception as e:
+            print(f"Attempt {attempt + 1}: Connection failed - {type(e).__name__}: {e}")
+        
+        if attempt < max_retries - 1:
+            sleep_time = wait_time * 5
+            print(f"Waiting {sleep_time}s before next attempt...")
+            time.sleep(sleep_time)
+    else:
+        elapsed = round(time.time() - start_time, 2)
+        raise AssertionError(f"Failed to restart Fledge after {elapsed} seconds.")
+    
+    time.sleep(wait_time * 5)
+    return jdoc
+
+
 @pytest.fixture
 def fogbench_host(request):
     return request.config.getoption("--fogbench-host")
@@ -1355,29 +1462,36 @@ def fogbench_host(request):
 def fogbench_port(request):
     return request.config.getoption("--fogbench-port")
 
+
 @pytest.fixture
 def azure_host(request):
     return request.config.getoption("--azure-host")
+
 
 @pytest.fixture
 def azure_device(request):
     return request.config.getoption("--azure-device")
 
+
 @pytest.fixture
 def azure_key(request):
     return request.config.getoption("--azure-key")
+
 
 @pytest.fixture
 def azure_storage_account_url(request):
     return request.config.getoption("--azure-storage-account-url")
 
+
 @pytest.fixture
 def azure_storage_account_key(request):
     return request.config.getoption("--azure-storage-account-key")
 
+
 @pytest.fixture
 def azure_storage_container(request):
     return request.config.getoption("--azure-storage-container")
+
 
 @pytest.fixture
 def run_time(request):

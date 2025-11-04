@@ -19,6 +19,7 @@
 #include <filter_plugin.h>
 #include <service_handler.h>
 #include <config_handler.h>
+#include <pipeline_debugger.h>
 
 class FilterPipeline;
 
@@ -27,7 +28,7 @@ class FilterPipeline;
  */
 class PipelineElement {
 	public:
-		PipelineElement() : m_next(NULL), m_storage(NULL) {};
+		PipelineElement() : m_next(NULL), m_storage(NULL), m_debugger(NULL) {};
 		virtual ~PipelineElement() {};
 		void			setNext(PipelineElement *next)
 					{
@@ -45,6 +46,11 @@ class PipelineElement {
 					{
 						m_storage = storage;
 					};
+		bool			attachDebugger();
+		void			detachDebugger();
+		void			setDebuggerBuffer(unsigned int size);
+		std::vector<std::shared_ptr<Reading>>
+					getDebuggerBuffer();
 		static void		ingest(void *handle, READINGSET *readings)
 					{
 					       	((PipelineElement *)handle)->ingest(readings);
@@ -75,7 +81,7 @@ class PipelineElement {
 		std::string		m_serviceName;
 		PipelineElement		*m_next;
 		StorageClient		*m_storage;
-
+		PipelineDebugger	*m_debugger;
 };
 
 /**
@@ -88,6 +94,21 @@ class PipelineFilter : public PipelineElement {
 		bool			setupConfiguration(ManagementClient *mgtClient, std::vector<std::string>& children);
 		void			ingest(READINGSET *readingSet)
 					{
+						if (m_debugger)
+						{
+							PipelineDebugger::DebuggerActions  action =
+								m_debugger->process(readingSet);
+
+							switch (action)
+							{
+							case PipelineDebugger::Block:
+								delete readingSet;
+								return;
+							case PipelineDebugger::NoAction:
+								break;
+							}
+
+						}
 						if (m_plugin)
 						{
 							m_plugin->ingest(readingSet);
@@ -172,11 +193,15 @@ class PipelineBranch : public PipelineElement {
 class PipelineWriter : public PipelineElement {
 	public:
 		PipelineWriter();
+		std::string		getName() { return "Writer"; };
 		void			ingest(READINGSET *readingSet);
 		bool			setup(ManagementClient *mgmt, void *ingest, std::map<std::string, PipelineElement*>& categories);
 		bool                    init(OUTPUT_HANDLE* outHandle, OUTPUT_STREAM output);
 		void                    shutdown(ServiceHandler *serviceHandler, ConfigHandler *configHandler);
 		bool                    isReady();
+	private:
+		OUTPUT_STREAM		m_useData;
+		void			*m_ingest;
 };
 
 #endif

@@ -9,13 +9,13 @@ import json
 import time
 import pytest
 
-
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2024 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 TOKEN = None
+
 
 def update_policy(fledge_url, policy):
     conn = http.client.HTTPConnection(fledge_url)
@@ -27,9 +27,8 @@ def update_policy(fledge_url, policy):
     jdoc = json.loads(r)
     assert policy == jdoc['policy']['value']
 
+
 def test_setup(reset_and_start_fledge, fledge_url, wait_time):
-    # Wait for fledge server to start
-    time.sleep(wait_time)
     conn = http.client.HTTPConnection(fledge_url)
     conn.request("PUT", '/fledge/category/rest_api', json.dumps({"authentication": "mandatory"}))
     r = conn.getresponse()
@@ -38,14 +37,9 @@ def test_setup(reset_and_start_fledge, fledge_url, wait_time):
     jdoc = json.loads(r)
     assert "mandatory" == jdoc['authentication']['value']
 
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
+    from conftest import restart_and_wait_for_fledge
+    restart_and_wait_for_fledge(fledge_url, wait_time)
 
-    time.sleep(wait_time * 3)
     conn = http.client.HTTPConnection(fledge_url)
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
     r = conn.getresponse()
@@ -56,6 +50,7 @@ def test_setup(reset_and_start_fledge, fledge_url, wait_time):
     assert "token" in jdoc
     global TOKEN
     TOKEN = jdoc["token"]
+
 
 class TestAnyCharPolicy:
 
@@ -128,6 +123,7 @@ class TestMixedCasePolicy:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'message': 'Password has been updated successfully for user ID:<{}>.'.format(uid)} == jdoc
+
 
 class TestMixedAndNumericCasePolicy:
 

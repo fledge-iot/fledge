@@ -50,20 +50,36 @@ SimpleHttp::SimpleHttp(const string& host_port,
 	m_sender = new HttpClient(host_port);
 	m_sender->config.timeout = (time_t)request_timeout;
 	m_sender->config.timeout_connect = (time_t)connect_timeout;
-	char fname[180];
-	if (getenv("FLEDGE_DATA"))
-		snprintf(fname, sizeof(fname), "%s/omf.log", getenv("FLEDGE_DATA"));
-	else if (getenv("FLEDGE_ROOT"))
-		snprintf(fname, sizeof(fname), "%s/data/omf.log", getenv("FLEDGE_ROOT"));
-	if (access(fname, W_OK) == 0)
+	setTrace();
+}
+
+/**
+ * @brief Configures logging for the HTTP sender.
+ */
+void SimpleHttp::setTrace() 
+{
+    // Check if the log file is writable
+    std::string tracePath = HttpSender::getOMFTracePath();
+    if (access(tracePath.c_str(), W_OK) == 0)
 	{
 		m_log = true;
-		m_ofs.open(fname, ofstream::app);
+		m_ofs.open(tracePath.c_str(), ofstream::app);
 	}
 	else
 	{
 		m_log = false;
 	}
+}
+
+/**
+ * @brief Resets the logging state for the HTTP sender.
+ */
+void SimpleHttp::resetTrace() 
+{
+    if (m_log) 
+    {
+        m_ofs.close(); // Close the log file if it is open
+    }
 }
 
 /**
@@ -81,10 +97,7 @@ void SimpleHttp::setProxy(const string& proxy)
  */
 SimpleHttp::~SimpleHttp()
 {
-	if (m_log)
-	{
-		m_ofs.close();
-	}
+	resetTrace();
 	delete m_sender;
 }
 

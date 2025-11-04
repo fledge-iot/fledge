@@ -454,12 +454,13 @@ void SendingProcess::stop()
 		string saveData = this->m_plugin->shutdownSaveData();
 		// 2- store returned data: key is taskName + pluginName
 		string key(this->getName() + m_plugin_name);
-		if (!this->m_plugin->m_plugin_data->persistPluginData(key, saveData))
+		if (!this->m_plugin->m_plugin_data->persistPluginData(key, saveData, this->getName()))
 		{
-			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s",
+			Logger::getLogger()->error("Plugin %s has failed to save data [%s] for key %s and task name %s",
 						   m_plugin_name.c_str(),
 						   saveData.c_str(),
-						   key.c_str());
+						   key.c_str(),
+						   this->getName().c_str());
 		}
 	}
 	else

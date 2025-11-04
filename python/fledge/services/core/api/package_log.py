@@ -43,9 +43,10 @@ async def get_logs(request: web.Request) -> web.Response:
     logs_root_dir = _get_logs_dir()
     found_files = []
 
-    for root, dirs, files in os.walk(logs_root_dir):
-        found_files = [f for f in files if f.endswith(valid_extension)]
-
+    for root, dirs, files in os.walk(logs_root_dir, topdown=True):
+        # Only process files in the root directory and filter for .log files
+        if root == logs_root_dir:
+            found_files = [f for f in files if f.endswith(valid_extension)]
     result = []
     for f in found_files:
         if f.endswith(valid_extension):
@@ -86,9 +87,11 @@ async def get_log_by_name(request: web.Request) -> web.FileResponse:
         raise web.HTTPBadRequest(reason="Accepted file extension is {}".format(valid_extension))
 
     logs_root_dir = _get_logs_dir()
-    for root, dirs, files in os.walk(logs_root_dir):
-        if str(file_name) not in files:
-            raise web.HTTPNotFound(reason='{} file not found'.format(file_name))
+    for root, dirs, files in os.walk(logs_root_dir, topdown=True):
+        # Only process files in the root directory
+        if root == logs_root_dir:
+            if str(file_name) not in files:
+                raise web.HTTPNotFound(reason='{} file not found'.format(file_name))
 
     fp = Path(logs_root_dir + "/" + str(file_name))
     return web.FileResponse(path=fp)

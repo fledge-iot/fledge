@@ -15,7 +15,6 @@ from aiohttp.test_utils import make_mocked_request
 from aiohttp.streams import StreamReader
 from multidict import CIMultiDict
 import pytest
-import sys
 
 from fledge.services.common.microservice_management import routes as management_routes
 from fledge.services.core import server
@@ -31,6 +30,7 @@ from fledge.services.core.api import configuration as conf_api
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
+from fledge.services.core.user_model import User
 
 
 __author__ = "Vaibhav Singhal, Ashish Jabble"
@@ -52,8 +52,6 @@ def mock_request(data, loop):
     return req
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core", "server")
 class TestServer:
 
     @pytest.fixture
@@ -87,13 +85,7 @@ class TestServer:
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(storage_client_mock)
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock([])
-        else:
-            _rv = asyncio.ensure_future(async_mock([]))
-        
+        _rv = await async_mock([])
         with patch.object(Server._configuration_manager, 'create_category',
                           return_value=_rv) as patch_create_cat:
             with patch.object(Server._configuration_manager, 'get_category_all_items',
@@ -112,9 +104,7 @@ class TestServer:
         value = {'cacheSize': {'description': 'To control the caching size of Core Configuration Manager',
                                'type': 'integer', 'displayName': 'Cache Size', 'default': '30', 'value': '30',
                                'order': '1', 'minimum': '1', 'maximum': '1000'}}
-
-        rv = await async_mock(value) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
-            asyncio.ensure_future(async_mock(value)))
+        rv = await async_mock(value)
         with patch.object(Server._configuration_manager, 'create_category',
                           return_value=rv) as patch_create_cat:
             with patch.object(Server._configuration_manager, 'get_category_all_items',
@@ -220,23 +210,12 @@ class TestServer:
         async def return_async_value(val):
             return val
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await return_async_value(None)
-            _rv2 = await return_async_value('stopping scheduler..')
-            _rv3 = await return_async_value('stopping msvc..')
-            _rv4 = await return_async_value('stopping svc monitor..')
-            _rv5 = await return_async_value('stopping REST server..')
-            _rv6 = await return_async_value('stopping storage..')
-        else:
-            _rv1 = asyncio.ensure_future(return_async_value(None))
-            _rv2 = asyncio.ensure_future(return_async_value('stopping scheduler..'))
-            _rv3 = asyncio.ensure_future(return_async_value('stopping msvc..'))
-            _rv4 = asyncio.ensure_future(return_async_value('stopping svc monitor..'))
-            _rv5 = asyncio.ensure_future(return_async_value('stopping REST server..'))
-            _rv6 = asyncio.ensure_future(return_async_value('stopping storage..'))
-            
-        
+        _rv1 = await return_async_value(None)
+        _rv2 = await return_async_value('stopping scheduler..')
+        _rv3 = await return_async_value('stopping msvc..')
+        _rv4 = await return_async_value('stopping svc monitor..')
+        _rv5 = await return_async_value('stopping REST server..')
+        _rv6 = await return_async_value('stopping storage..')
         mocked__stop_scheduler.return_value = _rv2
         mocked_stop_microservices.return_value = _rv3
         mocked_stop_service_monitor.return_value = _rv4
@@ -297,12 +276,7 @@ class TestServer:
         async def async_mock():
             return web.json_response({'categories': "test"})
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = {'categories': "test"}
         with patch.object(conf_api, 'get_categories', return_value=_rv) as patch_get_all_categories:
             resp = await client.get('/fledge/service/category')
@@ -316,12 +290,7 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = "test"
         with patch.object(conf_api, 'get_category', return_value=_rv) as patch_category:
             resp = await client.get('/fledge/service/category/{}'.format("test_category"))
@@ -337,12 +306,7 @@ class TestServer:
                                       "description": "test_category_desc",
                                       "value": "test_category_info"})
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = {"key": "test_name", "description": "test_category_desc", "value": "test_category_info"}
         with patch.object(conf_api, 'create_category', return_value=_rv) as patch_create_category:
             resp = await client.post('/fledge/service/category')
@@ -356,12 +320,7 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = "test"
         with patch.object(conf_api, 'get_category_item', return_value=_rv) as patch_category_item:
             resp = await client.get('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
@@ -375,12 +334,7 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = "test"
         with patch.object(conf_api, 'set_configuration_item', return_value=_rv) as patch_update_category_item:
             resp = await client.put('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
@@ -394,12 +348,7 @@ class TestServer:
         async def async_mock():
             return web.json_response("ok")
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         result = "ok"
         with patch.object(conf_api, 'delete_configuration_item_value', return_value=_rv) as patch_del_category_item:
             resp = await client.delete('/fledge/service/category/{}/{}/value'.format("test_category", "test_item"))
@@ -661,8 +610,7 @@ class TestServer:
         Server._storage_client_async = MagicMock(StorageClientAsync)
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
                         "management_port": 1090}
-        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
-            asyncio.ensure_future(async_mock())
+        _rv = await async_mock()
         with patch.object(ServiceRegistry, 'getStartupToken', return_value=None):
             with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
                 with patch.object(AuditLogger, '__init__', return_value=None):
@@ -703,8 +651,7 @@ class TestServer:
         data.append(record)
         Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
-        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else\
-            asyncio.ensure_future(async_mock())
+        _rv = await async_mock()
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:
                 with patch.object(AuditLogger, '__init__', return_value=None):
@@ -738,12 +685,7 @@ class TestServer:
         async def return_async_value(val):
             return val
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await return_async_value('stopping...')
-        else:
-            _rv = asyncio.ensure_future(return_async_value('stopping...'))
-        
+        _rv = await return_async_value('stopping...')
         mocked__stop = mocker.patch.object(Server, "_stop")
         mocked__stop.return_value = _rv
         mocked_log_info = mocker.patch.object(server._logger, "info")
@@ -761,6 +703,337 @@ class TestServer:
         assert 'Stopping the Fledge Core event loop. Good Bye!' == args[0]
         assert 'message' in json_response
         assert 'Fledge stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
+
+    ######################
+    # Service Login Tests
+    ######################
+
+    @pytest.mark.parametrize("data, expected_status, expected_message", [
+        (None, 400, "valid JSON"),
+        ("not a dict", 400, "valid JSON object"),
+        ({}, 400, "Username field is required"),
+        ({"username": 123}, 400, "Username must be a string"),
+        ({"username": "  "}, 400, "cannot be empty or contain only whitespace"),
+        ({"username": ""}, 400, "cannot be empty")
+    ])
+    async def test_service_login_input_validation(self, client, data, expected_status, expected_message):
+        resp = await client.post('/fledge/service/login', data=json.dumps(data))
+        assert expected_status == resp.status
+        assert expected_message in resp.reason
+        r = await resp.text()
+        json_response = json.loads(r)
+        assert 'message' in json_response
+        assert expected_message in json_response['message']
+
+    @pytest.mark.parametrize("headers, expected_status, expected_message", [
+        ({}, 401, "Authorization header is missing"),
+        ({"Authorization": "InvalidFormat token"}, 401, "must start with 'Bearer '"),
+        ({"Authorization": "Bearer "}, 401, "Authorization header must start with 'Bearer ' followed by a token"),
+        ({"Authorization": f"Bearer {'x' * 2049}"}, 401, "exceeds maximum length")
+    ])
+    async def test_service_login_bearer_token_validation(self, client, headers, expected_status, expected_message):
+        data = {"username": "testuser"}
+        resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+        assert expected_status == resp.status
+        assert expected_message in resp.reason
+        r = await resp.text()
+        json_response = json.loads(r)
+        assert 'message' in json_response
+        assert expected_message in json_response['message']
+
+    @pytest.mark.parametrize("token_error, expected_message", [
+        ("Invalid token", "Bearer token is invalid"),
+        ("Token has expired", "Bearer token has expired"),
+        ("Signature verification failed", "Bearer token signature is invalid")
+    ])
+    async def test_service_login_jwt_validation_errors(self, client, token_error, expected_message):
+        data = {"username": "testuser"}
+        headers = {"Authorization": "Bearer invalid.jwt.token"}
+        with patch.object(Server, 'validate_token', return_value={'error': token_error}) as mock_validate_token:
+            resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+            assert 401 == resp.status
+            assert expected_message in resp.reason
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert 'message' in json_response
+            assert expected_message in json_response['message']
+        mock_validate_token.assert_called_once_with('invalid.jwt.token')
+
+    async def test_service_login_missing_sub_claim(self, client):
+        data = {"username": "testuser"}
+        headers = {"Authorization": "Bearer valid.jwt.token"}
+        with patch.object(Server, 'validate_token', return_value={}) as mock_validate_token:
+            resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+            assert 401 == resp.status
+            assert "missing service name claim" in resp.reason
+            r = await resp.text()
+            json_response = json.loads(r)
+            assert 'message' in json_response
+            assert "missing service name claim" in json_response['message']
+        mock_validate_token.assert_called_once_with('valid.jwt.token')
+
+    async def test_service_login_unregistered_service(self, client):
+        data = {"username": "testuser"}
+        headers = {"Authorization": "Bearer valid.jwt.token"}
+        with patch.object(Server, 'validate_token', return_value={'sub': 'unregistered-service'}) as mock_validate_token:
+            with patch.object(ServiceRegistry, 'getBearerToken', return_value=None) as mock_get_bearer_token:
+                resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                assert 404 == resp.status
+                assert "is not registered" in resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert 'message' in json_response
+                assert "is not registered" in json_response['message']
+            mock_get_bearer_token.assert_called_once_with('unregistered-service')
+        mock_validate_token.assert_called_once_with('valid.jwt.token')
+
+    async def test_service_login_mismatched_bearer_token(self, client):
+        bearer_token = "valid.jwt.token"
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+            with patch.object(ServiceRegistry, 'getBearerToken', return_value='different-token') as mock_get_bearer_token:
+                resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                assert 401 == resp.status
+                assert "does not match registered" in resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert 'message' in json_response
+                assert "does not match registered" in json_response['message']
+            mock_get_bearer_token.assert_called_once_with('test-service')
+        mock_validate_token.assert_called_once_with(bearer_token)
+
+    @pytest.mark.parametrize("user_data, expected_status, expected_message", [
+        ([], 401, "User not found or not enabled"),  # No users
+        ([{'id': 1, 'uname': 'testuser', 'enabled': 'f', 'role_id': 1}], 401, "User not found or not enabled"),
+        ([{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 3}], 403, "not authorized to access services"),
+        ([{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 4}], 403, "not authorized to access services")
+    ])
+    async def test_service_login_user_authorization(self, client, user_data, expected_status, expected_message):
+        bearer_token = "valid.jwt.token"
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+            with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                    resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                    assert expected_status == resp.status
+                    assert expected_message in resp.reason
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert 'message' in json_response
+                    assert expected_message in json_response['message']
+                mock_user_all.assert_called_once_with()
+            mock_get_bearer_token.assert_called_once_with('test-service')
+        mock_validate_token.assert_called_once_with(bearer_token)
+
+    async def test_service_login_missing_password(self, client):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any'}]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+            with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                    with patch.object(User.Objects, 'delete_user_tokens', return_value=None) as mock_delete_tokens:
+                        resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                        assert 401 == resp.status
+                        assert "password is not configured" in resp.reason
+                        r = await resp.text()
+                        json_response = json.loads(r)
+                        assert 'message' in json_response
+                        assert "password is not configured" in json_response['message']
+                    mock_delete_tokens.assert_called_once_with(1)
+                mock_user_all.assert_called_once_with()
+            mock_get_bearer_token.assert_called_once_with('test-service')
+        mock_validate_token.assert_called_once_with(bearer_token)
+
+    @pytest.mark.parametrize("access_method, login_method, login_args", [
+        ('cert', 'certificate_login', ('testuser', '127.0.0.1')),
+        ('any', 'login', ('testuser', 'hashedpassword', '127.0.0.1')),
+        ('password', 'login', ('testuser', 'hashedpassword', '127.0.0.1'))
+    ])
+    async def test_service_login_authentication_success(self, client, access_method, login_method, login_args):
+        bearer_token = "valid.jwt.token"
+        user_data = [{
+            'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1,
+            'access_method': access_method, 'pwd': 'hashedpassword'
+        }]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(server._logger, 'info') as mock_logger_info:
+            with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+                with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                    with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                        with patch.object(User.Objects, 'delete_user_tokens', return_value=None) as mock_delete_tokens:
+                            with patch.object(User.Objects, login_method, return_value=(1, 'mock-token', True)) as mock_login:
+                                resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                                assert 200 == resp.status
+                                r = await resp.text()
+                                response_data = json.loads(r)
+                                assert response_data['token'] == 'mock-token'
+                                assert response_data['uid'] == 1
+                                assert response_data['admin'] is True
+                                assert "logged in successfully" in response_data['message']
+                            mock_login.assert_called_once_with(*login_args)
+                        mock_delete_tokens.assert_called_once_with(1)
+                    mock_user_all.assert_called_once_with()
+                mock_get_bearer_token.assert_called_once_with('test-service')
+            mock_validate_token.assert_called_once_with(bearer_token)
+        mock_logger_info.assert_called_once()
+        info_call_args = mock_logger_info.call_args[0]
+        expected_method = 'certificate' if access_method == 'cert' else 'password'
+        assert f"Successful {expected_method} login for user 'testuser' via service 'test-service'" in info_call_args[0]
+
+    @pytest.mark.parametrize("exception_type, expected_status, expected_message", [
+        (User.PasswordNotSetError, 400, "Password is not set"),
+        (User.DoesNotExist, 401, "User authentication failed"),
+        (Exception("Authentication failed"), 401, "Authentication failed"),
+    ])
+    async def test_service_login_authentication_errors(self, client, exception_type, expected_status, expected_message):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any', 'pwd': 'hashedpassword'}]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+            with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                    with patch.object(User.Objects, 'delete_user_tokens', return_value=None) as mock_delete_tokens:
+                        with patch.object(User.Objects, 'login', side_effect=exception_type) as mock_login:
+                            resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                            assert expected_status == resp.status
+                            assert expected_message in resp.reason
+                            r = await resp.text()
+                            json_response = json.loads(r)
+                            assert 'message' in json_response
+                            assert expected_message in json_response['message']
+                        mock_login.assert_called_once_with('testuser', 'hashedpassword', '127.0.0.1') 
+                    mock_delete_tokens.assert_called_once_with(1)
+                mock_user_all.assert_called_once_with()
+            mock_get_bearer_token.assert_called_once_with('test-service')
+        mock_validate_token.assert_called_once_with(bearer_token)
+
+    async def test_service_login_token_cleanup_failure_continues(self, client):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any', 'pwd': 'hashedpassword'}]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(server._logger, 'warning') as mock_logger_warning:
+            with patch.object(server._logger, 'info') as mock_logger_info:
+                with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+                    with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                        with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                            with patch.object(User.Objects, 'delete_user_tokens', side_effect=Exception("Cleanup failed")) as mock_delete_tokens:
+                                with patch.object(User.Objects, 'login', return_value=(1, 'mock-token', True)) as mock_login:
+                                    resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                                    assert 200 == resp.status
+                                    r = await resp.text()
+                                    response_data = json.loads(r)
+                                    assert response_data['token'] == 'mock-token'
+                                mock_login.assert_called_once_with('testuser', 'hashedpassword', '127.0.0.1')
+                            mock_delete_tokens.assert_called_once_with(1)
+                        mock_user_all.assert_called_once_with()
+                    mock_get_bearer_token.assert_called_once_with('test-service')
+                mock_validate_token.assert_called_once_with(bearer_token)
+            mock_logger_info.assert_called_once()
+            info_call_args = mock_logger_info.call_args[0]
+            assert "Successful password login for user 'testuser' via service 'test-service'" in info_call_args[0]
+        mock_logger_warning.assert_called_once()
+        warning_call_args = mock_logger_warning.call_args[0]
+        assert "Failed to delete existing tokens for user 'testuser'" in warning_call_args[0]
+
+    async def test_service_login_no_peername_uses_default_host(self, client):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any', 'pwd': 'hashedpassword'}]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(server._logger, 'info') as mock_logger_info:
+            with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+                with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                    with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                        with patch.object(User.Objects, 'delete_user_tokens', return_value=None) as mock_delete_tokens:
+                            with patch.object(User.Objects, 'login', return_value=(1, 'mock-token', True)) as mock_login:
+                                resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                                assert 200 == resp.status
+                                r = await resp.text()
+                                response_data = json.loads(r)
+                                assert response_data['token'] == 'mock-token'
+                            mock_login.assert_called_once()
+                            args, kwargs = mock_login.call_args
+                            assert len(args) == 3
+                            assert args[0] == 'testuser'
+                            assert args[1] == 'hashedpassword'
+                            # args[2] is the host IP - could be 127.0.0.1 or similar
+                            assert kwargs == {}
+                        mock_delete_tokens.assert_called_once_with(1)
+                    mock_user_all.assert_called_once_with()
+                mock_get_bearer_token.assert_called_once_with('test-service')
+            mock_validate_token.assert_called_once_with(bearer_token)
+        mock_logger_info.assert_called_once()
+
+    async def test_service_login_error_handling_invalid_json(self, client):
+        resp = await client.post('/fledge/service/login', data='{"invalid": json}')
+        assert 400 == resp.status
+        assert "valid JSON" in resp.reason
+        r = await resp.text()
+        json_response = json.loads(r)
+        assert 'message' in json_response
+        assert "valid JSON" in json_response['message']
+
+    async def test_service_login_uses_constant_time_comparison(self, client):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any', 'pwd': 'hashedpassword'}]
+        data = {"username": "testuser"}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(server._logger, 'info') as mock_logger_info:
+            with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}):
+                with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token):
+                    with patch('hmac.compare_digest', return_value=True) as mock_compare:
+                        with patch.object(User.Objects, 'all', return_value=user_data):
+                            with patch.object(User.Objects, 'delete_user_tokens', return_value=None):
+                                with patch.object(User.Objects, 'login', return_value=(1, 'mock-token', True)):
+                                    resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                                    assert 200 == resp.status
+                                    r = await resp.text()
+                                    response_data = json.loads(r)
+                                    assert response_data['token'] == 'mock-token'
+                    assert mock_compare.call_count >= 2
+                    for call in mock_compare.call_args_list:
+                        args, kwargs = call
+                        assert len(args) == 2
+                        assert isinstance(args[0], str)
+                        assert isinstance(args[1], str)
+                        assert kwargs == {}
+        mock_logger_info.assert_called_once()
+
+    async def test_service_login_trims_whitespace_username(self, client):
+        bearer_token = "valid.jwt.token"
+        user_data = [{'id': 1, 'uname': 'testuser', 'enabled': 't', 'role_id': 1, 'access_method': 'any', 'pwd': 'hashedpassword'}]
+        data = {"username": "  testuser  "}
+        headers = {"Authorization": f"Bearer {bearer_token}"}
+        with patch.object(server._logger, 'info') as mock_logger_info:
+            with patch.object(Server, 'validate_token', return_value={'sub': 'test-service'}) as mock_validate_token:
+                with patch.object(ServiceRegistry, 'getBearerToken', return_value=bearer_token) as mock_get_bearer_token:
+                    with patch.object(User.Objects, 'all', return_value=user_data) as mock_user_all:
+                        with patch.object(User.Objects, 'delete_user_tokens', return_value=None) as mock_delete_tokens:
+                            with patch.object(User.Objects, 'login', return_value=(1, 'mock-token', True)) as mock_login:
+                                resp = await client.post('/fledge/service/login', data=json.dumps(data), headers=headers)
+                                assert 200 == resp.status
+                                r = await resp.text()
+                                response_data = json.loads(r)
+                                assert response_data['token'] == 'mock-token'
+                            mock_login.assert_called_once()
+                            args, kwargs = mock_login.call_args
+                            assert len(args) == 3
+                            assert args[0] == 'testuser'
+                            assert args[1] == 'hashedpassword'
+                            # args[2] is the host IP
+                            assert kwargs == {}
+                        mock_delete_tokens.assert_called_once_with(1)
+                    mock_user_all.assert_called_once_with()
+                mock_get_bearer_token.assert_called_once_with('test-service')
+            mock_validate_token.assert_called_once_with(bearer_token)
+        mock_logger_info.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_change(self):

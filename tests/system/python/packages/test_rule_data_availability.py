@@ -31,7 +31,6 @@ SOUTH_SERVICE_NAME = "Sine #1"
 SOUTH_DP_NAME="sinusoid"
 SOUTH_ASSET_NAME = "{}_sinusoid_assets".format(time.strftime("%Y%m%d"))
 NORTH_PLUGIN = "OMF"
-TASK_NAME = "EDS #1"
 NOTIF_SERVICE_NAME = "notification"
 NOTIF_INSTANCE_NAME = "notify #1"
 AF_HIERARCHY_LEVEL = "{0}_teststatslvl1/{0}_teststatslvl2/{0}_teststatslvl3".format(time.strftime("%Y%m%d"))
@@ -48,7 +47,10 @@ def reset_fledge(wait_time):
     time.sleep(wait_time)
 
 @pytest.fixture
-def reset_eds():
+def reset_eds(north_historian):
+    if north_historian != "EdgeDataStore":
+        print("Skipping EDS reset check as north_historian is not EdgeDataStore")
+        return
     eds_reset_url = "/api/v1/Administration/Storage/Reset"
     con = http.client.HTTPConnection("localhost", 5590)
     con.request("POST", eds_reset_url, "")
@@ -56,7 +58,12 @@ def reset_eds():
     assert 204 == resp.status
 
 @pytest.fixture
-def check_eds_installed():
+def check_eds_installed(north_historian):
+    
+    if north_historian != "EdgeDataStore":
+        print("Skipping EDS installation check as north_historian is not EdgeDataStore")
+        return
+
     dpkg_list = os.popen('dpkg --list osisoft.edgedatastore >/dev/null; echo $?')
     ls_output = dpkg_list.read()
     assert ls_output == "0\n", "EDS not installed. Please install it first!"
@@ -75,18 +82,37 @@ def start_south(add_south, fledge_url):
     add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package', config=config)
 
 
+def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    retry_count = 0
+    data_from_pi = None
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+
+    while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
+        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
+                                                 SOUTH_ASSET_NAME, '')
+        retry_count += 1
+        time.sleep(wait_time * 2)
+
+    if data_from_pi is None or retry_count == retries:
+        assert False, "Unable to read data from PI"
+
 @pytest.fixture
-def start_north(fledge_url, enabled=True):
-    conn = http.client.HTTPConnection(fledge_url)
-    data = {"name": TASK_NAME,
-            "plugin": NORTH_PLUGIN,
-            "type": "north",
-            "enabled": enabled,
-            "config": {"PIServerEndpoint": {"value": "Edge Data Store"},
-                       "NamingScheme": {"value": "Backward compatibility"}}
-            }
-    post_url = "/fledge/service"
-    utils.post_request(fledge_url, post_url, data)
+def start_north(fledge_url, north_historian, start_north_omf_as_a_service, 
+                pi_host, pi_port, pi_admin, pi_passwd, enabled=True):
+    
+    if north_historian == "EdgeDataStore":
+        data = {"name": "EDS #1",
+                "plugin": NORTH_PLUGIN,
+                "type": "north",
+                "enabled": enabled,
+                "config": {"PIServerEndpoint": {"value": "Edge Data Store"},
+                        "NamingScheme": {"value": "Backward compatibility"}}
+                }
+        post_url = "/fledge/service"
+        utils.post_request(fledge_url, post_url, data)
+    else:
+        start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false",
+                                     service_name="OMF #1", default_af_location=AF_HIERARCHY_LEVEL)
 
 @pytest.fixture
 def start_notification(fledge_url, add_service, add_notification_instance,wait_time, retries):
@@ -243,7 +269,9 @@ class TestDataAvailabilityAssetBasedNotificationRuleOnIngress:
 
 class TestDataAvailabilityBasedNotificationRuleOnEgress:
     def test_data_availability_north(self, check_eds_installed, reset_fledge, start_notification, reset_eds, 
-                                     start_north, fledge_url, wait_time, skip_verify_north_interface, add_south, retries):
+                                     start_north, fledge_url, wait_time, skip_verify_north_interface, add_south, 
+                                     retries, north_historian, read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, 
+                                     pi_db):
         """ Test NTFSN triggered or not with configuration change in north EDS plugin.
             start_north: Fixtures to add and start south services
             Assertions:
@@ -271,7 +299,10 @@ class TestDataAvailabilityBasedNotificationRuleOnEgress:
         
         time.sleep(wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        r = verify_eds_data()
-        assert SOUTH_DP_NAME in r, "Data in EDS not found!"
-        ts = r.get("Time")
-        assert ts.find(datetime.now().strftime("%Y-%m-%d")) != -1, "Latest data not found in EDS!"
+        if north_historian == "EdgeDataStore":
+            r = verify_eds_data()
+            assert SOUTH_DP_NAME in r, "Data found in EDS!"
+            ts = r.get("Time")
+            assert ts.find(datetime.now().strftime("%Y-%m-%d")) != -1, "Latest data not found in EDS!"
+        else:
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)

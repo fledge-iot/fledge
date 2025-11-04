@@ -1,0 +1,90 @@
+name: Checker
+
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  test:
+    name: 🛠️ Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    env:
+      FLEDGE_ROOT: ${{ github.workspace }}
+      PYTHONPATH: ${{ github.workspace }}/python
+
+    steps:
+      - name: 🛎️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Compile Fledge Core
+        id: make_fledge
+        run: |
+          set -e
+          echo "⚠️ APT is misinterpreting the mirror+file: scheme as a URL 🌐, causing 404 errors ❌ due to a missing or invalid /etc/apt/apt-mirrors.txt file 📄."
+          RELEASE=$(lsb_release -cs)
+          echo "Using release: $RELEASE"
+          cat <<EOF | sudo tee /etc/apt/sources.list
+          deb http://archive.ubuntu.com/ubuntu $RELEASE main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu $RELEASE-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu $RELEASE-backports main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu $RELEASE-security main restricted universe multiverse
+          EOF
+          sudo apt-get update
+          sudo apt-get install -y --fix-missing
+
+          echo "🔧 Run setup prerequisites 📦 and compilation of code 🛠️"
+          cd "$FLEDGE_ROOT"
+          sudo ./requirements.sh
+          make -j"$(nproc)"
+
+      - name: 🧪 Run C Unit Tests
+        if: steps.make_fledge.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          cd "$FLEDGE_ROOT/tests/unit/C"
+
+          echo "🛠️ Installing C test dependencies..."
+          chmod +x requirements.sh && ./requirements.sh
+
+          echo "📋 Running C tests..."
+          chmod +x scripts/RunAllTests.sh && ./scripts/RunAllTests.sh
+
+          mkdir -p "$FLEDGE_ROOT/reports"
+          cp -v results/*.xml "$FLEDGE_ROOT/reports/" || echo "⚠️ No C test reports found"
+
+      - name: 🧪 Run Python Unit Tests
+        if: steps.make_fledge.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          echo "🛠️ Installing Python test dependencies..."
+          python3 -m pip install -Ir python/requirements-test.txt
+
+          echo "📋 Running Python tests..."
+          python3 -m pytest -s -vv \
+            --junit-xml="$FLEDGE_ROOT/tests/unit/python/fledge/python_test_output.xml" \
+            "$FLEDGE_ROOT/tests/unit/python/fledge" \
+            --tb=line
+
+          mkdir -p "$FLEDGE_ROOT/reports"
+          cp -v "$FLEDGE_ROOT/tests/unit/python/fledge/"*.xml "$FLEDGE_ROOT/reports/" || echo "⚠️ No Python test report found"
+
+      # Publish test results to GitHub UI using a third-party action
+      # Note: GitHub Actions does not yet support native test report publishing in the UI
+      # This step uses dorny/test-reporter to visualize test results in the Actions tab
+      - name: 📤 Publish Test Report to GitHub
+        if: steps.make_fledge.outcome == 'success'
+        continue-on-error: true
+        uses: dorny/test-reporter@v1
+        with:
+          name: 📊 Test Results on ${{ matrix.os }}
+          path: ${{ env.FLEDGE_ROOT }}/reports/*.xml
+          reporter: java-junit
+          fail-on-error: true
+

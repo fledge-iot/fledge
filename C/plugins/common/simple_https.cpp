@@ -12,7 +12,6 @@
 #include <simple_https.h>
 #include <thread>
 #include <logger.h>
-#include <unistd.h>
 #include <string_utils.h>
 
 #define VERBOSE_LOG	0
@@ -53,15 +52,29 @@ SimpleHttps::SimpleHttps(const string& host_port,
 	m_sender = new HttpsClient(host_port, false);
 	m_sender->config.timeout = (time_t)request_timeout;
 	m_sender->config.timeout_connect = (time_t)connect_timeout;
-	char fname[180];
-	if (getenv("FLEDGE_DATA"))
-		snprintf(fname, sizeof(fname), "%s/omf.log", getenv("FLEDGE_DATA"));
-	else if (getenv("FLEDGE_ROOT"))
-		snprintf(fname, sizeof(fname), "%s/data/omf.log", getenv("FLEDGE_ROOT"));
-	if (access(fname, W_OK) == 0)
+    setTrace();
+}
+
+/**
+ * Destructor
+ */
+SimpleHttps::~SimpleHttps()
+{
+    resetTrace();
+	delete m_sender;
+}
+
+/**
+ * @brief Configures logging for the HTTP sender.
+ */
+void SimpleHttps::setTrace() 
+{
+    // Check if the log file is writable
+    std::string tracePath = HttpSender::getOMFTracePath();
+    if (access(tracePath.c_str(), W_OK) == 0)
 	{
 		m_log = true;
-		m_ofs.open(fname, ofstream::app);
+		m_ofs.open(tracePath.c_str(), ofstream::app);
 	}
 	else
 	{
@@ -70,15 +83,14 @@ SimpleHttps::SimpleHttps(const string& host_port,
 }
 
 /**
- * Destructor
+ * @brief Resets the logging state for the HTTP sender.
  */
-SimpleHttps::~SimpleHttps()
+void SimpleHttps::resetTrace() 
 {
-	if (m_log)
-	{
-		m_ofs.close();
-	}
-	delete m_sender;
+    if (m_log) 
+    {
+        m_ofs.close(); // Close the log file if it is open
+    }
 }
 
 /**

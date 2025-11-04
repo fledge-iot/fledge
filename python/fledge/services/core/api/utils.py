@@ -7,7 +7,7 @@
 import subprocess
 import os
 import json
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_PLUGIN_PATH
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_PLUGIN_PATH, _FLEDGE_DATA
 from fledge.common.logger import FLCoreLogger
 
 _logger = FLCoreLogger().get_logger(__name__)
@@ -96,3 +96,11 @@ def _find_plugins_from_env(_plugin_path: list) -> list:
             else:
                 _logger.warning("{} dir path not found.".format(ml))
     return _plugin_path
+
+
+def get_fl_dir(_path):
+    dir_path = _FLEDGE_DATA + _path if _FLEDGE_DATA else _FLEDGE_ROOT + '/data' + _path
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    return os.path.expanduser(dir_path)
+

@@ -413,42 +413,31 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 Memory Leaks and Corruptions
 ----------------------------
 
-The same approach can be used to make use of the *valgrind* command to find memory corruption and leak issues in your plugin
+Fledge has integrated support that allows south and north services to be run using the *valgrind* tool.  This tool makes it easy to find memory corruption and leak issues in your plugin
 
   - Create the service that uses your plugin, say a south service and name that service as you normally would.
    
-  - Disable that service from being started by Fledge
+  - Shutdown Fledge
 
-  - Use the fledge status script to find the arguments to pass the service
+  - If using a south service to test your plugin set the environment variable VALGRIND_SOUTH to be the name of the service you just defined.
 
-    .. code-block:: console
+  - Start Fledge using the *fledge* script in the scripts directory.
 
-       $ scripts/fledge status
-       Fledge v1.8.2 running.
-       Fledge Uptime:  1451 seconds.
-       Fledge records: 200889 read, 200740 sent, 120962 purged.
-       Fledge does not require authentication.
-       === Fledge services:
-       fledge.services.core
-       fledge.services.storage --address=0.0.0.0 --port=39821
-       fledge.services.south --port=39821 --address=127.0.0.1 --name=AX8
-       fledge.services.south --port=39821 --address=127.0.0.1 --name=Sine
-       === Fledge tasks:
+  - Allow Fledge to run for some time. Note that the service running under *valgrind* will run much more slowly that it does outside of *valgrind*. You may have to allow it to run for more time than expected.
 
-   - Note the *--port=* and *--address=* arguments
+  - Shutdown Fledge. Again this may take longer than normal.
 
-   - Run *valgrind* with the service adding the same set of arguments you used in gdb when running the service.
+You will see a file created in your home directory called *south.serviceName.valgrind.out*. This is a text file that contains the result of running *valgrind*. Refer to the standard *valgrind* documentation for information on how to interpret this file.
 
-     Add any arguments you wish to pass to *valgrind* itself before the service executable name, in this case we are passing *--leak-check=full*.
+If developing a plugin to run in a north service, then the variable VALGRIND_NORTH should be set.
 
-     .. code-block:: console
+Multiple services may be run under *valgrind* by setting the appropriate variable to be a comma separated list of service names.
 
-        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
+Compiling under debug mode, by setting *CFLAGS=-DDebug* will allow *valgrind* to pinpoint memory leaks and corruptions to particular lines of your source code.
 
-     Where *ServiceName* is the name you gave your service and startupToken is a one time use token obtained following the steps shown above.
+.. note::
 
-  - Once the service has run for a while shut it down to trigger *valgrind* to print a summary of memory leaks found during the execution.
-
+   Don't forget to clear the environment variable once you have completed your analysis otherwise you will degrade the performance of the service.
 
 Python Plugin Info
 ------------------
@@ -476,4 +465,430 @@ You can also check your default configuration. Although in Python this is usuall
 
    $ python3 -c 'from fledge.plugins.south.sinusoid.sinusoid import plugin_info; print(plugin_info()["config"])'
    {'plugin': {'description': 'Sinusoid Poll Plugin which implements sine wave with data points', 'type': 'string', 'default': 'sinusoid', 'readonly': 'true'}, 'assetName': {'description': 'Name of Asset', 'type': 'string', 'default': 'sinusoid', 'displayName': 'Asset name', 'mandatory': 'true'}}
+
+Plugin Configuration Validation
+-------------------------------
+
+The plugin configuration validation feature provides automated connectivity testing for plugin configurations. This feature validates that network-related configuration parameters are correct and reachable before deploying or activating a plugin, helping to identify configuration issues early in the plugin testing process.
+
+This is the first iteration of the configuration validation feature, focusing on network connectivity validation for common plugin patterns.
+
+Overview
+~~~~~~~~
+
+The validation system performs two primary types of tests:
+
+**Host Reachability Test**
+   Tests whether the configured host or server is reachable over the network using socket-based connectivity testing.
+
+**Listening Test**
+   Tests whether a service is actively listening on the specified host and port combination.
+
+The validation automatically detects relevant configuration fields and applies appropriate tests based on the field types and naming conventions.
+
+Supported Configuration Keys
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The validation system recognizes the following configuration field patterns (case insensitive):
+
+**Address Fields**
+   - ``address``
+   - ``ip``
+   - ``server``
+   - ``host``
+   - ``hostname``
+
+**Port Fields**
+   - ``port``
+   - ``brokerport``
+
+**URL Fields**
+   - ``url``
+
+**Broker Fields**
+   - ``broker``
+   - ``brokerhost``
+
+Configuration Value Priority
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When both ``default`` and ``value`` keys are present in a configuration field, the validation system uses the following priority:
+
+1. **``value``** - Takes precedence when present
+2. **``default``** - Used when ``value`` is not present
+3. **Error** - Raised if neither ``value`` nor ``default`` is present
+
+Common Configuration Patterns
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Host and Port Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Standard server configuration with separate host and port fields:
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "Modbus TCP Plugin",
+           "type": "string",
+           "default": "modbus",
+           "readonly": "true"
+       },
+       "address": {
+           "description": "Address of Modbus TCP server",
+           "type": "string",
+           "default": "192.168.1.100",
+           "order": "1",
+           "displayName": "Server Address"
+       },
+       "port": {
+           "description": "Port of Modbus TCP server",
+           "type": "integer",
+           "default": "502",
+           "order": "2",
+           "displayName": "Port"
+       }
+   }
+
+**Validation Behavior:**
+   - Tests host reachability to ``192.168.1.100``
+   - Tests service listening on ``192.168.1.100:502``
+
+Address-Only Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Industrial protocol configuration with address field only:
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "S7 PLC Plugin",
+           "type": "string",
+           "default": "s7",
+           "readonly": "true"
+       },
+       "IP": {
+           "description": "PLC IP Address",
+           "type": "string",
+           "default": "192.168.1.151",
+           "order": "1",
+           "displayName": "PLC IP Address"
+       }
+   }
+
+**Validation Behavior:**
+   - Tests host reachability to ``192.168.1.151``
+   - Tests service listening on common industrial ports: ``102`` (S7), ``44818`` (EtherNet/IP), ``502`` (Modbus), ``80`` (HTTP), ``443`` (HTTPS)
+
+IP Address Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Similar to address-only, but specifically for IP fields:
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "EtherNet/IP Plugin",
+           "type": "string",
+           "default": "etherip",
+           "readonly": "true"
+       },
+       "address": {
+           "description": "Address of PLC",
+           "type": "string",
+           "default": "127.0.0.1",
+           "value": "192.168.1.199",
+           "order": "1",
+           "displayName": "PLC IP Address"
+       }
+   }
+
+**Validation Behavior:**
+   - Uses ``value`` (``192.168.1.199``) over ``default``
+   - Tests host reachability to ``192.168.1.199``
+   - Tests service listening on default industrial ports
+
+Broker Configuration
+^^^^^^^^^^^^^^^^^^^^
+
+MQTT broker configuration supports multiple patterns:
+
+**Pattern 1: Broker URL**
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "MQTT South Plugin",
+           "type": "string",
+           "default": "mqtt",
+           "readonly": "true"
+       },
+       "broker": {
+           "description": "MQTT Broker URL",
+           "type": "string",
+           "default": "tcp://mqtt.local:1883",
+           "order": "1",
+           "displayName": "MQTT Broker"
+       }
+   }
+
+**Validation Behavior:**
+   - Parses URL to extract host (``mqtt.local``) and port (``1883``)
+   - Tests host reachability to ``mqtt.local``
+   - Tests service listening on ``mqtt.local:1883``
+
+**Pattern 2: Separate Host and Port**
+
+.. code-block:: json
+
+   {
+       "brokerHost": {
+           "description": "Hostname or IP address of the broker",
+           "type": "string",
+           "default": "localhost",
+           "order": "1",
+           "displayName": "MQTT Broker Host"
+       },
+       "brokerPort": {
+           "description": "The network port of the broker",
+           "type": "integer",
+           "default": "1883",
+           "order": "2",
+           "displayName": "MQTT Broker Port"
+       }
+   }
+
+**Validation Behavior:**
+   - Tests host reachability to ``localhost``
+   - Tests service listening on ``localhost:1883``
+
+**Pattern 3: Broker Hostname Only**
+
+.. code-block:: json
+
+   {
+       "broker": {
+           "description": "The address of the MQTT broker",
+           "type": "string",
+           "default": "localhost",
+           "order": "1",
+           "displayName": "MQTT Broker"
+       }
+   }
+
+**Validation Behavior:**
+   - Tests host reachability to ``localhost``
+   - Tests service listening on default MQTT ports: ``1883``, ``8883``
+
+URL Configuration
+^^^^^^^^^^^^^^^^^
+
+Service URL configuration with protocol-specific handling:
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "OPC UA South Plugin",
+           "type": "string",
+           "default": "opcua",
+           "readonly": "true"
+       },
+       "url": {
+           "description": "OPC UA Server URL",
+           "type": "string",
+           "default": "opc.tcp://localhost:4840/server",
+           "order": "1",
+           "displayName": "Server URL"
+       }
+   }
+
+**Validation Behavior:**
+   - Parses ``opc.tcp://`` URL format
+   - Tests host reachability to ``localhost``
+   - Tests service listening on ``localhost:4840``
+
+**Supported URL Schemes:**
+   - ``http://``, ``https://``
+   - ``opc.tcp://`` (OPC UA)
+   - ``tcp://`` (MQTT)
+   - ``mqtt://``, ``mqtts://``
+   - ``ftp://``
+
+Server and Port Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Generic server configuration pattern:
+
+.. code-block:: json
+
+   {
+       "plugin": {
+           "description": "Database North Plugin",
+           "type": "string",
+           "default": "database",
+           "readonly": "true"
+       },
+       "ServerHostname": {
+           "description": "Database server hostname",
+           "type": "string",
+           "default": "db.example.com",
+           "order": "1",
+           "displayName": "Server Hostname"
+       },
+       "ServerPort": {
+           "description": "Database server port",
+           "type": "integer",
+           "default": "5432",
+           "order": "2",
+           "displayName": "Server Port"
+       }
+   }
+
+**Validation Behavior:**
+   - Tests host reachability to ``db.example.com``
+   - Tests service listening on ``db.example.com:5432``
+
+Default Port Assignment
+~~~~~~~~~~~~~~~~~~~~~~~
+
+When no explicit port is configured, the validation system applies default ports based on field names and common protocols:
+
+**IP Fields** (``ip``, ``IP``)
+   - ``102`` (S7 PLC)
+   - ``44818`` (EtherNet/IP)
+   - ``502`` (Modbus TCP)
+   - ``80`` (HTTP)
+   - ``443`` (HTTPS)
+
+**Address Fields** (``address``)
+   - ``502`` (Modbus TCP)
+   - ``80`` (HTTP)
+   - ``443`` (HTTPS)
+
+**Host/Server Fields** (``host``, ``hostname``, ``server``)
+   - ``80`` (HTTP)
+   - ``443`` (HTTPS)
+
+**Broker Fields** (``broker``, ``brokerhost``)
+   - ``1883`` (MQTT)
+   - ``8883`` (MQTTS)
+
+Testing Configuration Validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**API Endpoint:** ``PUT /fledge/plugin/validate``
+
+**Request Body:** JSON configuration object
+
+**Example Test Request:**
+
+.. code-block:: bash
+
+   curl -X PUT http://localhost:8081/fledge/plugin/validate \
+        -H "Content-Type: application/json" \
+        -d '{
+            "plugin": {
+                "description": "Test Plugin",
+                "type": "string",
+                "default": "test",
+                "readonly": "true"
+            },
+            "address": {
+                "description": "Server address",
+                "type": "string",
+                "default": "192.168.1.100"
+            },
+            "port": {
+                "description": "Server port",
+                "type": "integer",
+                "default": "502"
+            }
+        }'
+
+Validation Response Format
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The validation API returns a JSON response with test results:
+
+**Success Response (HTTP 200):**
+
+.. code-block:: json
+
+   {
+       "HostReachable": {
+           "description": "Host Reachable",
+           "result": "pass",
+           "values": [
+               {"address": "192.168.1.100", "port": "502"}
+           ]
+       },
+       "Listening": {
+           "description": "Listening",
+           "result": "fail",
+           "values": [
+               {"address": "192.168.1.100", "port": "502"}
+           ],
+           "detail": {
+               "reason": "No service is listening on 192.168.1.100:502"
+           }
+       }
+   }
+
+**No Validation Required (HTTP 204):**
+
+Returned when no network-related configuration fields are detected.
+
+**Error Response (HTTP 400):**
+
+.. code-block:: json
+
+   {
+       "error": "Configuration item 'address' must have either 'value' or 'default' key"
+   }
+
+Configuration Testing Best Practices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**During Plugin Development**
+   - Test configurations with the validation API before finalizing plugin design
+   - Use realistic default values that can be validated
+   - Ensure network-related fields follow recognized naming patterns
+
+**Configuration Design**
+   - Use consistent field naming conventions (``address``, ``port``, ``host``)
+   - Provide meaningful default values for testing
+   - Include both ``default`` and ``value`` support for flexibility
+
+**Field Naming**
+   - Use recognized field names for automatic detection
+   - Follow consistent naming patterns across plugins
+   - Consider using descriptive field names that match the validation patterns
+
+**Error Handling**
+   - Always provide either ``default`` or ``value`` keys for network-related fields
+   - Use appropriate data types (``string`` for hostnames, ``integer`` for ports)
+   - Provide clear descriptions for configuration fields
+
+**Integration Testing**
+   - Validate configurations during plugin development
+   - Use validation results to verify network connectivity before deployment
+   - Consider validation feedback when designing plugin configurations
+
+Validation Limitations
+~~~~~~~~~~~~~~~~~~~~~~
+
+This is the first iteration of the plugin configuration validation feature. Current limitations include:
+
+- Network connectivity testing only (no protocol-specific validation)
+- Limited to common network configuration patterns
+- No support for complex authentication scenarios
+- Basic URL scheme support
+- No certificate or encryption validation
+
+Future enhancements may include additional validation types, protocol-specific testing, and expanded configuration pattern support.
 

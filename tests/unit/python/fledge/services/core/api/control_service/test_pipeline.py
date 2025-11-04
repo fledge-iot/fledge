@@ -1,6 +1,4 @@
-import asyncio
 import json
-import sys
 
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -30,18 +28,21 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 SOURCE_LOOKUP = [{'cpsid': 1, 'name': 'Any', 'description': 'Any source.'},
-         {'cpsid': 2, 'name': 'Service', 'description': 'A named service in source of the control pipeline.'},
-         {'cpsid': 3, 'name': 'API', 'description': 'The control pipeline source is the REST API.'},
-         {'cpsid': 4, 'name': 'Notification', 'description': 'The control pipeline originated from a notification.'},
-         {'cpsid': 5, 'name': 'Schedule', 'description': 'The control request was triggered by a schedule.'},
-         {'cpsid': 6, 'name': 'Script', 'description': 'The control request has come from the named script.'}]
+                 {'cpsid': 2, 'name': 'Service', 'description': 'A named service in source of the control pipeline.'},
+                 {'cpsid': 3, 'name': 'API', 'description': 'The control pipeline source is the REST API.'},
+                 {'cpsid': 4, 'name': 'Notification', 'description': 'The control pipeline originated from a '
+                                                                     'notification.'},
+                 {'cpsid': 5, 'name': 'Schedule', 'description': 'The control request was triggered by a schedule.'},
+                 {'cpsid': 6, 'name': 'Script', 'description': 'The control request has come from the named script.'}]
 
 DESTINATION_LOOKUP = [{'cpdid': 1, 'name': 'Any', 'description': 'Any destination.'},
-            {'cpdid': 2, 'name': 'Service', 'description': 'A name of service that is being controlled.'},
-            {'cpdid': 3, 'name': 'Asset', 'description': 'A name of asset that is being controlled.'},
-            {'cpdid': 4, 'name': 'Script', 'description': 'A name of script that will be executed.'},
-            {'cpdid': 5, 'name': 'Broadcast', 'description': 'No name is applied and pipeline will be considered for any'
-                                                             ' control writes or operations to broadcast destinations.'}]
+                      {'cpdid': 2, 'name': 'Service', 'description': 'A name of service that is being controlled.'},
+                      {'cpdid': 3, 'name': 'Asset', 'description': 'A name of asset that is being controlled.'},
+                      {'cpdid': 4, 'name': 'Script', 'description': 'A name of script that will be executed.'},
+                      {'cpdid': 5, 'name': 'Broadcast', 'description': 'No name is applied and pipeline will be '
+                                                                       'considered for any control writes or operations'
+                                                                       ' to broadcast destinations.'}]
+
 
 class TestPipeline:
     """ Pipeline API tests """
@@ -57,8 +58,7 @@ class TestPipeline:
     ])
     async def test_get_lookup(self, client, request_param):
         storage_result = {"controlLookup": {"source": [], "destination": []}}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(pipeline, '_get_all_lookups', return_value=rv) as patch_lookup:
             resp = await client.get('/fledge/control/lookup{}'.format(request_param))
             assert 200 == resp.status
@@ -87,14 +87,9 @@ class TestPipeline:
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {'count': 0, 'rows': []}
         expected_api_response = {"pipelines": []}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            source_lookup = await mock_coro([])
-            dest_lookup = await mock_coro([])
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            source_lookup = asyncio.ensure_future(mock_coro([]))
-            dest_lookup = asyncio.ensure_future(mock_coro([]))
+        rv = await mock_coro(storage_result)
+        source_lookup = await mock_coro([])
+        dest_lookup = await mock_coro([])
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
                 with patch.object(pipeline, '_get_all_lookups', side_effect=[source_lookup, dest_lookup]):
@@ -112,23 +107,17 @@ class TestPipeline:
              'execution': 'Shared'}, {'cpid': 2, 'name': 'cp2', 'stype': 3, 'sname': 'anonymous', 'dtype': 1,
                                       'dname': '', 'enabled': 't', 'execution': 'Exclusive'}]}
         expected_api_response = {'pipelines': [{'id': 1, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''},
-                        'destination': {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared',
-                        'filters': []}, {'id': 2, 'name': 'cp2', 'source': {'type': 'API', 'name': 'anonymous'},
-                                         'destination': {'type': 'Any', 'name': ''}, 'enabled': True,
-                                         'execution': 'Exclusive', 'filters': []}]}
+                                                'destination': {'type': 'Broadcast', 'name': ''}, 'enabled': True,
+                                                'execution': 'Shared', 'filters': []},
+                                               {'id': 2, 'name': 'cp2', 'source': {'type': 'API', 'name': 'anonymous'},
+                                                'destination': {'type': 'Any', 'name': ''}, 'enabled': True,
+                                                'execution': 'Exclusive', 'filters': []}]}
 
         filters_storage_result = {'count': 0, 'rows': []}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            source_lookup = await mock_coro(SOURCE_LOOKUP)
-            dest_lookup = await mock_coro(DESTINATION_LOOKUP)
-            filters = await mock_coro(filters_storage_result)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            source_lookup = asyncio.ensure_future(mock_coro(SOURCE_LOOKUP))
-            dest_lookup = asyncio.ensure_future(mock_coro(DESTINATION_LOOKUP))
-            filters = asyncio.ensure_future(mock_coro(filters_storage_result))
-
+        rv = await mock_coro(storage_result)
+        source_lookup = await mock_coro(SOURCE_LOOKUP)
+        dest_lookup = await mock_coro(DESTINATION_LOOKUP)
+        filters = await mock_coro(filters_storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
                 with patch.object(pipeline, '_get_all_lookups', side_effect=[source_lookup, dest_lookup]):
@@ -165,10 +154,9 @@ class TestPipeline:
 
     async def test_get_by_id(self, client):
         cpid = 1
-        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination':
-            {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination': {
+            'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        rv = await mock_coro(storage_result)
         with patch.object(pipeline, '_get_pipeline', return_value=rv) as patch_pipeline:
             resp = await client.get('/fledge/control/pipeline/{}'.format(cpid))
             assert 200 == resp.status
@@ -200,7 +188,7 @@ class TestPipeline:
 
     async def test_create(self, client):
         data = {"name": "wildcard", "enabled": True, "execution": "shared", "source": {"type": 1},
-                   "destination": {"type": 1}}
+                "destination": {"type": 1}}
         columns = {'name': 'wildcard', 'enabled': 't', 'execution': 'shared', 'stype': 1, 'sname': '',
                    'dtype': 1, 'dname': ''}
         insert_column = ('{"name": "wildcard", "enabled": "t", "execution": "shared", "stype": 1, "sname": "", '
@@ -208,24 +196,16 @@ class TestPipeline:
         insert_result = {'response': 'inserted', 'rows_affected': 1}
         in_use = {'name': 'wildcard', 'stype': 1, 'sname': '', 'dtype': 1, 'dname': '', 'enabled': 't',
                   'execution': 'shared', 'id': 4}
-        expected_pipeline =  {'name': 'wildcard', 'enabled': True, 'execution': 'shared', 'id': 4,
-                              'source': {'type': 'Any', 'name': ''}, 'destination': {'type': 'Any', 'name': ''},
-                              'filters': []}
+        expected_pipeline = {'name': 'wildcard', 'enabled': True, 'execution': 'shared', 'id': 4,
+                             'source': {'type': 'Any', 'name': ''}, 'destination': {'type': 'Any', 'name': ''},
+                             'filters': []}
         storage_client_mock = MagicMock(StorageClientAsync)
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(columns)
-            rv2 = await mock_coro(insert_result)
-            rv3 = await mock_coro(in_use)
-            rv4 = await mock_coro("Any")
-            rv5 = await mock_coro("Any")
-            rv6 = await mock_coro(None)
-        else:
-            rv = asyncio.ensure_future(mock_coro(columns))
-            rv2 = asyncio.ensure_future(mock_coro(insert_result))
-            rv3 = asyncio.ensure_future(mock_coro(in_use))
-            rv4 = asyncio.ensure_future(mock_coro("Any"))
-            rv5 = asyncio.ensure_future(mock_coro("Any"))
-            rv6 = asyncio.ensure_future(mock_coro(None))
+        rv = await mock_coro(columns)
+        rv2 = await mock_coro(insert_result)
+        rv3 = await mock_coro(in_use)
+        rv4 = await mock_coro("Any")
+        rv5 = await mock_coro("Any")
+        rv6 = await mock_coro(None)
         with patch.object(pipeline, '_check_parameters', return_value=rv) as patch_params:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=rv2) as patch_insert_tbl:
@@ -268,29 +248,22 @@ class TestPipeline:
 
     async def test_update(self, client):
         cpid = 1
-        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination':
-            {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
-        column_payload =  ('{"values": {"enabled": "t", "execution": "Shared", "stype": 3, "sname": "anonymous", '
-                           '"dtype": 1, "dname": ""}, "where": {"column": "cpid", "condition": "=", "value": 1}}')
+        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination': {
+            'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        column_payload = ('{"values": {"enabled": "t", "execution": "Shared", "stype": 3, "sname": "anonymous", '
+                          '"dtype": 1, "dname": ""}, "where": {"column": "cpid", "condition": "=", "value": 1}}')
         payload = {'execution': 'Shared', 'source': {'type': 3, 'name': None}, 'destination': {'type': 1, 'name': None},
                    'filters': [], 'enabled': True}
         columns = {'enabled': 't', 'execution': 'Shared', 'stype': 3, 'sname': 'anonymous', 'dtype': 1, 'dname': ''}
         storage_client_mock = MagicMock(StorageClientAsync)
         rows_affected = {"response": "updated", "rows_affected": 1}
-        update_pipeline = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'API', 'name': ''}, 'destination':
-            {'type': 'Any', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            rv2 = await mock_coro(columns)
-            rv3 = await mock_coro(rows_affected)
-            rv4 = await mock_coro(None)
-            rv5 = await mock_coro(update_pipeline)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(columns))
-            rv3 = asyncio.ensure_future(mock_coro(rows_affected))
-            rv4 = asyncio.ensure_future(mock_coro(None))
-            rv5 = asyncio.ensure_future(mock_coro(update_pipeline))
+        update_pipeline = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'API', 'name': ''}, 'destination': {
+            'type': 'Any', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro(columns)
+        rv3 = await mock_coro(rows_affected)
+        rv4 = await mock_coro(None)
+        rv5 = await mock_coro(update_pipeline)
         with patch.object(pipeline, '_get_pipeline', side_effect=[rv, rv5]) as patch_pipeline:
             with patch.object(pipeline, '_check_parameters', return_value=rv2) as patch_params:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -305,7 +278,7 @@ class TestPipeline:
                                 assert {"message": 'Control Pipeline with ID:<{}> has been updated successfully.'
                                                    ''.format(cpid)} == json_response
                             patch_audit.assert_called_once_with('CTPCH', {"pipeline": update_pipeline,
-                                                                               "old_pipeline": storage_result})
+                                                                          "old_pipeline": storage_result})
                         patch_update_tbl.assert_called_once_with('control_pipelines', column_payload)
             args, _ = patch_params.call_args_list[0]
             payload['old_pipeline_name'] = storage_result['name']
@@ -337,19 +310,14 @@ class TestPipeline:
         cpid = 1
         storage_client_mock = MagicMock(StorageClientAsync)
         del_payload = '{"where": {"column": "cpid", "condition": "=", "value": 1}}'
-        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination':
-            {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination': {
+            'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
         rows_affected = {"response": "deleted", "rows_affected": 1}
         message = {'message': 'Control Pipeline with ID:<{}> has been deleted successfully.'.format(cpid),
                    'name': storage_result['name']}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            rv2 = await mock_coro(None)
-            rv3 = await mock_coro(rows_affected)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(None))
-            rv3 = asyncio.ensure_future(mock_coro(rows_affected))
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro(None)
+        rv3 = await mock_coro(rows_affected)
         with patch.object(pipeline, '_get_pipeline', return_value=rv) as patch_pipeline:
             with patch.object(pipeline, '_remove_filters', return_value=rv2) as patch_filters:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -391,12 +359,8 @@ class TestPipeline:
 
     async def test__get_all_lookups(self):
         storage_client_mock = MagicMock(StorageClientAsync)
-        if sys.version_info >= (3, 8):
-            source_lookup = await mock_coro({"rows": SOURCE_LOOKUP})
-            dest_lookup = await mock_coro({"rows": DESTINATION_LOOKUP})
-        else:
-            source_lookup = asyncio.ensure_future(mock_coro({"rows": SOURCE_LOOKUP}))
-            dest_lookup = asyncio.ensure_future(mock_coro({"rows": DESTINATION_LOOKUP}))
+        source_lookup = await mock_coro({"rows": SOURCE_LOOKUP})
+        dest_lookup = await mock_coro({"rows": DESTINATION_LOOKUP})
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl',
                               side_effect=[source_lookup, dest_lookup]) as patch_query:
@@ -416,8 +380,7 @@ class TestPipeline:
     async def test__get_all_lookups_by_table(self, name):
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"rows": SOURCE_LOOKUP} if name == "control_source" else {"rows": DESTINATION_LOOKUP}
-        lookup = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        lookup = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=lookup) as patch_query:
                 res = await pipeline._get_all_lookups(name)
@@ -434,8 +397,7 @@ class TestPipeline:
     ])
     async def test__get_table_column_by_value(self, tbl_name, column_name, column_value, limit):
         storage_client_mock = MagicMock(StorageClientAsync)
-        lookup = await mock_coro({"rows": []}) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro({"rows": []}))
+        lookup = await mock_coro({"rows": []})
         payload = {"where": {"column": column_name, "condition": "=", "value": column_value}}
         if tbl_name == "control_filters":
             payload["sort"] = {"column": "forder", "direction": "asc"}
@@ -455,8 +417,7 @@ class TestPipeline:
 
     async def test_bad__get_pipeline(self):
         cpid = 3
-        rv = await mock_coro({"rows": []}) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro({"rows": []}))
+        rv = await mock_coro({"rows": []})
         with pytest.raises(Exception) as exc_info:
             with patch.object(pipeline, '_get_table_column_by_value', return_value=rv):
                 await pipeline._get_pipeline(cpid, False)
@@ -467,12 +428,8 @@ class TestPipeline:
         cpid = 3
         result = {"rows": [{"cpid": cpid, "name": "CP-3", "stype": 1, "sname": "", "dtype": 5, "dname": "",
                             "enabled": "t", "execution": "Shared"}]}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(result)
-            rv2 = await mock_coro("Any")
-        else:
-            rv = asyncio.ensure_future(mock_coro(result))
-            rv2 = asyncio.ensure_future(mock_coro("Any"))
+        rv = await mock_coro(result)
+        rv2 = await mock_coro("Any")
         with patch.object(pipeline, '_get_table_column_by_value', return_value=rv) as patch_tbl:
             with patch.object(pipeline, '_get_lookup_value', return_value=rv2) as patch_lookup:
                 res = await pipeline._get_pipeline(cpid, False)
@@ -506,7 +463,7 @@ class TestPipeline:
         name = "Modbus"
         result = {"rows": [{"cpid": 2, "name": name, "stype": 1, "sname": "", "dtype": 5, "dname": "",
                             "enabled": "t", "execution": "Shared"}]}
-        rv = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        rv = await mock_coro(result)
         with patch.object(pipeline, '_get_table_column_by_value', return_value=rv) as patch_tbl:
             res = await pipeline._pipeline_in_use(name, source, dest, info)
             assert res == result['rows'][0] if info_output else res == info_output if info else res is matched
@@ -520,8 +477,7 @@ class TestPipeline:
     ])
     async def test__get_lookup_value(self, _type, value, name):
         storage_result = SOURCE_LOOKUP if _type == "source" else DESTINATION_LOOKUP
-        lookup = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        lookup = await mock_coro(storage_result)
         with patch.object(pipeline, '_get_all_lookups', return_value=lookup) as patch_lookup:
             res = await pipeline._get_lookup_value(_type, value)
             assert name == res
@@ -561,30 +517,86 @@ class TestPipeline:
             {"type": 2, "name": ""}}, ValueError, "Destination name cannot be empty."),
         ({"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 1}, "destination":
             {"name": "foo"}}, ValueError, "Destination type is missing."),
-        ({"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 1}, "destination":{"type": 2}},
-          ValueError, "Destination name is missing."),
+        ({"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 1}, "destination": {"type": 2}},
+         ValueError, "Destination name is missing."),
         ({"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 6, "name": "Script"},
           "destination": {"type": 4, "name": "Script"}}, ValueError,
          "Pipeline is not allowed with same type of source and destination."),
         ({"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 5, "name": "Sch"},
           "destination": {"type": 4, "name": "Script"}, "filters": "[]"}, ValueError,
-         "Pipeline filters should be passed in list."),
+         "Pipeline filters should be passed in list.")
     ])
     async def test_bad__check_parameters(self, payload, exception_name, error_msg):
         req_mock = MagicMock(web.Request)
         storage_result = {"count": 0, "rows": []}
         res = "" if error_msg.endswith("type found.") else "Any"
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            rv2 = await mock_coro(res)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(res))
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro(res)
         with pytest.raises(Exception) as exc_info:
-            with patch.object(pipeline, '_check_unique_pipeline', return_value=rv):
-                with patch.object(pipeline, '_get_lookup_value', return_value=rv2):
-                    with patch.object(pipeline, '_validate_lookup_name', return_value=rv2):
+            with patch.object(pipeline, '_check_unique_pipeline', return_value=rv) as patch_unique_pipeline:
+                with patch.object(pipeline, '_get_lookup_value', return_value=rv2) as patch_lookup_value:
+                    with patch.object(pipeline, '_validate_lookup_name', return_value=rv2
+                                      ) as patch_lookup_name:
                         await pipeline._check_parameters(payload, req_mock)
+                    patch_lookup_name.assert_called_once_with()
+                patch_lookup_value.assert_called_once_with()
+            patch_unique_pipeline.assert_called_once_with()
+        assert exc_info.type is exception_name
+        assert exc_info.value.args[0] == error_msg
+
+    @pytest.mark.parametrize("service_name, payload, exception_name, error_msg", [
+        ("Sine", {"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 2, "name": "Sine"},
+                  "destination": {"type": 2, "name": "OMF"}}, ValueError,
+         "South services can not be the source for control pipelines."),
+        ("RW", {"name": "Cp", "enabled": True, "execution": "exclusive", "source": {"type": 2, "name": "Sine"},
+                "destination": {"type": 2, "name": "OMF"}}, ValueError,
+         "North services can not be the destination for control pipelines.")
+    ])
+    async def test_bad__check_params(self, service_name, payload, exception_name, error_msg):
+        async def mock_schedule(name):
+            schedules = []
+            # South
+            schedule = StartUpSchedule()
+            schedule.schedule_id = "1"
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.name = name
+            schedule.process_name = "south_c"
+            schedule.repeat = timedelta(seconds=30)
+            schedule.time = None
+            schedule.day = None
+            schedules.append(schedule)
+            # North
+            north_schedule = StartUpSchedule()
+            north_schedule.schedule_id = "2"
+            north_schedule.exclusive = True
+            north_schedule.enabled = True
+            north_schedule.name = "OMF"
+            north_schedule.process_name = "north_C"
+            north_schedule.repeat = timedelta(seconds=30)
+            north_schedule.time = None
+            north_schedule.day = None
+            schedules.append(north_schedule)
+            return schedules
+
+        server.Server.scheduler = Scheduler(None, None)
+        req_mock = MagicMock(web.Request)
+        storage_result = {"count": 0, "rows": []}
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro("service")
+        rv3 = await mock_schedule(service_name)
+        with pytest.raises(Exception) as exc_info:
+            with patch.object(pipeline, '_check_unique_pipeline', return_value=rv) as patch_unique_pipeline:
+                with patch.object(pipeline, '_get_lookup_value', return_value=rv2) as patch_lookup_value:
+                    with patch.object(pipeline, '_validate_lookup_name',
+                                      return_value=rv2) as patch_lookup_name:
+                        with patch.object(server.Server.scheduler, 'get_schedules',
+                                          return_value=rv3) as patch_get_schedules:
+                            await pipeline._check_parameters(payload, req_mock)
+                        patch_get_schedules.assert_called_once_with()
+                    patch_lookup_name.assert_called_once_with()
+                patch_lookup_value.assert_called_once_with()
+            patch_unique_pipeline.assert_called_once_with()
         assert exc_info.type is exception_name
         assert exc_info.value.args[0] == error_msg
 
@@ -594,8 +606,7 @@ class TestPipeline:
     async def test__validate_lookup_name_script(self, lookup, _type, value):
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"rows": [{"name": "S1"}, {"name": "S2"}]}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv) as patch_query:
                 with pytest.raises(Exception) as exc_info:
@@ -607,8 +618,7 @@ class TestPipeline:
     async def test__validate_lookup_name_asset(self, lookup="destination", _type=3, value="sinusoid"):
         storage_client_mock = MagicMock(StorageClientAsync)
         storage_result = {"rows": [{"asset": "S1", "event": "Ingest"}, {"asset": "S2", "event": "Egress"}]}
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv) as patch_query:
                 with pytest.raises(Exception) as exc_info:
@@ -621,30 +631,31 @@ class TestPipeline:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         storage_result = [{"child": ["N"]}]
-        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(storage_result))
+        rv = await mock_coro(storage_result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, '_read_all_child_category_names', return_value=rv) as patch_get_all_items:
                 with pytest.raises(Exception) as exc_info:
                     await pipeline._validate_lookup_name(lookup, _type, value)
-                #assert exc_info.type is ValueError
+                # assert exc_info.type is ValueError
                 assert "'{}' not a valid notification instance name.".format(value) == exc_info.value.args[0]
             patch_get_all_items.assert_called_once_with('Notifications')
 
-    @pytest.mark.parametrize("lookup, _type, value, error_msg", [
-        ("source", 2, "sine", "not a valid service."),
-        ("destination", 2, "mod", "not a valid service."),
-        ("source", 5, "ninja", "not a valid schedule name.")
+    @pytest.mark.parametrize("lookup, _type, value, error_msg, sch_name, sch_process_name", [
+        ("source", 2, "sine", "South services can not be the source for control pipelines.", "sine", "south_c"),
+        ("destination", 2, "mod", "North services can not be the destination for control pipelines.", "mod", "north_C"),
+        ("source", 5, "ninja", "'ninja' not a valid schedule name.", "sine", "bar"),
+        ("source", 2, "RW", "'RW' not a valid service.", "sine", "south_c"),
+        ("destination", 2, "OMF", "'OMF' not a valid service.", "mod", "north_C")
     ])
-    async def test__validate_lookup_name_schedule(self, lookup, _type, value, error_msg):
-        async def mock_schedule(name):
+    async def test__validate_lookup_name_schedule(self, lookup, _type, value, error_msg, sch_name, sch_process_name):
+        async def mock_schedule():
             schedules = []
             schedule = StartUpSchedule()
-            schedule.schedule_id = "1"
+            schedule.schedule_id = "e7d02d5f-02f4-4b9a-8a77-b924db1a2e7c"
             schedule.exclusive = True
             schedule.enabled = True
-            schedule.name = name
-            schedule.process_name = "bar"
+            schedule.name = sch_name
+            schedule.process_name = sch_process_name
             schedule.repeat = timedelta(seconds=30)
             schedule.time = None
             schedule.day = None
@@ -653,8 +664,7 @@ class TestPipeline:
 
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
-        get_sch = await mock_schedule("sine") if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_schedule("sine"))
+        get_sch = await mock_schedule()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(server.Server.scheduler, 'get_schedules', return_value=get_sch
                               ) as patch_get_schedules:
@@ -662,19 +672,19 @@ class TestPipeline:
                     await pipeline._validate_lookup_name(lookup, _type, value)
                     server.Server.scheduler = None
                 assert exc_info.type is ValueError
-                assert "'{}' {}".format(value, error_msg) == exc_info.value.args[0]
+                assert error_msg == exc_info.value.args[0]
             patch_get_schedules.assert_called_once_with()
 
     async def test__check_unique_pipeline(self):
         name = "Cp"
-        rv = await mock_coro({"rows": [1]}) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro({"rows": [1]}))
+        rv = await mock_coro({"rows": [1]})
         with patch.object(pipeline, '_get_table_column_by_value', return_value=rv) as patch_tbl_col:
             with pytest.raises(Exception) as exc_info:
                 await pipeline._check_unique_pipeline(name)
             assert exc_info.type is ValueError
             assert "{} pipeline already exists with the same name.".format(name) == exc_info.value.args[0]
         patch_tbl_col.assert_called_once_with('control_pipelines', 'name', name, limit=1)
+
 
 class TestPipelineFilters:
     """ Pipeline Filters API tests """
@@ -687,7 +697,7 @@ class TestPipelineFilters:
 
     async def test_create(self, client):
         data = {"name": "wildcard", "enabled": True, "execution": "shared", "source": {"type": 1},
-                   "destination": {"type": 1}, "filters": ["Filter1"]}
+                "destination": {"type": 1}, "filters": ["Filter1"]}
         columns = {'name': 'wildcard', 'enabled': 't', 'execution': 'shared', 'stype': 1, 'sname': '',
                    'dtype': 1, 'dname': ''}
         insert_column = ('{"name": "wildcard", "enabled": "t", "execution": "shared", "stype": 1, "sname": "", '
@@ -695,28 +705,18 @@ class TestPipelineFilters:
         insert_result = {'response': 'inserted', 'rows_affected': 1}
         in_use = {'name': 'wildcard', 'stype': 1, 'sname': '', 'dtype': 1, 'dname': '', 'enabled': 't',
                   'execution': 'shared', 'id': 4}
-        expected_pipeline =  {'name': 'wildcard', 'enabled': True, 'execution': 'shared', 'id': 4,
-                              'source': {'type': 'Any', 'name': ''}, 'destination': {'type': 'Any', 'name': ''},
-                              'filters': ["Filter1"]}
+        expected_pipeline = {'name': 'wildcard', 'enabled': True, 'execution': 'shared', 'id': 4,
+                             'source': {'type': 'Any', 'name': ''}, 'destination': {'type': 'Any', 'name': ''},
+                             'filters': ["Filter1"]}
         storage_client_mock = MagicMock(StorageClientAsync)
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(columns)
-            rv2 = await mock_coro(insert_result)
-            rv3 = await mock_coro(in_use)
-            rv4 = await mock_coro("Any")
-            rv5 = await mock_coro("Any")
-            rv6 = await mock_coro(None)
-            rv7 = await mock_coro(True)
-            rv8 = await mock_coro(["Filter1"])
-        else:
-            rv = asyncio.ensure_future(mock_coro(columns))
-            rv2 = asyncio.ensure_future(mock_coro(insert_result))
-            rv3 = asyncio.ensure_future(mock_coro(in_use))
-            rv4 = asyncio.ensure_future(mock_coro("Any"))
-            rv5 = asyncio.ensure_future(mock_coro("Any"))
-            rv6 = asyncio.ensure_future(mock_coro(None))
-            rv7 = asyncio.ensure_future(mock_coro(True))
-            rv8 = asyncio.ensure_future(mock_coro(["Filter1"]))
+        rv = await mock_coro(columns)
+        rv2 = await mock_coro(insert_result)
+        rv3 = await mock_coro(in_use)
+        rv4 = await mock_coro("Any")
+        rv5 = await mock_coro("Any")
+        rv6 = await mock_coro(None)
+        rv7 = await mock_coro(True)
+        rv8 = await mock_coro(["Filter1"])
         with patch.object(pipeline, '_check_parameters', return_value=rv) as patch_params:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=rv2) as patch_insert_tbl:
@@ -747,34 +747,25 @@ class TestPipelineFilters:
 
     async def test_update(self, client):
         cpid = 1
-        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination':
-            {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
-        column_payload =  ('{"values": {"enabled": "t", "execution": "Shared", "stype": 3, "sname": "anonymous", '
-                           '"dtype": 1, "dname": ""}, "where": {"column": "cpid", "condition": "=", "value": 1}}')
+        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination': {
+            'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        column_payload = ('{"values": {"enabled": "t", "execution": "Shared", "stype": 3, "sname": "anonymous", '
+                          '"dtype": 1, "dname": ""}, "where": {"column": "cpid", "condition": "=", "value": 1}}')
         payload = {'execution': 'Shared', 'source': {'type': 3, 'name': None}, 'destination': {'type': 1, 'name': None},
                    'filters': ["Filter1"], 'enabled': True}
         columns = {'enabled': 't', 'execution': 'Shared', 'stype': 3, 'sname': 'anonymous', 'dtype': 1, 'dname': ''}
         storage_client_mock = MagicMock(StorageClientAsync)
         rows_affected = {"response": "updated", "rows_affected": 1}
-        update_pipeline = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'API', 'name': ''}, 'destination':
-            {'type': 'Any', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        update_pipeline = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'API', 'name': ''}, 'destination': {
+            'type': 'Any', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
         filters = {"rows": [{"fname": "Filter1"}]}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            rv2 = await mock_coro(columns)
-            rv3 = await mock_coro(rows_affected)
-            rv4 = await mock_coro(None)
-            rv5 = await mock_coro(update_pipeline)
-            rv6 = await mock_coro(True)
-            rv7 = await mock_coro(filters)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(columns))
-            rv3 = asyncio.ensure_future(mock_coro(rows_affected))
-            rv4 = asyncio.ensure_future(mock_coro(None))
-            rv5 = asyncio.ensure_future(mock_coro(update_pipeline))
-            rv6 = asyncio.ensure_future(mock_coro(True))
-            rv7 = asyncio.ensure_future(mock_coro(filters))
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro(columns)
+        rv3 = await mock_coro(rows_affected)
+        rv4 = await mock_coro(None)
+        rv5 = await mock_coro(update_pipeline)
+        rv6 = await mock_coro(True)
+        rv7 = await mock_coro(filters)
         with patch.object(pipeline, '_get_pipeline', side_effect=[rv, rv5]) as patch_pipeline:
             with patch.object(pipeline, '_check_parameters', return_value=rv2) as patch_params:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -808,8 +799,8 @@ class TestPipelineFilters:
 
     async def test_bad_update(self, client):
         cpid = 1
-        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination':
-            {'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
+        storage_result = {'id': cpid, 'name': 'Cp1', 'source': {'type': 'Any', 'name': ''}, 'destination': {
+            'type': 'Broadcast', 'name': ''}, 'enabled': True, 'execution': 'Shared', 'filters': []}
         column_payload = ('{"values": {"enabled": "t", "execution": "Shared", "stype": 3, "sname": "anonymous", '
                           '"dtype": 1, "dname": ""}, "where": {"column": "cpid", "condition": "=", "value": 1}}')
         payload = {'execution': 'Shared', 'source': {'type': 3, 'name': None}, 'destination': {'type': 1, 'name': None},
@@ -818,16 +809,10 @@ class TestPipelineFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         rows_affected = {"response": "updated", "rows_affected": 1}
         error_message = "Filters do not exist as per the given list ['Filter1']"
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(storage_result)
-            rv2 = await mock_coro(columns)
-            rv3 = await mock_coro(rows_affected)
-            rv4 = await mock_coro(False)
-        else:
-            rv = asyncio.ensure_future(mock_coro(storage_result))
-            rv2 = asyncio.ensure_future(mock_coro(columns))
-            rv3 = asyncio.ensure_future(mock_coro(rows_affected))
-            rv4 = asyncio.ensure_future(mock_coro(False))
+        rv = await mock_coro(storage_result)
+        rv2 = await mock_coro(columns)
+        rv3 = await mock_coro(rows_affected)
+        rv4 = await mock_coro(False)
         with patch.object(pipeline, '_get_pipeline', return_value=rv) as patch_pipeline:
             with patch.object(pipeline, '_check_parameters', return_value=rv2) as patch_params:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -851,14 +836,9 @@ class TestPipelineFilters:
         cpid = 3
         result = {"rows": [{"cpid": cpid, "name": "CP-3", "stype": 1, "sname": "", "dtype": 5, "dname": "",
                             "enabled": "t", "execution": "Shared", "filters": ["Filter1"]}]}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(result)
-            rv2 = await mock_coro("Any")
-            rv3 = await mock_coro({"rows": [{"fname": "Filter1"}]})
-        else:
-            rv = asyncio.ensure_future(mock_coro(result))
-            rv2 = asyncio.ensure_future(mock_coro("Any"))
-            rv3 = asyncio.ensure_future(mock_coro({"rows": [{"fname": "Filter1"}]}))
+        rv = await mock_coro(result)
+        rv2 = await mock_coro("Any")
+        rv3 = await mock_coro({"rows": [{"fname": "Filter1"}]})
         with patch.object(pipeline, '_get_table_column_by_value', side_effect=[rv, rv3]):
             with patch.object(pipeline, '_get_lookup_value', return_value=rv2) as patch_lookup:
                 res = await pipeline._get_pipeline(cpid, True)
@@ -884,8 +864,7 @@ class TestPipelineFilters:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         delete_result = {'response': 'deleted', 'rows_affected': 1}
-        rv = await mock_coro(delete_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
-            mock_coro(delete_result))
+        rv = await mock_coro(delete_result)
         with patch.object(storage_client_mock, 'delete_from_tbl', return_value=rv) as patch_delete_tbl:
             with patch.object(c_mgr, 'delete_category_and_children_recursively', return_value=rv) as patch_mgr:
                 await pipeline._remove_filters(storage_client_mock, filters, 1)
@@ -899,7 +878,7 @@ class TestPipelineFilters:
         args = patch_delete_tbl.call_args_list
         args1, _ = args[0]
         assert ('control_filters', '{"where": {"column": "cpid", "condition": "=", "value": 1, '
-                                    '"and": {"column": "fname", "condition": "=", "value": "ctrl_cp_Scale"}}}') == args1
+                                   '"and": {"column": "fname", "condition": "=", "value": "ctrl_cp_Scale"}}}') == args1
         args2, _ = args[1]
         assert ('filters', '{"where": {"column": "name", "condition": "=", "value": "ctrl_cp_Scale"}}') == args2
 
@@ -909,14 +888,15 @@ class TestPipelineFilters:
     ])
     async def test__check_filters(self, filters, is_exists):
         res = {"rows": [{"name": "Scale"}, {"name": "REN1"}]}
-        rv = await mock_coro(res) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(res))
+        rv = await mock_coro(res)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
             with patch.object(pipeline._logger, 'warning') as patch_logger:
                 res = await pipeline._check_filters(storage_client_mock, filters)
                 assert res is is_exists
             if not is_exists:
-                patch_logger.assert_called_once_with("Filters do not exist as per the given {} payload.".format(filters))
+                patch_logger.assert_called_once_with("Filters do not exist as per the given {} payload.".format(
+                    filters))
             else:
                 assert not patch_logger.called
         patch_query_tbl.assert_called_once_with("filters")
@@ -931,12 +911,8 @@ class TestPipelineFilters:
                               'value': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]'}}
         insert_result = {"rows_affected": 1, "response": "inserted"}
         payload = {"cpid": 1, "forder": 1, "fname": "ctrl_{}_{}".format(name, filter_name)}
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(cat_info)
-            rv2 = await mock_coro(insert_result)
-        else:
-            rv = asyncio.ensure_future(mock_coro(cat_info))
-            rv2 = asyncio.ensure_future(mock_coro(insert_result))
+        rv = await mock_coro(cat_info)
+        rv2 = await mock_coro(insert_result)
         with patch.object(c_mgr, 'get_category_all_items', side_effect=[rv, rv]):
             with patch.object(c_mgr, 'create_category', return_value=rv) as patch_create_cat:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=rv2) as patch_tbl:
@@ -951,14 +927,14 @@ class TestPipelineFilters:
             assert 1 == patch_create_cat.call_count
 
     async def test_update_case_in_update_filters(self):
-        filter1= "Filter1"
+        filter1 = "Filter1"
         filter2 = "Filter2"
         name = "Cp"
         storage_client_mock = MagicMock(StorageClientAsync)
         payload = {"values": {"forder": 1}, "where": {"column": "fname", "condition": "=",
                                                       "value": "ctrl_{}_{}".format(name, filter2),
                                                       "and": {"column": "cpid", "condition": "=", "value": 1}}}
-        rv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        rv = await mock_coro(None)
         with patch.object(storage_client_mock, 'update_tbl', return_value=rv) as patch_tbl:
             with patch.object(pipeline, '_remove_filters', return_value=rv) as patch_filters:
                 await pipeline._update_filters(storage_client_mock, 1, name, [filter2], [filter1, filter2])
@@ -970,11 +946,11 @@ class TestPipelineFilters:
         assert payload == json.loads(arg[1])
 
     async def test_remove_case_in_update_filters(self):
-        filter1= "Filter1"
+        filter1 = "Filter1"
         filter2 = "Filter2"
         name = "Cp"
         storage_client_mock = MagicMock(StorageClientAsync)
-        rv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+        rv = await mock_coro(None)
         with patch.object(pipeline, '_remove_filters', return_value=rv) as patch_filters:
             await pipeline._update_filters(storage_client_mock, 1, name, [], [filter1, filter2])
         patch_filters.assert_called_once_with(
@@ -988,12 +964,8 @@ class TestPipelineFilters:
     async def test__check_unique_pipeline(self, cf_data, cp_data, error_msg, func_call_count):
         name = "Cp"
         cpid = 1
-        if sys.version_info >= (3, 8):
-            rv = await mock_coro(cf_data)
-            rv2 = await mock_coro(cp_data)
-        else:
-            rv = asyncio.ensure_future(mock_coro(cf_data))
-            rv2 = asyncio.ensure_future(mock_coro(cp_data))
+        rv = await mock_coro(cf_data)
+        rv2 = await mock_coro(cp_data)
         with patch.object(pipeline, '_get_table_column_by_value', side_effect=[rv, rv2]) as patch_tbl_col:
             with pytest.raises(Exception) as exc_info:
                 await pipeline._check_unique_pipeline(name, cpid=cpid)

@@ -20,6 +20,7 @@
 #include <sqlite_common.h>
 #include "readings_catalogue.h"
 #include <purge_configuration.h>
+#include "json_utils.h"
 
 using namespace std;
 using namespace rapidjson;
@@ -679,7 +680,8 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 	else
 	{
 		// Enables the WAL feature
-		rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+		ConnectionManager *manager = ConnectionManager::getInstance();
+		rc = sqlite3_exec(dbHandle, manager->getDBConfiguration().c_str(), NULL, NULL, NULL);
 		if (rc != SQLITE_OK)
 		{
 			raiseError("enableWAL", sqlite3_errmsg(dbHandle));
@@ -2024,7 +2026,10 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 	string msg;
 	bool success;
-
+	std::string escaped_asset = std::string(asset_code);
+	std::string target ="\"";
+	std::string replacement ="\"\"";
+	StringReplaceAllEx(escaped_asset, target, replacement);
 	int startReadingsId;
 	tyReadingsAvailable readingsAvailable;
 
@@ -2152,14 +2157,14 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 						+ to_string(ref.tableId) + ","
 						+ to_string(ref.dbId) + ","
-						+ "\"" + asset_code + "\")";
+						+ "\"" + escaped_asset + "\")";
 					
 						Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset '%s' db Id %d readings Id %d ", asset_code, ref.dbId, ref.tableId);
 
 				}
 				else
 				{
-					sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
+					sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(escaped_asset) + "'" +
 									" WHERE db_id = " + to_string(ref.dbId) + " AND table_id = " + to_string(ref.tableId) + ";";
 
 					Logger::getLogger()->debug("getReadingReference - Use empty table %readings_%d_%d: ",ref.dbId,ref.tableId);
@@ -2538,6 +2543,9 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 
 				dbName = generateDbName(item.second.getDatabase());
 				dbReadingsName = generateReadingsName(item.second.getDatabase(), item.second.getTable());
+				std::string target ="\"";
+				std::string replacement ="\"\"";
+				StringReplaceAllEx(assetCode, target, replacement);
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");

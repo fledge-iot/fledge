@@ -74,6 +74,7 @@ class ConfigCategory {
 		ConfigCategory(const std::string& name, const std::string& json);
 		ConfigCategory() {};
 		ConfigCategory(const ConfigCategory& orig);
+		ConfigCategory(const ConfigCategory *orig);
 		~ConfigCategory();
 		void				addItem(const std::string& name, const std::string description,
 							const std::string& type, const std::string def,
@@ -96,6 +97,11 @@ class ConfigCategory {
 		bool				itemExists(const std::string& name) const;
 		bool				setItemDisplayName(const std::string& name, const std::string& displayName);
 		std::string			getValue(const std::string& name) const;
+		std::string			getValue(const std::string& name, const std::string& defaultValue) const;
+		bool				getBoolValue(const std::string& name, bool defaultValue = false) const;
+		int				getIntegerValue(const std::string& name, int defaultValue = 0) const;
+		long				getLongValue(const std::string& name, long defaultValue = 0) const;
+		double				getDoubleValue(const std::string& name, double defaultValue = 0) const;
 		std::vector<std::string>	getValueList(const std::string& name) const;
 		std::map<std::string, std::string>	getValueKVList(const std::string& name) const;
 		std::string			getType(const std::string& name) const;
@@ -144,7 +150,10 @@ class ConfigCategory {
 					BUCKET_PROPERTIES_ATTR,
 					LIST_SIZE_ATTR,
 					ITEM_TYPE_ATTR,
-					LIST_NAME_ATTR
+					LIST_NAME_ATTR,
+					KVLIST_KEY_NAME_ATTR,
+					KVLIST_KEY_DESCRIPTION_ATTR,
+					JSON_SCHEMA_ATTR
 					};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
@@ -196,8 +205,11 @@ class ConfigCategory {
 				std::string	m_listSize;
 				std::string	m_listItemType;
 				std::string	m_listName;
+				std::string	m_kvlistKeyName;
+				std::string	m_kvlistKeyDescription;
 				std::vector<std::string>
 						m_permissions;
+				std::string	m_jsonSchema;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

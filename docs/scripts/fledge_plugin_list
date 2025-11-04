@@ -42,6 +42,25 @@ INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailabi
 REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
 echo "REPOSITORIES LIST: "${REPOSITORIES}
 
+# Clean out any old keywords left behind
+if [[ -d /tmp/keywords ]]; then
+    rm -rf /tmp/keywords
+fi
+
+# Create the list header for a new keyword file
+function keyword_header {
+    keyfile="$1"
+    title=$2
+    echo ".. list-table:: ${title}" >> "$keyfile"
+    echo "    :widths: 20 50" >> "$keyfile"
+    echo "    :header-rows: 1" >> "$keyfile"
+    echo "" >> "$keyfile"
+    echo "    * - Name" >> "$keyfile"
+    echo "      - Description" >> "$keyfile"
+}
+
+# Create the table of plugins by type. Also generate a set of keyword grouped
+# tables in files stored in /tmp/keywords/{plugin type}
 function table {
     list="$1"
     title=$2
@@ -61,6 +80,18 @@ function table {
                 if [[ $repo == "fledge-north-OMF" ]]; then
                     echo "    * - \`omf <"plugins/fledge-north-OMF/index.html">\`__" >> "$output"
                     echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
+                    keyword=OMF
+                    mkdir -p "/tmp/keywords/{$type}"
+                    keyfile="/tmp/keywords/{$type}/${keyword}"
+                    if [[ ! -f "${keyfile}" ]]; then
+                        keyword_header "$keyfile" "$title"
+                    fi
+                    if [[ -f ${repo}/docs/index.rst ]]; then
+                        echo "    * - \`$name <"plugins/fledge-north-OMF/index.html">\`__" >> "$keyfile"
+                    else
+                        echo "    * - ${name}" >> "${keyfile}"
+                    fi
+                    echo "      - ${description}" >> "${keyfile}"
                 elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
                     echo "    * - \`data-availability <"plugins/fledge-rule-DataAvailability/index.html">\`__" >> "$output"
                     echo "      - Triggers every time when it receives data that matches an asset code or audit code those given in the configuration" >> "$output"
@@ -89,10 +120,52 @@ function table {
                             echo "    * - ${name}" >> "$output"
                         fi
                         echo "      - ${description}" >> "$output"
+                        # Now do the keywords
+                        if [[ -d ${repo}/docs && -f ${repo}/docs/keywords ]]; then
+                            mkdir -p "/tmp/keywords/${type}"
+                            keywords=`sed -e 's/ /%20/g' -e 's/,/ /g' < ${repo}/docs/keywords`
+                            for word in $keywords
+                            do
+                                keyword=$(echo $word | sed -e 's/%20/ /g')
+                                keyfile="/tmp/keywords/${type}/${keyword}"
+                                if [[ ! -f "${keyfile}" ]]; then
+                                    keyword_header "$keyfile" "$title"
+                                fi
+                                if [[ -f ${repo}/docs/index.rst ]]; then
+                                    echo "    * - \`$name <"plugins/$new_plugin_name/index.html">\`__" >> "$keyfile"
+                                else
+                                    echo "    * - ${name}" >> "${keyfile}"
+                                fi
+                                echo "      - ${description}" >> "${keyfile}"
+                            done
+                        fi
                     fi
                     rm -rf ${repo}
             fi
         fi
+    done
+}
+
+# For a given plugin type collect the keyword files from the tmp
+# directory and create the section in the Plugins documentation page
+function add_keywords {
+    type="$1"
+    pluginType="$2"
+    find /tmp/keywords/${type} -type f -print0 | while IFS= read -r -d '' file; do
+        keyword=$(basename "$file")
+        if [[ -f "keywords/${keyword}" ]]; then
+            # Use the keyword override header file
+            cat "keywords/${keyword}" >> ${output}
+        else
+            # No override header for this keyword, create a default
+            heading="${keyword} Plugins"
+            echo $heading >> $output
+            echo $heading | sed -e 's/[A-Za-z0-9 ]/^/g' >> $output
+        fi
+        echo >> $output
+        # Add in the table
+        cat "${file}" >> $output
+        echo >> $output
     done
 }
 
@@ -172,3 +245,43 @@ to extend the set of notification deliveries.
 
 EOF6
 table "$REPOSITORIES" "Fledge Notification Delivery Plugins" notify
+
+cat >>$output << EOF7
+
+Plugins Organized by Category
+-----------------------------
+
+South
+~~~~~
+
+The following tables categorize the south plugins.
+
+EOF7
+add_keywords south "South"
+
+cat >>$output << EOF8
+
+North
+~~~~~
+
+The following tables categorize the north plugins.
+
+EOF8
+add_keywords north "North"
+
+cat >>$output << EOF9
+
+Filters
+~~~~~~~
+
+The following tables categorize the filter plugins.
+
+EOF9
+add_keywords filter "Filter"
+
+# TODO: Add notification based plugins grouping here
+
+# Clean out any old keywords left behind
+if [[ -d /tmp/keywords ]]; then
+    rm -rf /tmp/keywords
+fi

@@ -10,6 +10,7 @@ import aiohttp
 import asyncio
 import logging
 from fledge.common import logger
+from fledge.common.utils import async_sleep
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -40,7 +41,7 @@ async def ping_service(service, loop=None):
                         break
             except Exception as ex:
                 attempt_count += 1
-                await asyncio.sleep(1.5, loop=loop)
+                await async_sleep(1.5)
         if attempt_count <= _MAX_ATTEMPTS:
             _logger.debug('Ping received for Service %s id %s at url %s', service._name, service._id, url_ping)
             return True

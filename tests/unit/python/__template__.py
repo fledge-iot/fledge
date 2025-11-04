@@ -21,8 +21,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("test_module")
 class UnitTestTemplateClass:
     """
     Example of docstring of Test Class. This class organises the unit tests of test_module

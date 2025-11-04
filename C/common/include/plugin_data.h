@@ -21,8 +21,7 @@ public:
 	// Load data
 	std::string loadStoredData(const std::string& key);
 	// Store data
-	bool persistPluginData(const std::string& key,
-			       const std::string& data);
+	bool persistPluginData(const std::string& key, const std::string& data, const std::string& service_name);
 
 private:
 	StorageClient*		m_storage;

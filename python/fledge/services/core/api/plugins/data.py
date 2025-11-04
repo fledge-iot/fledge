@@ -56,14 +56,20 @@ async def get_persist_plugins(request: web.Request) -> web.Response:
         all_plugins = common_utils.get_persist_plugins(dir_name)
         plugins = []
         # Get key names from plugin_data table
-        payload = PayloadBuilder().SELECT("key", "data").WHERE(['key', 'like', "{}%".format(service)])
+        payload = PayloadBuilder().SELECT("key", "data").WHERE(['service_name', '=', service])
         storage_client = connect.get_storage_async()
         response = await _get_key(storage_client, payload)
         # Get plugin name in plugin_data table and then find in persistent plugins lists
         for r in response:
-            plugin_name = r['key'].replace(service, '', 1)
-            if plugin_name in all_plugins:
-                plugins.append(plugin_name)
+            key_name = r['key']
+            # Check if the key starts with the service name
+            if key_name.startswith(service):
+                # Remove the service name (e.g., 'Sine') from the start
+                plugin_name = key_name[len(str(service)):]
+                # Check if the remaining part ends with a plugin name in the list
+                for persist_plugin in all_plugins:
+                    if plugin_name.endswith(persist_plugin):
+                        plugins.append(plugin_name)
     except KeyError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -142,7 +148,7 @@ async def add(request: web.Request) -> web.Response:
         payload = await request.json()
         data = payload.get("data")
         if data is not None:
-            payload = PayloadBuilder().INSERT(key=key, data=data)
+            payload = PayloadBuilder().INSERT(key=key, service_name=service, data=data)
             await storage_client.insert_into_tbl('plugin_data', payload.payload())
         else:
             raise KeyError('Malformed data in payload!')

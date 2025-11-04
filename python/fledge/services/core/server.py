@@ -15,6 +15,7 @@ import sys
 import ssl
 import time
 import uuid
+import hmac
 from aiohttp import web
 import aiohttp
 import json
@@ -23,6 +24,7 @@ from datetime import datetime, timedelta
 import jwt
 
 from fledge.common import logger
+from fledge.common.utils import async_sleep
 from fledge.common.alert_manager import AlertManager
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -163,6 +165,27 @@ class Server:
         }
     }
 
+    _FEATURES_DEFAULT_CONFIG = {
+        'control': {
+            'description': 'Allow the use of control features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Control',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        },
+        'debugging': {
+            'description': 'Allow the use of pipeline debugging features within the Fledge instance',
+            'type': 'boolean',
+            'default': 'true',
+            'displayName': 'Pipeline Debugging',
+            'order': '1',
+            'mandatory': "true",
+            'permissions': ['admin']
+        }
+    }
+
     _MANAGEMENT_SERVICE = '_fledge-manage._tcp.local.'
     """ The management service we advertise """
 
@@ -243,7 +266,7 @@ class Server:
             'description': 'API Call Authentication',
             'type': 'enumeration',
             'options': ['mandatory', 'optional'],
-            'default': 'optional',
+            'default': 'mandatory',
             'displayName': 'Authentication',
             'order': '5',
             'permissions': ['admin']
@@ -314,6 +337,38 @@ class Server:
             'order': '1',
             'minimum': '1',
             'maximum': '1000'
+        }
+    }
+
+    _RESOURCE_LIMIT_DEFAULT_CONFIG = {
+        'serviceBuffering': {
+            'description': 'Buffering level for the South Service',
+            'type': 'enumeration',
+            'displayName': 'South Service Buffering',
+            'options': ['Unlimited', 'Limited'],
+            'default': 'Unlimited',
+            'order': '1',
+            'permissions': ['admin']
+        },
+        'serviceBufferSize': {
+            'description': 'Buffer size for the South Service',
+            'type': 'integer',
+            'displayName': 'South Service Buffer Size',
+            'minimum': '1000',
+            'default': '1000',
+            'order': '2',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
+        },
+        'discardPolicy': {
+            'description': 'The different discard policies for the South Service',
+            'type': 'enumeration',
+            'displayName': 'Discard Policy',
+            'options': ['Discard Oldest', 'Reduce Fidelity', 'Discard Newest'],
+            'default': 'Discard Oldest',
+            'order': '3',
+            "validity" : "serviceBuffering == \"Limited\"",
+            'permissions': ['admin']
         }
     }
 
@@ -561,6 +616,33 @@ class Server:
         except Exception as ex:
             _logger.exception(ex)
             raise
+    
+    @classmethod
+    async def support_bundle_config(cls):
+        try:
+            config = {
+                "auto_support_bundle": {
+                    "description": "Automatically create support bundle when service fails",
+                    "type": "boolean",
+                    "default": "true",
+                    "displayName": "Auto Generate On Failure"
+                },
+                "support_bundle_retain_count": { 
+                    "description": "Number of support bundles to retain (minimum 1)",
+                    "type": "integer",
+                    "default": "3",
+                    "minimum": "1",
+                    "displayName": "Bundles To Retain"
+                }
+            }
+
+            category = 'SUPPORT_BUNDLE'
+            await cls._configuration_manager.create_category(category, config, 'Support Bundle Configuration', True,
+                                                             display_name="Support Bundle")
+            await cls._configuration_manager.create_child_category("Advanced",["SUPPORT_BUNDLE"])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
 
     @classmethod
     async def firewall_config(cls):
@@ -572,6 +654,22 @@ class Server:
             config = await cls._configuration_manager.get_category_all_items(category)
             Firewall.IPAddresses.save(data=config)
             await cls._configuration_manager.create_child_category("rest_api", [category])
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def features_config(cls):
+        """ Get the features inclusion configuration """
+        try:
+            config = cls._FEATURES_DEFAULT_CONFIG
+            category = 'FEATURES'
+            description = "Control the inclusion of system features"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Features')
+            config = await cls._configuration_manager.get_category_all_items(category)
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -638,6 +736,21 @@ class Server:
             cls._log_level = config['logLevel']['value']
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def core_south_service_resource_limit_setup(cls):
+        """ Get the south service resource limit configuration """
+        try:
+            config = cls._RESOURCE_LIMIT_DEFAULT_CONFIG
+            category = 'RESOURCE_LIMIT'
+            description = "Resource Limit of South Service"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Resource Limit')
         except Exception as ex:
             _logger.exception(ex)
             raise
@@ -912,8 +1025,8 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING",
-                                                                                "CONFIGURATION"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING", "RESOURCE_LIMIT",
+                                                                                "CONFIGURATION","FEATURES"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -968,6 +1081,7 @@ class Server:
 
             # Logging category
             loop.run_until_complete(cls.core_logger_setup())
+            loop.run_until_complete(cls.core_south_service_resource_limit_setup())
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -978,6 +1092,9 @@ class Server:
             #
             loop.run_until_complete(cls._start_scheduler())
 
+            # Support bundle configuration
+            loop.run_until_complete(cls.support_bundle_config())
+
             # start monitor
             loop.run_until_complete(cls._start_service_monitor())
 
@@ -985,6 +1102,7 @@ class Server:
             loop.run_until_complete(cls.rest_api_config())
             loop.run_until_complete(cls.password_config())
             loop.run_until_complete(cls.firewall_config())
+            loop.run_until_complete(cls.features_config())
 
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
 
@@ -1158,7 +1276,17 @@ class Server:
         # Delete all user tokens
         await User.Objects.delete_all_user_tokens()
         cls.service_server.close()
-        await cls.service_server.wait_closed()
+
+        # Python 3.12 + aiohttp 3.10.11 specific fix: wait_closed() can hang indefinitely
+        # if there are active connections, so we add a timeout
+        if sys.version_info >= (3, 12):
+            try:
+                await asyncio.wait_for(cls.service_server.wait_closed(), timeout=5.0)
+            except asyncio.TimeoutError:
+                _logger.debug("REST server wait_closed() timeout - continuing with shutdown")
+        else:
+            await cls.service_server.wait_closed()
+
         await cls.service_app.shutdown()
         await cls.service_server_handler.shutdown(60.0)
         await cls.service_app.cleanup()
@@ -1204,7 +1332,7 @@ class Server:
                 return
 
             tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
-            await asyncio.wait(tasks)
+            await asyncio.gather(*tasks)
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
@@ -1513,94 +1641,186 @@ class Server:
         return web.json_response({"services": services})
 
     @classmethod
-    async def get_auth_token(cls, request: web.Request) -> web.Response:
-        """ get auth token
-            :Example:
-                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken
+    async def service_login(cls, request: web.Request) -> web.Response:
+        """Service login endpoint for authenticated services to obtain user tokens.
+
+        Allows registered services to authenticate users using bearer tokens.
+        The service must be registered and provide a valid bearer token.
+
+        Args:
+            request: HTTP request containing JSON body with username and Authorization header
+
+        Returns:
+            web.Response: JSON response with user token, uid, admin status, and success message
+
+        Raises:
+            web.HTTPBadRequest: Invalid JSON, missing username, or validation errors
+            web.HTTPUnauthorized: Invalid bearer token or authentication failures
+            web.HTTPForbidden: User not authorized for service access
+            web.HTTPNotFound: User or service not found
+            web.HTTPInternalServerError: Unexpected server errors
+
+        Example:
+            curl -sX POST -H "{'Authorization': 'Bearer ..'}" -d '{"username": "Manager"}' \\
+                http://localhost:<core mgt port>/fledge/service/login
         """
-        async def cert_login(ca_cert):
-            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
-            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
-            SSLVerifier.set_ca_cert(ca_cert_file)
-            # FIXME: allow to supply content and any cert name as placed with configured CA sign
-            with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
-                cert_content = content_file.read()
-            SSLVerifier.set_user_cert(cert_content)
-            SSLVerifier.verify()
-            username = SSLVerifier.get_subject()['commonName']
-            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
-            return _token
-
+        peername = None
+        client_host = '0.0.0.0'
         try:
-            cfg_mgr = ConfigurationManager(cls._storage_client_async)
-            category_info = await cfg_mgr.get_category_all_items('rest_api')
-            is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
-
-            if is_auth_optional:
-                raise api_exception.AuthenticationIsOptional
-
-            auth_method = category_info['authMethod']['value']
-            ca_cert_name = category_info['authCertificateName']['value']
-
-            try:
-                auth_header = request.headers.get('Authorization', None)
-            except:
-                raise api_exception.VerificationFailed
-            else:
-                if auth_header is None:
-                    raise api_exception.VerificationFailed
-                if not "Bearer " in auth_header:
-                    raise api_exception.VerificationFailed
-                # check bearer token with service registry for given service
-                ##
-                # the lines below are repated many times, make it a def for common usage/check
-                parts = auth_header.split("Bearer ")
-                if len(parts) != 2:
-                    msg = "Bearer token is missing"
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-                bearer_token = parts[1]
-                # Validate token and get public claims
-                claims = cls.validate_token(bearer_token)
-                if claims.get('error'):
-                    msg = "Service '" + str(claims['sub']) + "' not registered"
-                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-
-                if bearer_token != ServiceRegistry.getBearerToken(claims['sub']):
-                    # add WARN log (audit?) for this attempt?!
-                    raise api_exception.VerificationFailed
-                else:
-                    # add debug log for successful token verification
-                    pass
-                ##
-
+            # extraction of client info for logging purposes
             peername = request.transport.get_extra_info('peername')
-            host = '0.0.0.0'
             if peername is not None:
-                host, _ = peername
+                client_host, _ = peername
+            try:
+                data = await request.json()
+                if not isinstance(data, dict):
+                    msg = 'Request body must be a valid JSON object.'
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            except json.JSONDecodeError as ex:
+                msg = 'Request body must be valid JSON. Please provide a JSON object with username field.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            except Exception as ex:
+                msg = 'Failed to parse request body. Please provide a valid JSON object with username field.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-            # TODO: restrict host to 0.0.0.0, 127.0.0.1 or localhost?
+            # username validation
+            username = data.get('username', None)
+            if username is None:
+                msg = 'Username field is required in request body.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-            if auth_method == 'certificate':
-                token = await cert_login(ca_cert_name)
-            elif auth_method == 'password':
-                # Super admin user always exists on the system
-                # these can be configured diff for a/per services if required
-                payload = payload_builder.PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
-                result = await cls._storage_client_async.query_tbl_with_payload('users', payload)
-                uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
-            else:
-                # For auth method "any" we can use either login with cert or password
-                token = await cert_login(ca_cert_name)
-                # TODO: if cert does not exist then may try with password
-        except api_exception.AuthenticationIsOptional as err:
-            msg = str(err)
-            raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
-        except api_exception.VerificationFailed:
-            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Required authorization token is missing or invalid.'}))
+            if not isinstance(username, str):
+                msg = 'Username must be a string.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+            if not username.strip():
+                msg = 'Username cannot be empty or contain only whitespace.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+            username = username.strip()
+            if len(username) < 1:
+                msg = 'Username must be at least 1 character long.'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+            # bearer token validation
+            auth_header = request.headers.get('Authorization', None)
+            if auth_header is None:
+                msg = "Authorization header is missing."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+            if not isinstance(auth_header, str):
+                msg = "Authorization header must be a string."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+            auth_header = auth_header.strip()
+            if not auth_header.startswith("Bearer "):
+                msg = "Authorization header must start with 'Bearer ' followed by a token."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            bearer_token = auth_header[7:]
+            if not bearer_token:
+                msg = "Bearer token cannot be empty."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Token length validation (JWT tokens have reasonable length bounds)
+            if len(bearer_token) > 2048:
+                msg = "Bearer token exceeds maximum length."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Validate bearer token format and claims
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error'):
+                error_detail = claims.get('error', 'Unknown token validation error')
+                if 'expired' in error_detail.lower():
+                    msg = "Bearer token has expired."
+                elif 'signature' in error_detail.lower():
+                    msg = "Bearer token signature is invalid."
+                else:
+                    msg = "Bearer token is invalid or malformed."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Verify required claims
+            service_name = claims.get('sub')
+            if not service_name:
+                msg = "Bearer token missing service name claim."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Verify service is registered and token matches
+            registered_token = ServiceRegistry.getBearerToken(service_name)
+            if registered_token is None:
+                msg = f"Service '{service_name}' is not registered."
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            if not hmac.compare_digest(bearer_token, registered_token):
+                msg = "Bearer token does not match registered service token."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # User lookup
+            user_data = None
+            users = await User.Objects.all()
+            for user in users:
+                if user.get('uname') and hmac.compare_digest(user['uname'], username):
+                    if user.get('enabled') == 't':
+                        # Check role authorization
+                        role_id = user.get('role_id')
+                        if role_id in [3, 4]:  # Viewer and Data View roles
+                            msg = "User is not authorized to access services."
+                            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+                        user_data = user
+                        break
+
+            if user_data is None:
+                # Don't reveal whether user exists or is disabled for security
+                msg = "Authentication failed. User not found or not enabled."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Clean up existing user tokens before creating new one
+            try:
+                await User.Objects.delete_user_tokens(user_data['id'])
+            except Exception as ex:
+                # Continue with login attempt as this is not critical
+                _logger.warning(f"Failed to delete existing tokens for user '{username}': {str(ex)}")
+
+            # Handle different authentication methods
+            access_method = user_data.get('access_method', 'any')
+            try:
+                if access_method == 'cert':
+                    # Use certificate-based login
+                    uid, token, is_admin = await User.Objects.certificate_login(user_data['uname'], client_host)
+                    _logger.info(f"Successful certificate login for user '{username}' via service '{service_name}' from {client_host}")
+                else:
+                    # Use password-based login (covers 'password' and 'any' methods)
+                    password = user_data.get('pwd')
+                    if not password:
+                        msg = "User password is not configured."
+                        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                    uid, token, is_admin = await User.Objects.login(user_data['uname'], password, client_host)
+                    _logger.info(f"Successful password login for user '{username}' via service '{service_name}' from {client_host}")
+            except User.PasswordNotSetError:
+                msg = "Password is not set for this user."
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            except User.DoesNotExist:
+                msg = "User authentication failed."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+            except Exception as ex:
+                msg = f"Authentication failed: {str(ex)}"
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+
+            # Return successful login response
+            response_data = {
+                "token": token,
+                "uid": uid,
+                "admin": is_admin,
+                "message": f"User '{user_data['uname']}' logged in successfully via service."
+            }
+            return web.json_response(response_data)
+        except web.HTTPException:
+            # Re-raise HTTP exceptions as-is
+            raise
+        except ValueError as ex:
+            msg = f"Value error: {str(ex)}"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
-            msg = str(ex)
+            msg = f"Internal server error during service login: {str(ex)}"
+            _logger.error(f"Service login internal error from {client_host}: {str(ex)}")
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-        return web.json_response({"token": token})
 
     @classmethod
     async def shutdown(cls, request):
@@ -1610,29 +1830,32 @@ class Server:
         :Example:
             curl -X POST http://localhost:<core mgt port>/fledge/service/shutdown
         """
-        try:
-            await cls._stop()
-            loop = request.loop
-            # allow some time
-            await asyncio.sleep(2.0, loop=loop)
+        async def _stop_event_loop(loop):
+            await async_sleep(2.0)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for process cleanup.'})
+        try:
+            await cls._stop()
+            await _stop_event_loop(request.loop)
+        except asyncio.TimeoutError as err:
+            await _stop_event_loop(request.loop)
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:
             raise web.HTTPInternalServerError(reason=str(ex))
+        else:
+            return web.json_response({'message': 'Fledge stopped successfully. Wait for few seconds for process cleanup.'})
 
     @classmethod
     async def restart(cls, request):
         """ Restart the core microservice and its components """
-        try:
-            await cls._stop()
+
+        async def _restart_process():
             loop = request.loop
             # allow some time
-            await asyncio.sleep(2.0, loop=loop)
+            await async_sleep(2.0)
+
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
@@ -1641,10 +1864,13 @@ class Server:
                 sys.argv.append('')
 
             python3 = sys.executable
-            os.execl(python3, python3, *sys.argv)
+            os.execl(python3, python3, *sys.argv)  # Replaces current process, no return
 
-            return web.json_response({'message': 'Fledge stopped successfully. '
-                                                 'Wait for few seconds for restart.'})
+        try:
+            await cls._stop()
+            await _restart_process()
+        except asyncio.TimeoutError as err:
+            await _restart_process()
         except TimeoutError as err:
             raise web.HTTPInternalServerError(reason=str(err))
         except Exception as ex:

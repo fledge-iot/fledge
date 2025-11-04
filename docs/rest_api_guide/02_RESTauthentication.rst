@@ -146,11 +146,11 @@ A JSON document which describes the user to add.
     * - role_id
       - integer
       - The role id of the new user. It is an optional field.
-      - 1 for Admin user and 2 for normal user. If not given it will be treated as normal user.
+      - 1 for Admin user, 2 for normal user, 3 for view users, 4 for data view users and 5 for control users. To obtain the current list of supported roles the /fledge/user/role entry point may be used. If not given it will be treated as normal user.
     * - description
       - string
       - Description of the user. It is an optional field.
-      - 1 for Admin and 2 for normal user. If not given it will be treated as normal user.
+      - Member of maintenance team
 
 
 **Response Payload**
@@ -181,6 +181,45 @@ The following error responses may be returned
 
     curl -H "authorization: <token>" -X POST -d '{"username": "david", "password": "Inv1nc!ble", "role_id": 1, "real_name": "David Brent"}' http://localhost:8081/fledge/admin/user
 
+To obtain the full list of supported roles;
+
+.. code-block:: console
+
+    curl -H "authorization: <token>" http://localhost:8081/fledge/user/role
+
+    {
+      "roles": [
+        {
+          "id": 1,
+          "name": "admin",
+          "description": "All CRUD privileges"
+        },
+        {
+          "id": 2,
+          "name": "user",
+          "description": "All CRUD operations and self profile management"
+        },
+        {
+          "id": 3,
+          "name": "view",
+          "description": "Only to view the configuration"
+        },
+        {
+          "id": 4,
+          "name": "data-view",
+          "description": "Only read the data in buffer"
+        },
+        {
+          "id": 5,
+          "name": "control",
+          "description": "Same as editor can do and also have access for control scripts and pipelines"
+        }
+      ]
+    }
+
+.. note::
+
+   This entry point is only available to users with the *admin* role.
 
 Get All Users
 -------------

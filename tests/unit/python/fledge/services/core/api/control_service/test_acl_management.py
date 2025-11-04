@@ -1,6 +1,4 @@
-import asyncio
 import json
-import sys
 from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
@@ -22,8 +20,6 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "acl-management")
 class TestACLManagement:
     """ ACL API tests """
 
@@ -40,7 +36,7 @@ class TestACLManagement:
              'url': [{'url': '/fledge/south/operation', 'acl': [{'type': 'Southbound'}]}]},
             {'name': 'testACL', 'service': [], 'url': []}]}
         payload = {"return": ["name", "service", "url"]}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
                 resp = await client.get('/fledge/ACL')
@@ -57,7 +53,7 @@ class TestACLManagement:
         result = {"count": 0, "rows": []}
         payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=",
                                                                    "value": acl_name}}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         message = "ACL with name {} is not found.".format(acl_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
@@ -79,7 +75,7 @@ class TestACLManagement:
              'url': [{'url': '/fledge/south/operation', 'acl': [{'type': 'Southbound'}]}]}]}
         payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=",
                                                                    "value": acl_name}}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
                 resp = await client.get('/fledge/ACL/{}'.format(acl_name))
@@ -144,7 +140,7 @@ class TestACLManagement:
         result = {'count': 1, 'rows': [
             {'name': acl_name, 'service': [{'name': 'Fledge Storage'}, {'type': 'Southbound'}],
              'url': [{'url': '/fledge/south/operation', 'acl': [{'type': 'Southbound'}]}]}]}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         message = "ACL with name {} already exists.".format(acl_name)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -166,14 +162,9 @@ class TestACLManagement:
         result = {"count": 0, "rows": []}
         insert_result = {"response": "inserted", "rows_affected": 1}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            insert_value = await mock_coro(insert_result)
-            _rv = await mock_coro(None)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            insert_value = asyncio.ensure_future(mock_coro(insert_result))
-            _rv = asyncio.ensure_future(mock_coro(None))
+        value = await mock_coro(result)
+        insert_value = await mock_coro(insert_result)
+        _rv = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
@@ -251,7 +242,7 @@ class TestACLManagement:
         acl_name = "testACL"
         req_payload = {"service": [{"type": "Notification"}]}
         result = {"count": 0, "rows": []}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name", "service", "url"], "where": {
             "column": "name", "condition": "=", "value": acl_name}}
         message = "ACL with name {} is not found.".format(acl_name)
@@ -282,20 +273,15 @@ class TestACLManagement:
         update_result = {"response": "updated", "rows_affected": 1}
         query_tbl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         query_payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=", "value": acl_name}}
-        if sys.version_info >= (3, 8):
-            arv = await mock_coro(None)
-            update_value = await mock_coro(update_result)
-        else:
-            arv = asyncio.ensure_future(mock_coro(None))
-            update_value = asyncio.ensure_future(mock_coro(update_result))
+        arv = await mock_coro(None)
+        update_value = await mock_coro(update_result)
         storage_client_mock = MagicMock(StorageClientAsync)
         acl_query_payload_service = {"return": ["entity_name"],
                                      "where": {"column": "entity_type", "condition": "=", "value": "service",
                                                "and": {"column": "name", "condition": "=", "value": "{}".format(
                                                    acl_name)}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'acl_usage':
                 assert acl_query_payload_service == json.loads(args[1])
@@ -329,7 +315,7 @@ class TestACLManagement:
     async def test_delete_acl_not_found(self, client):
         acl_name = "test"
         result = {"count": 0, "rows": []}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         message = "ACL with name {} is not found.".format(acl_name)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -355,13 +341,8 @@ class TestACLManagement:
         delete_payload = {"where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
         message = '{} ACL deleted successfully.'.format(acl_name)
-        if sys.version_info >= (3, 8):
-            del_value = await mock_coro(delete_result)
-            arv = await mock_coro(None)
-        else:
-            del_value = asyncio.ensure_future(mock_coro(delete_result))
-            arv = asyncio.ensure_future(mock_coro(None))
-
+        del_value = await mock_coro(delete_result)
+        arv = await mock_coro(None)
         acl_query_payload_service = {"return": ["entity_name"], "where": {"column": "entity_type",
                                                                           "condition": "=",
                                                                           "value": "service",
@@ -378,8 +359,7 @@ class TestACLManagement:
                                                                           "condition": "=",
                                                                           "value": "{}".format(acl_name)}}}
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'acl_usage':
                 if acl_query_payload_service == json.loads(args[1]):
@@ -412,7 +392,7 @@ class TestACLManagement:
         svc_name = 'foo'
         result = {"count": 0, "rows": []}
         payload = {"acl_name": "testACL"}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         message = "Schedule with name {} is not found.".format(svc_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -435,7 +415,7 @@ class TestACLManagement:
     async def test_bad_attach_acl_to_service(self, client, payload, message):
         svc_name = 'foo'
         result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
@@ -460,8 +440,7 @@ class TestACLManagement:
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         message = "ACL with name {} is not found.".format(acl_name)
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])
@@ -493,8 +472,7 @@ class TestACLManagement:
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         message = "Service {} already has an ACL object.".format(svc_name, acl_name)
 
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])
@@ -514,8 +492,7 @@ class TestACLManagement:
                             "displayName": "Service ACL", "default": "[]", "value": "[]"
                         }
                 }
-        cat_value = await mock_coro(cat_info) if sys.version_info >= (3, 8) else \
-            asyncio.ensure_future(mock_coro(cat_info))
+        cat_value = await mock_coro(cat_info)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -543,8 +520,8 @@ class TestACLManagement:
         message = "ACL with name {} attached to {} service successfully.".format(acl_name, svc_name)
 
         acl_dict = {'ACL': acl_name}
-        @asyncio.coroutine
-        def q_result(*args):
+
+        async def q_result(*args):
             table = args[0]
             if table == 'schedules':
                 assert sch_query_payload == json.loads(args[1])
@@ -555,15 +532,9 @@ class TestACLManagement:
             else:
                 return {}
 
-        if sys.version_info >= (3, 8):
-            cat_value = await mock_coro(None)
-            cat_child_value = await mock_coro(cat_child_result)
-            update_bulk_value = await mock_coro(None)
-        else:
-            cat_value = asyncio.ensure_future(mock_coro(None))
-            cat_child_value = asyncio.ensure_future(mock_coro(cat_child_result))
-            update_bulk_value = asyncio.ensure_future(mock_coro(None))
-
+        cat_value = await mock_coro(None)
+        cat_child_value = await mock_coro(cat_child_result)
+        update_bulk_value = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -589,7 +560,7 @@ class TestACLManagement:
         svc_name = 'foo'
         result = {"count": 0, "rows": []}
         payload = {"acl_name": "testACL"}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        value = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         message = "Schedule with name {} is not found.".format(svc_name)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -609,12 +580,8 @@ class TestACLManagement:
         sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         message = "Nothing to delete as there is no ACL attached with {} service.".format(svc_name)
-        if sys.version_info >= (3, 8):
-            cat_value = await mock_coro(None)
-            sch_value = await mock_coro(sch_result)
-        else:
-            cat_value = asyncio.ensure_future(mock_coro(None))
-            sch_value = asyncio.ensure_future(mock_coro(sch_result))
+        cat_value = await mock_coro(None)
+        sch_value = await mock_coro(sch_result)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -652,15 +619,9 @@ class TestACLManagement:
         cat_result = {"a": 1}
         message = "ACL is detached from {} service successfully.".format(svc_name)
         acl_dict = {'ACL': ''}
-
-        if sys.version_info >= (3, 8):
-            cat_value = await mock_coro(cat_result)
-            sch_value = await mock_coro(sch_result)
-            update_bulk_value = await mock_coro(None)
-        else:
-            cat_value = asyncio.ensure_future(mock_coro(cat_result))
-            sch_value = asyncio.ensure_future(mock_coro(sch_result))
-            update_bulk_value = asyncio.ensure_future(mock_coro(None))
+        cat_value = await mock_coro(cat_result)
+        sch_value = await mock_coro(sch_result)
+        update_bulk_value = await mock_coro(None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):

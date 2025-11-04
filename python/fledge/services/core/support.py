@@ -23,10 +23,10 @@ from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
+from fledge.services.core import server
+from fledge.services.core.connect import *
 from fledge.services.core.api.python_packages import get_packages_installed
 from fledge.services.core.api.service import get_service_records, get_service_installed
-from fledge.services.core.connect import *
-
 
 __author__ = "Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -35,7 +35,6 @@ __version__ = "${VERSION}"
 
 _LOGGER = FLCoreLogger().get_logger(__name__)
 
-_NO_OF_FILES_TO_RETAIN = 3
 _SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
 
@@ -45,9 +44,13 @@ class SupportBuilder:
     _out_file_path = None
     _interim_file_path = None
     _storage = None
+    _num_of_files_to_retain = 1
 
-    def __init__(self, support_dir):
+    def __init__(self, support_dir, support_bundle_config=None):
         try:
+            if support_bundle_config:
+                self._num_of_files_to_retain = int(support_bundle_config['support_bundle_retain_count']['value'])
+
             if not os.path.exists(support_dir):
                 os.makedirs(support_dir)
             else:
@@ -60,19 +63,41 @@ class SupportBuilder:
             _LOGGER.error(ex, "Error in initializing SupportBuilder class.")
             raise RuntimeError(str(ex))
 
-    async def build(self):
+    async def build(self, name=None):
         try:
             today = datetime.datetime.utcnow()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
-            tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
+            support_file_name = f"support-{name}-{file_spec}" if name else f"support-{file_spec}"
+            tar_file_name = self._out_file_path+"/"+support_file_name+".tar.gz"
             pyz = tarfile.open(tar_file_name, "w:gz")
             try:
+                # fledge version and schema info
                 await self.add_fledge_version_and_schema(pyz)
+                # Details of machine resources
+                self.add_machine_resources(pyz, file_spec)
+                # Process status of services or tasks
+                self.add_psinfo(pyz, file_spec)
+                # softwares installed list
+                self.add_software_list(pyz, file_spec)
+                # package logs
+                self.add_package_log_dir_content(pyz)
+                # pip packages list
+                self.add_python_packages_list(pyz, file_spec)
+                # all logs
                 self.add_syslog_fledge(pyz, file_spec)
+                # storage service logs
                 self.add_syslog_storage(pyz, file_spec)
+                # service registry
+                self.add_service_registry(pyz, file_spec)
+                # debug trace logs
+                self.add_debug_trace_log_dir_content(pyz)
+                # configuration related scripts
+                self.add_script_dir_content(pyz)
+                # utility computation files
                 self.add_syslog_utility(pyz)
                 cf_mgr = ConfigurationManager(self._storage)
                 try:
+                    # South services logs
                     south_cat = await cf_mgr.get_category_child("South")
                     south_categories = [sc["key"] for sc in south_cat]
                     for service in south_categories:
@@ -80,6 +105,7 @@ class SupportBuilder:
                 except:
                     pass
                 try:
+                    # North services and tasks logs
                     north_cat = await cf_mgr.get_category_child("North")
                     north_categories = [nc["key"] for nc in north_cat]
                     for task in north_categories:
@@ -87,21 +113,29 @@ class SupportBuilder:
                             self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
+                try:
+                    # external services logs
+                    schedule_list = await server.Server.scheduler.get_schedules()
+                    external_svc_processes = ('bucket_storage_c', 'dispatcher_c', 'management', 'notification_c')
+                    for sch in filter(lambda obj: obj.process_name in external_svc_processes, schedule_list):
+                        self.add_syslog_service(pyz, file_spec, sch.name)
+                except:
+                    pass
+                # Tables related info
                 db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",
                              "scheduled_processes": "schedule-process", "monitors": "service-monitoring",
-                             "statistics": "statistics"}
+                             "statistics": "statistics", "alerts": "alerts"}
                 for tbl_name, file_name in sorted(db_tables.items()):
                     await self.add_db_content(pyz, file_spec, tbl_name, file_name)
+                # Control info only if dispatcher schedule available
+                for sch in filter(lambda obj: obj.process_name == 'dispatcher_c', schedule_list):
+                    await self.add_control_info(pyz)
+                # Last 1000 rows of Statistics history
                 await self.add_table_statistics_history(pyz, file_spec)
+                # First 1000 rows of Plugin data
                 await self.add_table_plugin_data(pyz, file_spec)
+                # First 1000 rows of Streams
                 await self.add_table_streams(pyz, file_spec)
-                self.add_service_registry(pyz, file_spec)
-                self.add_machine_resources(pyz, file_spec)
-                self.add_psinfo(pyz, file_spec)
-                self.add_script_dir_content(pyz)
-                self.add_package_log_dir_content(pyz)
-                self.add_software_list(pyz, file_spec)
-                self.add_python_packages_list(pyz, file_spec)
             finally:
                 pyz.close()
         except Exception as ex:
@@ -115,10 +149,17 @@ class SupportBuilder:
     def check_and_delete_bundles(self, support_dir):
         files = glob.glob(support_dir + "/" + "support*.tar.gz")
         files.sort(key=os.path.getmtime)
-        if len(files) >= _NO_OF_FILES_TO_RETAIN:
-            for f in files[:-2]:
-                if os.path.isfile(f):
-                    os.remove(os.path.join(support_dir, f))
+        if len(files) >= self._num_of_files_to_retain:
+            num_of_files_to_remove = len(files) - self._num_of_files_to_retain + 1
+            for file in files[:num_of_files_to_remove]:
+                file_path = os.path.join(support_dir, file)
+                if os.path.isfile(file_path):
+                    try:
+                        os.remove(file_path)
+                    except PermissionError:
+                        _LOGGER.error("Permission denied to delete file %s", file_path)
+                    except Exception as ex:
+                        _LOGGER.error(ex, "Error in deleting file %s", file_path)
 
     def check_and_delete_temp_files(self, support_dir):
         # Delete all non *.tar.gz files
@@ -174,9 +215,24 @@ class SupportBuilder:
                 pyz.add(temp_file, arcname='logs/sys/{}'.format(filename))
 
     async def add_db_content(self, pyz, file_spec, tbl_name, file_name):
+        def mask_passwords(data):
+            def sanitize_dict(d):
+                for key, val in d.items():
+                    if isinstance(val, dict):
+                        if val.get("type") == "password" and "value" in val:
+                            val["default"] = "****"
+                            val["value"] = "****"
+                        sanitize_dict(val)
+
+            if "rows" in data:
+                for row in data["rows"]:
+                    if isinstance(row.get("value"), dict):
+                        sanitize_dict(row["value"])
+            return data
         temp_file = "{}/{}-{}".format(self._interim_file_path, file_name, file_spec)
-        data = await self._storage.query_tbl(tbl_name)
-        self.write_to_tar(pyz, temp_file, data)
+        raw_data = await self._storage.query_tbl(tbl_name)
+        sanitized_data = mask_passwords(raw_data) if tbl_name == 'configuration' else raw_data
+        self.write_to_tar(pyz, temp_file, sanitized_data)
 
     async def add_table_statistics_history(self, pyz, file_spec):
         # The contents of the statistics history from the storage layer
@@ -249,7 +305,7 @@ class SupportBuilder:
         self.write_to_tar(pyz, temp_file, data)
 
     def add_psinfo(self, pyz, file_spec):
-        # A PS listing of al the python applications running on the machine
+        # A PS listing of all the python applications running on the machine
         temp_file = self._interim_file_path + "/" + "psinfo-{}".format(file_spec)
         a = subprocess.Popen('ps -aufx | egrep "(%MEM|fledge\.)" | grep -v grep', shell=True,
                              stdout=subprocess.PIPE).stdout.readlines()
@@ -272,11 +328,41 @@ class SupportBuilder:
             # recursively 'true' by default and __pycache__ dir excluded
             pyz.add(script_file_path, arcname='scripts', filter=self.exclude_pycache)
 
-    def add_package_log_dir_content(self, pyz):
-        script_package_logs_path = _PATH + '/logs'
-        if os.path.exists(script_package_logs_path):
-            # recursively 'true' by default and __pycache__ dir excluded
-            pyz.add(script_package_logs_path, arcname='logs/package', filter=self.exclude_pycache)
+    def add_package_log_dir_content(self, pyz) -> None:
+        package_logs_path = _PATH + '/logs'
+        if os.path.exists(package_logs_path):
+            for filename in os.listdir(package_logs_path):
+                if filename.endswith('.log'):
+                    file_path = os.path.join(package_logs_path, filename)
+                    # recursively 'true' by default and __pycache__ dir excluded
+                    pyz.add(file_path, arcname='logs/package/{}'.format(basename(file_path)),
+                            filter=self.exclude_pycache)
+
+    def add_debug_trace_log_dir_content(self, pyz) -> None:
+        debug_trace_logs_path = _PATH + '/logs/debug-trace'
+        if os.path.exists(debug_trace_logs_path):
+            for filename in os.listdir(debug_trace_logs_path):
+                # Check if the file has a .log extension
+                if filename.endswith('.log'):
+                    file_path = os.path.join(debug_trace_logs_path, filename)
+                    # recursively 'true' by default and __pycache__ dir excluded
+                    pyz.add(file_path, arcname='logs/debug-trace/{}'.format(basename(file_path)),
+                            filter=self.exclude_pycache)
+                    # Open the file in write mode ('w'), which will truncate it to zero length
+                    with open(file_path, 'w') as file:
+                        file.truncate(0)
+
+    async def add_control_info(self, pyz) -> None:
+        today = datetime.datetime.utcnow()
+        file_spec = today.strftime('%y%m%d-%H-%M-%S')
+        control_tables = ['control_acl', 'control_api_acl', 'control_api', 'control_api_parameters',
+                          'control_pipelines', 'control_filters', 'control_script']
+        for tbl in sorted(control_tables):
+            temp_file = "{}/{}-{}".format(self._interim_file_path, tbl.replace("_", "-"), file_spec)
+            data = await self._storage.query_tbl(tbl)
+            with open(temp_file, 'w') as outfile:
+                json.dump(data, outfile, indent=4)
+            pyz.add(temp_file, arcname='control/{}'.format(basename(temp_file)))
 
     def add_software_list(self, pyz, file_spec) -> None:
         data = {

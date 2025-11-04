@@ -73,29 +73,13 @@ async def add_package_repo(request: web.Request) -> web.Response:
                 raise ValueError("{} is not supported".format(_platform))
         else:
             pkg_mgt = 'apt'
-            if 'x86_64-with-Ubuntu-18.04' in _platform:
-                os_name = "ubuntu1804"
-                architecture = "x86_64"
-                extra_commands = ""
-            elif 'x86_64-with-glib' in _platform:
+            if 'x86_64-with-glib' in _platform:
                 os_name = "ubuntu2004"
                 architecture = "x86_64"
-                extra_commands = ""
-            elif 'armv7l-with-debian' in _platform:
-                os_name = "buster"
-                architecture = "armv7l"
                 extra_commands = ""
             elif 'armv7l-with-glibc' in _platform:
                 os_name = "bullseye"
                 architecture = "armv7l"
-                extra_commands = ""
-            elif 'aarch64-with-Ubuntu-18.04' in _platform:
-                os_name = "ubuntu1804"
-                architecture = "aarch64"
-                extra_commands = ""
-            elif 'aarch64-with-Mendel' in _platform:
-                os_name = "mendel"
-                architecture = "aarch64"
                 extra_commands = ""
             else:
                 raise ValueError("{} is not supported".format(_platform))

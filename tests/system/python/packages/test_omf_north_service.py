@@ -23,7 +23,8 @@ north_plugin = "OMF"
 north_service_name = "NorthReadingsToPI_WebAPI"
 north_schedule_id = ""
 filter1_name = "SF1"
-filter2_name = "MD1"
+filter2_name = "SF2"
+filter3_name = "MD1"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
@@ -126,12 +127,12 @@ def verify_service_added(fledge_url):
     assert north_service_name in [s["name"] for s in result["services"]]
 
 
-def verify_filter_added(fledge_url):
+def get_filters(fledge_url):
     get_url = "/fledge/filter"
     result = utils.get_request(fledge_url, get_url)
     assert len(result["filters"])
-    assert filter1_name in [s["name"] for s in result["filters"]]
-    return result
+    filters = [s["name"] for s in result["filters"]]
+    return filters
 
 
 def verify_asset(fledge_url):
@@ -398,7 +399,7 @@ class TestOMFNorthService:
                            south_asset_name)
 
 
-class TestOMFNorthServicewithFilters:
+class TestOMFNorthServiceWithFilters:
     def test_omf_service_with_filter(self, reset_fledge, start_south_north, add_configure_filter,
                                      read_data_from_pi_web_api,
                                      skip_verify_north_interface, fledge_url, wait_time, retries, pi_host, pi_port,
@@ -424,7 +425,7 @@ class TestOMFNorthServicewithFilters:
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
@@ -465,7 +466,7 @@ class TestOMFNorthServicewithFilters:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
@@ -518,7 +519,7 @@ class TestOMFNorthServicewithFilters:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
@@ -568,7 +569,7 @@ class TestOMFNorthServicewithFilters:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
@@ -581,13 +582,15 @@ class TestOMFNorthServicewithFilters:
         north_schedule_id = response["id"]
 
         filter_cfg_scale = {"enable": "true"}
-        add_filter("scale", None, "SF2", filter_cfg_scale, fledge_url, north_service_name, installation_type='package')
+        add_filter("scale", None, filter2_name, filter_cfg_scale, fledge_url, north_service_name,
+                   installation_type='package')
 
         # Wait for some time for north service to come up.
         time.sleep(wait_time)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
-
+        _filters = get_filters(fledge_url)
+        assert filter1_name not in _filters
+        assert filter2_name in _filters
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
@@ -602,7 +605,7 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    def test_omf_service_with_delete_add_filter(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
+    def test_omf_service_with_delete_readd_filter(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
                                                 read_data_from_pi_web_api,
                                                 skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                                 pi_port, pi_admin, pi_passwd, pi_db):
@@ -627,7 +630,7 @@ class TestOMFNorthServicewithFilters:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
@@ -643,8 +646,7 @@ class TestOMFNorthServicewithFilters:
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, filter1_name, filter_cfg_scale, fledge_url, north_service_name,
                    installation_type='package')
-
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
@@ -685,25 +687,22 @@ class TestOMFNorthServicewithFilters:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url)
         verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
+        assert filter1_name in get_filters(fledge_url)
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
 
         # Adding second filter
         filter_cfg_meta = {"enable": "true"}
-        add_filter("metadata", None, filter2_name, filter_cfg_meta, fledge_url, north_service_name,
+        add_filter("metadata", None, filter3_name, filter_cfg_meta, fledge_url, north_service_name,
                    installation_type='package')
-
-        result = verify_filter_added(fledge_url)
-        assert filter2_name in [s["name"] for s in result["filters"]]
-
+        assert [filter1_name, filter3_name] == get_filters(fledge_url)
         # Verify the filter pipeline order
         get_url = "/fledge/filter/{}/pipeline".format(north_service_name)
         resp = utils.get_request(fledge_url, get_url)
         assert filter1_name == resp['result']['pipeline'][0]
-        assert filter2_name == resp['result']['pipeline'][1]
+        assert filter3_name == resp['result']['pipeline'][1]
 
-        data = {"pipeline": ["{}".format(filter2_name), "{}".format(filter1_name)]}
+        data = {"pipeline": ["{}".format(filter3_name), "{}".format(filter1_name)]}
         put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=false" \
             .format(north_service_name)
         utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
@@ -711,7 +710,7 @@ class TestOMFNorthServicewithFilters:
         # Verify the filter pipeline order after reordering
         get_url = "/fledge/filter/{}/pipeline".format(north_service_name)
         resp = utils.get_request(fledge_url, get_url)
-        assert filter2_name == resp['result']['pipeline'][0]
+        assert filter3_name == resp['result']['pipeline'][0]
         assert filter1_name == resp['result']['pipeline'][1]
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)

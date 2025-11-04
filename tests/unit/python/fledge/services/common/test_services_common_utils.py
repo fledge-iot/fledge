@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 from aiohttp import web
-import pytest
 import time
 from unittest.mock import patch
 
@@ -38,8 +37,6 @@ class mServiceThing(FledgeMicroservice):
         pass
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "common")
 class TestUtils:
 
     utils._MAX_ATTEMPTS = 2
@@ -59,7 +56,8 @@ class TestUtils:
             # WHEN the service is pinged with a valid URL
             with patch.object(utils._logger, "debug") as patch_logger:
                 service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
-                url_ping = "{}://{}:{}/fledge/service/ping".format(service._protocol, service._address, service._management_port)
+                url_ping = "{}://{}:{}/fledge/service/ping".format(service._protocol, service._address,
+                                                                   service._management_port)
                 log_params = 'Ping received for Service %s id %s at url %s', service._name, service._id, url_ping
                 resp = await utils.ping_service(service, loop=loop)
                 # THEN ping response is received

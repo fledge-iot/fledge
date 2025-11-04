@@ -327,6 +327,6 @@ References
 - `Remote development in WSL <https://code.visualstudio.com/docs/remote/wsl-tutorial>`_
 - `Debug C++ in Visual Studio Code <https://code.visualstudio.com/docs/cpp/cpp-debug>`_
 - `Predefined Variables Reference <https://code.visualstudio.com/docs/editor/variables-reference>`_
-- `C_cpp_properties.json reference <https://code.visualstudio.com/docs/cpp/c-cpp-properties-schema-reference>`_
-- `Schema for tasks.json <https://code.visualstudio.com/docs/editor/tasks-appendix>`_
+- `C_cpp_properties.json reference <https://code.visualstudio.com/docs/cpp/customize-cpp-settings>`_
+- `Schema for tasks.json <https://code.visualstudio.com/docs/debugtest/tasks>`_
 - `Configuring C/C++ Debugging (launch.json) <https://code.visualstudio.com/docs/cpp/launch-json-reference>`_

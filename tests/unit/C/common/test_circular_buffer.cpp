@@ -25,6 +25,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
     delete readings1;
+    delete rs1;
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -34,6 +35,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
     delete readings2;
+    delete rs2;
 
     //Third ReadingSet
     long dpVal3 = 40;
@@ -43,6 +45,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs3 = new  ReadingSet(readings3);
     buffer.insert(rs3);
     delete readings3;
+    delete rs3;
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -52,6 +55,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs4 = new  ReadingSet(readings4);
     buffer.insert(rs4);
     delete readings4;
+    delete rs4;
 
     //Fifth ReadingSet
     long dpVal5 = 86;
@@ -61,6 +65,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs5 = new  ReadingSet(readings5);
     buffer.insert(rs5);
     delete readings5;
+    delete rs5;
 
     //Sixth ReadingSet
     long dpVal6 = 75;
@@ -70,6 +75,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs6 = new  ReadingSet(readings6);
     buffer.insert(rs6);
     delete readings6;
+    delete rs6;
 
     //Seventh ReadingSet
     long dpVal7 = 49;
@@ -79,6 +85,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs7 = new  ReadingSet(readings7);
     buffer.insert(rs7);
     delete readings7;
+    delete rs7;
 
     //Eighth ReadingSet
     long dpVal8 = 15;
@@ -88,6 +95,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs8 = new  ReadingSet(readings8);
     buffer.insert(rs8);
     delete readings8;
+    delete rs8;
 
     //Ninth ReadingSet
     long dpVal9 = 23;
@@ -97,6 +105,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs9 = new  ReadingSet(readings9);
     buffer.insert(rs9);
     delete readings9;
+    delete rs9;
 
     //Tenth ReadingSet
     long dpVal10 = 38;
@@ -106,6 +115,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs10 = new  ReadingSet(readings10);
     buffer.insert(rs10);
     delete readings10;
+    delete rs10;
     ASSERT_EQ(buffer.extract(false).size(),10); // MaxLimit for buffer is reached
     
     //Eleventh ReadingSet
@@ -116,6 +126,7 @@ TEST(TESTCircularBuffer, TestMaxLimitOfBuffer)
     ReadingSet* rs11 = new  ReadingSet(readings11);
     buffer.insert(rs11);
     delete readings11;
+    delete rs11;
     
     ASSERT_EQ(buffer.extract(false).size(),1); // Buffer size can't exceed the default MaxLimit
 }
@@ -133,6 +144,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs1 = new  ReadingSet(readings1);
     buffer.insert(rs1);
     delete readings1;
+    delete rs1;
     ASSERT_EQ(buffer.extract().size(),1);
 
     //Second ReadingSet
@@ -142,6 +154,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     readings2->emplace_back(new Reading("R2", new Datapoint("DP2", dpv2)));
     ReadingSet* rs2 = new  ReadingSet(readings2);
     buffer.insert(rs2);
+    delete rs2;
     delete readings2;
 
     //Third ReadingSet
@@ -151,6 +164,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     readings3->emplace_back(new Reading("R3", new Datapoint("DP3", dpv3)));
     ReadingSet* rs3 = new  ReadingSet(readings3);
     buffer.insert(rs3);
+    delete rs3;
     delete readings3;
 
     //Fourth ReadingSet
@@ -160,6 +174,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     readings4->emplace_back(new Reading("R4", new Datapoint("DP4", dpv4)));
     ReadingSet* rs4 = new  ReadingSet(readings4);
     buffer.insert(rs4);
+    delete rs4;
     delete readings4;
 
     //Fifth ReadingSet
@@ -170,6 +185,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs5 = new  ReadingSet(readings5);
     buffer.insert(rs5);
     delete readings5;
+    delete rs5;
     ASSERT_EQ(buffer.extract(false).size(),4); // Remaining item in buffer
 
     //Sixth ReadingSet
@@ -180,6 +196,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBuffer)
     ReadingSet* rs6 = new  ReadingSet(readings6);
     buffer.insert(rs6);
     delete readings6;
+    delete rs6;
     ASSERT_EQ(buffer.extract(false).size(),1); // Buffer size can't exceed the default MaxLimit
 }
 
@@ -206,7 +223,7 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");
     ASSERT_EQ(buff1[0]->getAllReadings()[0]->getDatapointsJSON(), readings1->at(0)->getDatapointsJSON());
     delete readings1;
-
+    delete rs1;
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -221,6 +238,7 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2");
     ASSERT_EQ(buff2[0]->getAllReadings()[0]->getDatapointsJSON(), readings2->at(0)->getDatapointsJSON());
     delete readings2;
+    delete rs2;
 
     //Third ReadingSet
     long dpVal3 = 40;
@@ -235,6 +253,7 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     ASSERT_EQ(buff3[0]->getAllReadings()[0]->getAssetName(), "R3"); //Buffer is Full
     ASSERT_EQ(buff3[0]->getAllReadings()[0]->getDatapointsJSON(), readings3->at(0)->getDatapointsJSON());
     delete readings3;
+    delete rs3;
 
     //Fourth ReadingSet
     long dpVal4 = 45;
@@ -250,6 +269,7 @@ TEST(TESTCircularBuffer, TestHeadAndTailMarkerAdjustment)
     ASSERT_EQ(buff4[0]->getAllReadings()[0]->getAssetName(), "R4"); 
     ASSERT_EQ(buff4[0]->getAllReadings()[0]->getDatapointsJSON(), readings4->at(0)->getDatapointsJSON());
     delete readings4;
+    delete rs4;
 
 }
 
@@ -270,6 +290,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
     ASSERT_EQ(buff1[0]->getAllReadings()[0]->getAssetName(), "R1");
     ASSERT_EQ(buff1[0]->getAllReadings()[0]->getDatapointsJSON(), readings1->at(0)->getDatapointsJSON());
     delete readings1;
+    delete rs1;
 
     //Second ReadingSet
     long dpVal2 = 50;
@@ -284,6 +305,7 @@ TEST(TESTCircularBuffer, TestCustomSizeBufferLessThanOne)
     ASSERT_EQ(buff2[0]->getAllReadings()[0]->getAssetName(), "R2");
     ASSERT_EQ(buff2[0]->getAllReadings()[0]->getDatapointsJSON(), readings2->at(0)->getDatapointsJSON());
     delete readings2;
+    delete rs2;
 
 }
 

@@ -155,16 +155,6 @@ static const char *baseOMFTypes = QUOTE(
 		    "isindex":true
 		 }
 	      }
-	   },
-	   {
-	      "id":"FledgeAsset",
-	      "type":"object",
-	      "classification":"static",
-	      "properties":{
-		 "AssetId": {"type": "string", "isindex": true },
-		  "Name" : { "type": "string", "isname": true }
-	      }
-
 	   }
     ]);
 

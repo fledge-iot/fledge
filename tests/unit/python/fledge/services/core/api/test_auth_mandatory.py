@@ -9,7 +9,6 @@ import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
-import sys
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -33,8 +32,6 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "auth-mandatory")
 class TestAuthMandatory:
 
     @pytest.fixture
@@ -49,15 +46,9 @@ class TestAuthMandatory:
 
     async def auth_token_fixture(self, mocker, is_admin=True):
         user = {'id': 1, 'uname': 'admin', 'role_id': '1'} if is_admin else {'id': 2, 'uname': 'user', 'role_id': '2'}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro(user)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro(user))
+        _rv1 = await mock_coro(user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro(user)
         patch_logger_debug = mocker.patch.object(middleware._logger, 'debug')
         patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
         patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
@@ -91,13 +82,8 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(msg)
-            rv2 = await mock_coro(ret_val)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(msg))
-            rv2 = asyncio.ensure_future(mock_coro(ret_val))
+        rv1 = await mock_coro(msg)
+        rv2 = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv2) as patch_role_id:
             with patch.object(auth, 'validate_password', return_value=rv1):
                 resp = await client.post('/fledge/admin/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
@@ -120,15 +106,9 @@ class TestAuthMandatory:
         msg = "Invalid role ID."
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(False)
-            _rv3 = await mock_coro("")
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(False))
-            _rv3 = asyncio.ensure_future(mock_coro(""))
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(False)
+        _rv3 = await mock_coro("")
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth, 'validate_password', return_value=_rv3):
                 with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
@@ -155,24 +135,13 @@ class TestAuthMandatory:
                   'enabled': 'f', 'access_method': 'any'},
                  {'id': 3, 'uname': 'dviewer', 'real_name': 'Data Viewer', 'role_id': 4, 'description': 'Test',
                   'enabled': 'f', 'access_method': 'any'}]
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(valid_user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro([{'id': '1'}])
-            _rv4 = await mock_coro(True)
-            _rv5 = await mock_coro(valid_user)
-            _rv6 = await mock_coro(users)
-            _rv7 = await mock_coro("")
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 = asyncio.ensure_future(mock_coro(True))
-            _rv5 = asyncio.ensure_future(mock_coro(valid_user))
-            _rv6 = asyncio.ensure_future(mock_coro(users))
-            _rv7 = asyncio.ensure_future(mock_coro(""))
-
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro([{'id': '1'}])
+        _rv4 = await mock_coro(True)
+        _rv5 = await mock_coro(valid_user)
+        _rv6 = await mock_coro(users)
+        _rv7 = await mock_coro("")
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
@@ -215,27 +184,15 @@ class TestAuthMandatory:
         ret_val = {"response": "inserted", "rows_affected": 1}
         msg = '{} user has been created successfully.'.format(request_data['username'])
         valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(valid_user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro([{'id': '1'}])
-            _rv4 = await mock_coro(True)
-            _rv5 = await mock_coro(ret_val)
-            _rv6 = await mock_coro(users)
-            _rv7 = await mock_coro("")
-            _se1 = await mock_coro(valid_user)
-            _se2 = await mock_coro(data)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 = asyncio.ensure_future(mock_coro(True))
-            _rv5 = asyncio.ensure_future(mock_coro(ret_val))
-            _rv6 = asyncio.ensure_future(mock_coro(users))
-            _rv7 = asyncio.ensure_future(mock_coro(""))
-            _se1 = asyncio.ensure_future(mock_coro(valid_user))
-            _se2 = asyncio.ensure_future(mock_coro(data))
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro([{'id': '1'}])
+        _rv4 = await mock_coro(True)
+        _rv5 = await mock_coro(ret_val)
+        _rv6 = await mock_coro(users)
+        _rv7 = await mock_coro("")
+        _se1 = await mock_coro(valid_user)
+        _se2 = await mock_coro(data)
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
@@ -280,23 +237,13 @@ class TestAuthMandatory:
         valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
         users = [{'id': 1, 'uname': 'admin', 'real_name': 'Admin user', 'role_id': 1, 'description': 'admin user',
                   'enabled': 't', 'access_method': 'any'}]
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(valid_user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro([{'id': '1'}])
-            _rv4 = await mock_coro(True)
-            _rv5 = await mock_coro(valid_user)
-            _rv6 = await mock_coro(users)
-            _rv7 = await mock_coro("")
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 = asyncio.ensure_future(mock_coro(True))
-            _rv5 = asyncio.ensure_future(mock_coro(valid_user))
-            _rv6 = asyncio.ensure_future(mock_coro(users))
-            _rv7 = asyncio.ensure_future(mock_coro(""))
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro([{'id': '1'}])
+        _rv4 = await mock_coro(True)
+        _rv5 = await mock_coro(valid_user)
+        _rv6 = await mock_coro(users)
+        _rv7 = await mock_coro("")
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
@@ -336,23 +283,13 @@ class TestAuthMandatory:
         exc_msg = "Value Error occurred"
         users = [{'id': 1, 'uname': 'admin', 'real_name': 'Admin user', 'role_id': 1, 'description': 'admin user',
                   'enabled': 't', 'access_method': 'any'}]
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro(valid_user['id'])
-            _rv2 = await mock_coro(None)
-            _rv3 = await mock_coro([{'id': '1'}])
-            _rv4 = await mock_coro(True)
-            _rv5 = await mock_coro(valid_user)
-            _rv6 = await mock_coro(users)
-            _rv7 = await mock_coro("")
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 = asyncio.ensure_future(mock_coro(None))
-            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 = asyncio.ensure_future(mock_coro(True))
-            _rv5 = asyncio.ensure_future(mock_coro(valid_user))
-            _rv6 = asyncio.ensure_future(mock_coro(users))
-            _rv7 = asyncio.ensure_future(mock_coro(""))
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro([{'id': '1'}])
+        _rv4 = await mock_coro(True)
+        _rv5 = await mock_coro(valid_user)
+        _rv6 = await mock_coro(users)
+        _rv7 = await mock_coro("")
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
             with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
                 with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
@@ -392,7 +329,7 @@ class TestAuthMandatory:
             mocker)
         user_info = {'role_id': '1', 'id': '2', 'uname': 'user', 'access_method': 'any',
                      'real_name': 'Sat', 'description': 'Normal User'}
-        rv = await mock_coro(user_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(user_info))
+        rv = await mock_coro(user_info)
         with patch.object(User.Objects, 'get', return_value=rv) as patch_get_user:
             resp = await client.put('/fledge/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
             assert 400 == resp.status
@@ -415,15 +352,9 @@ class TestAuthMandatory:
         user_record = {'rows': [{'user_id': 2}], 'count': 1}
         update_result = {"rows_affected": 1, "response": "updated"}
         storage_client_mock = MagicMock(StorageClientAsync)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(user_info)
-            rv2 = await mock_coro(user_record)
-            rv3 = await mock_coro(update_result)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(user_info))
-            rv2 = asyncio.ensure_future(mock_coro(user_record))
-            rv3 = asyncio.ensure_future(mock_coro(update_result))
+        rv1 = await mock_coro(user_info)
+        rv2 = await mock_coro(user_record)
+        rv3 = await mock_coro(update_result)
         with patch.object(User.Objects, 'get', return_value=rv1) as patch_get_user:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv2) as q_tbl_patch:
@@ -457,13 +388,8 @@ class TestAuthMandatory:
         user_info = {'role_id': '1', 'id': str(uid), 'uname': 'user', 'access_method': 'any',
                      'real_name': 'Sat', 'description': 'Normal User'}
         ret_val = [{'id': '1'}]
-        if sys.version_info >= (3, 8):
-            _rv = await mock_coro(ret_val)
-            _se = await mock_coro(user_info)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(ret_val))
-            _se = asyncio.ensure_future(mock_coro(user_info))
-
+        _rv = await mock_coro(ret_val)
+        _se = await mock_coro(user_info)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(User.Objects, 'get', return_value=_se) as patch_get_user:
                 resp = await client.put('/fledge/admin/{}'.format(uid), data=json.dumps(payload),
@@ -494,16 +420,9 @@ class TestAuthMandatory:
         uid = 2
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '2'}])
-            _rv2 = await mock_coro(True)
-            _se = await mock_coro(exp_result)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '2'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(True))
-            _se = asyncio.ensure_future(mock_coro(exp_result))
-
+        _rv1 = await mock_coro([{'id': '2'}])
+        _rv2 = await mock_coro(True)
+        _se = await mock_coro(exp_result)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
                 with patch.object(User.Objects, 'get', return_value=_se):
@@ -536,8 +455,7 @@ class TestAuthMandatory:
         uid = 2
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        rv1 = await mock_coro(msg) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
-            asyncio.ensure_future(mock_coro(msg)))
+        rv1 = await mock_coro(msg) 
         with patch.object(auth, 'validate_password', return_value=rv1):
             resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data),
                                     headers=NORMAL_USER_HEADER)
@@ -570,13 +488,8 @@ class TestAuthMandatory:
         msg = 'Invalid current password.'
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro("")
-            rv2 = await mock_coro(None)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(""))
-            rv2 = asyncio.ensure_future(mock_coro(None))
+        rv1 = await mock_coro("")
+        rv2 = await mock_coro(None)
         with patch.object(auth, 'validate_password', return_value=rv1):
             with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
                 resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data),
@@ -600,13 +513,8 @@ class TestAuthMandatory:
         uid = 2
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro("")
-            rv2 = await mock_coro(uid)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(""))
-            rv2 = asyncio.ensure_future(mock_coro(uid))
+        rv1 = await mock_coro("")
+        rv2 = await mock_coro(uid)
         with patch.object(auth, 'validate_password', return_value=rv1):
             with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
@@ -629,13 +537,8 @@ class TestAuthMandatory:
         logger_msg = 'Failed to update the user ID:<{}>.'.format(uid)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro("")
-            rv2 = await mock_coro(uid)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(""))
-            rv2 = asyncio.ensure_future(mock_coro(uid))
+        rv1 = await mock_coro("")
+        rv2 = await mock_coro(uid)
         with patch.object(auth, 'validate_password', return_value=rv1):
             with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
@@ -661,16 +564,9 @@ class TestAuthMandatory:
         msg = "Password has been updated successfully for user ID:<{}>.".format(user_id)
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            rv1 = await mock_coro("")
-            rv2 = await mock_coro(user_id)
-            rv3 = await mock_coro(ret_val)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(""))
-            rv2 = asyncio.ensure_future(mock_coro(user_id))
-            rv3 = asyncio.ensure_future(mock_coro(ret_val))
-        
+        rv1 = await mock_coro("")
+        rv2 = await mock_coro(user_id)
+        rv3 = await mock_coro(ret_val)
         with patch.object(auth, 'validate_password', return_value=rv1):
             with patch.object(User.Objects, 'is_user_exists', return_value=rv2) as patch_user_exists:
                 with patch.object(User.Objects, 'update', return_value=rv3) as patch_update:
@@ -695,8 +591,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             resp = await client.delete('/fledge/admin/{}/delete'.format(request_data), headers=ADMIN_USER_HEADER)
             assert 400 == resp.status
@@ -713,8 +608,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                 resp = await client.delete('/fledge/admin/1/delete', headers=ADMIN_USER_HEADER)
@@ -732,8 +626,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '2'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                 resp = await client.delete('/fledge/admin/2/delete', headers=NORMAL_USER_HEADER)
@@ -751,14 +644,8 @@ class TestAuthMandatory:
         msg = 'User with ID:<2> does not exist.'
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(ret_val)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
-
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(User.Objects, 'delete', return_value=_rv2) as patch_user_delete:
                 resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
@@ -775,14 +662,8 @@ class TestAuthMandatory:
         ret_val = {"response": "deleted", "rows_affected": 1}
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(ret_val)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
-
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth._logger, 'info') as patch_auth_logger_info:
                 with patch.object(User.Objects, 'delete', return_value=_rv2) as patch_user_delete:
@@ -806,8 +687,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(User.Objects, 'delete', side_effect=exception_name(msg)) as patch_user_delete:
                 resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
@@ -825,8 +705,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'error') as patch_logger:
                 with patch.object(User.Objects, 'delete', side_effect=Exception(msg)) as patch_user_delete:
@@ -846,8 +725,7 @@ class TestAuthMandatory:
         ret_val = {'response': 'deleted', 'rows_affected': 1}
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(auth._logger, 'info') as patch_auth_logger_info:
             with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_user_token:
                 resp = await client.put('/fledge/2/logout', headers=ADMIN_USER_HEADER)
@@ -866,8 +744,7 @@ class TestAuthMandatory:
         user_id = 111
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_user_token:
             resp = await client.put('/fledge/{}/logout'.format(user_id), headers=ADMIN_USER_HEADER)
             assert 404 == resp.status
@@ -881,8 +758,7 @@ class TestAuthMandatory:
         ret_val = {'response': 'deleted', 'rows_affected': 1}
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(auth._logger, 'info') as patch_auth_logger_info:
             with patch.object(User.Objects, 'delete_token', return_value=_rv) as patch_delete_token:
                 resp = await client.put('/fledge/logout', headers=ADMIN_USER_HEADER)
@@ -900,8 +776,7 @@ class TestAuthMandatory:
         ret_val = {'response': 'deleted', 'rows_affected': 0}
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(auth._logger, 'error') as patch_auth_logger:
             with patch.object(User.Objects, 'delete_token', return_value=_rv) as patch_delete_token:
                 resp = await client.put('/fledge/logout', headers=ADMIN_USER_HEADER)
@@ -917,8 +792,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/fledge/admin/1/enable', data=json.dumps({'role_id': 2}),
@@ -943,8 +817,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             resp = await client.put('/fledge/admin/2/enable', data=json.dumps(request_data),
                                     headers=ADMIN_USER_HEADER)
@@ -983,20 +856,11 @@ class TestAuthMandatory:
                          'new_value': {'enabled': _modified_enabled_val},
                          'message': "'AJ' user has been {}.".format(_text)}
         storage_client_mock = MagicMock(StorageClientAsync)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(update_result)
-            _rv3 = await mock_coro(None)
-            _se1 = await mock_coro(user_record)
-            _se2 = await mock_coro(update_user_record)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(update_result))
-            _rv3 = asyncio.ensure_future(mock_coro(None))
-            _se1 = asyncio.ensure_future(mock_coro(user_record))
-            _se2 = asyncio.ensure_future(mock_coro(update_user_record))
-
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(update_result)
+        _rv3 = await mock_coro(None)
+        _se1 = await mock_coro(user_record)
+        _se2 = await mock_coro(update_user_record)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -1031,8 +895,7 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/fledge/admin/1/reset', data=json.dumps({'role_id': 2}),
@@ -1056,13 +919,8 @@ class TestAuthMandatory:
         ret_val = [{'id': '1'}]
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info >= (3, 8):
-            rv1 = await mock_coro(ret_val)
-            rv2 = await mock_coro(msg)
-        else:
-            rv1 = asyncio.ensure_future(mock_coro(ret_val))
-            rv2 = asyncio.ensure_future(mock_coro(msg))
+        rv1 = await mock_coro(ret_val)
+        rv2 = await mock_coro(msg)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
             with patch.object(auth, 'validate_password', return_value=rv2):
                 resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data),
@@ -1080,14 +938,8 @@ class TestAuthMandatory:
         msg = "Invalid or bad role id."
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro(False)
-        else:
-            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro(False))
-
+        _rv1 = await mock_coro([{'id': '1'}])
+        _rv2 = await mock_coro(False)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
                 resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data),
@@ -1111,15 +963,9 @@ class TestAuthMandatory:
         user_id = 2
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            rv1 = await mock_coro([{'id': '1'}])
-            rv2 = await mock_coro(True)
-            rv3 = await mock_coro("")
-        else:
-            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            rv2 = asyncio.ensure_future(mock_coro(True))
-            rv3 = asyncio.ensure_future(mock_coro(""))
+        rv1 = await mock_coro([{'id': '1'}])
+        rv2 = await mock_coro(True)
+        rv3 = await mock_coro("")
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
                 with patch.object(auth, 'validate_password', return_value=rv3):
@@ -1147,16 +993,9 @@ class TestAuthMandatory:
 
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            rv1 = await mock_coro([{'id': '1'}])
-            rv2 = await mock_coro(True)
-            rv3 = await mock_coro("")
-        else:
-            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            rv2 = asyncio.ensure_future(mock_coro(True))
-            rv3 = asyncio.ensure_future(mock_coro(""))
-
+        rv1 = await mock_coro([{'id': '1'}])
+        rv2 = await mock_coro(True)
+        rv3 = await mock_coro("")
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
                 with patch.object(auth, 'validate_password', return_value=rv3):
@@ -1184,18 +1023,10 @@ class TestAuthMandatory:
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            rv1 = await mock_coro([{'id': '1'}])
-            rv2 = await mock_coro(True)
-            rv3 = await mock_coro(ret_val)
-            rv4 = await mock_coro("")
-        else:
-            rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            rv2 = asyncio.ensure_future(mock_coro(True))
-            rv3 = asyncio.ensure_future(mock_coro(ret_val))
-            rv4 = asyncio.ensure_future(mock_coro(""))
-
+        rv1 = await mock_coro([{'id': '1'}])
+        rv2 = await mock_coro(True)
+        rv3 = await mock_coro(ret_val)
+        rv4 = await mock_coro("")
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=rv1) as patch_role_id:
             with patch.object(auth, 'is_valid_role', return_value=rv2) as patch_role:
                 with patch.object(auth, 'validate_password', return_value=rv4):
@@ -1215,6 +1046,55 @@ class TestAuthMandatory:
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/reset')
 
+    @pytest.mark.parametrize("request_data, ret_val", [
+        ({"username": "admin", "password": "fledge"}, (1, "token1", True)),
+        ({"username": "user", "password": "fledge"}, (2, "token2", False))
+    ])
+    async def test_login_auth_password(self, client, request_data, ret_val):
+        async def async_mock():
+            return ret_val
+
+        _rv = await async_mock()
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
+                with patch.object(auth._logger, 'info') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data))
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert ret_val[0] == actual['uid']
+                    assert ret_val[1] == actual['token']
+                    assert ret_val[2] == actual['admin']
+                patch_auth_logger.assert_called_once_with('User with username:<{}> logged in successfully.'.format(
+                    request_data['username']))
+            # TODO: host arg patch transport.request.extra_info
+            args, kwargs = patch_user_login.call_args
+            assert request_data['username'] == args[0]
+            assert request_data['password'] == args[1]
+            # patch_user_login.assert_called_once_with()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
+    @pytest.mark.parametrize("exception_name, status_code, msg", [
+        (User.PasswordNotSetError, 400, 'Password is not set for this user.'),
+        (User.DoesNotExist, 404, 'User does not exist'),
+        (User.PasswordDoesNotMatch, 404, 'Username or Password do not match'),
+        (Exception, 500, 'Internal Server Error')
+    ])
+    async def test_login_fails_when_password_auth_used_but_password_not_set(self, client, exception_name,
+                                                                            status_code, msg):
+        request_data_payload = {"username": "ranveer", "password": "Singh@123"}
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(User.Objects, 'login', side_effect=exception_name(msg)):
+                with patch.object(auth._logger, 'error') as patch_auth_logger:
+                    resp = await client.post('/fledge/login', data=json.dumps(request_data_payload))
+                    assert status_code == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                patch_auth_logger.assert_not_called() if status_code != 500 else patch_auth_logger.assert_called()
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
+
     @pytest.mark.parametrize("auth_method, request_data, ret_val", [
         ("certificate", "-----BEGIN CERTIFICATE----- Test -----END CERTIFICATE-----", (2, "token2", False))
     ])
@@ -1227,15 +1107,9 @@ class TestAuthMandatory:
         async def async_get_user():
             return {'role_id': '2', 'id': '2', 'uname': 'user'}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await asyncio.sleep(.1)
-            _rv2 = await async_mock()
-            _rv3 = await async_get_user()
-        else:
-            _rv1 = asyncio.ensure_future(asyncio.sleep(.1))
-            _rv2 = asyncio.ensure_future(async_mock())
-            _rv3 = asyncio.ensure_future(async_get_user())
+        _rv1 = await asyncio.sleep(.1)
+        _rv2 = await async_mock()
+        _rv3 = await async_get_user()
         with patch.object(middleware._logger, 'info'):
             with patch.object(server.Server, "auth_method", auth_method):
                 with patch.object(SSLVerifier, 'get_subject', return_value={"commonName": "user"}):
@@ -1329,8 +1203,7 @@ class TestAuthMandatory:
                 "value": "0"
             }
         }
-        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
-            asyncio.ensure_future(mock_cat()))
+        rv = await mock_cat() 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
@@ -1387,12 +1260,100 @@ class TestAuthMandatory:
                 "value": "0"
             }
         }
-        rv = await mock_cat() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else (
-            asyncio.ensure_future(mock_cat()))
+        rv = await mock_cat() 
+
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(ConfigurationManager, "get_category_all_items", return_value=rv) as patch_get_cat:
                 msg = await auth.validate_password(pwd)
                 assert "" == msg
             patch_get_cat.assert_called_once_with('password')
+
+
+    @pytest.mark.parametrize("data, error_message", [
+        ("blah", "expiration_days must be an integer."),
+        (0, "expiration_days must be between 1 and 365."),
+        (366, "expiration_days must be between 1 and 365."),
+        (-1, "expiration_days must be between 1 and 365.")
+    ])
+    async def test_bad_certificate(self, client, data, error_message):
+        payload = {"expiration_days": data}
+        valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro(valid_user)
+        _rv4 = await mock_coro([{'id': '1'}])
+        with patch.object(middleware._logger, 'debug') as patch_logger_debug:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
+                    with patch.object(User.Objects, 'get', return_value=_rv3):
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv4
+                                              ) as patch_role_id:
+                                resp = await client.post('/fledge/admin/3/authcertificate', data=json.dumps(payload),
+                                                         headers=ADMIN_USER_HEADER)
+                                assert 400 == resp.status
+                                assert error_message == resp.reason
+                                actual = json.loads(await resp.text())
+                                assert error_message == actual
+                            patch_role_id.assert_called_once_with('admin')
+                patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+            patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST',
+                                                   '/fledge/admin/3/authcertificate')
+
+    async def test_certificate(self, client):
+        valid_user = {'id': 1, 'uname': 'admin', 'role_id': '1'}
+        get_user = {'id': 3, 'uname': 'dviewer', 'real_name': 'Data Viewer', 'role_id': 4, 'description': 'Test',
+                    'enabled': 'f', 'access_method': 'any'}
+        msg = "An Authentication certificate has been created for user '{}'.".format(get_user['uname'])
+        _rv1 = await mock_coro(valid_user['id'])
+        _rv2 = await mock_coro(None)
+        _rv3 = await mock_coro([{'id': '1'}])
+        _se1 = await mock_coro(valid_user)
+        _se2 = await mock_coro(get_user)
+        with patch.object(middleware._logger, 'debug') as patch_logger_debug:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2
+                                  ) as patch_refresh_token:
+                    with patch.object(User.Objects, 'get', side_effect=[_se1, _se2]):
+                            with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3
+                                              ) as patch_role_id:
+                                resp = await client.post('/fledge/admin/3/authcertificate', data=None,
+                                                         headers=ADMIN_USER_HEADER)
+                                assert 200 == resp.status
+                                assert "OK" == resp.reason
+                                cert = await resp.text()
+                                assert cert.startswith("-----BEGIN CERTIFICATE-----")
+                                assert cert.endswith("\n-----END CERTIFICATE-----\n")
+                            patch_role_id.assert_called_once_with('admin')
+                patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+            patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST',
+                                                   '/fledge/admin/3/authcertificate')
+
+    async def test_certificate_verification_value_error(self, client):
+        with patch.object(User.Objects, 'verify_certificate', side_effect=ValueError("Invalid certificate format")):
+            cert_data = "-----BEGIN CERTIFICATE-----\ntest certificate data\n-----END CERTIFICATE-----"
+            resp = await client.post('/fledge/login', data=cert_data)
+            assert 401 == resp.status
+            assert "Authentication failed: Invalid certificate format" == resp.reason
+
+    @pytest.mark.parametrize("invalid_data", [
+        "just some text", "", "   ", "{", "{}"
+    ])
+    async def test_various_invalid_data_formats(self, client, invalid_data):
+        resp = await client.post('/fledge/login', data=invalid_data)
+        assert 400 == resp.status
+        assert "Invalid or untrusted certificate or missing credentials in payload." == resp.reason
+
+    @pytest.mark.parametrize("exception_class", [
+        SSLVerifier.VerificationError, User.DoesNotExist, OSError
+    ])
+    async def test_certificate_verification_improved_error_message(self, client, exception_class):
+        with patch.object(User.Objects, 'verify_certificate', side_effect=exception_class("Verification failed")):
+            cert_data = "-----BEGIN CERTIFICATE-----\ntest certificate data\n-----END CERTIFICATE-----"
+            resp = await client.post('/fledge/login', data=cert_data)
+            assert 401 == resp.status
+            assert "Authentication failed: invalid or untrusted certificate." == resp.reason
 

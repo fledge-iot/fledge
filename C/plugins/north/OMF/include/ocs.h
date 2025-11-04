@@ -1,9 +1,9 @@
 #ifndef _OCS_H
 #define _OCS_H
 /*
- * Fledge OSI Soft OCS integration.
+ * Fledge OSIsoft ADH and OCS integration.
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -11,15 +11,13 @@
  */
 
 #include <string>
+#include <chrono>
 
 using namespace std;
 
-#define OCS_HOST          "dat-b.osisoft.com:443"
-#define ADH_HOST	  "uswe.datahub.connect.aveva.com"
 #define TIMEOUT_CONNECT   10
 #define TIMEOUT_REQUEST   10
 #define RETRY_SLEEP_TIME  1
-#define MAX_RETRY         3
 
 #define URL_RETRIEVE_TOKEN "/identity/connect/token"
 
@@ -31,15 +29,18 @@ using namespace std;
 class OCS
 {
 	public:
-		OCS();
-		OCS(bool adh);
+		OCS(const std::string &authorizationUrl);
 
 		// Destructor
 		~OCS();
 
-		string  retrieveToken(const string& clientId, const string& clientSecret);
-		string  extractToken(const string& response);
+		std::string	OCSRetrieveAuthToken(const string& clientId, const string& clientSecret, bool logMessage = true);
+		int  retrieveToken(const string& clientId, const string& clientSecret, bool logMessage = true);
+		void  extractToken(const string& response);
 	private:
-		bool	m_adh;
+		std::string m_token;
+		std::string m_authUrl;
+		unsigned int m_expiresIn;
+		std::chrono::steady_clock::time_point m_nextAuthentication;
 };
 #endif

@@ -51,6 +51,7 @@ public:
 
     void setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
     void setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
+	void setMaxRetries          (unsigned int retries)              {m_max_retry = retries; };
 
 	// OCS configurations
 	void setOCSNamespace         (std::string& OCSNamespace)          {m_OCSNamespace    = OCSNamespace; }
@@ -61,13 +62,16 @@ public:
 
     std::string getHostPort()     { return m_host_port; };
 	std::string getHTTPResponse() { return m_HTTPResponse; };
+	unsigned int getMaxRetries()  { return m_max_retry; };
 
 private:
 	// Make private the copy constructor and operator=
 	LibcurlHttps(const LibcurlHttps&);
 	LibcurlHttps&     operator=(LibcurlHttps const &);
 
-    	void setLibCurlOptions(CURL *sender, const std::string& path, const vector<pair<std::string, std::string>>& headers);
+    void setLibCurlOptions(CURL *sender, const std::string& path, const vector<pair<std::string, std::string>>& headers);
+    void setTrace();
+    void resetTrace();
 
 private:
 	CURL               *m_sender;

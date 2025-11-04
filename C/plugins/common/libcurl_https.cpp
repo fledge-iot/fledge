@@ -68,15 +68,29 @@ LibcurlHttps::LibcurlHttps(const string& host_port,
 	{
 		Logger::getLogger()->error("libcurl_https - curl_global_init failed, the libcurl library cannot be initialized.");
 	}
-	char fname[180];
-	if (getenv("FLEDGE_DATA"))
-		snprintf(fname, sizeof(fname), "%s/omf.log", getenv("FLEDGE_DATA"));
-	else if (getenv("FLEDGE_ROOT"))
-		snprintf(fname, sizeof(fname), "%s/data/omf.log", getenv("FLEDGE_ROOT"));
-	if (access(fname, W_OK) == 0)
+	setTrace();
+}
+
+/**
+ * Destructor
+ */
+LibcurlHttps::~LibcurlHttps()
+{
+	resetTrace();
+	curl_global_cleanup();
+}
+
+/**
+ * @brief Configures logging for the HTTP sender.
+ */
+void LibcurlHttps::setTrace() 
+{
+    // Check if the log file is writable
+    std::string tracePath = HttpSender::getOMFTracePath();
+    if (access(tracePath.c_str(), W_OK) == 0)
 	{
 		m_log = true;
-		m_ofs.open(fname, ofstream::app);
+		m_ofs.open(tracePath.c_str(), ofstream::app);
 	}
 	else
 	{
@@ -85,15 +99,14 @@ LibcurlHttps::LibcurlHttps(const string& host_port,
 }
 
 /**
- * Destructor
+ * @brief Resets the logging state for the HTTP sender.
  */
-LibcurlHttps::~LibcurlHttps()
+void LibcurlHttps::resetTrace() 
 {
-	if (m_log)
-	{
-		m_ofs.close();
-	}
-	curl_global_cleanup();
+    if (m_log) 
+    {
+        m_ofs.close(); // Close the log file if it is open
+    }
 }
 
 /**

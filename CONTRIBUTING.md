@@ -8,7 +8,7 @@ The following is a set of guidelines for contributing to Fledge IoT
 project and its plugins, which are hosted in
 the [fledge-iot Organization](https://github.com/fledge-iot) on GitHub.
 
-To give us feedback or make suggestions use the fledge or fledge-help Slack Channel on [LFEdge](https://lfedge.slack.com/archives/CLJ7CNCAX).
+To give us feedback or make suggestions use the fledge or fledge-help Slack Channel on [LFEdge](slack.lfedge.org).
 
 If you find a security vulnerability within Fledge or any of its plugins then we request that **you inform us via email rather than by opening an issue in GitHub**. This allows us to act on it without giving information that others might exploit. Any security vulnerability will be discussed at the project TSC and user will be informed of the need to upgrade via the Fledge Slack channel. The email address to which vulnerabilities should be reported is security@dianomic.com.
 
@@ -18,7 +18,7 @@ If you find a security vulnerability within Fledge or any of its plugins then we
 refactoring code etc.), otherwise you risk spending a lot of time working on something that might
 already be underway or is unlikely to be merged into the project.
 
-Join the fledge or fledge-help Slack channel on [LFEdge](https://lfedge.slack.com/archives/CLJ7CNCAX). This
+Join the fledge or fledge-help Slack channel on [LFEdge](slack.lfedge.org). This
 will allow you to talk to the wider fledge community and discuss your
 proposed changes and get help from the maintainers when needed.
 

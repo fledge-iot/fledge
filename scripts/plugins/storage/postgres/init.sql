@@ -816,8 +816,9 @@ CREATE INDEX asset_tracker_ix2 ON fledge.asset_tracker USING btree (service);
 -- Create plugin_data table
 -- Persist plugin data in the storage
 CREATE TABLE fledge.plugin_data (
-	key     character varying(255)    NOT NULL,
-	data    jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	key             character varying(255)    NOT NULL,
+	data            jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	service_name    character varying(255),
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Create packages table
@@ -1082,7 +1083,6 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',          100 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',   30  );
 INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
-INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north',             '["tasks/north"]'                    );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',     20  );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]', 10  );

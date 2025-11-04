@@ -68,14 +68,6 @@ Running the python tests:
 
 **NOTE:** *Information to run the different categories of tests can be found in their respective documentation*
 
-Fledge also use |pytest decorators| heavily. For example pytest allure decorators like:
-::
-   @pytest.allure.feature("unit")
-   @pytest.allure.story("south")
-
-feature can be anything from unit or system and story is Fledge component/sub-component.
-These decorators are used in generating allure test reports on CI systems.
-
 
 C Tests
 +++++++
@@ -100,7 +92,7 @@ Fledge uses pytest-cov Framework of pytest as the code coverage measuring tool f
 
 To install pytest-cov Framework along with pytest Framework use the following command:
 ::
-   python3 -m pip install pytest==3.6.4 pytest-cov==2.9.0
+   python3 -m pip install pytest==7.0.1 pytest-cov==2.9.0
 
 Running the python tests:
 

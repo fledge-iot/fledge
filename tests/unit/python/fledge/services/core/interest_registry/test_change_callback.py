@@ -1,8 +1,5 @@
 from unittest.mock import MagicMock, patch, Mock, call
 import pytest
-import sys
-import asyncio
-
 import aiohttp
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -17,8 +14,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "interest-registry")
 class TestChangeCallback:
 
     def setup_method(self):
@@ -68,12 +63,7 @@ class TestChangeCallback:
             async def __aexit__(self, *args):
                 return None
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(async_mock(None))
-        
+        _rv = await async_mock(None)
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname1')
@@ -214,12 +204,7 @@ class TestChangeCallback:
             async def __aexit__(self, *args):
                 return None
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(async_mock(None))
-
+        _rv = await async_mock(None)
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 with patch.object(cb._LOGGER, 'exception') as exception_patch:
@@ -249,12 +234,7 @@ class TestChangeCallback:
         async def async_mock(return_value):
             return return_value
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock(None)
-        else:
-            _rv = asyncio.ensure_future(async_mock(None))
-
+        _rv = await async_mock(None)
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', side_effect=Exception) as post_patch:
                 with patch.object(cb._LOGGER, 'exception') as patch_logger:

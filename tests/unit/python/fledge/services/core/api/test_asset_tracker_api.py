@@ -4,13 +4,11 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-
 import asyncio
 import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
-import sys
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -28,8 +26,6 @@ async def mock_coro(return_value):
     return return_value
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "asset-tracker")
 class TestAssetTracker:
 
     @pytest.fixture
@@ -56,10 +52,7 @@ class TestAssetTracker:
                               {'alias': 'deprecatedTimestamp', 'column': 'deprecated_ts'}, 'data'
                               ]
                    }
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
-            else asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as patch_query_payload:
                 resp = await client.get('/fledge/track')
@@ -82,7 +75,7 @@ class TestAssetTracker:
 
     async def test_bad_deprecate_entry(self, client):
         result = {"message": "failed"}
-        _rv = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        _rv = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
@@ -93,7 +86,7 @@ class TestAssetTracker:
 
     async def test_deprecate_entry_not_found(self, client):
         result = {"count": 0, "rows": []}
-        _rv = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        _rv = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         asset = "blah"
         service = "Test"
@@ -118,7 +111,7 @@ class TestAssetTracker:
 
     async def test_already_deprecated_entry(self, client):
         result = {'count': 1, 'rows': [{'deprecated_ts': '2022-11-18 06:11:13.657'}]}
-        _rv = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        _rv = await mock_coro(result)
         storage_client_mock = MagicMock(StorageClientAsync)
         asset = "Airtake"
         service = "Sparkplug"
@@ -163,14 +156,9 @@ class TestAssetTracker:
         query_result = {'count': 1, 'rows': [{'deprecated_ts': ''}]}
         update_result = {"response": "updated", "rows_affected": 1}
         message = "For {} event, {} asset record entry has been deprecated.".format(event, asset)
-        if sys.version_info >= (3, 8):
-            _rv = await mock_coro(query_result)
-            _rv2 = await mock_coro(update_result)
-            _rv3 = await mock_coro(None)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(query_result))
-            _rv2 = asyncio.ensure_future(mock_coro(update_result))
-            _rv3 = asyncio.ensure_future(mock_coro(None))
+        _rv = await mock_coro(query_result)
+        _rv2 = await mock_coro(update_result)
+        _rv3 = await mock_coro(None)
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):

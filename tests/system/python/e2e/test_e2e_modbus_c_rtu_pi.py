@@ -84,7 +84,8 @@ class TestE2EModbusC_RTU_PI:
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)
 
         if not skip_verify_north_interface:
-            start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd)
+            start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin,
+                                            pi_pwd=pi_passwd, taskname="NorthReadingsToPI")
 
         yield self.start_south_north
 

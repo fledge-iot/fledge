@@ -11,6 +11,7 @@ import datetime
 import uuid
 import json
 import multiprocessing
+import subprocess
 from aiohttp import web
 
 from typing import Dict, List
@@ -34,7 +35,7 @@ from fledge.common.audit_logger import AuditLogger
 from fledge.common.web.middleware import has_permission
 
 
-__author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
+__author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -44,12 +45,121 @@ _help = """
     | GET POST            | /fledge/service                                      |
     | GET                 | /fledge/service/available                            |
     | GET                 | /fledge/service/installed                            |
+    | GET                 | /fledge/service/info                                 |
+    | GET                 | /fledge/service/info/{service_name}                  |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
     | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
 _logger = FLCoreLogger().get_logger(__name__)
+
+
+class ServiceInfoCache(object):
+    """Service Information Cache Manager"""
+
+    def __init__(self, size=20):
+        """
+        cache: value stored in dictionary as per service_name
+        max_cache_size: Hold the recently requested service info in the cache. Default cache size is 20
+        hit: number of times an item is read from the cache
+        miss: number of times an item was not found in the cache and a read of the service was required
+        """
+        self.cache = {}
+        self.max_cache_size = size
+        self.hit = 0
+        self.miss = 0
+
+    def __contains__(self, service_name):
+        """Returns True or False depending on whether or not the service is in the cache
+        and update the hit and date_accessed"""
+        if service_name in self.cache:
+            try:
+                current_hit = self.cache[service_name]['hit']
+            except KeyError:
+                current_hit = 0
+
+            self.hit += 1
+            self.cache[service_name].update({'date_accessed': datetime.datetime.now(), 'hit': current_hit + 1})
+            return True
+        self.miss += 1
+        return False
+
+    def update(self, service_name, service_info):
+        """Update the cache dictionary and remove the oldest item if needed"""
+        if service_name not in self.cache and len(self.cache) >= self.max_cache_size:
+            self.remove_oldest()
+        self.cache[service_name] = {
+            'date_accessed': datetime.datetime.now(),
+            'service_info': service_info,
+            'hit': 0
+        }
+        _logger.debug("Updated Service Info Cache for service: %s", service_name)
+
+    def remove_oldest(self):
+        """Remove the entry that has the oldest accessed date"""
+        oldest_entry = None
+        for service_name in self.cache:
+            if oldest_entry is None:
+                oldest_entry = service_name
+            elif (self.cache[service_name].get('date_accessed') and
+                  self.cache[oldest_entry].get('date_accessed') and
+                  self.cache[service_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']):
+                oldest_entry = service_name
+        if oldest_entry:
+            self.cache.pop(oldest_entry)
+
+    def get(self, service_name):
+        """Get service info from cache"""
+        if service_name in self:  # This will update hit count and date_accessed
+            return self.cache[service_name]['service_info']
+        return None
+
+    def remove(self, service_name):
+        """Remove the entry with given service name"""
+        if service_name in self.cache:
+            self.cache.pop(service_name)
+
+    def clear(self):
+        """Clear all cached service info"""
+        self.cache.clear()
+        self.hit = 0
+        self.miss = 0
+
+    @property
+    def size(self):
+        """Return the size of the cache"""
+        return len(self.cache)
+
+
+# service info cache instance
+_service_info_cache = ServiceInfoCache()
+
+# TODO: FOGL-1022 - This is a temporary solution to get the service info for the prebuilt services.
+# Prebuilt services configuration
+_PREBUILT_SERVICES = {
+    "south": {
+        "name": "south",
+        "description": "Service used to interact with device, API and generic sources of data",
+        "type": "south",
+        "process": "south",
+        "process_script": "south_c"
+    },
+    "north": {
+        "name": "north",
+        "description": "Service used to interact with device, API and generic sources of data",
+        "type": "north",
+        "process": "north",
+        "process_script": "north_C"
+    },
+    "storage": {
+        "name": "storage",
+        "description": "The storage service buffers data within a single Fledge instance",
+        "type": "storage",
+        "process": "storage",
+        "process_script": "storage"
+    }
+}
 
 #################################
 #  Service
@@ -60,18 +170,162 @@ def get_service_records(_type=None):
     sr_list = list()
     svc_records = ServiceRegistry.all() if _type is None else ServiceRegistry.get(s_type=_type)
     for service_record in svc_records:
-        sr_list.append(
-            {
-                'name': service_record._name,
-                'type': service_record._type,
-                'address': service_record._address,
-                'management_port': service_record._management_port,
-                'service_port': service_record._port,
-                'protocol': service_record._protocol,
-                'status': ServiceRecord.Status(int(service_record._status)).name.lower()
-            })
+        service_data = {
+            'name': service_record._name,
+            'type': service_record._type,
+            'address': service_record._address,
+            'management_port': service_record._management_port,
+            'service_port': service_record._port,
+            'protocol': service_record._protocol,
+            'status': ServiceRecord.Status(int(service_record._status)).name.lower()
+        }
+        # Add the 'debug' key only if it's non-empty
+        if service_record._debug:
+            service_data['debug'] = service_record._debug
+        sr_list.append(service_data)
     recs = {'services': sr_list}
     return recs
+
+
+async def _fetch_service_info(service_name: str) -> dict:
+    """
+    Fetch service information by attempting multiple service discovery methods.
+
+    Implements caching for non-prebuilt services to improve performance.
+
+    Tries to get service info in the following order:
+    1. Check cache for non-prebuilt services
+    2. C service executable with --info argument
+    3. Python service module executed with --info argument
+
+    Args:
+        service_name: Name of the service to fetch info for
+
+    Returns:
+        Service info dictionary with service details, or empty response if all methods fail
+    """
+    # Check cache first for non-prebuilt services
+    if service_name not in _PREBUILT_SERVICES:
+        cached_info = _service_info_cache.get(service_name)
+        if cached_info is not None:
+            _logger.debug(f"Retrieved service info for {service_name} from cache")
+            return cached_info
+
+    def _create_empty_service_response(name: str) -> dict:
+        return {
+            "name": name,
+            "description": "",
+            "type": "",
+            "process": "",
+            "process_script": ""
+        }
+
+    def _get_service_info_from_path(service_path: str, is_python: bool = False, service_name: str = None) -> dict:
+        """
+        Get service information from the specified path.
+
+        Args:
+            service_path: Path to the service (executable or Python service package)
+            is_python: True if this is a Python service, False for C service
+            service_name: Name of the service (required for Python services, optional for C services)
+
+        Returns:
+            Service information dictionary or None if failed
+        """
+        if is_python:
+            import sys
+            # service_name is required for Python services
+            if service_name is None:
+                _logger.error("service_name is required for Python services")
+                return None
+            # Execute Python service with --info argument
+            cmd_with_args = [sys.executable, "-m", f"fledge.services.{service_name}", "--info"]
+            try:
+                p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = p.communicate(timeout=10)
+                return_code = p.returncode
+                if return_code == 0 and out:
+                    res = out.decode("utf-8")
+                    return json.loads(res)
+                else:
+                    error_msg = err.decode("utf-8") if err else "Unknown error"
+                    _logger.error(f"Python service execution failed for {service_name}: {error_msg}")
+                    return None
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate()
+                _logger.error(f"Python service execution timeout for {service_name}")
+                return None
+            except json.JSONDecodeError as ex:
+                _logger.error(f"Invalid JSON response from Python service {service_name}: {ex}")
+                return None
+            except Exception as ex:
+                _logger.error(f"Error executing Python service {service_name}: {ex}")
+                return None
+        else:
+            # For C services, execute with --info argument
+            cmd_with_args = [service_path, "--info"]
+            try:
+                p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = p.communicate(timeout=10)
+                return_code = p.returncode
+                if return_code == 0 and out:
+                    res = out.decode("utf-8")
+                    return json.loads(res)
+                else:
+                    error_msg = err.decode("utf-8") if err else "Unknown error"
+                    _logger.error(f"Service execution failed for {service_name}: {error_msg}.")
+                    return None
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.communicate()
+                _logger.error(f"Service execution timeout for {service_name}.")
+                return None
+            except json.JSONDecodeError as ex:
+                _logger.error(f"Invalid JSON response from service {service_name}: {ex}")
+                return None
+
+    # First check C service path
+    service_path = f"{_FLEDGE_ROOT}/services/fledge.services.{service_name}"
+    if os.path.exists(service_path):
+        try:
+            service_info = _get_service_info_from_path(service_path, service_name=service_name)
+            if service_info:
+                # Cache successful result for non-prebuilt services
+                if service_name not in _PREBUILT_SERVICES:
+                    _service_info_cache.update(service_name, service_info)
+                    _logger.debug(f"Cached service info for {service_name}")
+                return service_info
+            else:
+                # File found but unable to get info - return early
+                _logger.error(f"C service {service_name} found but unable to retrieve service info.")
+                return _create_empty_service_response(service_name)
+        except Exception as ex:
+            _logger.error(f"Error executing service {service_name}: {ex}")
+            return _create_empty_service_response(service_name)
+
+    # Fallback to Python service path (only if C service not found)
+    python_service_path = f"{_FLEDGE_ROOT}/python/fledge/services/{service_name}"
+    if os.path.exists(python_service_path):
+        try:
+            service_info = _get_service_info_from_path(python_service_path, is_python=True, service_name=service_name)
+            if service_info:
+                # Cache successful result for non-prebuilt services
+                if service_name not in _PREBUILT_SERVICES:
+                    _service_info_cache.update(service_name, service_info)
+                    _logger.debug(f"Cached service info for {service_name}")
+                return service_info
+            else:
+                # File found but unable to get info - return early
+                _logger.error(f"Python service {service_name} found but unable to retrieve service info.")
+                return _create_empty_service_response(service_name)
+        except Exception as ex:
+            _logger.error(f"Error loading Python service {service_name}: {ex}")
+            return _create_empty_service_response(service_name)
+
+    # Both paths failed - log once and return empty response
+    _logger.error(f"Service {service_name} not found in both ({service_path}) and ({python_service_path}) paths.")
+    return _create_empty_service_response(service_name)
 
 
 def get_service_installed() -> List:
@@ -86,6 +340,74 @@ def get_service_installed() -> List:
                 elif _file == '__main__.py':
                     services.append('management')
     return services
+
+
+async def get_service_info(request):
+    """
+    Get information about all the services by calling each service
+
+    Args:
+        request: HTTP request object
+
+    Returns:
+        JSON response with information about all services including their configuration
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/service/info
+    """
+    try:
+        # Get list of installed services
+        installed_services = get_service_installed()
+        services = []
+        for service_name in installed_services:
+            # Check if it's a prebuilt service
+            if service_name in _PREBUILT_SERVICES:
+                services.append(_PREBUILT_SERVICES[service_name])
+                continue
+            service_info = await _fetch_service_info(service_name)
+            services.append(service_info)
+        response = {"services": services}
+        return web.json_response(response)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+
+async def get_service_info_by_name(request):
+    """
+    Get information about a specific service by name
+
+    Args:
+        request: HTTP request object with service name in URL path
+
+    Returns:
+        JSON response with information about the specified service
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/service/info/MyService
+    """
+    try:
+        service_name = request.match_info.get('service_name', None)
+        if service_name is None:
+            msg = f"Service name is required in the URL path."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+        # Get list of installed services to validate the service exists
+        installed_services = get_service_installed()
+        if service_name not in installed_services:
+            msg = f"Service '{service_name}' not found in installed services."
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+
+        # Check if it's a prebuilt service
+        if service_name in _PREBUILT_SERVICES:
+            service_info = _PREBUILT_SERVICES[service_name]
+        else:
+            # Try to get service info from C or Python service
+            service_info = await _fetch_service_info(service_name)
+        return web.json_response(service_info)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def get_health(request):
@@ -154,7 +476,7 @@ async def delete_service(request):
         if svc_schedule['enabled'].lower() == 't':
             await server.Server.scheduler.disable_schedule(sch_id)
             # return control to event loop
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
 
         # Delete all configuration for the service name
         await config_mgr.delete_category_and_children_recursively(svc)
@@ -170,6 +492,7 @@ async def delete_service(request):
         # Delete streams and plugin data
         await delete_streams(storage, svc)
         await delete_plugin_data(storage, svc)
+        await delete_filters(storage, svc)
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
@@ -194,8 +517,23 @@ async def delete_streams(storage, svc):
 
 
 async def delete_plugin_data(storage, svc):
-    payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
+    payload = PayloadBuilder().WHERE(["service_name", "=", svc]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def delete_filters(storage, service_name):
+    # First, get the filter names related to the user
+    select_payload = PayloadBuilder().SELECT("name").WHERE(['user', '=', service_name]).payload()
+    get_result = await storage.query_tbl_with_payload('filter_users', select_payload)
+    if 'rows' in get_result and get_result['rows']:
+        filter_names = [row['name'] for row in get_result['rows']]
+        # Delete each corresponding filter
+        for name in filter_names:
+            del_payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
+            await storage.delete_from_tbl("filters", del_payload)
+    # Delete filters
+    payload = PayloadBuilder().WHERE(['user', '=', service_name]).payload()
+    await storage.delete_from_tbl("filter_users", payload)
 
 
 async def update_deprecated_ts_in_asset_tracker(storage, svc):
@@ -231,6 +569,7 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "BucketServer", "type": "bucketstorage", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Pipeline-Ingest", "type": "pipeline", "enabled": true}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
@@ -326,13 +665,12 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher', 'bucketstorage']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher and bucketstorage '
-                                            'types are supported.')
-        if plugin is None and service_type == 'south':
-            raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
-        if plugin is None and service_type == 'north':
-            raise web.HTTPBadRequest(reason='Missing plugin property for type north in payload.')
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher',
+                                'bucketstorage', 'pipeline']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher, bucketstorage '
+                                            'and pipeline types are supported.')
+        if plugin is None and service_type in ('south', 'north'):
+            raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
         if plugin and utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
 
@@ -401,6 +739,9 @@ async def add_service(request):
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'bucket_storage_c'
             script = '["services/bucket_storage_c"]'
+        elif service_type == 'pipeline':
+            process_name = 'pipeline_c'
+            script = '["services/pipeline_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -480,6 +821,13 @@ async def add_service(request):
                     for k, v in config.items():
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
             except Exception as ex:
+                if "Invalid character" in ex.args[0]:
+                    # ex.args[0] contains the full error message to tell why it failed.
+                    msg = "Failed to create service. {}".format(ex.args[0])
+                    _logger.error(ex, msg)
+                    raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+                
+                # Cleanup the category created for the service
                 await config_mgr.delete_category_and_children_recursively(name)
                 msg = "Failed to create plugin configuration while adding service."
                 _logger.error(ex, msg)
@@ -506,6 +854,12 @@ async def add_service(request):
             _logger.exception("Failed to create schedule. %s", ex.error)
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
+            if "Invalid character" in ex.args[0]:
+                # ex.args[0] contains the full error message to tell why it failed.
+                msg = "Failed to create service. {}".format(ex.args[0])
+                _logger.error(ex, msg)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+            # Cleanup the category created for the service
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.error(ex, "Failed to create service.")
             raise web.HTTPInternalServerError(reason='Failed to create service.')
@@ -589,6 +943,9 @@ async def get_installed(request: web.Request) -> web.Response:
         :Example:
             curl -X GET http://localhost:8081/fledge/service/installed
     """
+    # Clear service info cache when checking installed services
+    # to ensure cache stays synchronized with actual installed services
+    _service_info_cache.clear()
     services = get_service_installed()
     return web.json_response({"services": services})
 

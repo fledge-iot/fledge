@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 // 
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -500,6 +500,18 @@ TEST(Writer, NaN) {
     EXPECT_FALSE(writer2.Double(nan));
 }
 
+TEST(Writer, NaNToNull) {
+    double nan = std::numeric_limits<double>::quiet_NaN();
+
+    EXPECT_TRUE(internal::Double(nan).IsNan());
+    {
+        StringBuffer buffer;
+        Writer<StringBuffer, UTF8<>, UTF8<>, CrtAllocator, kWriteNanAndInfNullFlag> writer(buffer);
+        EXPECT_TRUE(writer.Double(nan));
+        EXPECT_STREQ("null", buffer.GetString());
+    }
+}
+
 TEST(Writer, Inf) {
     double inf = std::numeric_limits<double>::infinity();
 
@@ -524,6 +536,24 @@ TEST(Writer, Inf) {
     EXPECT_STREQ("Infinity-Infinity", buffer.GetString());
 }
 
+TEST(Writer, InfToNull) {
+    double inf = std::numeric_limits<double>::infinity();
+
+    EXPECT_TRUE(internal::Double(inf).IsInf());
+    {
+        StringBuffer buffer;
+        Writer<StringBuffer, UTF8<>, UTF8<>, CrtAllocator, kWriteNanAndInfNullFlag> writer(buffer);
+        EXPECT_TRUE(writer.Double(inf));
+        EXPECT_STREQ("null", buffer.GetString());
+    }
+    {
+        StringBuffer buffer;
+        Writer<StringBuffer, UTF8<>, UTF8<>, CrtAllocator, kWriteNanAndInfNullFlag> writer(buffer);
+        EXPECT_TRUE(writer.Double(-inf));
+        EXPECT_STREQ("null", buffer.GetString());
+    }
+}
+
 TEST(Writer, RawValue) {
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
@@ -536,6 +566,43 @@ TEST(Writer, RawValue) {
     writer.EndObject();
     EXPECT_TRUE(writer.IsComplete());
     EXPECT_STREQ("{\"a\":1,\"raw\":[\"Hello\\nWorld\", 123.456]}", buffer.GetString());
+}
+
+TEST(Write, RawValue_Issue1152) {
+    {
+        GenericStringBuffer<UTF32<> > sb;
+        Writer<GenericStringBuffer<UTF32<> >, UTF8<>, UTF32<> > writer(sb);
+        writer.RawValue("null", 4, kNullType);
+        EXPECT_TRUE(writer.IsComplete());
+        const unsigned *out = sb.GetString();
+        EXPECT_EQ(static_cast<unsigned>('n'), out[0]);
+        EXPECT_EQ(static_cast<unsigned>('u'), out[1]);
+        EXPECT_EQ(static_cast<unsigned>('l'), out[2]);
+        EXPECT_EQ(static_cast<unsigned>('l'), out[3]);
+        EXPECT_EQ(static_cast<unsigned>(0  ), out[4]);
+    }
+
+    {
+        GenericStringBuffer<UTF8<> > sb;
+        Writer<GenericStringBuffer<UTF8<> >, UTF16<>, UTF8<> > writer(sb);
+        writer.RawValue(L"null", 4, kNullType);
+        EXPECT_TRUE(writer.IsComplete());
+        EXPECT_STREQ("null", sb.GetString());
+    }
+
+    {
+        // Fail in transcoding
+        GenericStringBuffer<UTF16<> > buffer;
+        Writer<GenericStringBuffer<UTF16<> >, UTF8<>, UTF16<> > writer(buffer);
+        EXPECT_FALSE(writer.RawValue("\"\xfe\"", 3, kStringType));
+    }
+
+    {
+        // Fail in encoding validation
+        StringBuffer buffer;
+        Writer<StringBuffer, UTF8<>, UTF8<>, CrtAllocator, kWriteValidateEncodingFlag> writer(buffer);
+        EXPECT_FALSE(writer.RawValue("\"\xfe\"", 3, kStringType));
+    }
 }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS

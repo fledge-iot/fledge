@@ -209,7 +209,6 @@ Examples of filename along with content
     echo "Platform is ${os_name}, Version: ${os_version}"
     arch=`arch`
     ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
-    if [ ${ID} != "mendel" ]; then
     case $os_name in
       *"Ubuntu"*)
         if [ ${arch} = "aarch64" ]; then
@@ -217,8 +216,7 @@ Examples of filename along with content
         fi
         ;;
 
-      esac
-    fi
+    esac
 
 6. requirements-{PLUGIN_NAME}.txt
 

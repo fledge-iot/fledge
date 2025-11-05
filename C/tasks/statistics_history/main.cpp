@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 	}
 	catch (const std::exception& e)
 	{
-		cerr << "Exception " << e.what() << endl;
+		Logger::getLogger()->fatal("Exception %s starting Stats History task", e.what());
 		// Return failure for class instance/configuration etc
 		exit(1);
 	}
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 	{
 		std::exception_ptr p = std::current_exception();
 		string name = (p ? p.__cxa_exception_type()->name() : "null");
-		cerr << "Generic Exception" << name << endl;
+		Logger::getLogger()->fatal("Exception %s starting Stats History task", name);
 		exit(1);
 	}
 

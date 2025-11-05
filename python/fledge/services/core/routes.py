@@ -12,10 +12,12 @@ from fledge.services.core.api import configuration as api_configuration
 from fledge.services.core.api import scheduler as api_scheduler
 from fledge.services.core.api import statistics as api_statistics
 from fledge.services.core.api.control_service import script_management, acl_management, pipeline, entrypoint
+from fledge.services.core.api import pipeline_debugger
 from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
+from fledge.services.core.api.plugins import config_validator
 from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
@@ -55,7 +57,9 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/admin/{user_id}/delete', auth.delete_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}', auth.update_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/enable', auth.enable_user)
+    app.router.add_route('PUT', '/fledge/admin/{user_id}/unblock', auth.unblock_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/reset', auth.reset)
+    app.router.add_route('POST', '/fledge/admin/{user_id}/authcertificate', auth.create_certificate)
 
     # Configuration
     app.router.add_route('GET', '/fledge/category', api_configuration.get_categories)
@@ -106,6 +110,8 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/service/{service_name}', service.delete_service)
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
+    app.router.add_route('GET', '/fledge/service/info', service.get_service_info)
+    app.router.add_route('GET', '/fledge/service/info/{service_name}', service.get_service_info_by_name)
     app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
     app.router.add_route('POST', '/fledge/service/{service_name}/otp', service.issueOTPToken)
 
@@ -189,6 +195,8 @@ def setup(app):
     app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
     app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)
+    # Plugin validation
+    config_validator.setup(app)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)
@@ -269,6 +277,9 @@ def setup(app):
 
     # Alerts
     alerts.setup(app)
+
+    # Pipeline Debuger
+    pipeline_debugger.setup(app)
 
     # enable cors support
     enable_cors(app)

@@ -8,9 +8,6 @@ import json
 from unittest.mock import patch
 import pytest
 from aiohttp import web
-import sys
-import asyncio
-
 from fledge.services.core import routes
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
@@ -23,8 +20,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "plugin-discovery")
 class TestPluginDiscoveryApi:
     @pytest.fixture
     def client(self, loop, test_client):
@@ -147,12 +142,7 @@ class TestPluginDiscoveryApi:
             return return_value
 
         log_path = 'log/190801-12-01-05.log'
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock((output, log_path))
-        else:
-            _rv = asyncio.ensure_future(async_mock((output, log_path)))
-
+        _rv = await async_mock((output, log_path))
         with patch.object(common, 'fetch_available_packages', return_value=(_rv)) as patch_fetch_available_package:
             resp = await client.get('/fledge/plugins/available{}'.format(param))
             assert 200 == resp.status

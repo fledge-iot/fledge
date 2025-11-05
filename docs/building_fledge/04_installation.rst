@@ -249,20 +249,20 @@ For example, if you are installing Fledge on an Intel x86_64 machine, you can ty
 
 .. code-block:: console
 
-  $ wget https://fledge-iot.s3.amazonaws.com/1.8.0/ubuntu1804/x86_64/fledge-1.8.0_x86_64_ubuntu1804.tgz
-  --2020-05-28 18:24:12--  https://fledge-iot.s3.amazonaws.com/1.8.0/ubuntu1804/x86_64/fledge-1.8.0_x86_64_ubuntu1804.tgz
-  Resolving fledge-iot.s3.amazonaws.com (fledge-iot.s3.amazonaws.com)... 52.217.40.188
-  Connecting to fledge-iot.s3.amazonaws.com (fledge-iot.s3.amazonaws.com)|52.217.40.188|:443... connected.
+  $ wget https://fledge-iot.s3.us-east-1.amazonaws.com/latest/ubuntu2004/x86_64/fledge.tgz
+  --2025-06-26 13:08:24--  https://fledge-iot.s3.us-east-1.amazonaws.com/latest/ubuntu2004/x86_64/fledge.tgz
+  Resolving fledge-iot.s3.us-east-1.amazonaws.com (fledge-iot.s3.us-east-1.amazonaws.com)... 54.231.233.50, 54.231.232.162, 16.182.38.114, ...
+  Connecting to fledge-iot.s3.us-east-1.amazonaws.com (fledge-iot.s3.us-east-1.amazonaws.com)|54.231.233.50|:443... connected.
   HTTP request sent, awaiting response... 200 OK
-  Length: 24638625 (23M) [application/x-tar]
-  Saving to: ‘fledge-1.8.0_x86_64_ubuntu1804.tgz’
+  Length: 42015699 (40M) [application/x-tar]
+  Saving to: ‘fledge.tgz’
 
-  fledge-1.8.0_x86_64_ubuntu1804.tg 100%[============================================================>]  23.50M  4.30MB/s    in 8.3s
+  fledge.tgz                                          100%[===================================================================================================================>]  40.07M  7.03MB/s    in 17s     
 
-  2020-05-28 18:24:26 (2.84 MB/s) - ‘fledge-1.8.0_x86_64_ubuntu1804.tgz’ saved [24638625/24638625]
+  2025-06-26 13:08:42 (2.40 MB/s) - ‘fledge.tgz’ saved [42015699/42015699]
   $
 
-We recommend to execute an *update-upgrade-update* of the system first, then you may untar the fledge-1.8.0_x86_64_ubuntu1804.tgz file and copy the Fledge package in the *apt cache* directory and install it.
+We recommend to execute an *update-upgrade-update* of the system first, then you may untar the fledge.tgz file and copy the Fledge package in the *apt cache* directory and install it.
 
 
 .. code-block:: console

@@ -18,6 +18,8 @@
 .. |reset_password| image:: images/reset_password.jpg
 .. |certificate_store| image:: images/certificate_store.jpg
 .. |update_certificate| image:: images/update_certificate.jpg
+.. |firewall| image:: images/firewall.jpg
+.. |features| image:: images/features.jpg
 
 
 .. Links
@@ -33,11 +35,47 @@
 
     <a href="#user-management">User Management</a>
 
+.. |control| raw:: html
+
+    <a href="control.html">control</a>
+
 *****************
 Securing Fledge
 *****************
 
-The default installation of a Fledge service comes with security features turned off, there are several things that can be done to add security to Fledge.  The REST API by default support unencrypted HTTP requests, it can be switched to require HTTPS to be used. The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. Authentication can be via username and password or by means of an authentication certificate.
+The default installation of Fledge in version 3.0 and after have authentication features enabled by default, using the username and password option. Two users are created, one with administrator privileges and another as an edit user. There are other security features that are not enabled by default that should be considered in order to enhance security and for compliance with any local security restrictions.
+
+.. note::
+
+   It is strongly recommended that once installation is complete the default passwords are changed at the earliest opportunity.
+
+In installations of Fledge prior to version 3.0 authentication is disabled by default. Whilst this is acceptable for demonstration purposes or in completely closed networks it is unwise to use Fledge unsecured in real world deployments. Fledge offers several features that can enhance security. Versions of Fledge from 3.0 and onward can still be configured to be open by disabling the security features if desired, although this is not recommended.
+
+  - The REST API by default supports unencrypted HTTP requests, it can be switched to require HTTPS to be used.
+
+  - The REST API and the GUI can be protected by requiring authentication to prevent users being able to change the configuration of the Fledge system. This has now become the default in version 3.0 and later.
+   
+  - Authentication can be via username and password or by means of an authentication certificate. The default authentication in Fledge 3.0 and onward is to use username and password for authentication.
+
+    .. note::
+    
+       When using username and password authentication it is recommended to disable support for unencrypted HTTP requests.
+
+  - Fledge supports a number of different user types or roles, care should be taken to only give users access they require and in particular the administration user rights should be reserved.
+
+  - If authentication is via username and password the administrator is able to select one of a set of password policy that define restrictions as to what characters must be included in any password as well as requiring a minimum length of password.
+
+  - The system can be configured to require users to change their password regularly and a list of previous passwords is maintained to prevent users simply reusing old passwords.
+
+  - If a user attempts to authenticate and fails then that user will be blocked for a short time. If multiple failures occur the blocked period will be increased until ultimately the user is blocked for a 24 hour period. This is to prevent automated systems attempting to guess passwords.
+
+  - Fledge maintains full audit logs of all updates to the Fledge configuration, and other events. This allows for complete auditing of who made what changes to the Fledge configuration and when the changes were made.
+
+  - Fledge can have optional allow and deny lists configured that list those hosts that are either permitted to connect to the UI and REST API or are denied access.
+
+.. note::
+
+   It is recommended to run Fledge behind firewalls and restrict access to the Fledge API port to trusted networks when using it in production environments.
 
 Enabling HTTPS Encryption
 =========================
@@ -56,19 +94,39 @@ The first option you will see is a tick box labeled *Enable HTTP*, to select HTT
 
 When this is unticked two options become active on the page, *HTTPS Port* and *Certificate Name*. The HTTPS Port is the port that Fledge will listen on for HTTPS requests, the default for this is port 1995.
 
-The *Certificate Name* is the name of the certificate that will be used for encryption. The default s to use a self signed certificate called *fledge* that is created as part of the installation process. This certificate is unique per fledge installation but is not signed by a certificate authority. If you require the extra security of using a signed certificate you may use the Fledge :ref:`certificate_store` functionality to upload a certificate that has been created and signed by a certificate authority.
+The *Certificate Name* is the name of the certificate that will be used for encryption. The default is to use a self signed certificate called *fledge* that is created as part of the installation process. This certificate is unique per fledge installation but is not signed by a certificate authority. If you require the extra security of using a signed certificate you may use the Fledge :ref:`certificate_store` functionality to upload a certificate that has been created and signed by a certificate authority.
 
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 
-*Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
-Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-;
-Then follow browser instruction in order to allow the connection and close the tab.
-In the Fledge GUI you should see the green icon (Fledge is running).
+.. note::
+  If using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
+  Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
+  
+  Then follow the instructions in the browser in order to allow the connection and close the tab.
+  In the Fledge GUI you should see the green icon (Fledge is running).
 
 +--------------------+
 | |connection_https| |
 +--------------------+
+
+Allow & Deny Lists
+==================
+
+Fledge supports a pair of optional lists of IP addresses that can be set to allow or deny access to the Fledge API. These lists can be accessed via the *Configuration* menu option in the user interface in the *General*, *Admin API*, *Firewall* configuration category.
+
++------------+
+| |firewall| |
++------------+
+
+  - Clicking on the arrow icon beside each list will expand the list and show the current contents of the list.
+
+  - Click on the *Add new item* link to create a new entry in the list.
+
+  - To remove an entry from the list click on the *x* icon to the right of the list item.
+
+If the allow list is non-empty, then any access, including ping, to the Fledge API port will be checked to see if the source IP address of the request matches an entry in the allow list. If the address of the requester is not in this allow list then the API will not send any response to the caller and the connection will be closed. The only address that is exempt from this checking is the localhost via the loopback interface, 127.0.0.1. This is required for local management of the Fledge instance and must always be accessible.
+
+If the blocked list is non-empty then any access, including ping, to the API will check the source address of the caller to see if it is included in the block list. If it is then the connection will be closed without sending any response to the caller. Again the address 127.0.0.1 is immune from this test.
 
 Requiring User Login
 ====================
@@ -103,6 +161,14 @@ The default username is "admin" with a password of "fledge". Use these to login 
 
 The status bar now contains the name of the user that is currently logged in and a new option has appeared in the left-hand menu, *User Management*.
 
+.. note::
+   Any session that is idle for 15 minutes or longer will be disconnected. The user will then be required to authenticate again before being able to issue any further commands via the API or user interface.
+
+Failed Login Attempts
+---------------------
+
+If a user makes an incorrect login attempt, such as entering the wrong password, that user will be blocked from logging in for a short period. If more than a certain number of consecutive login attempts fail then the user account will be blocked for 24 hours. The account may be unblocked by an administrative user before the 24 hours has elapsed.
+
 Changing Your Password
 ----------------------
 
@@ -132,7 +198,7 @@ This popup can be used to change your password. On successfully changing your pa
 Password Policy
 ---------------
 
-Fledge provides different policies to control the passwords. The following options are currently available:
+Fledge provides different policies to control the managed users password. The following options are currently available:
 
 +-------------------+
 | |password_policy| |
@@ -144,7 +210,7 @@ Fledge provides different policies to control the passwords. The following optio
 
 - *Mixed case and numeric* - password must contain upper, lower case letters and numeric values.
 
-- *Mixed case, numeric and special characters* - password must contain atleast one upper and lower case letter, numeric and special characters.
+- *Mixed case, numeric and special characters* - password must contain at least one upper and lower case letter, numeric and special characters.
 
 .. note::
 
@@ -184,9 +250,11 @@ The user management pages allows
   - Changing the role of a user.
   - Changing the details of a user
 
-Fledge currently supports four roles for users:
+Fledge currently supports a number of roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance and also manage Fledge users, backups and support bundles.
+
+  - **Control**: a user with this role is able to configure Fledge, execute control scripts and pipelines and also view the data read by Fledge. The user can not manage other users or add new users.
 
   - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
 
@@ -194,7 +262,7 @@ Fledge currently supports four roles for users:
 
   - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
 
-Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both that menu items will be removed completely or options on certain pages will be unavailable if they are not privileged to access those features.
 
 Adding Users
 ------------
@@ -279,6 +347,29 @@ To add a new certificate select the *Import* icon in the top right of the certif
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
 
 
+Custom Certificate Authority (CA)
+---------------------------------
+
+Fledge is not restricted to utilizing its own CA certificates; you have the option to use your own CA certificates.
+
+To configure Fledge with your own Root CA certificate:
+
+- Make sure that the Root CA certificate is correctly utilized to sign the user authentication certificates.
+- If your certificate chain contains intermediate certificates, generate a **certificate bundle** by combining the intermediate certificates in the proper sequence. This bundle guarantees that the complete trust chain is acknowledged during the validation process.
+
+Position the Root CA certificate (and its bundle, if necessary) in the `$FLEDGE_DATA` directory or the `$FLEDGE_ROOT/data` directory.
+
+After obtaining the certificates, modify the **Root CA Certificate** setting (currently labeled as **Auth Certificate**) in the **Admin and User REST API configuration** section to reference your custom CA.
+
++-------------+
+| |admin_api| |
++-------------+
+
+
+.. note::
+
+    If there are any intermediate certificates forming a chain, consolidate them into a single file named **intermediate.cert or intermediate.pem** and store it in the same directory specified earlier.
+
 Generate a new auth certificates for user login
 -----------------------------------------------
 
@@ -286,27 +377,32 @@ Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as c
 
 Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
 
-a) Create a new certificate for username. Let say **test**
+**Using cURL**
 
-.. code-block:: console
-
-    $ cd $FLEDGE_ROOT
-    $ ./scripts/auth_certificates user test 365
-
-    Here script arguments are: $1=user $2=FLEDGE_USERNAME $3=SSL_DAYS_EXPIRATION
-
-And now you can find **test** cert inside $FLEDGE_DATA/etc/certs/
-
-b) Now, it's time to create user with name **test** (case sensitive). Also only admin can create user. Below are the cURL Commands
-
-.. code-block:: console
-
-    $ AUTH_TOKEN=$(curl -d '{"username": "admin", "password": "fledge"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
-    $ curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}'
+- Create User
 
 .. note::
 
-    role_id:2 (non-admin user) | if new user requires admin privileges then pass role_id:1
+    Usernames must be distinct, are not case-sensitive, and require administrative privileges to execute this action.
+
+For example, Add a username with the name **test**
+
+.. code-block:: console
+
+    $ AUTH_TOKEN=$(curl -d '{"username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
+    $ USER_ID=$(curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}' | jq '.user.userId')
+
+- Create Authentication Certificate
+
+.. code-block:: console
+
+    $ curl -o filename.cert -H "authorization: $AUTH_TOKEN" -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/$USER_ID/authcertificate
+
+The certificate is available for download and can be used to log in.
+
+.. note::
+
+   Fledge supports a number of different user roles, the appropriate role_id should be passed for the user role required. The full list of supported role_id's can be obtained by called the /fledge/user/role GET API entry point. This entry point is only available to users with the *admin* role.
 
 You may also refer the documentation of |REST API| cURL commands. If you are not comfortable with cURL commands then use the GUI steps |User Management| and make sure Login with admin user.
 
@@ -321,3 +417,21 @@ c) Now you can login with the newly created user **test**, with the following cU
     $ curl -T $FLEDGE_DATA/etc/certs/test.cert -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login
 
 Or use GUI |Require User Login|
+
+Managing Features
+=================
+
+Fledge provides mechanisms whereby the administration user can disable access to features which may not be desirable in a production system or may not be required for a particular installation.
+
+The interface to enable or disable these features can be found in the *Configuration* menu item under the configuration category *Advanced::Features*.
+
++------------+
+| |features| |
++------------+
+
+Currently there are two features that can be disabled on an instance wide basis: *Control* and *Pipeline Debugging*.
+
+The *Control* toggle button can be used to disable all write and operation calls from south plugins back to devices. To disable |control| features for a Fledge instance uncheck the *Control* toggle button.
+
+The *Pipeline Debugger* toggle button will control the ability to perform pipeline debugging in any north or south service within Fledge. If there are any pipeline debugging sessions in progress when the toggle is unset, they will be terminated. No new debugging sessions can be started if the pipeline debugger option is not enabled in the *Features* configuration category.
+

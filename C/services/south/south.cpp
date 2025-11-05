@@ -36,13 +36,20 @@
 #include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
-
+#define RESOURCE_LIMIT_CATEGORY "RESOURCE_LIMIT"
 extern int makeDaemon(void);
 extern void handler(int sig);
 
 static void reconfThreadMain(void *arg);
 
 using namespace std;
+
+// Displays service information in JSON format
+static void printServiceInfoAsJSON()
+{
+	static std::string serviceInfoJSON = R"({"name":"South Service","description":"Service To Ingress Data","type":")" + std::string(SERVICE_TYPE) + R"(","process":"south_c","process_script":"[\"services/south_c\"]","startup_priority":100})";
+	std::cout << serviceInfoJSON << std::endl;
+}
 
 /**
  * South service main entry point
@@ -65,6 +72,11 @@ bool	       dryrun = false;
 
 	for (int i = 1; i < argc; i++)
 	{
+		if (!strcmp(argv[i], "--info"))
+		{
+			printServiceInfoAsJSON();
+			return 0;
+		}
 		if (!strcmp(argv[i], "-d"))
 		{
 			daemonMode = false;
@@ -124,7 +136,7 @@ bool	       dryrun = false;
 	}
 	Logger *logger = Logger::getLogger();
 	logger->setMinLevel(logLevel);
-	// Start the service. This will oly return whren the serivce is shutdown
+	// Start the service. This will only return whren the serivce is shutdown
 	service->start(coreAddress, corePort);
 	delete service;
 	delete logger;
@@ -257,7 +269,12 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_dryRun(false),
 				m_requestRestart(false),
 				m_auditLogger(NULL),
-				m_perfMonitor(NULL)
+				m_perfMonitor(NULL),
+				m_suspendIngest(false),
+				m_steps(0),
+				m_provider(NULL),
+				m_controlEnabled(true),
+				m_debuggerEnabled(true)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -284,6 +301,7 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+	delete m_provider;
 
 	// We would like to shutdown the Python environment if it
 	// was running. However this causes a segmentation fault within Python
@@ -301,9 +319,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	unsigned short managementPort = (unsigned short)0;
 	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
 	logger->info("Starting south service...");
+	m_provider = new SouthServiceProvider(this);
+	management.registerProvider(m_provider);
 	management.registerService(this);
 
-	// Listen for incomming managment requests
+	// Listen for incoming managment requests
 	management.start();
 
 	// Create the south API
@@ -343,9 +363,12 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
+		m_configResourceLimit = m_mgtClient->getCategory(RESOURCE_LIMIT_CATEGORY);
 		if (!loadPlugin())
 		{
-			logger->fatal("Failed to load south plugin, exiting...");
+			logger->fatal("Failed to load south plugin %s, exiting...", m_name.c_str());
+			string key = m_name + "LoadPlugin";
+			m_mgtClient->raiseAlert(key, "South service " + m_name + " is shutting down due to a failure loading the south plugin");
 			management.stop();
 			return;
 		}
@@ -364,10 +387,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				return;
 			}
 
+			ConfigCategory features = m_mgtClient->getCategory("FEATURES");
+			updateFeatures(features);
+
 			// Register for category content changes
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
 			configHandler->registerCategory(this, m_name+"Advanced");
+			configHandler->registerCategory(this, "FEATURES");
+			configHandler->registerCategory(this, RESOURCE_LIMIT_CATEGORY);
 		}
 
 		// Get a handle on the storage layer
@@ -434,7 +462,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					m_throttle = false;
 				}
 			}
-		} catch (ConfigItemNotFound e) {
+		} catch (ConfigItemNotFound& e) {
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
@@ -471,6 +499,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				m_perfMonitor->setCollecting(false);
 		}
 
+		if (m_configAdvanced.itemExists("rateMonitoringInterval") && m_configAdvanced.itemExists("rateSigmaFactor"))
+		{
+			string s = m_configAdvanced.getValue("rateMonitoringInterval");
+			long interval = strtol(s.c_str(), NULL, 10);
+			s = m_configAdvanced.getValue("rateSigmaFactor");
+			long factor = strtol(s.c_str(), NULL, 10);
+			ingest.configureRateMonitor(interval, factor);
+
+		}
+
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
+
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
@@ -482,7 +523,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				logger->warn("Invalid setting of reading rate, defaulting to 1");
 				m_readingsPerSec = 1;
 			}
-		} catch (ConfigItemNotFound e) {
+		} catch (ConfigItemNotFound& e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
 
@@ -490,8 +531,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		if (!ingest.loadFilters(m_name))
 		{
 			string errMsg("'" + m_name + "' plugin: failed loading filter plugins.");
-			Logger::getLogger()->fatal((errMsg + " Exiting.").c_str());
-			throw runtime_error(errMsg);
+			Logger::getLogger()->fatal((errMsg + " Shutting down south service.").c_str());
+			string key = m_name + "LoadPipeline";
+			m_mgtClient->raiseAlert(key, "South service " + m_name + " is shutting down due to a failure to create the data pipeline");
+			return;
 		}
 
 		if (southPlugin->persistData())
@@ -610,7 +653,16 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					for (uint64_t i=0; i<exp; i++)
 #endif
 					{
-						if (!pollInterfaceV2) // v1 poll method
+						bool doPoll = true;
+						if (isSuspended())
+						{
+							doPoll = false;
+							if (willStep())
+							{
+								doPoll = true;
+							}
+						}
+						if (doPoll && (!pollInterfaceV2)) // v1 poll method
 						{
 						
 							Reading reading = southPlugin->poll();
@@ -620,7 +672,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							}
 							++pollCount;
 						}
-						else // V2 poll method
+						else if (doPoll)// V2 poll method
 						{
 							checkPendingReconfigure();
 							ReadingSet *set = southPlugin->pollV2();
@@ -639,6 +691,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 								delete set;
 							}
+						}
+						else
+						{
+							checkPendingReconfigure();
 						}
 						throttlePoll();
 					}
@@ -712,8 +768,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (southPlugin->persistData())
 			{
 				string data = southPlugin->shutdownSaveData();
-				Logger::getLogger()->debug("Persist plugin data, %s '%s'", m_dataKey, data.c_str());
-				m_pluginData->persistPluginData(m_dataKey, data);
+				Logger::getLogger()->debug("Persist plugin data, key: '%s' data: '%s' service name: '%s'", m_dataKey, data.c_str(), m_name.c_str());
+				m_pluginData->persistPluginData(m_dataKey, data, m_name);
 			}
 			else
 			{
@@ -739,6 +795,132 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 	}
 	management.stop();
 	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
+}
+
+/**
+ * @brief Retrieves and processes resource limit configuration for the South Service
+ *
+ * This function reads the resource limit configuration values from the service configuration,
+ * validates them, and sets the corresponding member variables. The function handles three main
+ * configuration parameters:
+ *
+ * 1. Service Buffering Type (Unlimited or Limited)
+ * 2. Service Buffer Size (minimum value enforced)
+ * 3. Discard Policy (Discard Oldest, Discard Newest, or Reduce Fidelity)
+ *
+ * If any configuration value is invalid or cannot be parsed, the function logs an error and
+ * applies default values to ensure the service can continue running.
+ *
+ * @throws std::exception Catches any exceptions during configuration parsing and applies defaults
+ */
+void SouthService::getResourceLimit()
+{
+	auto discardPolicyToString = [](DiscardPolicy policy) -> std::string 
+	{
+		switch (policy) 
+		{
+			case DiscardPolicy::DISCARD_OLDEST:   return "Discard Oldest";
+			case DiscardPolicy::REDUCE_FIDELITY: return "Reduce Fidelity";
+			case DiscardPolicy::DISCARD_NEWEST:  return "Discard Newest";
+			default: throw std::invalid_argument("Invalid DiscardPolicy enum value");
+		}
+	};
+
+	auto serviceBufferingTypeToString = [](ServiceBufferingType type) -> std::string 
+	{
+		switch (type) 
+		{
+			case ServiceBufferingType::UNLIMITED: return "Unlimited";
+			case ServiceBufferingType::LIMITED:   return "Limited";
+			default: throw std::invalid_argument("Invalid ServiceBufferingType enum value");
+		}
+	};
+
+	// Update the resource limit configuration
+	try 
+	{
+		// Parse the service buffering type
+		std::string serviceBuffering = m_configResourceLimit.getValue("serviceBuffering");
+		if (serviceBuffering == "Unlimited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::UNLIMITED;
+		} 
+		else if (serviceBuffering == "Limited") 
+		{
+			m_serviceBufferingType = ServiceBufferingType::LIMITED;
+		} 
+		else
+		{
+			m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Service Buffering Type' configuration value: '%s'. Default value '%s' has been applied.", serviceBuffering.c_str(), serviceBufferingTypeToString(m_serviceBufferingType).c_str());
+		}
+
+		// Parse and validate the service buffer size
+		try 
+		{
+			std::string bufferSizeStr = m_configResourceLimit.getValue("serviceBufferSize");
+			m_serviceBufferSize = (unsigned int)std::stoi(bufferSizeStr); // Convert to integer
+
+			if (m_serviceBufferSize < SERVICE_BUFFER_SIZE_MIN)
+			{
+				m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+				Logger::getLogger()->error("Invalid 'Service Buffer Size' value: '%s'. The value must be at least %d. Default value of %d has been applied.", bufferSizeStr.c_str(), SERVICE_BUFFER_SIZE_MIN, m_serviceBufferSize);
+			}
+		} 
+		catch (const std::exception& e)
+		{
+			// Handle conversion errors and out-of-range values
+			m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT; // Default value
+			Logger::getLogger()->error("Failed to parse 'serviceBufferSize': %s. Default value '%d' has been applied.", e.what(), m_serviceBufferSize);
+		}
+
+		// Parse the discard policy
+		std::string discardPolicy = m_configResourceLimit.getValue("discardPolicy");
+		if (discardPolicy == "Discard Oldest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_OLDEST;
+		} 
+		else if (discardPolicy == "Discard Newest") 
+		{
+			m_discardPolicy = DiscardPolicy::DISCARD_NEWEST;
+		} 
+		else if (discardPolicy == "Reduce Fidelity") 
+		{
+			m_discardPolicy = DiscardPolicy::REDUCE_FIDELITY;
+		} 
+		else 
+		{
+			m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT; // Default value
+			Logger::getLogger()->error("Invalid 'Discard Policy' configuration value: '%s'. Default value '%s' has been applied.", discardPolicy.c_str(), discardPolicyToString(m_discardPolicy).c_str());
+		}
+
+		Logger::getLogger()->info("Resource Limit configuration applied successfully: "
+			"Service Buffering Type: '%s', "
+			"Service Buffer Size: '%d', "
+			"Discard Policy: '%s'.",
+			serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+			m_serviceBufferSize,
+			discardPolicyToString(m_discardPolicy).c_str());
+
+	} 
+	catch (const std::exception& e) 
+	{
+		// Catch any other exceptions and log the error
+		Logger::getLogger()->error("Failed to update resource limit configuration due to an exception: %s. Default values will be applied to ensure system stability.", e.what());
+
+		// Set default values to ensure the system can continue running
+		m_serviceBufferingType = SERVICE_BUFFER_BUFFER_TYPE_DEFAULT;
+		m_serviceBufferSize = SERVICE_BUFFER_SIZE_DEFAULT;
+		m_discardPolicy = SERVICE_BUFFER_DISCARD_POLICY_DEFAULT;
+
+		Logger::getLogger()->info("Default configuration applied: "
+								"Service Buffering Type: '%s', "
+								"Service Buffer Size: '%d', "
+								"Discard Policy: '%s'.",
+								serviceBufferingTypeToString(m_serviceBufferingType).c_str(),
+								m_serviceBufferSize,
+								discardPolicyToString(m_discardPolicy).c_str());
+	}
 }
 
 /**
@@ -849,7 +1031,7 @@ bool SouthService::loadPlugin()
 
 			return true;
 		}
-	} catch (exception e) {
+	} catch (exception& e) {
 		logger->fatal("Failed to load south plugin: %s\n", e.what());
 	}
 	return false;
@@ -914,6 +1096,8 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
+		// Propogate advanced configuration changes to the ingest class always
+		m_ingest->configChange(categoryName, category);
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		if (m_configAdvanced.itemExists("statistics"))
 		{
@@ -993,7 +1177,7 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 				{
 					m_pollType = POLL_ON_DEMAND;
 				}
-			} catch (ConfigItemNotFound e) {
+			} catch (ConfigItemNotFound& e) {
 				logger->error("Failed to update poll interval following configuration change");
 			}
 		}
@@ -1016,8 +1200,6 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
 			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
-			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
-			m_ingest->configChange(categoryName, "logLevel");
 			
 			if (type == PYTHON_PLUGIN)
 			{
@@ -1061,6 +1243,19 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 	{
 		this->updateSecurityCategory(category);
 	}
+
+	// Deal with changes to the features settings
+	if (categoryName.compare("FEATURES") == 0)
+	{
+		this->updateFeatures(ConfigCategory("FEATURES", category));
+	}
+
+	if(categoryName.compare(RESOURCE_LIMIT_CATEGORY) == 0)
+	{
+		m_configResourceLimit = ConfigCategory(RESOURCE_LIMIT_CATEGORY, category);
+		getResourceLimit();
+		m_ingest->setResourceLimit(m_serviceBufferingType, m_serviceBufferSize, m_discardPolicy);
+	}
 }
 
 /**
@@ -1088,42 +1283,28 @@ void SouthService::handlePendingReconf()
 		unique_lock<mutex> lck(mtx);
 		m_cvNewReconf.wait(lck);
 		Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
-
-		while (isRunning())
+		unsigned int numPendingReconfs = 0;
 		{
-			unsigned int numPendingReconfs = 0;
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+		}
+		while (isRunning() && numPendingReconfs)
+		{
+			std::pair<std::string,std::string> reconfValue;
+			{
+				reconfValue = m_pendingNewConfig.front();
+				m_pendingNewConfig.pop_front();
+			}
+			{
+				string categoryName = reconfValue.first;
+				string category = reconfValue.second;
+				logger->info("Handle config change %s, %s",
+						categoryName.c_str(), category.c_str());
+				processConfigChange(categoryName, category);
+			}
 			{
 				lock_guard<mutex> guard(m_pendingNewConfigMutex);
 				numPendingReconfs = m_pendingNewConfig.size();
-				if (numPendingReconfs)
-					Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
-				else
-				{
-					Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
-					break;
-				}
-			}
-
-			for (unsigned int i=0; i<numPendingReconfs; i++)
-			{
-				logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
-				std::pair<std::string,std::string> *reconfValue = NULL;
-				{
-					lock_guard<mutex> guard(m_pendingNewConfigMutex);
-					reconfValue = &m_pendingNewConfig[i];
-				}
-				std::string categoryName = reconfValue->first;
-				std::string category = reconfValue->second;
-				processConfigChange(categoryName, category);
-
-				logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
-			}
-			
-			{
-				lock_guard<mutex> guard(m_pendingNewConfigMutex);
-				for (unsigned int i=0; i<numPendingReconfs; i++)
-					m_pendingNewConfig.pop_front();
-				logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
 			}
 		}
 	}
@@ -1170,6 +1351,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 
 		}
 	}
+
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MAXIMUM_ATTR, to_string(MAXSENDLATENCY));
+	defaultConfig.setItemAttribute("maxSendLatency", ConfigCategory::MINIMUM_ATTR, "0");
 
 	if (!isAsync)
 	{
@@ -1235,6 +1419,18 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			       "boolean", "false", "false");
 	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
+
+	// Rate Monitoring options
+	defaultConfig.addItem("rateMonitoringInterval",
+				"The interval in minutes to use when calculating average ingestion rates for monitoring the service ingestion",
+				"integer", "1", "1");
+	defaultConfig.setItemDisplayName("rateMonitoringInterval", "Monitoring Period");
+	defaultConfig.setItemAttribute("rateMonitoringInterval", ConfigCategory::MINIMUM_ATTR, "0");
+	defaultConfig.addItem("rateSigmaFactor",
+				"The sensitivity of the ingest rate monitor, expressed as a number of standard deviations of the average ingest rate.",
+				"integer", "3", "3");
+	defaultConfig.setItemDisplayName("rateSigmaFactor", "Monitoring Sensitivity");
+	defaultConfig.setItemAttribute("rateSigmaFactor", ConfigCategory::MINIMUM_ATTR, "1");
 }
 
 /**
@@ -1744,4 +1940,64 @@ void SouthService::checkPendingReconfigure()
 		else
 			return;
 	}
+}
+
+/**
+ * Process the setting of allowed features
+ *
+ * @param category	The configuration category
+ */
+void SouthService::updateFeatures(const ConfigCategory& category)
+{
+	if (category.itemExists("control"))
+	{
+		string s = category.getValue("control");
+		m_controlEnabled = s.compare("true") == 0 ? true : false;
+	}
+	if (category.itemExists("debugging"))
+	{
+		string s = category.getValue("debugging");
+		m_debuggerEnabled = s.compare("true") == 0 ? true : false;
+		if ((m_debugState & DEBUG_ATTACHED) != 0 && m_debuggerEnabled == false)
+		{
+			// Detach the debugger
+			detachDebugger();
+		}
+	}
+}
+
+/**
+ * Return the state of the pipeline debugger
+ *
+ * @return string	JSON document reporting the state of the pipeline debugger
+ */
+string SouthService::debugState()
+{
+	string rval;
+	rval = "{ ";
+	rval += "\"debugger\" : ";
+	if (m_debugState & DEBUG_ATTACHED)
+	{
+		rval += "\"Attached\",";
+		rval += "\"ingress\" : ";
+		if (m_debugState & DEBUG_SUSPENDED)
+			rval += "\"Suspended\", ";
+		else
+			rval += "\"Running\", ";
+		rval += "\"egress\" : ";
+		if (m_debugState & DEBUG_ISOLATED)
+			rval += "\"Isolated\"";
+		else
+			rval += "\"Storage\"";
+	}
+	else if (allowDebugger())
+	{
+		rval += "\"Detached\"";
+	}
+	else
+	{
+		rval += "\"Disabled\"";
+	}
+	rval += "}";
+	return rval;
 }

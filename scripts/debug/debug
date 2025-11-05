@@ -1,0 +1,85 @@
+#!/bin/bash
+if [ $# -gt 0 ]; then
+	service=$1
+else
+	echo You must pass a service name
+	exit 1
+fi
+
+
+##
+## Get Fledge rest API URL
+##
+get_rest_api_url() {
+    pid_file=${FLEDGE_DATA}/var/run/fledge.core.pid
+    export PYTHONPATH=${FLEDGE_ROOT}
+
+    # Check whether pid_file exists and its contents are not empty
+    if [[ -s ${pid_file} ]]; then
+        export REST_API_URL=$(cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid)
+    fi
+
+    # Sets a default value if it not possible to determine the proper value using the pid file
+    if [ ! "${REST_API_URL}" ]; then
+        export REST_API_URL="http://localhost:8081"
+    fi
+}
+
+fledge_authenticate() {
+
+    if [[ -f ~/.fledge_token ]]; then
+	cat ~/.fledge_token
+	exit 0
+    fi
+    fd=0
+    if [[ -t "$fd" ]]; then
+	# We have an interactive shell
+	    read -p "Username: " USERNAME
+	    read -s -p "Password: " PASSWORD
+	    /bin/echo >/dev/tty
+    fi
+
+    # Get/Updates the rest API URL
+    payload='{ "username" : "'${USERNAME}'", "password" : "'${PASSWORD}'" }'
+    result=`curl -X POST -k -s ${REST_API_URL}/fledge/login -d"$payload" || true`
+    if [[ ! "$result" =~ "Logged in successfully" ]]; then
+	echo "failed"
+    else
+    	token=`echo ${result} | tr -d ' ' | grep -o '"token".*' | cut -d":" -f2 | cut -d"," -f1 | sed -e 's/"//g' -e 's/}//'`
+	echo $token >~/.fledge_token
+	echo $token
+    fi
+}
+
+get_rest_api_url
+
+result=`curl -k -s ${REST_API_URL}/fledge/service || true`
+if [[ "${result}" == "401"* ]]; then
+	token=`fledge_authenticate`
+	if [[ "${token}" =~ "failed" ]]; then
+		echo "Authentication failed."
+		exit -1
+	fi
+	result=`curl -H "authorization: $token" -k -s ${REST_API_URL}/fledge/ping || true`
+	export DEBUG_SERVICE=`curl -H "authorization: $token" -k -s ${REST_API_URL}/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+	type=`curl -H "authorization: $token" -k -s ${REST_API_URL}/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+else
+	export DEBUG_SERVICE=`curl -s ${REST_API_URL}/fledge/service|jq '.services[] | select (.name == "'$service'") | .service_port'`
+	type=`curl -s ${REST_API_URL}/fledge/service|jq '.services[] | select (.name == "'$service'") | .type' | sed -e 's/"//g'`
+fi
+if [ "$type" = "Southbound" ] ; then
+	export DEBUG_TYPE="south"
+elif [ "$type" = "Northbound" ]; then
+	export DEBUG_TYPE="north"
+else
+	echo Only South or North services are currently supported. The named service must also be running
+	exit 1
+fi
+export PATH=.:$PATH
+export SERVICE=${service}
+if [ "$DEBUG_SERVICE" = "" ]; then
+	echo $service is not the name of a running south or north service
+else
+	cd ${FLEDGE_ROOT}/scripts/debug
+	bash --rcfile .debugrc
+fi

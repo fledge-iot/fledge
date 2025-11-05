@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -13,6 +13,7 @@
 #include <string>
 #include <cstring>
 #include <omf.h>
+#include <piwebapi.h>
 #include <OMFHint.h>
 #include <logger.h>
 #include "string_utils.h"
@@ -25,6 +26,8 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+using namespace std;
+
 /**
  * In order to cut down on the number of string copies made whilst building
  * the OMF message for a reading we reserve a number of bytes in a string and
@@ -33,40 +36,99 @@
  */
 #define RESERVE_INCREMENT	100
 
-using namespace std;
+/**
+ * Create a comma-separated string from a string set
+ *
+ * @param stringSet	Set of strings
+ * @return			Set members as a comma-separated string
+ */
+static std::string StringSetToCSVString(const std::set<std::string> &stringSet)
+{
+	std::string stringSetMembers;
+
+	for (std::string item : stringSet)
+	{
+		stringSetMembers.append(item).append(",");
+	}
+
+	if (stringSetMembers.size() > 0)
+	{
+		stringSetMembers.resize(stringSetMembers.size() - 1);	// remove trailing comma
+	}
+
+	return stringSetMembers;
+}
 
 /**
- * Create a comma-separated string of all Datapoint names in a Reading
+ * Convert a DatapointValue to a string suitable for an OMF Data message
  *
- * @param reading	Reading
- * @return			Datapoint names in the Reading
+ * @param dp		Datapoint
+ * @param format	OMF data type format to be used for the string
+ * @return			Value string for the OMF Data message
  */
-static std::string DataPointNamesAsString(const Reading& reading)
+static std::string DatapointValueToOMFString(Datapoint *dp, std::string &format)
 {
-	std::string dataPointNames;
+	// Coerce floating point numbers to integers if requested.
+	// OMF will not accept floating point numbers sent to integer Containers so they must be coerced.
+	// OMF will accept integers sent to floating point Containers so no need to explicitly coerce.
+	// When coercing negative floating point numbers to unsigned integers, set the OMF value to 'null'.
+	std::string omfValueString;
 
-	for (Datapoint *datapoint : reading.getReadingData())
+	if (dp->getData().getType() == DatapointValue::T_FLOAT)
 	{
-		dataPointNames.append(datapoint->getName());
-		dataPointNames.append(",");
+		double doubleValue = dp->getData().toDouble();
+
+		if (format.compare(0, 6, "Double") == 0)
+		{
+			omfValueString = dp->getData().toString(); // very common; check this first
+		}
+		else if (format.compare(0, 7, "Integer") == 0)
+		{
+			omfValueString = std::to_string((long)doubleValue);
+		}
+		else if (format.compare(0, 8, "UInteger") == 0)
+		{
+			if (doubleValue < 0.0)
+			{
+				omfValueString = std::string("null");
+			}
+			else
+			{
+				omfValueString = std::to_string((long)doubleValue);
+			}
+		}
+		else
+		{
+			omfValueString = dp->getData().toString();
+		}
+	}
+	else if ((dp->getData().getType() == DatapointValue::T_INTEGER) && (format.compare(0, 8, "UInteger") == 0))
+	{
+		if (dp->getData().toInt() < 0)
+		{
+			omfValueString = std::string("null");
+		}
+		else
+		{
+			omfValueString = dp->getData().toString();
+		}
+	}
+	else
+	{
+		omfValueString = dp->getData().toString();
 	}
 
-	if (dataPointNames.size() > 0)
-	{
-		dataPointNames.resize(dataPointNames.size() - 1);	// remove trailing comma
-	}
-
-	return dataPointNames;
+	return omfValueString;
 }
 
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
  * @param payload	    The buffer into which to populate the payload
+ * @param delim		    Add a delimiter before outputting anything
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
- * @param delim		    Add a delimiter before outputting anything
  *
  */
 bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
@@ -87,14 +149,14 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF TagName hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
 				string hintValue = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+				Logger::getLogger()->debug("Using OMF Tag hint: %s for asset %s",
 					       hintValue.c_str(), assetName.c_str());
 				assetName = hintValue;
 			}
@@ -125,8 +187,18 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 		// Send the data message to create the asset instance
 		payload.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
 		payload.append(assetName + "\",\"Name\":\"");
-            	payload.append(assetName + "\"");
-         	payload.append("} ] }");
+		payload.append(assetName + "\"");
+
+		for (std::pair<std::string, std::string> &sData : *m_staticData)
+		{
+			payload.append(",\"");
+			payload.append(sData.first);
+			payload.append("\":\"");
+			payload.append(sData.second);
+			payload.append('\"');
+		}
+
+		payload.append("} ] }");
 		rval = true;
 		needDelim = true;
 		assetLookup->second.assetSent(assetName);
@@ -153,15 +225,9 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 		}
 		else
 		{
-			if (needDelim)
-			{
-				payload.append(',');
-			}
-			else
-			{
-				needDelim = true;
-			}
 			string format;
+			string tagNameHintRaw, tagNameHint;
+			bool tagNameHintchanged = false;
 			if (hints)
 			{
 				const vector<OMFHint *> omfHints = hints->getHints(dpName);
@@ -177,16 +243,46 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 						format = (*hit)->getHint();
 						break;
 					}
-
+					if (typeid(**hit) == typeid(OMFTagNameDatapointHint))
+					{
+						tagNameHintRaw = (*hit)->getHint();
+						tagNameHint = OMF::ApplyPIServerNamingRulesObj(tagNameHintRaw, &tagNameHintchanged);
+						break;
+					}
 				}
 			}
 
 			// Create the link for the asset if not already created
-			string link = assetName + m_delimiter + dpName;
+			string link = tagNameHint.empty() ? assetName + m_delimiter + dpName : tagNameHint;
 			string dpLookupName = originalAssetName + m_delimiter + dpName;
 			auto dpLookup = m_linkedAssetState->find(dpLookupName);
 
 			string baseType = getBaseType(dp, format);
+			if (baseType.empty())
+			{
+				// Skip the datapoint.
+				// Data type is not supported or the OMFHint is incorrect.
+				// If 'format' is non-empty, a numeric or integer OMFHint was applied. The format string must be invalid.
+				if (format.empty())
+				{
+					skippedDatapoints.push_back(dpName);
+				}
+				else
+				{
+					skippedDatapoints.push_back(dpName + "[" + format + "]");
+				}
+				continue;
+			}
+
+			if (needDelim)
+			{
+				payload.append(',');
+			}
+			else
+			{
+				needDelim = true;
+			}
+
 			if (dpLookup == m_linkedAssetState->end())
 			{
 				Logger::getLogger()->error("Trying to send a link for a datapoint for which we have not created a base type");
@@ -195,31 +291,31 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			{
 				sendContainer(link, dp, hints, baseType);
 				dpLookup->second.containerSent(assetName, baseType);
+
+				if (tagNameHintchanged)
+				{
+					Logger::getLogger()->warn("Datapoint %s.%s tagName Hint %s is not a valid PI name. Changed to %s",
+						assetName.c_str(),
+						dpName.c_str(),
+						tagNameHintRaw.c_str(),
+						tagNameHint.c_str());
+				}
 			}
 			else if (baseType.compare(dpLookup->second.getBaseTypeString()) != 0)
 			{
-				string bt = dpLookup->second.getBaseTypeString();
-				if (bt.compare(0, 6, "Double") == 0 &&
-						(baseType.compare(0, 7, "Integer") == 0
-						 || baseType.compare(0, 8, "UInteger") == 0))
-				{
-					string msg = "Asset " + assetName + " data point " + dpName 
-				       		+ " conversion from floating point to integer is being ignored";
-					OMF::reportAsset(assetName, "warn", msg);
-					baseType = bt;
-				}
-				else
-				{
-					sendContainer(link, dp, hints, baseType);
-					dpLookup->second.containerSent(assetName, baseType);
-				}
+				// Land here if the integer or number OMFHint is different from the hint in place
+				// when the Container was first created or confirmed in the current run.
+				// The only way to store data in this case is to reset the format to its initial value.
+				// Attempting to apply the requested format will cause data to be discarded because the
+				// requested format is not defined for the Container.
+				string containerFormat = dpLookup->second.getBaseTypeString();
+
+				Logger::getLogger()->debug("%s: Requested format '%s' does not match the Container format '%s'. Resetting to '%s'.",
+					link.c_str(), baseType.c_str(), containerFormat.c_str(), containerFormat.c_str());
+
+				baseType = containerFormat;
 			}
-			if (baseType.empty())
-			{
-				// Type is not supported, skip the datapoint
-				skippedDatapoints.push_back(dpName);
-				continue;
-			}
+
 			if (m_sendFullStructure && dpLookup->second.linkState(assetName) == false)
 			{
 				payload.append("{ \"typeid\":\"__Link\",");
@@ -241,9 +337,11 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 
 			// Base type we are using for this data point
 			payload.append("\"" + baseType + "\": ");
-			// Add datapoint Value
-		       	payload.append(dp->getData().toString());
+
+			// Add datapoint Value as a string to the payload.
+			payload.append(DatapointValueToOMFString(dp, baseType));
 			payload.append(", ");
+
 			// Append Z to getAssetDateTime(FMT_STANDARD)
 			payload.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 			payload.append("} ] }");
@@ -265,7 +363,7 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			points.replace(pos, 1, " and");
 		}
 		string assetName = reading.getAssetName();
-		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
+		string msg = "The asset " + assetName + " had a number of datapoints (" + points + ") that are not supported by OMF and have been omitted";
 		OMF::reportAsset(assetName, "warn", msg);
 	}
 	return rval;
@@ -353,6 +451,10 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "UInteger32";
 			else if (intFormat.compare("uint16") == 0)
 				baseType = "UInteger16";
+			else if (intFormat.compare("float64") == 0)
+				baseType = "Double64";
+			else if (intFormat.compare("float32") == 0)
+				baseType = "Double32";
 			break;
 		}
 		case DatapointValue::T_FLOAT:
@@ -366,14 +468,26 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 				baseType = "Double64";
 			else if (doubleFormat.compare("float32") == 0)
 				baseType = "Double32";
+			else if (doubleFormat.compare("int64") == 0)
+				baseType = "Integer64";
+			else if (doubleFormat.compare("int32") == 0)
+				baseType = "Integer32";
+			else if (doubleFormat.compare("int16") == 0)
+				baseType = "Integer16";
+			else if (doubleFormat.compare("uint64") == 0)
+				baseType = "UInteger64";
+			else if (doubleFormat.compare("uint32") == 0)
+				baseType = "UInteger32";
+			else if (doubleFormat.compare("uint16") == 0)
+				baseType = "UInteger16";
 			break;
 		}
 		default:
-			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr(),
+			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr().c_str(),
 					dp->getName().c_str());
-			// Not supported
-			return baseType;
+			break;
 	}
+
 	return baseType;
 }
 
@@ -479,6 +593,7 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 		container += "} }";
 	}
 	container += "}";
+	m_containerNames.insert(linkName);
 
 	Logger::getLogger()->debug("Built container: %s", container.c_str());
 
@@ -490,9 +605,14 @@ void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hi
 /**
  * Flush the container definitions that have been built up
  *
- * @return 	true if the containers were successfully flushed
+ * @param sender	HTTP client
+ * @param path		REST server URL
+ * @param header	REST call headers
+ * @param error		OMFError object with parsed PI Web API HTTP response
+ * @param isConnected Set to false if REST call shows loss of connection to PI
+ * @return			true if the containers were successfully flushed
  */
-bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header)
+bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header, OMFError& error, bool *isConnected)
 {
 	if (m_containers.empty())
 		return true;		// Nothing to flush
@@ -514,57 +634,137 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 						   res,
 						   sender.getHostPort().c_str(),
 						   sender.getHTTPResponse().c_str());
+			if (!m_containerNames.empty())
+			{
+				Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+			}
 			return false;
+		}
+		else if (res == 201)
+		{
+			Logger::getLogger()->info("Containers created: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		else
+		{
+			Logger::getLogger()->info("Containers confirmed: %s", StringSetToCSVString(m_containerNames).c_str());
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
-		OMFError error(sender.getHTTPResponse());
-		if (error.hasErrors())
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.Log("The OMF endpoint reported a Bad Request when sending Containers") == false)
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-			}
+			Logger::getLogger()->error("HTTP 400: Bad Request when sending Containers. Exception: %s", e.what());
 		}
 
-		return error.hasErrors();
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		return false;
 	}
 	catch (const Conflict& e)
 	{
-		OMFError error(sender.getHTTPResponse());
-		// The following is possibly too verbose
-		if (error.hasErrors())
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.Log("The OMF endpoint reported a Conflict when sending Containers") == false)
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
-					error.messageCount());
-			for (unsigned int i = 0; i < error.messageCount(); i++)
-			{
-				string severity = error.getEventSeverity(i);
-				if (severity.compare("Error") == 0)
-				{
-					Logger::getLogger()->warn("Message %d: %s, %s, %s",
-						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
-				}
-			}
+			Logger::getLogger()->error("HTTP 409: Conflict when sending Containers. Exception: %s", e.what());
 		}
 
-		return error.hasErrors();
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+		return false;
 	}
-	catch (const std::exception& e)
+	catch (const std::exception &e)
 	{
+		error.setFromHttpResponse(sender.getHTTPResponse());
+		if (error.hasMessages())
+		{
+			error.Log("An exception occurred when sending container information to the OMF endpoint");
+			
+			if (error.getHttpCode() == 503)
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("HTTP 503: REST service unavailable");
+			}
+		}
+		else
+		{
+			PIWebAPI piwebapi;
+			std::string errorMessage = piwebapi.errorMessageHandler(e.what());
+			Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
+									   errorMessage.c_str(),
+									   sender.getHostPort().c_str(),
+									   path.c_str());
+		}
 
-		Logger::getLogger()->error("An exception occurred when sending container information to the OMF endpoint, %s - %s %s",
-									e.what(),
-									sender.getHostPort().c_str(),
-									path.c_str());
+		if (!m_containerNames.empty())
+		{
+			Logger::getLogger()->warn("Containers attempted: %s", StringSetToCSVString(m_containerNames).c_str());
+		}
+
+		// Check for any error messages that indicate a loss of connection
+		int i = 0;
+		while (strlen(noConnectionErrorMessages[i]))
+		{
+			if (0 == strncmp(e.what(), noConnectionErrorMessages[i], strlen(noConnectionErrorMessages[i])))
+			{
+				*isConnected = false;
+				Logger::getLogger()->warn("Connection to the destination data archive has been lost");
+				break;
+			}
+			i++;
+		}
+
 		return false;
 	}
 	return true;
+}
+
+/**
+ * Clear selected Reading and Datapoint information from the linked asset state map
+ *
+ * @param readings		Vector of Readings
+ * @param startIndex	Start index into Readings
+ * @param numReadings	Number of Readings to clear
+ * @return				Number of asset and datapoint entries cleared
+ */
+std::size_t OMFLinkedData::clearLALookup(const std::vector<Reading *> &readings, std::size_t startIndex, std::size_t numReadings, std::string &delimiter)
+{
+	std::size_t numCleared = 0;
+	LALookup empty;
+
+	for (std::size_t i = startIndex; (i < numReadings) && (i < readings.size()); i++)
+	{
+		Reading *reading = readings[i];
+		std::string assetNameDelim = OMF::ApplyPIServerNamingRulesObj(reading->getAssetName(), NULL) + delimiter;
+
+		// Check if the asset key is present in the linked asset state map
+		auto assetIterator = m_linkedAssetState->find(assetNameDelim);
+		if (assetIterator != m_linkedAssetState->end())
+		{
+			assetIterator->second = empty;
+			numCleared++;
+		}
+
+		// Check if datapoint keys are present in the linked asset state map
+		for (Datapoint *datapoint : reading->getReadingData())
+		{
+			std::string dpName = OMF::ApplyPIServerNamingRulesObj(datapoint->getName(), NULL);
+			auto datappointIterator = m_linkedAssetState->find(assetNameDelim + dpName);
+			if (datappointIterator != m_linkedAssetState->end())
+			{
+				datappointIterator->second = empty;
+				numCleared++;
+			}
+		}
+	}
+
+	return numCleared;
 }
 
 /**

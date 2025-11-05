@@ -281,6 +281,8 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 				values.push_back(row);
 			}
 			dataPoint = new DatapointValue(values);
+			for (auto& row : values)
+				delete row;
 		}
 		else if (PyDict_Check(item0))	// List of datapoints	T_DP_LIST
 		{

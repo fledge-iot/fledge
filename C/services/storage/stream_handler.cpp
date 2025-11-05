@@ -440,11 +440,11 @@ ssize_t n;
 						iov[1].iov_len = m_currentReading->assetCodeLength;
 						iov[2].iov_base = &m_currentReading->assetCode[m_currentReading->assetCodeLength];
 						iov[2].iov_len = m_currentReading->payloadLength;
-						int n = readv(m_socket, iov, 3);
-						if (n != m_currentReading->assetCodeLength +
+						long n = readv(m_socket, iov, 3);
+						if ((unsigned long)n != m_currentReading->assetCodeLength +
 								m_currentReading->payloadLength + sizeof(struct timeval))
 						{
-							Logger::getLogger()->error("Short red for reading");
+							Logger::getLogger()->error("Short read for reading");
 						}
 
 						m_lastAsset = m_currentReading->assetCode;
@@ -453,10 +453,10 @@ ssize_t n;
 					{
 						iov[1].iov_base = &m_currentReading->assetCode[m_currentReading->assetCodeLength];
 						iov[1].iov_len = m_currentReading->payloadLength;
-						int n = readv(m_socket, iov, 2);
-						if (n != m_currentReading->payloadLength + sizeof(struct timeval))
+						long n = readv(m_socket, iov, 2);
+						if ((unsigned long)n != m_currentReading->payloadLength + sizeof(struct timeval))
 						{
-							Logger::getLogger()->error("Short red for reading");
+							Logger::getLogger()->error("Short read for reading");
 						}
 						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), m_currentReading->assetCodeLength);
 					}

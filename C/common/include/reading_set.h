@@ -51,6 +51,7 @@ class ReadingSet {
 		void				append(ReadingSet *);
 		void				append(ReadingSet&);
 		void				append(std::vector<Reading *> &);
+		void				merge(std::vector<Reading *> *readings);
 		void				removeAll();
 		void				clear();
 		bool				copy(const ReadingSet& src);

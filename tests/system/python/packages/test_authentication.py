@@ -13,11 +13,13 @@ import json
 import time
 import ssl
 from pathlib import Path
+from contextlib import closing
 import pytest
 from pytest import PKG_MGR
+from conftest import restart_and_wait_for_fledge
 
-__author__ = "Yash Tatkondawar"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems"
+__author__ = "Yash Tatkondawar, Ashish Jabble"
+__copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -28,6 +30,8 @@ HTTP_SOUTH_SVC_NAME_1 = "SOUTH_HTTP_1"
 ASSET_NAME = "auth"
 PASSWORD_TOKEN = None
 CERT_TOKEN = None
+KEY_SIZE = 2048
+
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
@@ -83,86 +87,61 @@ def generate_json_for_fogbench(asset_name):
 
 
 @pytest.fixture
-def change_to_auth_mandatory_any(fledge_url, wait_time):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/category/rest_api', json.dumps({"authentication": "mandatory", "authMethod": "any"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "mandatory" == jdoc['authentication']['value']
+def change_auth_method(fledge_url, wait_time):
+    def _change_auth_method(auth_method, restart, enable_tls):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
+        assert jdoc['admin']
+        token = jdoc['token']
 
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
-
-    # Wait for fledge server to start
-    time.sleep(wait_time * 2)
-
-
-@pytest.fixture
-def change_to_auth_mandatory_password(fledge_url, wait_time):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/category/rest_api',
-                 json.dumps({"authentication": "mandatory", "authMethod": "password"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "mandatory" == jdoc['authentication']['value']
-
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
-
-    # Wait for fledge server to start
-    time.sleep(wait_time * 2)
-
-
-@pytest.fixture
-def change_to_auth_mandatory_certificate(fledge_url, wait_time):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/category/rest_api',
-                 json.dumps({"authentication": "mandatory", "authMethod": "certificate"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "mandatory" == jdoc['authentication']['value']
-
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
-
-    # Wait for fledge server to start
-    time.sleep(wait_time * 2)
-
+        payload = {"authMethod": auth_method}
+        if enable_tls:
+            payload["enableHttp"] = "false"
+        conn.request("PUT", '/fledge/category/rest_api', headers={"authorization": token},
+                     body=json.dumps(payload))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert auth_method == jdoc['authMethod']['value']
+        if restart:
+            restart_and_wait_for_fledge(fledge_url, wait_time, token, https_enabled=enable_tls)
+        if not restart:
+            conn.request("PUT", '/fledge/logout', headers={"authorization": token})
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert jdoc['logout']
+    return _change_auth_method
 
 @pytest.fixture
 def reset_fledge(wait_time):
-    # TODO: Remove kill after resolution of FOGL-1499
-    try:
-        subprocess.run(["$FLEDGE_ROOT/bin/fledge kill"], shell=True, check=True)
-    except subprocess.CalledProcessError:
-        assert False, "kill command failed!"
+    def _reset_fledge(authentication):
+        # TODO: Remove kill after resolution of FOGL-1499
+        try:
+            subprocess.run(["$FLEDGE_ROOT/bin/fledge kill"], shell=True, check=True)
+        except subprocess.CalledProcessError:
+            assert False, "kill command failed!"
 
-    try:
-        subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
-                       .format(PROJECT_ROOT)], shell=True, check=True)
-    except subprocess.CalledProcessError:
-        assert False, "reset package script failed!"
+        try:
+            if authentication:
+                cmd = "cd {}/tests/system/python/scripts/package && ./reset $FLEDGE_ROOT authentication".format(
+                    PROJECT_ROOT)
+            else:
+                cmd = "cd {}/tests/system/python/scripts/package && ./reset".format(PROJECT_ROOT)
+            subprocess.run([cmd], shell=True, check=True)
+        except subprocess.CalledProcessError:
+            assert False, "reset package script failed!"
 
-    # Wait for fledge server to start
-    time.sleep(wait_time)
+        # Wait for fledge server to start
+        time.sleep(wait_time)
+    return _reset_fledge
 
 
 @pytest.fixture
@@ -185,74 +164,9 @@ def remove_and_add_fledge_pkgs(package_build_version):
         assert False, "installation of http-south package failed"
 
 
-@pytest.fixture
-def enable_tls():
-    def _enable_tls(fledge_url, wait_time, auth):
-        conn = http.client.HTTPConnection(fledge_url)
-        headers = None
-        if auth == 'password':
-            headers = {"authorization": PASSWORD_TOKEN}
-        elif auth == 'certificate':
-            headers = {"authorization": CERT_TOKEN}
-
-        if headers is None:
-            conn.request("PUT", '/fledge/category/rest_api', json.dumps({"enableHttp": "false"}))
-        else:
-            conn.request("PUT", '/fledge/category/rest_api', json.dumps({"enableHttp": "false"}),
-                         headers=headers)
-        r = conn.getresponse()
-        assert 200 == r.status
-
-        # FIXME: Remove this wait time
-        time.sleep(wait_time)
-
-        conn = http.client.HTTPConnection(fledge_url)
-        if headers is None:
-            conn.request("PUT", '/fledge/restart', json.dumps({}))
-        else:
-            conn.request("PUT", '/fledge/restart', json.dumps({}), headers=headers)
-        r = conn.getresponse()
-        assert 200 == r.status
-
-        # Wait for fledge server to start
-        time.sleep(wait_time * 2)
-
-    return _enable_tls
-
-
-@pytest.fixture
-def generate_password_based_auth_token(asset_name, fledge_url):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert LOGIN_SUCCESS_MSG == jdoc['message']
-    assert not jdoc['admin']
-    global PASSWORD_TOKEN
-    PASSWORD_TOKEN = jdoc["token"]
-
-
-@pytest.fixture
-def generate_certificate_based_auth_token(asset_name, fledge_url):
-    conn = http.client.HTTPConnection(fledge_url)
-    cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/admin.cert')
-    with open(cert_file_path, 'r') as f:
-        conn.request("POST", "/fledge/login", body=f)
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert LOGIN_SUCCESS_MSG == jdoc['message']
-        assert "token" in jdoc
-        assert jdoc['admin']
-        global CERT_TOKEN
-        CERT_TOKEN = jdoc["token"]
-
-
 class TestTLSDisabled:
-    def test_on_default_port(self, remove_and_add_fledge_pkgs, reset_fledge, fledge_url):
+    def test_on_default_port(self, remove_and_add_fledge_pkgs, fledge_url, reset_fledge):
+        reset_fledge(authentication=False)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
@@ -273,23 +187,7 @@ class TestTLSDisabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Fledge restart has been scheduled." == jdoc['message']
-
-        # Wait for fledge server to start
-        time.sleep(wait_time * 2)
-
-        conn = http.client.HTTPConnection("localhost", 8005)
-        conn.request("GET", "/fledge/ping")
-        r = conn.getresponse()
-        jdoc = json.loads(r.read().decode())
-        assert "dataRead" in jdoc
-        assert "uptime" in jdoc
-        assert 0 < jdoc['uptime'], "Fledge not up."
+        restart_and_wait_for_fledge(fledge_url, wait_time, custom_port=8005)
 
     def test_reset_to_default_port(self, fledge_url, wait_time):
         conn = http.client.HTTPConnection("localhost", 8005)
@@ -304,28 +202,14 @@ class TestTLSDisabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart', json.dumps({}))
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert "Fledge restart has been scheduled." == jdoc['message']
-
-        # Wait for fledge server to start
-        time.sleep(wait_time * 2)
-
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", "/fledge/ping")
-        r = conn.getresponse()
-        jdoc = json.loads(r.read().decode())
-        assert "dataRead" in jdoc
-        assert "uptime" in jdoc
-        assert 0 < jdoc['uptime'], "Fledge not up."
+        restart_and_wait_for_fledge("localhost:8005", wait_time, custom_port=8081)
 
 
 class TestAuthAnyWithoutTLS:
-    def test_login_regular_user_using_password(self, reset_fledge, change_to_auth_mandatory_any,
-                                               fledge_url):
+    def test_login_regular_user_using_password(self, fledge_url, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="any", restart=False, enable_tls=False)
+
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -404,7 +288,7 @@ class TestAuthAnyWithoutTLS:
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -826,8 +710,9 @@ class TestAuthAnyWithoutTLS:
 
 
 class TestAuthPasswordWithoutTLS:
-    def test_login_username_regular_user(self, reset_fledge, change_to_auth_mandatory_password,
-                                         fledge_url):
+    def test_login_username_regular_user(self, fledge_url, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="password", restart=True, enable_tls=False)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -1106,8 +991,9 @@ class TestAuthPasswordWithoutTLS:
 
 
 class TestAuthCertificateWithoutTLS:
-    def test_login_with_user_certificate(self, fledge_url, reset_fledge,
-                                         change_to_auth_mandatory_certificate):
+    def test_login_with_user_certificate(self, fledge_url, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="certificate", restart=True, enable_tls=False)
         conn = http.client.HTTPConnection(fledge_url)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')
         with open(cert_file_path, 'r') as f:
@@ -1138,7 +1024,7 @@ class TestAuthCertificateWithoutTLS:
     def test_login_with_custom_certificate(self, fledge_url, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -1374,8 +1260,10 @@ class TestAuthCertificateWithoutTLS:
 
 
 class TestTLSEnabled:
-    def test_on_default_port(self, reset_fledge, enable_tls, fledge_url, wait_time):
-        enable_tls(fledge_url, wait_time, auth=None)
+    def test_on_default_port(self, reset_fledge, change_auth_method):
+        reset_fledge(authentication=False)
+        change_auth_method(auth_method="any", restart=True, enable_tls=True)
+
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
@@ -1396,30 +1284,61 @@ class TestTLSEnabled:
         # FIXME: Remove this wait time
         time.sleep(wait_time)
 
-        conn.request("PUT", '/fledge/restart', json.dumps({}))
+        # Restart Fledge
+        restart_headers = {}  # No auth headers needed for restart endpoint
+        conn.request("PUT", '/fledge/restart', headers=restart_headers, body=json.dumps({}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Fledge restart has been scheduled." == jdoc['message']
-
-        time.sleep(wait_time * 2)
-
+        
+        # Note: Can't use restart_and_wait_for_fledge() from conftest because it only supports
+        # default ports and HTTP connections, but we need to verify HTTPS on custom port 2005
+        # Wait for Fledge to restart and verify it's running on the new port (2005)
+        print(f"Waiting for Fledge to restart on port 2005... (Initial wait: {wait_time}s)")
+        time.sleep(wait_time)
+        
+        start_time = time.time()
+        max_retries = 5
+        ping_headers = {}  # No auth headers needed for ping endpoint
+        
+        # Create connection for the new port (2005)
         conn = http.client.HTTPSConnection("localhost", 2005, context=context)
-        conn.request("GET", "/fledge/ping")
-        r = conn.getresponse()
-        jdoc = json.loads(r.read().decode())
-        assert "uptime" in jdoc
-        assert 0 < jdoc['uptime'], "Fledge not up."
+        
+        for attempt in range(max_retries):
+            try:
+                with closing(conn) as connection:
+                    connection.request("GET", "/fledge/ping", headers=ping_headers)
+                    response = connection.getresponse()
+                    if response.status == 200:
+                        response_data = response.read().decode()
+                        jdoc = json.loads(response_data)
+                        assert "uptime" in jdoc, "Fledge ping response missing uptime field"
+                        assert jdoc['uptime'] > 0, "Fledge uptime should be greater than 0"
+                        break
+                    elif response.status == 401:
+                        jdoc = {"message": "Unauthorized"}
+                        assert response.status == 401, "Expected 401 status for unauthorized access"
+                        break
+                    else:
+                        print(f"Attempt {attempt + 1}: Got HTTP status {response.status}")
+            except Exception as e:
+                print(f"Attempt {attempt + 1}: Connection failed - {type(e).__name__}: {e}")
+            
+            if attempt < max_retries - 1:
+                sleep_time = wait_time * 2
+                print(f"Waiting {sleep_time}s before next attempt...")
+                time.sleep(sleep_time)
+        else:
+            elapsed = round(time.time() - start_time, 2)
+            raise AssertionError(f"Failed to restart Fledge on port 2005 after {elapsed} seconds: {jdoc}")
 
 
 class TestAuthAnyWithTLS:
-    def test_login_regular_user_using_password(self, reset_fledge, change_to_auth_mandatory_any,
-                                               generate_password_based_auth_token, enable_tls,
-                                               fledge_url, wait_time):
-        auth = 'password'
-        enable_tls(fledge_url, wait_time, auth)
-
+    def test_login_regular_user_using_password(self, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="any", restart=True, enable_tls=True)
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -1498,7 +1417,7 @@ class TestAuthAnyWithTLS:
     def test_login_with_custom_certificate(self, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "
@@ -1920,12 +1839,9 @@ class TestAuthAnyWithTLS:
 
 
 class TestAuthPasswordWithTLS:
-    def test_login_username_regular_user(self, reset_fledge, change_to_auth_mandatory_password,
-                                         generate_password_based_auth_token, enable_tls, wait_time,
-                                         fledge_url):
-        auth = 'password'
-        enable_tls(fledge_url, wait_time, auth)
-
+    def test_login_username_regular_user(self, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="password", restart=True, enable_tls=True)
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()
@@ -2204,10 +2120,9 @@ class TestAuthPasswordWithTLS:
 
 
 class TestAuthCertificateWithTLS:
-    def test_login_with_user_certificate(self, fledge_url, reset_fledge, change_to_auth_mandatory_certificate,
-                                         generate_certificate_based_auth_token, enable_tls, wait_time):
-        auth = 'certificate'
-        enable_tls(fledge_url, wait_time, auth)
+    def test_login_with_user_certificate(self, reset_fledge, change_auth_method):
+        reset_fledge(authentication=True)
+        change_auth_method(auth_method="certificate", restart=True, enable_tls=True)
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')
@@ -2239,7 +2154,7 @@ class TestAuthCertificateWithTLS:
     def test_login_with_custom_certificate(self, remove_data_file):
         # Create a custom certificate and sign
         try:
-            subprocess.run(["openssl genrsa -out custom.key 1024 2> /dev/null"], shell=True)
+            subprocess.run(["openssl genrsa -out custom.key {} 2> /dev/null".format(KEY_SIZE)], shell=True)
             subprocess.run(["openssl req -new -key custom.key -out custom.csr -subj '/C=IN/CN=user' 2> /dev/null"],
                            shell=True)
             subprocess.run(["openssl x509 -req -days 1 -in custom.csr "

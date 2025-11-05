@@ -21,6 +21,7 @@ set(EXAMPLES
     simplereader
     simplepullreader
     simplewriter
+    sortkeys
     tutorial)
     
 include_directories("../include/")
@@ -31,6 +32,8 @@ set_property(DIRECTORY PROPERTY COMPILE_OPTIONS ${EXTRA_CXX_FLAGS})
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 endif()
+
+add_executable(archivertest archiver/archiver.cpp archiver/archivertest.cpp)
 
 foreach (example ${EXAMPLES})
     add_executable(${example} ${example}/${example}.cpp)

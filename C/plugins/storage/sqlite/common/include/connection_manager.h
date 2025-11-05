@@ -16,11 +16,13 @@
 #include <list>
 #include <mutex>
 #include <thread>
+#include <config_category.h>
 
 #define NO_DESCRIPTORS_PER_DB	3	// 3 deascriptors per database when using WAL mode
 #define DESCRIPTOR_THRESHOLD	75	// Percentage of descriptors that can be used on database connections
 
 class Connection;
+class DiskSpaceMonitor;
 
 /**
  * Singleton class to manage SQLite3 connection pool
@@ -47,6 +49,11 @@ class ConnectionManager {
 						m_vacuumInterval = 60 * 60 * hours;
 					  };
 		bool			  allowMoreDatabases();
+		void			  setConfiguration(ConfigCategory *category)
+					  {
+						  m_config = category;
+					  };
+		std::string		  getDBConfiguration();
 
 	protected:
 		ConnectionManager();
@@ -70,6 +77,8 @@ class ConnectionManager {
 		long                         m_vacuumInterval;
 		unsigned int		     m_descriptorLimit;
 		unsigned int		     m_attachedDatabases;
+		DiskSpaceMonitor	     *m_diskSpaceMonitor;
+		ConfigCategory		     *m_config;
 };
 
 #endif

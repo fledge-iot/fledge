@@ -170,3 +170,123 @@ TEST(ReadingTest, ISO8601MS)
 	string datetime = reading.getAssetDateUserTime(Reading::FMT_ISO8601MS);
 	ASSERT_EQ(datetime.compare("2019-01-10 10:01:03.123456 +0000"), 0);
 }
+
+TEST(ReadingTest, SimpleSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $str$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 a string");
+}
+
+TEST(ReadingTest, SubWithDefault)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	DatapointValue val2("foobar");
+	reading.addDatapoint(new Datapoint("foo", val2));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo|bar$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 foobar");
+}
+
+TEST(ReadingTest, DefaultSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo|bar$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 bar");
+}
+
+TEST(ReadingTest, NoDefaultSub)
+{
+	DatapointValue value("a string");
+	Reading reading(string("test3"), new Datapoint("str", value));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $foo$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 ");
+}
+
+TEST(ReadingTest, MultipleSub)
+{
+	DatapointValue value("first");
+	Reading reading(string("test3"), new Datapoint("str1", value));
+	DatapointValue val2("second");
+	reading.addDatapoint(new Datapoint("str2", val2));
+	string json = reading.toJSON();
+	string s = "$ASSET$ $str1$ $str2$";
+	string res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 first second");
+	s = "$ASSET$ $str2$ $str1$";
+	res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 second first");
+	s = "$ASSET$ $str1$ $str2$ $str1$";
+	res = reading.substitute(s);
+	ASSERT_STREQ(res.c_str(), "test3 first second first");
+}
+
+TEST(ReadingTest, TimestampMethods)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	
+	// Set timestamp using unsigned long
+	unsigned long ts = 1735689600; // 2025-01-01 00:00:00 UTC
+	reading.setTimestamp(ts);
+	ASSERT_EQ(reading.getTimestamp(), ts);
+	
+	// microseconds should be zero when setting using unsigned long
+	struct timeval tv_out_long;
+	reading.getTimestamp(&tv_out_long);
+	ASSERT_EQ(tv_out_long.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out_long.tv_usec, 0);
+	
+	// Set timestamp using struct timeval
+	struct timeval tv;
+	tv.tv_sec = 1735689600; // 2025-01-01 00:00:00 UTC
+	tv.tv_usec = 123456;
+	reading.setTimestamp(tv);
+	ASSERT_EQ(reading.getTimestamp(), 1735689600);
+	
+	// Get timestamp using struct timeval
+	struct timeval tv_out;
+	reading.getTimestamp(&tv_out);
+	ASSERT_EQ(tv_out.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out.tv_usec, 123456);
+}
+
+TEST(ReadingTest, UserTimestampMethods)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	
+	// Set user timestamp using unsigned long
+	unsigned long uts = 1735689600; // 2025-01-01 00:00:00 UTC
+	reading.setUserTimestamp(uts);
+	ASSERT_EQ(reading.getUserTimestamp(), uts);
+
+	// microseconds should be zero when setting using unsigned long
+	struct timeval tv_out_long;
+	reading.getUserTimestamp(&tv_out_long);
+	ASSERT_EQ(tv_out_long.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out_long.tv_usec, 0);
+	
+	// Set user timestamp using struct timeval
+	struct timeval tv;
+	tv.tv_sec = 1735689600; // 2025-01-01 00:00:00 UTC
+	tv.tv_usec = 654321;
+	reading.setUserTimestamp(tv);
+	ASSERT_EQ(reading.getUserTimestamp(), 1735689600);
+	
+	// Get user timestamp using struct timeval
+	struct timeval tv_out;
+	reading.getUserTimestamp(&tv_out);
+	ASSERT_EQ(tv_out.tv_sec, 1735689600);
+	ASSERT_EQ(tv_out.tv_usec, 654321);
+}

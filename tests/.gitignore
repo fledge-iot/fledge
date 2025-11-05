@@ -5,9 +5,5 @@
 .coverage
 htmlcov/
 
-# Allure
-allure/
-allure-report/
-
 # Test certificates
 !/unit/python/fledge/services/core/api/certs/*

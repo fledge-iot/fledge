@@ -58,7 +58,7 @@ class TestE2eFilterFFTThreshold:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, fledge_url, add_filter, filter_branch,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token,
+                          start_north_pi_server_c_web_api, pi_host, pi_port,
                           clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db, asset_name=ASSET):
         """ This fixture clone a south and north repo and starts both south and north instance
 
@@ -110,8 +110,8 @@ class TestE2eFilterFFTThreshold:
         # enable service when all filters all applied
         enable_schedule(fledge_url, SVC_NAME)
 
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, taskname=NORTH_TASK_NAME,
-                                start_task=False)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                        taskname=NORTH_TASK_NAME, start_task=False)
 
         # Add threshold filter at north side
         filter_cfg_threshold = {"expression": "Band00 > 30", "enable": "true"}
@@ -128,7 +128,7 @@ class TestE2eFilterFFTThreshold:
 
         remove_data_file(csv_dest)
 
-    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi_asset_server, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using playback south plugin &
             FFT filter, and sent to PI after passing through threshold filter
@@ -161,7 +161,7 @@ class TestE2eFilterFFTThreshold:
             assert 1 == actual_stats_map[NORTH_TASK_NAME]
 
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -210,11 +210,11 @@ class TestE2eFilterFFTThreshold:
         assert read["Band01"]
         assert read["Band02"]
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db,
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db,
                                              ASSET + " FFT", {"Band00"})
             retry_count += 1
             time.sleep(wait_time * 2)

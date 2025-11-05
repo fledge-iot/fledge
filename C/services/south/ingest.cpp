@@ -13,6 +13,8 @@
 #include <thread>
 #include <logger.h>
 #include <set>
+#include "string_utils.h"
+#include <ingest_rate.h>
 
 using namespace std;
 
@@ -164,6 +166,9 @@ void Ingest::updateStats()
 	if (m_running) // don't wait on condition variable if plugin/ingest is being shutdown
 		m_statsCv.wait_for(lck, std::chrono::seconds(FLUSH_STATS_INTERVAL));
 
+	if (m_ingestRate)
+		m_ingestRate->periodic();
+
 	if (statsPendingEntries.empty())
 	{
 		return;
@@ -286,7 +291,10 @@ Ingest::Ingest(StorageClient& storage,
 			m_storageFailed(false),
 			m_storesFailed(0),
 			m_statisticsOption(STATS_BOTH),
-			m_highWater(0)
+			m_highWater(0),
+			m_isolate(false),
+			m_debuggerAttached(false),
+			m_debuggerBufferSize(1)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -310,6 +318,8 @@ Ingest::Ingest(StorageClient& storage,
 
 	m_deprecatedAgeOut = 0;
 	m_deprecatedAgeOutStorage = 0;
+
+	m_ingestRate = new IngestRate(mgmtClient, serviceName);
 }
 
 /**
@@ -392,6 +402,8 @@ Ingest::~Ingest()
 
 	if (m_deprecated)
 		delete m_deprecated;
+	if (m_ingestRate)
+		delete m_ingestRate;
 }
 
 /**
@@ -415,17 +427,193 @@ bool Ingest::isStopping()
 }
 
 /**
+ * Set the resource limit for the service
+ *
+ * @param serviceBufferingType	Buffering type
+ * @param serviceBufferSize	Buffer size
+ * @param discardPolicy	Discard policy
+ */
+void Ingest::setResourceLimit(ServiceBufferingType serviceBufferingType, unsigned long serviceBufferSize, DiscardPolicy discardPolicy)
+{
+	m_serviceBufferingType = serviceBufferingType;
+	m_serviceBufferSize = serviceBufferSize;
+	m_discardPolicy = discardPolicy;
+
+	if(m_resourceGovernorActive && 
+		(m_serviceBufferingType == ServiceBufferingType::UNLIMITED))
+	{
+		Logger::getLogger()->info("Resource governor deactivated: normal flow resumed.");
+		m_resourceGovernorActive = false;
+	}
+
+	m_logger->info("Set resource limit in Ingest: "
+		"Service Buffering Type: '%d', "
+		"Service Buffer Size: '%lu', "
+		"Discard Policy: '%d'.",
+		serviceBufferingType,
+		serviceBufferSize,
+		discardPolicy);
+}	
+
+/**
+ * @brief Discard the oldest (first) reading from the queue.
+ * 
+ * This method removes the oldest reading from the queue when the resource limit 
+ * is exceeded. It ensures that the queue length stays within the configured limit.
+ * Warning: Caller should ensure Thread safety.
+ */
+void Ingest::discardOldest() 
+{
+	// Check if the queue is not empty
+	if (!m_queue->empty()) 
+	{
+		// Delete the oldest (front) reading from the queue
+		delete m_queue->front();
+
+		// Remove the oldest reading from the queue
+		m_queue->erase(m_queue->begin());
+
+		// Log that a reading was discarded for statistics purposes
+		logDiscardedStat();
+	}
+}
+
+/**
+ * @brief Discard the newest (last) reading from the queue.
+ * 
+ * This method removes the newest reading from the queue when the resource limit 
+ * is exceeded. It ensures that the queue length stays within the configured limit.
+ * Warning: Caller should ensure Thread safety.
+ * 
+ */
+void Ingest::discardNewest()
+{
+	// Check if the queue is not empty
+	if (!m_queue->empty()) 
+	{
+		// Delete the newest (back) reading from the queue
+		delete m_queue->back();
+
+		// Remove the newest reading from the queue
+		m_queue->pop_back();
+
+		// Log that a reading was discarded for statistics purposes
+		logDiscardedStat();
+	}
+}
+
+/**
+ * @brief Reduce the fidelity of the queue by discarding every second reading.
+ * 
+ * This method reduces the fidelity of the data in the queue by keeping only 
+ * readings at even indices and discarding readings at odd indices. It is applied 
+ * when the resource limit is exceeded and ensures the queue length stays within 
+ * the configured limit.
+ * Warning: Caller should ensure Thread safety.
+ */
+void Ingest::reduceFidelity() 
+{
+	// Check if the queue is not empty
+	if (!m_queue->empty()) 
+	{
+		// Create a new temporary queue to store reduced-fidelity data
+		std::vector<Reading*> newQueue;
+
+		// Iterate through the queue, keeping only every second reading
+		for (size_t i = 0; i < m_queue->size(); i++) 
+		{
+			if (i % 2 == 0) 
+			{
+				// Keep readings at even indices
+				newQueue.push_back(m_queue->at(i));
+			} 
+			else 
+			{
+				// Delete readings at odd indices and log the discarded reading
+				delete m_queue->at(i);
+				logDiscardedStat();
+			}
+		}
+
+		// Replace the original queue with the reduced-fidelity queue
+		m_queue->swap(newQueue);
+	}
+}
+
+/**
+ * @brief Enforce resource limits on the queue.
+ * 
+ * This method ensures that the queue length stays within the configured limits 
+ * when the buffering policy is set to "Limited." It applies the configured discard 
+ * policy (e.g., Discard Oldest, Discard Newest, Reduce Fidelity) when the queue 
+ * length exceeds the specified limit. Logging is performed when the resource 
+ * governor activates or deactivates.
+ */
+void Ingest::enforceResourceLimits() 
+{
+	// Enforce limits while the queue length exceeds the configured limit
+	if(queueLength() > m_serviceBufferSize)
+	{
+		if(!m_resourceGovernorActive) 
+		{
+			// Log that the resource governor is activated
+			Logger::getLogger()->warn("Resource governor activated: enforcing resource limits.");
+			m_resourceGovernorActive = true;
+		}
+
+		unsigned int orignalQueueLength = queueLength();
+		while (queueLength() > m_serviceBufferSize) 
+		{
+			// Apply the configured discard policy
+			switch (m_discardPolicy) 
+			{
+				case DiscardPolicy::DISCARD_OLDEST:
+					discardOldest();
+					break;
+
+				case DiscardPolicy::DISCARD_NEWEST:
+					discardNewest();
+					break;
+
+				case DiscardPolicy::REDUCE_FIDELITY:
+					reduceFidelity();
+					break;
+			}
+		}
+
+		Logger::getLogger()->debug("Resource governor applied: original queue length = %u, reduced queue length = %u.", orignalQueueLength, queueLength());
+	}
+
+	// Deactivate the resource governor if the queue length drops below half the limit
+	if (queueLength() <= m_serviceBufferSize / 2 && m_resourceGovernorActive) 
+	{
+		Logger::getLogger()->info("Resource governor deactivated: normal flow resumed.");
+		m_resourceGovernorActive = false;
+	}
+}
+
+/**
  * Add a reading to the reading queue
  *
  * @param reading	The single reading to ingest
  */
 void Ingest::ingest(const Reading& reading)
 {
-vector<Reading *> *fullQueue = 0;
+	vector<Reading *> *fullQueue = 0;
+
+	if (m_ingestRate)
+		m_ingestRate->ingest(1);
 
 	{
 		lock_guard<mutex> guard(m_qMutex);
 		m_queue->emplace_back(new Reading(reading));
+
+		// Enforce resource limits
+		if (m_serviceBufferingType == ServiceBufferingType::LIMITED) 
+		{
+			enforceResourceLimits();
+		}
+
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;
@@ -449,9 +637,12 @@ vector<Reading *> *fullQueue = 0;
  */
 void Ingest::ingest(const vector<Reading *> *vec)
 {
-vector<Reading *> *fullQueue = 0;
-size_t qSize;
-unsigned int nFullQueues = 0;
+	vector<Reading *> *fullQueue = 0;
+	size_t qSize;
+	unsigned int nFullQueues = 0;
+
+	if (m_ingestRate)
+		m_ingestRate->ingest(vec->size());
 
 	{
 		lock_guard<mutex> guard(m_qMutex);
@@ -461,6 +652,13 @@ unsigned int nFullQueues = 0;
 		{
 			m_queue->emplace_back(rdng);
 		}
+
+		// Enforce resource limits
+		if (m_serviceBufferingType == ServiceBufferingType::LIMITED) 
+		{
+			enforceResourceLimits();
+		}
+
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;
@@ -593,11 +791,10 @@ void Ingest::processQueue()
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				if (tracker == nullptr)
-                                {
-                                        Logger::getLogger()->error("%s could not initialize asset tracker",
-								__FUNCTION__);
+				{
+					Logger::getLogger()->error("Failed to initialize asset tracker.");
 					return;
-                                }
+				}
 
 				string lastAsset = "";
 				int *lastStat = NULL;
@@ -608,18 +805,19 @@ void Ingest::processQueue()
 				{
 					Reading *reading = *it;
 					string assetName = reading->getAssetName();
+					assetName = escape(assetName);
                                         const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
 					std::set<std::string> tempSet;
 					// first sort the individual datapoints 
 					// e.g. dp2, dp3, dp1 push them in a set,to make them 
 					// dp1,dp2,dp3
-                                        for ( auto dp : dpVec)
-                                        {
+					for ( auto dp : dpVec)
+					{
 						temp.clear();
-                                                temp.append(dp->getName());
+						temp.append(dp->getName());
 						tempSet.insert(temp);
-                                        }
+					}
 
 					temp.clear();
 
@@ -734,7 +932,7 @@ void Ingest::processQueue()
 			lock_guard<mutex> guard(m_pipelineMutex);
 			if (m_filterPipeline && !m_filterPipeline->isShuttingDown())
 			{
-				FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
+				PipelineElement *firstFilter = m_filterPipeline->getFirstFilterPlugin();
 				if (firstFilter)
 				{
 					// Check whether filters are set before calling ingest
@@ -744,12 +942,14 @@ void Ingest::processQueue()
 									  "filter pipeline is ready");
 						std::this_thread::sleep_for(std::chrono::milliseconds(150));
 					}
-
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					m_data->clear();
+					m_filterPipeline->execute();	// Set the pipeline executing
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
+					m_filterPipeline->completeBranch();	// Main branch has completed
+					m_filterPipeline->awaitCompletion();
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
 					 * return.
@@ -854,6 +1054,7 @@ void Ingest::processQueue()
 				{
 		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
+					assetName = escape(assetName);
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
                                         std::set<std::string> tempSet;
@@ -996,6 +1197,12 @@ bool Ingest::loadFilters(const string& categoryName)
 	if (rval)
 	{
 		m_filterPipeline = filterPipeline;
+		// If we previously had a debugger attached then attach to the new pipeline
+		if (m_debuggerAttached)
+		{
+			attachDebugger();
+			setDebuggerBuffer(m_debuggerBufferSize);
+		}
 	}
 	else
 	{
@@ -1020,9 +1227,9 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
 	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	PipelineElement *next = (PipelineElement *)outHandle;
 
-	// Pass readings to next filter
+	// Pass readings to the next stage in the pipeline
 	next->ingest(readingSet);
 }
 
@@ -1050,31 +1257,27 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	Ingest* ingest = (Ingest *)outHandle;
 
-	if (ingest->m_data != readingSet->getAllReadingsPtr())
+	if (ingest->isolated())
 	{
-		if (ingest->m_data)
-		{
-		    // Remove the readings in the vector
-		    for(auto & rdngPtr : *(ingest->m_data))
-		        delete rdngPtr;
-
-                   ingest->m_data->clear();// Remove any pointers still in the vector
-		   delete ingest->m_data;
-                   ingest->m_data = readingSet->moveAllReadings();
-		}
-		else
-		{
-		    // move reading vector to ingest
-		    ingest->m_data = readingSet->moveAllReadings();
-		}
+		delete readingSet;
+		return;
 	}
-	else
+	lock_guard<mutex> guard(ingest->m_useDataMutex);
+	
+	vector<Reading *> *newData = readingSet->getAllReadingsPtr();
+	if (!ingest->m_data)
 	{
-	    Logger::getLogger()->info("%s:%d: Input readingSet modified by filter: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
-                                        __FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+		// If we are called during shutdown there will be no m_data in place
+		// and we create a new one to handle this special case. In this case
+		// the m_data will not be explicitly deleted. However as we are shutting
+		// down this will note cause a problem as all memory is recovered at process
+		// exit time.
+		ingest->m_data = new vector<Reading *>;
 	}
+	ingest->m_data->insert(ingest->m_data->end(), newData->cbegin(), newData->cend());
 	
 	readingSet->clear();
 	delete readingSet;
@@ -1089,6 +1292,7 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 void Ingest::configChange(const string& category, const string& newConfig)
 {
 	Logger::getLogger()->debug("Ingest::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	string advanced = m_serviceName + "Advanced";
 	if (category == m_serviceName) 
 	{
 		/**
@@ -1142,10 +1346,23 @@ void Ingest::configChange(const string& category, const string& newConfig)
 		lock_guard<mutex> guard(m_pipelineMutex);
 		m_running = true;
 	}
+	else if (category == advanced) 
+	{
+		ConfigCategory config("tmp", newConfig);
+		string s = config.getValue("rateMonitoringInterval");
+		long interval = strtol(s.c_str(), NULL, 10);
+		s = config.getValue("rateSigmaFactor");
+		long factor = strtol(s.c_str(), NULL, 10);
+		m_ingestRate->updateConfig(interval, factor);
+
+		// TODO If the rate has changed we need to restart the monitoring for
+		// now we trigger this if the category changes
+		m_ingestRate->relearn();
+	}
 	else
 	{
 		/*
-		 * The category is for one fo the filters. We simply call the Filter Pipeline
+		 * The category is for one of the filters. We simply call the Filter Pipeline
 		 * instance and get it to deal with sending the configuration to the right filter.
 		 * This is done holding the pipeline mutex to prevent the pipeline being changed
 		 * during this call and also to hold the ingest thread from running the filters
@@ -1161,7 +1378,7 @@ void Ingest::configChange(const string& category, const string& newConfig)
 }
 
 /**
- * Return the numebr fo queued readings in the south service
+ * Return the number of queued readings in the south service
  */
 size_t Ingest::queueLength()
 {
@@ -1510,4 +1727,16 @@ void Ingest::flowControl()
 			       	? "failed to drain in sufficient time" : "has drained");
 		m_performance->collect("flow controlled", total);
 	}
+}
+
+/**
+ * Configure the ingest rate class with the collection interval and
+ * the sigma factor allowed before reporting
+ *
+ * @param interval	Number of minutes to average ingest stats over
+ * @param factor	Number of standard deviations to allow before reporting
+ */
+void Ingest::configureRateMonitor(long interval, long factor)
+{
+	m_ingestRate->updateConfig(interval, factor);
 }

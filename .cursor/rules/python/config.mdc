@@ -1,0 +1,244 @@
+---
+description: "Python configuration and data management rules for Fledge - config system, reading objects, and data types"
+globs: "python/fledge/common/configuration*,python/fledge/services/*/configuration*,**/config*.py"
+alwaysApply: false
+author: "Ashish Jabble"
+---
+
+# Python Configuration & Data Management Rules
+
+## Python Version & Platform Requirements
+
+### Supported Python Versions
+- **Target Range**: Python 3.8.10 - 3.12 (inclusive)
+- Always test configuration handling across the full supported range
+
+### Deployment Platforms
+- **Ubuntu**: LTS versions, 20.04 onwards
+  - **Architectures**: x86_64 & aarch64
+- **Raspberry Pi OS**: Bullseye and Bookworm distributions
+  - **Architectures**: aarch64 & armv7l
+
+### Dependencies Management
+- **Runtime Dependencies**: [python/requirements.txt](mdc:python/requirements.txt) - Include config validation deps
+- **Development Dependencies**: [python/requirements-dev.txt](mdc:python/requirements-dev.txt)
+- **Testing Dependencies**: [python/requirements-test.txt](mdc:python/requirements-test.txt) - Include config testing tools
+- **Use exact versions** for production dependencies
+- **Consider ARM compatibility** for Raspberry Pi deployment
+- **Test across Python versions** and target architectures
+
+## Configuration Management
+
+### Configuration System
+- Use the Fledge configuration management system consistently
+- Store configuration in JSON format
+- Validate configuration parameters thoroughly
+- Provide sensible defaults for all configuration options
+- Handle configuration changes gracefully
+
+### Configuration Categories & Types
+Fledge configuration manager supports various types with specific formatting requirements:
+
+```python
+# Example configuration category definitions
+config_category = {
+    "string_example": {
+        "description": "A string configuration parameter",
+        "type": "string",
+        "default": "default_value",  # Always wrap in quotes
+        "value": "current_value"     # Always wrap in quotes
+    },
+    "integer_example": {
+        "description": "An integer configuration parameter", 
+        "type": "integer",
+        "default": "42",        # Wrap in quotes but validate as integer
+        "value": "100"          # Wrap in quotes but validate as integer
+    },
+    "boolean_example": {
+        "description": "A boolean configuration parameter",
+        "type": "boolean", 
+        "default": "false",     # Wrap in quotes: "true" or "false"
+        "value": "true"         # Wrap in quotes: "true" or "false"
+    },
+    "float_example": {
+        "description": "A float configuration parameter",
+        "type": "float",
+        "default": "3.14",      # Wrap in quotes but validate as float
+        "value": "2.71"         # Wrap in quotes but validate as float
+    },
+    "enumeration_example": {
+        "description": "An enumeration configuration parameter",
+        "type": "enumeration",
+        "options": ["option1", "option2", "option3"],
+        "default": "option1",   # Wrap in quotes, must be from options
+        "value": "option2"      # Wrap in quotes, must be from options
+    },
+    "JSON_example": {
+        "description": "A JSON object configuration parameter",
+        "type": "JSON",
+        "default": "{\"key\": \"value\"}",  # JSON string wrapped in quotes
+        "value": "{\"key\": \"updated\"}"   # JSON string wrapped in quotes  
+    }
+}
+```
+
+### Supported Configuration Types
+Fledge configuration manager supports the following types:
+
+- **string**: Text values (default type if not specified)
+- **integer**: Whole numbers
+- **float**: Decimal numbers  
+- **boolean**: True/false values ("true"/"false" as strings)
+- **enumeration**: Predefined list of options
+- **JSON**: Complex objects or arrays
+- **password**: Encrypted/masked string values
+- **X509 certificate**: Certificate data
+- **code**: Editable code blocks (Python, JavaScript, etc.)
+
+### Optional Configuration Items
+Configuration parameters can include optional properties:
+
+```python
+config_with_optional_items = {
+    "advanced_parameter": {
+        "description": "An advanced configuration parameter",
+        "type": "integer",
+        "default": "100",
+        "value": "150",
+        # Optional items
+        "minimum": "1",           # Minimum allowed value
+        "maximum": "1000",        # Maximum allowed value
+        "length": "10",           # Maximum string length (for string types)
+        "rule": "value > 0",      # Validation rule expression
+        "order": "10",            # Display order in UI
+        "readonly": "false",      # Whether value can be modified
+        "options": ["opt1", "opt2"],  # Available options (for enumeration)
+        "displayName": "Advanced Parameter",  # UI display name
+        "validity": "valid",      # Validation status
+        "group": "advanced"       # Grouping for UI organization
+    }
+}
+```
+
+### Reserved Configuration Categories
+Certain category names are reserved by the Fledge configuration manager:
+
+```python
+# Reserved category names - DO NOT USE for custom configurations
+RESERVED_CATEGORIES = [
+    "General",           # Core system configuration
+    "Advanced",          # Advanced system settings  
+    "Utilities",         # System utilities configuration
+    "Security",          # Security-related settings
+    "rest_api",          # REST API configuration
+    "service",           # Service-level configuration
+    "storage",           # Storage plugin configuration
+    "scheduler",         # Task scheduler configuration
+    "dispatcher",        # Dispatcher service configuration
+    "logging",           # Logging configuration
+    "authentication",    # Authentication settings
+    "authorization",     # Authorization settings
+    "certificate_store", # Certificate management
+    "audit",            # Audit logging configuration
+    "performance"       # Performance monitoring settings
+]
+
+# Use descriptive, specific names for plugin/service configurations
+# Good examples:
+GOOD_CATEGORY_NAMES = [
+    "modbus_tcp",        # Specific protocol/plugin name
+    "opcua_client",      # Specific functionality
+    "http_north",        # Service type and direction
+    "pi_web_api",        # Specific target system
+    "temperature_filter", # Specific filter purpose
+]
+```
+
+### Configuration Value Handling Rules
+- **Quote Wrapping**: Always wrap `default` and `value` in double quotes (`""`)
+- **Type Validation**: Explicitly validate values against their declared type
+- **Type Conversion**: Convert string values to appropriate types during processing
+- **Validation Examples**:
+  ```python
+  def validate_config_value(value: str, config_type: str) -> bool:
+      """Validate configuration value against its type."""
+      try:
+          if config_type == "integer":
+              int(value)  # Must be convertible to int
+          elif config_type == "float": 
+              float(value)  # Must be convertible to float
+          elif config_type == "boolean":
+              return value.lower() in ["true", "false"]
+          elif config_type == "JSON":
+              json.loads(value)  # Must be valid JSON
+          # string and enumeration are validated separately
+          return True
+      except (ValueError, json.JSONDecodeError):
+          return False
+  ```
+
+### Reading Object Format
+Fledge uses a specific reading object format for sensor data:
+
+```python
+# Standard Fledge reading object structure
+reading_object = {
+    "asset": "sensor_name",           # Asset name (string)
+    "timestamp": "2024-01-01 12:00:00.000",  # ISO timestamp with milliseconds
+    "readings": {                     # Dictionary of sensor readings
+        "temperature": 25.5,          # Numeric values (int/float)
+        "humidity": 60.2,
+        "pressure": 1013.25,
+        "status": "online"            # String values allowed
+    }
+}
+
+# Multiple readings in a single object
+reading_batch = [
+    {
+        "asset": "sensor01",
+        "timestamp": "2024-01-01 12:00:00.000",
+        "readings": {"temperature": 25.5, "humidity": 60.2}
+    },
+    {
+        "asset": "sensor02", 
+        "timestamp": "2024-01-01 12:00:01.000",
+        "readings": {"pressure": 1013.25, "wind_speed": 12.3}
+    }
+]
+```
+
+### Configuration Best Practices
+- **Descriptive Names**: Use clear, descriptive configuration parameter names
+- **Validation**: Always validate configuration values against their types
+- **Error Handling**: Provide clear error messages for invalid configurations
+- **Documentation**: Include comprehensive descriptions for all parameters
+- **Defaults**: Provide sensible defaults that work in most environments
+- **Type Safety**: Ensure type conversion is handled safely with proper error checking
+- **Reading Format**: Follow standard Fledge reading object structure for sensor data
+- **Reserved Categories**: Avoid using reserved category names for custom configurations
+- **Optional Items**: Use optional configuration properties for advanced validation and UI control
+- **Type Selection**: Choose appropriate types (use "password" for sensitive data, "code" for scripts)
+- **Validation Rules**: Implement proper minimum/maximum constraints and custom validation rules
+
+## Database Operations
+- Use the storage service abstraction from [python/fledge/common/storage_client/](mdc:python/fledge/common/storage_client/)
+- Handle database connection errors gracefully
+- Use prepared statements for SQL queries
+- Consider performance for large datasets
+- Implement proper connection pooling
+
+## Error Handling
+- Use specific exception types rather than generic Exception
+- Log errors with appropriate severity levels using Fledge logging framework
+- Handle async operations properly with try/catch blocks
+- Return meaningful error messages for API responses
+- Consider edge computing constraints when handling errors
+
+## Security Considerations
+- Validate all input parameters to prevent injection attacks
+- Use secure defaults for configuration
+- Handle certificates and keys securely
+- Follow authentication/authorization patterns
+- Sanitize data before database operations
+- Never log sensitive information

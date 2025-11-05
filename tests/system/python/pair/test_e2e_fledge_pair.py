@@ -77,26 +77,45 @@ class TestE2eFogPairPi:
             """
         if remote_fledge_path is None:
             remote_fledge_path = '/home/{}/fledge'.format(remote_user)
-        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge kill'".format(key_path, remote_user,
-                                                                                                      remote_ip,
-                                                                                                      remote_fledge_path)], shell=True, check=True)
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
+                        "'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge kill'".format(
+            key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
         storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
-        # Check whether storage.json file exist on remote machine or not, if it doesn't exist then raise assertion otherwise update its storage plugin value.
-        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "cat {}/data/etc/storage.json".format(remote_fledge_path)], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Check whether storage.json file exist on remote machine or not,
+        # if it doesn't exist then raise assertion otherwise update its storage plugin value.
+        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
+                                "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip),
+                                "cat {}/data/etc/storage.json".format(remote_fledge_path)], shell=False,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = ssh.stdout.readlines()
         assert [] != result, "storage.json file not found on the remote machine {}".format(remote_ip)
         data = json.loads(result[0])
         data['plugin']['value'] = storage_plugin_val
-        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "echo '" + json.dumps(data) + "' > {}/data/etc/storage.json".format(remote_fledge_path) ], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};echo \"YES\nYES\" | $FLEDGE_ROOT/scripts/fledge reset'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
-        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True)
-        stat = subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={}; $FLEDGE_ROOT/scripts/fledge status'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, stdout=subprocess.PIPE)
+        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no",
+                                "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip),
+                                "echo '" + json.dumps(data) + "' > {}/data/etc/storage.json".format(
+                                    remote_fledge_path) ], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
+                        "'export FLEDGE_ROOT={};echo \"YES\nYES\" | $FLEDGE_ROOT/scripts/fledge reset'".format(
+            key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
+        # Authentication is optional
+        command = ('ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} '
+                   '"export FLEDGE_ROOT={} && sed -i \\"s/\'default\': \'mandatory\'/\'default\': \'optional\'/g\\" '
+                   '\\$FLEDGE_ROOT/python/fledge/services/core/server.py"').format(
+            key_path, remote_user, remote_ip, remote_fledge_path)
+        subprocess.run(command, shell=True, check=True)
+        subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
+                        "'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(
+            key_path, remote_user, remote_ip, remote_fledge_path)], shell=True)
+        stat = subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} "
+                               "'export FLEDGE_ROOT={}; $FLEDGE_ROOT/scripts/fledge status'".format(
+            key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, stdout=subprocess.PIPE)
         assert "Fledge not running." not in stat.stdout.decode("utf-8")
 
     @pytest.fixture
     def start_south_north_remote(self, reset_and_start_fledge_remote, use_pip_cache, remote_user,
                                  key_path, remote_fledge_path, remote_ip, south_branch,
-                                 start_north_pi_server_c, pi_host, pi_port, pi_token,
+                                 start_north_pi_server_c_web_api, pi_host, pi_port,
                                  clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """Fixture that starts south and north plugins on remote machine
                 reset_and_start_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote machine
@@ -105,7 +124,7 @@ class TestE2eFogPairPi:
                 remote_fledge_path: Path where Fledge is cloned and built
                 remote_ip: IP of remote machine
                 south_branch: branch of fledge south plugin
-                start_north_pi_server_c: fixture that configures and starts pi plugin
+                start_north_pi_server_c_web_api: fixture that configures and starts pi plugin
                 pi_host: Host IP of PI machine
                 pi_token: Token of connector relay of PI
             """
@@ -153,7 +172,7 @@ class TestE2eFogPairPi:
         assert south_service == retval["name"]
 
         # Configure pi north plugin on remote machine
-        start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
+        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db=pi_db, pi_user=pi_admin, pi_pwd=pi_passwd, taskname="NorthReadingsToPI")
 
         yield self.start_south_north_remote
 
@@ -256,11 +275,11 @@ class TestE2eFogPairPi:
         remove_directories("/tmp/fledge-north-{}".format("http"))
         remove_data_file(csv_file_path)
 
-    def _verify_egress(self, read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+    def _verify_egress(self, read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                        expected_read_values):
         """
         Verify that data is received in pi db by making calls to PI web api
-            read_data_from_pi: Fixture that reads data drom pi
+            read_data_from_pi_asset_server: Fixture that reads data drom pi
             pi_host: pi host
             pi_admin: pi machine username
             pi_passwd: pi machine password
@@ -272,7 +291,7 @@ class TestE2eFogPairPi:
         retry_count = 0
         data_from_pi = None
         while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-            data_from_pi = read_data_from_pi(pi_host, pi_admin, pi_passwd, pi_db, "fogpair_playback", [CSV_HEADERS])
+            data_from_pi = read_data_from_pi_asset_server(pi_host, pi_admin, pi_passwd, pi_db, "fogpair_playback", [CSV_HEADERS])
             retry_count += 1
             time.sleep(wait_time * 2)
 
@@ -282,14 +301,14 @@ class TestE2eFogPairPi:
         assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
 
     def test_end_to_end(self, start_south_north_remote, start_south_north_local,
-                        read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
+                        read_data_from_pi_asset_server, retries, pi_host, pi_admin, pi_passwd, pi_db,
                         fledge_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in Fledge (local instance) using playback south plugin,
             sinusoid south plugin and expression south plugin and sent to http north (filter only playback data),
             Fledge (remote instance) receive this data via http south and send to PI
             start_south_north_remote: Fixture that starts Fledge with http south service and pi north instance
             start_south_north_local: Fixture that starts Fledge with south services and north instance with asset filter
-            read_data_from_pi: Fixture that reads data from PI web api
+            read_data_from_pi_asset_server: Fixture that reads data from PI web api
             retries: number to retries to make to fetch data from pi
             pi_host: PI host IP
             pi_admin: PI Machine user
@@ -362,5 +381,5 @@ class TestE2eFogPairPi:
         assert expected_read_values == actual_read_values
 
         if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+            self._verify_egress(read_data_from_pi_asset_server, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                                 expected_read_values)

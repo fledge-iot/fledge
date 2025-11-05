@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -11,10 +11,12 @@
  */
 
 #include <map>
+#include <set>
 #include <reading.h>
 #include <OMFHint.h>
 #include <omfbuffer.h>
 #include <linkedlookup.h>
+#include <omferror.h>
 
 /**
  * The OMFLinkedData class.
@@ -48,13 +50,19 @@ class OMFLinkedData
 				OMFHints *hints = NULL);
 		void		buildLookup(const std::vector<Reading *>& reading);
 		void		setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
-		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
+		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header, OMFError& error, bool *isConnected);
+		std::size_t	clearLALookup(const std::vector<Reading *>& reading, std::size_t startIndex, std::size_t numReadings, std::string &delimiter);
 		void		setDelimiter(const std::string &delimiter) {m_delimiter = delimiter;};
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{
 					m_doubleFormat = doubleFormat;
 					m_integerFormat = integerFormat;
 				};
+		void		setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
+				{
+					m_staticData = staticData;
+				};
+
 	private:
 		std::string	getBaseType(Datapoint *dp, const std::string& format);
 		void		sendContainer(std::string& link, Datapoint *dp, OMFHints * hints, const std::string& baseType);
@@ -88,11 +96,17 @@ class OMFLinkedData
 		 */
 		OMF_ENDPOINT				m_endpoint;
 
+		/**
+		 * Static data to send to OMF
+		 */
+		std::vector<std::pair<std::string, std::string>> *m_staticData;
+
 
 		/**
 		 * The set of containers to flush
 		 */
 		std::string				m_containers;
+		std::set<std::string>   m_containerNames;
 		std::string				m_doubleFormat;
 		std::string				m_integerFormat;
 

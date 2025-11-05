@@ -16,6 +16,7 @@
 #include <thread>
 
 class Connection;
+class DiskSpaceMonitor;
 
 /**
  * Singleton class to manage SQLite3 connection pool
@@ -64,6 +65,7 @@ class ConnectionManager {
 		bool			     m_persist;
 		std::string	             m_filename;
 		unsigned long		     m_purgeBlockSize;
+		DiskSpaceMonitor	     *m_diskSpaceMonitor;
 };
 
 #endif

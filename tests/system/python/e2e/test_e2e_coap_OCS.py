@@ -11,7 +11,6 @@ import subprocess
 import http.client
 import json
 import time
-import requests
 import pytest
 
 __author__ = "Vaibhav Singhal"
@@ -107,7 +106,7 @@ def read_data_from_ocs():
         """ This method reads data from OCS web api """
 
         # TODO: use http.client instead of requests library
-
+        import requests
         ocs_type_id = 1
         ocs_stream = "{}measurement_{}".format(ocs_type_id, sensor)
         start_timestamp = "2019-01-01T00:00:00.000000Z"

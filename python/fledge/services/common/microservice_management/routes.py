@@ -45,7 +45,7 @@ def setup(app, obj, is_core=False):
         app.router.add_route('DELETE', '/fledge/service/{service_id}', obj.unregister)
         app.router.add_route('PUT', '/fledge/service/{service_id}/restart', obj.restart_service)
         app.router.add_route('GET', '/fledge/service', obj.get_service)
-        app.router.add_route('GET', '/fledge/service/authtoken', obj.get_auth_token)
+        app.router.add_route('POST', '/fledge/service/login', obj.service_login)
 
         # Interest Registration
         app.router.add_route('POST', '/fledge/interest', obj.register_interest)
@@ -76,6 +76,7 @@ def setup(app, obj, is_core=False):
         # alerts
         app.router.add_route('GET', '/fledge/alert/{key}', obj.get_alert)
         app.router.add_route('POST', '/fledge/alert', obj.add_alert)
+        app.router.add_route('DELETE', '/fledge/alert/{key}', obj.delete_alert)
 
         # Proxy API setup for a microservice
         proxy.setup(app)

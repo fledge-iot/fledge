@@ -300,12 +300,14 @@ class Scheduler(object):
                 val = 3
             elif pname == 'notification_c':
                 val = 5
-            elif pname == 'south_c':
+            elif pname == 'pipeline_c':
                 val = 7
-            elif pname == 'north_C':
+            elif pname == 'south_c':
                 val = 9
+            elif pname == 'north_C':
+                val = 11
             else:
-                val = 12
+                val = 14
             return val
 
         # This check is necessary only if significant time can elapse between "await" and
@@ -1066,6 +1068,10 @@ class Scheduler(object):
         # TODO should these checks be moved to the storage layer?
         if schedule.name is None or len(schedule.name) == 0:
             raise ValueError("name can not be empty")
+        # Don't allow invalid character in the schedule name
+        is_valid_identifier, blocked_character = common_utils.is_valid_identifier(schedule.name)
+        if not is_valid_identifier:
+                raise ValueError("Invalid character {} found in schedule name {}".format(blocked_character, schedule.name))
 
         if schedule.repeat is not None and not isinstance(schedule.repeat, datetime.timedelta):
             raise ValueError('repeat must be of type datetime.timedelta')

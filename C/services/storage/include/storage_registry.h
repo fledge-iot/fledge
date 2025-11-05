@@ -7,6 +7,14 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <map>
+
+/**
+ * The number of refused connections required before a registration
+ * is removed. Connection refusal is a result of the service that had
+ * registered failing.
+ */
+#define MAX_REFUSALS	3
 
 typedef std::vector<std::pair<std::string *, std::string *> > REGISTRY;
 
@@ -47,6 +55,8 @@ class StorageRegistry {
 		void		processDelete(char *tableName, char *payload);
 		TableRegistration*
 				parseTableSubscriptionPayload(const std::string& payload);
+		void		processAssetRefusals();
+		void		processTableRefusals();
 		void 		insertTestTableReg();
 		void		removeTestTableReg(int n);
         
@@ -70,6 +80,7 @@ class StorageRegistry {
 		std::condition_variable		m_cv;
 		std::mutex			m_cvMutex;
 		bool				m_running;
+		std::map<const std::string, int>	m_refusals;
 };
 
 #endif

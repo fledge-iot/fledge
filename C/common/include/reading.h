@@ -38,7 +38,7 @@ class Reading {
 		Reading(const std::string& asset, const std::string& datapoints);
 		Reading(const Reading& orig);
 
-		~Reading();	// This should bbe virtual
+		virtual	~Reading();
 		void				addDatapoint(Datapoint *value);
 		Datapoint			*removeDatapoint(const std::string& name);
 		Datapoint			*getDatapoint(const std::string& name) const;
@@ -59,11 +59,11 @@ class Reading {
 		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
 		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };
 		void				setId(unsigned long id) { m_id = id; };
-		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; };
+		void				setTimestamp(unsigned long ts) { m_timestamp.tv_sec = (time_t)ts; m_timestamp.tv_usec = 0; };
 		void				setTimestamp(struct timeval tm) { m_timestamp = tm; };
 		void				setTimestamp(const std::string& timestamp);
 		void				getTimestamp(struct timeval *tm) { *tm = m_timestamp; };
-		void				setUserTimestamp(unsigned long uTs) { m_userTimestamp.tv_sec = (time_t)uTs; };
+		void				setUserTimestamp(unsigned long uTs) { m_userTimestamp.tv_sec = (time_t)uTs; m_userTimestamp.tv_usec = 0; };
 		void				setUserTimestamp(struct timeval tm) { m_userTimestamp = tm; };
 		void				setUserTimestamp(const std::string& timestamp);
 		void				getUserTimestamp(struct timeval *tm) { *tm = m_userTimestamp; };
@@ -75,6 +75,7 @@ class Reading {
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 		// Return Reading asset time - user_ts time
 		const std::string getAssetDateUserTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
+		std::string			substitute(const std::string& str);
 
 	protected:
 		Reading() {};
@@ -90,6 +91,29 @@ class Reading {
 		std::vector<Datapoint *>	m_values;
 		// Supported date time formats for 'm_timestamp'
 		static std::vector<std::string>	m_dateTypes;
+	private:
+		// Internal class used for macro substitution
+		class Macro {
+			public:
+				Macro(const std::string& dpname, std::string::size_type s,
+						const std::string& defValue) :
+					start(s), name(dpname), def(defValue)
+
+				{
+				};
+				Macro(const std::string& dpname, std::string::size_type s) :
+					start(s), name(dpname)
+
+				{
+				};
+				// Start of variable to substitute
+				std::string::size_type		start;
+				// Name of variable to substitute
+				std::string			name;
+				// Default value to substitute
+				std::string			def;
+		};
+		void		collectMacroInfo(const std::string& str, std::vector<Macro>& macros);
 };
 #endif
 

@@ -21,6 +21,7 @@
 #include <logger.h>
 #include <stdexcept>
 #include <string_utils.h>
+#include <boost/algorithm/string/replace.hpp>
 
 
 using namespace std;
@@ -173,6 +174,8 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 
 /**
  * Copy constructor for a configuration category
+ *
+ * @param rhs	The configuration category to copy
  */
 ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 {
@@ -180,6 +183,22 @@ ConfigCategory::ConfigCategory(ConfigCategory const& rhs)
 	m_description = rhs.m_description;
 
 	for (auto it = rhs.m_items.cbegin(); it != rhs.m_items.cend(); it++)
+	{
+		m_items.push_back(new CategoryItem(**it));
+	}
+}
+
+/**
+ * Copy constructor for a configuration category when copying from a pointer
+ *
+ * @param rhs	The configuration category to copy
+ */
+ConfigCategory::ConfigCategory(ConfigCategory const *rhs)
+{
+	m_name = rhs->m_name;
+	m_description = rhs->m_description;
+
+	for (auto it = rhs->m_items.cbegin(); it != rhs->m_items.cend(); it++)
 	{
 		m_items.push_back(new CategoryItem(**it));
 	}
@@ -440,6 +459,144 @@ string ConfigCategory::getValue(const string& name) const
 }
 
 /**
+ * Return the value of the configuration category item with a default
+ *
+ * @param name         The name of the configuration item to return
+ * @param defaultValue The default value to return if the item does not exist
+ * @return string      The configuration item value or the default
+ */
+string ConfigCategory::getValue(const std::string& name, const std::string& defaultValue) const
+{
+	try
+	{
+		return getValue(name);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%s'", name.c_str(), e->what(), defaultValue.c_str());
+		delete e;
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a boolean value from a configuration category item
+ *
+ * @param name         The name of the item
+ * @param defaultValue The value to return if item is not found or invalid
+ * @return bool        The boolean value
+ */
+bool ConfigCategory::getBoolValue(const std::string& name, bool defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		std::string lower = val;
+		std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+		if (lower == "true" || lower == "1") return true;
+		if (lower == "false" || lower == "0") return false;
+		Logger::getLogger()->info("Config item '%s' expected to be boolean but got '%s'", name.c_str(), val.c_str());
+		return defaultValue;
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+}
+
+/**
+ * Return an integer value from a configuration category item
+ */
+int ConfigCategory::getIntegerValue(const std::string& name, int defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stoi(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%d'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be integer but got '%s', returning default value '%d'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%d'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a long value from a configuration category item
+ */
+long ConfigCategory::getLongValue(const std::string& name, long defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stol(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be long but got '%s', returning default value '%ld'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%ld'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
+ * Return a double value from a configuration category item
+ */
+double ConfigCategory::getDoubleValue(const std::string& name, double defaultValue) const
+{
+	try
+	{
+		string val = getValue(name);
+		return stod(val);
+	}
+	catch (ConfigItemNotFound* e)
+	{
+		Logger::getLogger()->info("'%s' %s , returning default value '%ld'", name.c_str(), e->what(), defaultValue);
+		delete e;
+		return defaultValue;
+	}
+	catch (std::invalid_argument& e)
+	{
+		Logger::getLogger()->info("Config item '%s' expected to be double but got '%s', returning default value '%lf'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+	catch (std::out_of_range& e)
+	{
+		Logger::getLogger()->info("Config item '%s' out of range: %s, returning default value '%lf'", 
+			name.c_str(), e.what(), defaultValue);
+		return defaultValue;
+	}
+}
+
+/**
  * Return the value of the configuration category item list, this
  * is a convience function used when simple lists are defined
  * and allows for central processing of the list values
@@ -592,6 +749,12 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_listItemType;
 				case LIST_NAME_ATTR:
 				    return m_items[i]->m_listName;
+				case KVLIST_KEY_NAME_ATTR:
+				    return m_items[i]->m_kvlistKeyName;
+				case KVLIST_KEY_DESCRIPTION_ATTR:
+				    return m_items[i]->m_kvlistKeyDescription;
+				case JSON_SCHEMA_ATTR:
+					return m_items[i]->m_jsonSchema;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -669,6 +832,15 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 				case LIST_NAME_ATTR:
 					m_items[i]->m_listName = value;
 					return true;
+				case KVLIST_KEY_NAME_ATTR:
+					m_items[i]->m_kvlistKeyName = value;
+					return true;
+				case KVLIST_KEY_DESCRIPTION_ATTR:
+					m_items[i]->m_kvlistKeyDescription = value;
+					return true;
+				case JSON_SCHEMA_ATTR:
+				    m_items[i]->m_jsonSchema = value;
+				    return true;
 				default:
 					return false;
 			}
@@ -867,6 +1039,50 @@ vector<string> ConfigCategory::getOptions(const string& name) const
 		if (name.compare(m_items[i]->m_name) == 0)
 		{
 			return m_items[i]->m_options;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return the permissions of the configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @return vector<string>	The configuration item permissions
+ * @throws exception if the item does not exist in the category
+ */
+vector<string> ConfigCategory::getPermissions(const string& name) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			return m_items[i]->m_permissions;
+		}
+	}
+	throw new ConfigItemNotFound();
+}
+
+/**
+ * Return true if the user has permission to update the named item
+ *
+ * @param name	The name of the configuration item to return
+ * @param rolename	The name of the user role to test
+ * @return bool	True if the named user can update the configuration item
+ * @throws exception if the item does not exist in the category
+ */
+bool ConfigCategory::hasPermission(const std::string& name, const std::string& rolename) const
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (name.compare(m_items[i]->m_name) == 0)
+		{
+			if (m_items[i]->m_permissions.empty())
+				return true;
+			for (auto& perm : m_items[i]->m_permissions)
+				if (rolename.compare(perm) == 0)
+					return true;
+			return false;
 		}
 	}
 	throw new ConfigItemNotFound();
@@ -1300,6 +1516,40 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 	}
 
+	if (item.HasMember("permissions"))
+	{
+		const Value& permissions = item["permissions"];
+		if (permissions.IsArray())
+		{
+			for (SizeType i = 0; i < permissions.Size(); i++)
+			{
+				m_permissions.push_back(string(permissions[i].GetString()));
+			}
+		}
+	}
+
+	if (item.HasMember("schema"))
+	{
+		Logger::getLogger()->debug("item['schema'].IsString()=%s, item['schema'].IsObject()=%s",
+										item["schema"].IsString()?"true":"false",
+										item["schema"].IsObject()?"true":"false");
+
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["schema"].Accept(writer);
+		m_jsonSchema = item["schema"].IsObject() ?
+			  // use current string
+			  strbuf.GetString() :
+			  // Unescape the string
+			  JSONunescape(strbuf.GetString());
+
+		Logger::getLogger()->debug("m_jsonSchema=%s", m_jsonSchema.c_str());
+	}
+	else
+	{
+		m_jsonSchema = "";
+	}
+
 	if (item.HasMember("items"))
 	{
 		if (item["items"].IsString())
@@ -1337,7 +1587,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			throw new runtime_error("ListName configuration item property is not a string");
 		}
 	}
-
+	if (item.HasMember("keyName"))
+	{
+		if (item["keyName"].IsString())
+		{
+			m_kvlistKeyName = item["keyName"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("keyName configuration item property is not a string");
+		}
+	}
+	if (item.HasMember("keyDescription"))
+	{
+		if (item["keyDescription"].IsString())
+		{
+			m_kvlistKeyDescription = item["keyDescription"].GetString();
+		}
+		else
+		{
+			throw new runtime_error("keyDescription configuration item property is not a string");
+		}
+	}
 	std::string m_typeUpperCase = m_type;
 	for (auto & c: m_typeUpperCase) c = toupper(c);
 
@@ -1358,6 +1629,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["value"].IsObject())
 		{
+			boost::replace_all(m_value, "\\n", "");
 			Document check;
 			check.Parse(m_value.c_str());
 			if (check.HasParseError())
@@ -1466,6 +1738,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["default"].IsObject())
 		{
+			boost::replace_all(m_default, "\\n", "");
 			Document check;
 			check.Parse(m_default.c_str());
 			if (check.HasParseError())
@@ -1624,6 +1897,13 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	m_listSize = rhs.m_listSize;
 	m_listItemType = rhs.m_listItemType;
 	m_listName = rhs.m_listName;
+	m_kvlistKeyName = rhs.m_kvlistKeyName;
+	m_kvlistKeyDescription = rhs.m_kvlistKeyDescription;
+	for (auto it = rhs.m_permissions.cbegin(); it != rhs.m_permissions.cend(); it++)
+	{
+		m_permissions.push_back(*it);
+	}
+	m_jsonSchema = rhs.m_jsonSchema;
 }
 
 /**
@@ -1651,6 +1931,18 @@ ostringstream convert;
 			if (i > 0)
 				convert << ",";
 			convert << "\"" << m_options[i] << "\"";
+		}
+		convert << "], ";
+	}
+
+	if (m_permissions.size() > 0)
+	{
+		convert << "\"permissions\" : [ ";
+		for (int i = 0; i < m_permissions.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_permissions[i] << "\"";
 		}
 		convert << "], ";
 	}
@@ -1748,6 +2040,18 @@ ostringstream convert;
 		{
 			convert << ", \"listName\" : \"" << m_listName << "\"";
 		}
+		if (!m_kvlistKeyName.empty())
+		{
+			convert << ", \"keyName\" : \"" << m_kvlistKeyName << "\"";
+		}
+		if (!m_kvlistKeyDescription.empty())
+		{
+			convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
+		}
+		if (!m_jsonSchema.empty())
+		{
+			convert << ", \"schema\" : " << m_jsonSchema;
+		}
 	}
 	convert << " }";
 
@@ -1835,6 +2139,17 @@ ostringstream convert;
 		}
 		convert << "]";
 	}
+	if (m_permissions.size() > 0)
+	{
+		convert << ", \"permissions\" : [ ";
+		for (int i = 0; i < m_permissions.size(); i++)
+		{
+			if (i > 0)
+				convert << ",";
+			convert << "\"" << m_permissions[i] << "\"";
+		}
+		convert << "]";
+	}
 	if (!m_listSize.empty())
 	{
 		convert << ", \"listSize\" : \"" << m_listSize << "\"";
@@ -1847,7 +2162,18 @@ ostringstream convert;
 	{
 	    convert << ", \"listName\" : \"" << m_listName << "\"";
 	}
-
+	if (!m_kvlistKeyName.empty())
+	{
+	    convert << ", \"keyName\" : \"" << m_kvlistKeyName << "\"";
+	}
+	if (!m_kvlistKeyDescription.empty())
+	{
+	    convert << ", \"keyDescription\" : \"" << m_kvlistKeyDescription << "\"";
+	}
+	if (!m_jsonSchema.empty())
+	{
+		convert << ", \"schema\" : " << m_jsonSchema;
+	}
 
 	if (m_itemType == StringItem ||
 	    m_itemType == EnumerationItem ||

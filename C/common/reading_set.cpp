@@ -214,7 +214,61 @@ ReadingSet::append(vector<Reading *>& readings)
 }
 
 /**
+ * merge the readings in a vector with the set of readings in the reading set.
+ * The input reading vector must be ordered as per timestamp and cleared at the end of the operation.
+ * @param readings	A vector of Reading pointers to merge with the ReadingSet
+*/
+void ReadingSet::merge(std::vector<Reading *> *readings)
+{
+	if (!readings || readings->empty()) {
+		return;
+	}
+
+	size_t totalSize = m_readings.size() + readings->size();
+	std::vector<Reading*> merged;
+	merged.reserve(totalSize);
+	merged.resize(totalSize);  // make sure we can assign via operator[]
+
+	size_t i = 0;
+	auto p1 = m_readings.begin();
+	auto p2 = readings->begin();
+
+	while (p1 != m_readings.end() || p2 != readings->end()) {
+		if (p1 != m_readings.end() && p2 != readings->end()) {
+			struct timeval ta, tb;
+			(*p1)->getUserTimestamp(&ta);
+			(*p2)->getUserTimestamp(&tb);
+
+			// stable ordering: if equal, p1 wins
+			if (timercmp(&ta, &tb, <=)) {
+				merged[i++] = *p1++;
+			} else {
+				if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+					m_last_id = (*p2)->getId();
+				}
+				merged[i++] = *p2++;
+			}
+		} else if (p1 != m_readings.end()) {
+			merged[i++] = *p1++;
+		} else if (p2 != readings->end()) {
+			if ((*p2)->hasId() && (*p2)->getId() > m_last_id) {
+				m_last_id = (*p2)->getId();
+			}
+			merged[i++] = *p2++;
+		}
+	}
+
+	m_readings = std::move(merged);
+	m_count = m_readings.size();
+	//Clear input readings vector
+	readings->clear();
+}
+
+/**
 * Deep copy a set of readings to this reading set.
+*
+* @param src	The reading set to copy
+* @return bool	True if the reading set was copied
 */
 bool
 ReadingSet::copy(const ReadingSet& src)
@@ -226,14 +280,15 @@ ReadingSet::copy(const ReadingSet& src)
 		// Iterate over all the readings in ReadingSet
 		for (auto const &reading : src.getAllReadings())
 		{
-			std::string assetName = reading->getAssetName();
-			std::vector<Datapoint *> dataPoints;
+			string assetName = reading->getAssetName();
+			string ts = reading->getAssetDateUserTime();
+			vector<Datapoint *> dataPoints;
 			try
 			{
 				// Iterate over all the datapoints associated with one reading
 				for (auto const &dp : reading->getReadingData())
 				{
-					std::string dataPointName  = dp->getName();
+					string dataPointName  = dp->getName();
 					DatapointValue dv = dp->getData();
 					dataPoints.emplace_back(new Datapoint(dataPointName, dv));
 					
@@ -263,7 +318,7 @@ ReadingSet::copy(const ReadingSet& src)
 				throw;
 			}
 			
-			Reading *in = new Reading(assetName, dataPoints);
+			Reading *in = new Reading(assetName, dataPoints, ts);
 			readings.emplace_back(in);
 	   }
    }
@@ -650,8 +705,13 @@ Datapoint *rval = NULL;
 					arrayValues.push_back(i);
 				}
 			}
-			DatapointValue value(arrayValues);
-			rval = new Datapoint(name, value);
+
+			// Don't create blank array of datapoint values
+			if (!arrayValues.empty())
+			{
+				DatapointValue value(arrayValues);
+				rval = new Datapoint(name, value);
+			}
 			break;
 			    
 		}

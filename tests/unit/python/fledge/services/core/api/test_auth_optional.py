@@ -4,12 +4,10 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import asyncio
 import json
 from unittest.mock import patch
 from aiohttp import web
 import pytest
-import sys
 
 from fledge.common.web import middleware
 from fledge.services.core import routes
@@ -30,8 +28,6 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "auth-optional")
 class TestAuthOptional:
 
     @pytest.fixture
@@ -45,13 +41,7 @@ class TestAuthOptional:
         return client
 
     async def test_get_roles(self, client):
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro([])
-        else:
-            _rv = asyncio.ensure_future(mock_coro([]))
-        
+        _rv = await mock_coro([])
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user/role')
@@ -64,11 +54,11 @@ class TestAuthOptional:
     @pytest.mark.parametrize("ret_val, exp_result", [
         ([], []),
         ([{'uname': 'admin', 'role_id': '1', 'access_method': 'any', 'id': '1', 'real_name': 'Admin',
-           'description': 'Admin user', 'enabled': 't'},
+           'description': 'Admin user', 'enabled': 't', 'failed_attempts': 0, 'block_until': ''},
           {'uname': 'user', 'role_id': '2', 'access_method': 'any', 'id': '2', 'real_name': 'Non-admin',
-           'description': 'Normal user', 'enabled': 't'},
+           'description': 'Normal user', 'enabled': 't', 'failed_attempts': 0, 'block_until': ''},
           {'uname': 'dviewer', 'role_id': '3', 'access_method': 'any', 'id': '3', 'real_name': 'Data-Viewer',
-           'description': 'Data user', 'enabled': 'f'}
+           'description': 'Data user', 'enabled': 'f', 'failed_attempts': 0, 'block_until': ''}
           ],
          [{"userId": "1", "userName": "admin", "roleId": "1", "accessMethod": "any", "realName": "Admin",
            "description": "Admin user"},
@@ -76,12 +66,7 @@ class TestAuthOptional:
            "description": "Normal user"}])
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(ret_val)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(ret_val))
-        
+        _rv = await mock_coro(ret_val)
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'all', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user')
@@ -92,22 +77,16 @@ class TestAuthOptional:
         patch_logger.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
     @pytest.mark.parametrize("request_params, exp_result, arg1, arg2", [
-        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, None),
-        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'},  None, 'admin'),
-        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, 'admin'),
-        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, None),
-        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, None, 'admin'),
+        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user','failed_attempts': 0, 'block_until': ''}, 1, None),
+        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''},  None, 'admin'),
+        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, 1, 'admin'),
+        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, 1, None),
+        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user', 'failed_attempts': 0, 'block_until': ''}, None, 'admin'),
     ])
     async def test_get_user_by_param(self, client, request_params, exp_result, arg1, arg2):
         result = {}
         result.update(exp_result)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(result)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(result))
-        
+        _rv = await mock_coro(result)
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'get', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user{}'.format(request_params))
@@ -144,21 +123,21 @@ class TestAuthOptional:
             assert 'Bad user ID' == resp.reason
         patch_logger.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
-    @pytest.mark.parametrize("request_data", [
-        {},
-        {"username": 12},
-        {"password": 12},
-        {"username": "blah"},
-        {"password": "blah"},
-        {"invalid": "blah"},
-        {"username": "blah", "pwd": "blah"},
-        {"uname": "blah", "password": "blah"},
+    @pytest.mark.parametrize("request_data, error_msg", [
+        ({}, "Invalid or untrusted certificate or missing credentials in payload."),
+        ({"username": 12}, "Username or password is missing"),
+        ({"password": 12}, "Username or password is missing"),
+        ({"username": "blah"}, "Username or password is missing"),
+        ({"password": "blah"}, "Username or password is missing"),
+        ({"invalid": "blah"}, "Username or password is missing"),
+        ({"username": "blah", "pwd": "blah"}, "Username or password is missing"),
+        ({"uname": "blah", "password": "blah"}, "Username or password is missing"),
     ])
-    async def test_bad_login(self, client, request_data):
+    async def test_bad_login(self, client, request_data, error_msg):
         with patch.object(middleware._logger, 'debug') as patch_logger:
             resp = await client.post('/fledge/login', data=json.dumps(request_data))
             assert 400 == resp.status
-            assert 'Username or password is missing' == resp.reason
+            assert error_msg == resp.reason
         patch_logger.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
 
     @pytest.mark.parametrize("request_data, status_code, exception_name, msg", [
@@ -167,16 +146,13 @@ class TestAuthOptional:
         ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
         ({"username": "user", "password": "fledge"}, 401, User.PasswordExpired,
-         'Your password has been expired. Please set your password again.')
+         'Your password has been expired. Please set your password again.'),
+        ({"username": "user1", "password": "blah"}, 400, User.PasswordNotSetError,
+         'Password is not set for this user.')
+
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro([])
-        else:
-            _rv = asyncio.ensure_future(mock_coro([]))
-        
+        _rv = await mock_coro([])
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
                 with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_token:
@@ -203,12 +179,7 @@ class TestAuthOptional:
         async def async_mock():
             return ret_val
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())        
-        
+        _rv = await async_mock()
         with patch.object(middleware._logger, 'debug') as patch_logger:
             with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
                 with patch.object(auth._logger, 'info') as patch_auth_logger:
@@ -308,14 +279,19 @@ class TestAuthOptional:
     ])
     async def test_valid_role(self, role_id, expected):
         ret_val = [{"id": "1", "description": "for the users having all CRUD privileges including other admin users", "name": "admin"}, {"id": "2", "description": "all CRUD operations and self profile management", "name": "user"}]
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro(ret_val)
-        else:
-            _rv = asyncio.ensure_future(mock_coro(ret_val))
-
+        _rv = await mock_coro(ret_val)
         with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_get_roles:
             actual = await auth.is_valid_role(role_id)
             assert expected is actual
         patch_get_roles.assert_called_once_with()
+
+    async def test_certificate(self, client):
+        with patch.object(middleware._logger, 'debug') as patch_logger:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.post('/fledge/admin/2/authcertificate')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger.assert_called_once_with('Received %s request for %s', 'POST',
+                                             '/fledge/admin/2/authcertificate')
+

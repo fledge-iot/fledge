@@ -78,7 +78,7 @@ PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 
 	paramName = getName();
 
-	m_logger = new Logger(paramName);
+	m_logger = Logger::getLogger();		// Logger is created by FledgeProcess
 	m_logger->info("PurgeSystem starting - parameters name :%s:", paramName.c_str() );
 
 	m_retainStatsHistory = 0;

@@ -37,6 +37,43 @@ _logger = FLCoreLogger().get_logger(__name__)
 NOTIFICATION_TYPE = ["one shot", "retriggered", "toggled"]
 
 
+class PluginFetchError(Exception):
+    def __init__(self, message="Failed to fetch notification plugins."):
+        super().__init__(message)
+
+
+async def fetch_plugins():
+    """ Fetch all rule and delivery plugins from notification service """
+    try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._port
+    except service_registry_exceptions.DoesNotExist:
+        raise ValueError("No Notification service available.")
+
+    try:
+        url = 'http://{}:{}/notification/rules'.format(_address, _port)
+        rule_plugins = json.loads(await _hit_get_url(url))
+        url = 'http://{}:{}/notification/delivery'.format(_address, _port)
+        delivery_plugins = json.loads(await _hit_get_url(url))
+    except Exception:
+        raise PluginFetchError()
+    else:
+        resp = {}
+        if rule_plugins is not None:
+            if isinstance(rule_plugins, dict) and 'rules' in rule_plugins:
+                resp['rules'] = rule_plugins['rules']
+            else:
+                resp['rules'] = rule_plugins
+
+        if delivery_plugins is not None:
+            if isinstance(delivery_plugins, dict) and 'delivery' in delivery_plugins:
+                resp['delivery'] = delivery_plugins['delivery']
+            else:
+                resp['delivery'] = delivery_plugins
+
+        return resp
+
+
 async def get_plugin(request):
     """ GET lists of rule plugins and delivery plugins
 
@@ -44,23 +81,16 @@ async def get_plugin(request):
         curl -X GET http://localhost:8081/fledge/notification/plugin
     """
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
-        _address, _port = notification_service[0]._address, notification_service[0]._port
-    except service_registry_exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason="No Notification service available.")
-
-    try:
-        url = 'http://{}:{}/notification/rules'.format(_address, _port)
-        rule_plugins = json.loads(await _hit_get_url(url))
-
-        url = 'http://{}:{}/notification/delivery'.format(_address, _port)
-        delivery_plugins = json.loads(await _hit_get_url(url))
-    except Exception as ex:
+        list_plugins = await fetch_plugins()
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get notification plugin list.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
+        return web.json_response(list_plugins)
 
 
 async def get_type(request):
@@ -186,16 +216,14 @@ async def post_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
         retrigger_time = data.get('retrigger_time', None)
-
         try:
-            if retrigger_time:
-                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
-                    pass
-                else:
+            if retrigger_time is not None:
+                if not (isinstance(retrigger_time, str) and float(retrigger_time) >= 0 and isinstance(
+                        float(retrigger_time), (int, float))):
                     raise ValueError
         except ValueError:
-            raise ValueError('Invalid retrigger_time property in payload.')
-
+            raise ValueError('retrigger_time value should be a number 0 or above. '
+                             'Ensure this value is quoted as string e.g. "2.5".')
         if name is None or name.strip() == "":
             raise ValueError('Missing name property in payload.')
         if description is None:
@@ -231,16 +259,9 @@ async def post_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            url = '{}/plugin'.format(request.url)
-            try:
-                # When authentication is mandatory we need to pass token in request header
-                auth_token = request.token
-            except AttributeError:
-                auth_token = None
-
-            list_plugins = json.loads(await _hit_get_url(url, auth_token))
-            r = list(filter(lambda rules: rules['name'] == rule, list_plugins['rules']))
-            c = list(filter(lambda channels: channels['name'] == channel, list_plugins['delivery']))
+            list_plugins_r = await fetch_plugins()
+            r = list(filter(lambda rules: rules['name'] == rule, list_plugins_r['rules']))
+            c = list(filter(lambda channels: channels['name'] == channel, list_plugins_r['delivery']))
             if len(r) == 0 or len(c) == 0: raise KeyError
             rule_plugin_config = r[0]['config']
             delivery_plugin_config = c[0]['config']
@@ -278,16 +299,14 @@ async def post_notification(request):
             "notification_type": notification_type,
             "enable": is_enabled,
         }
-        if retrigger_time:
+        if retrigger_time is not None:
             notification_config["retrigger_time"] = retrigger_time
-
         await _update_configurations(config_mgr, name, notification_config, rule_config, delivery_config)
-
         audit = AuditLogger(storage)
         await audit.information('NTFAD', {"name": name})
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except Exception as ex:
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to create notification instance.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -336,16 +355,14 @@ async def put_notification(request):
         rule_config = data.get('rule_config', {})
         delivery_config = data.get('delivery_config', {})
         retrigger_time = data.get('retrigger_time', None)
-
         try:
-            if retrigger_time:
-                if float(retrigger_time) > 0 and float(retrigger_time).is_integer():
-                    pass
-                else:
+            if retrigger_time is not None:
+                if not (isinstance(retrigger_time, str) and float(retrigger_time) >= 0 and isinstance(
+                        float(retrigger_time), (int, float))):
                     raise ValueError
         except ValueError:
-            raise ValueError('Invalid retrigger_time property in payload.')
-
+            raise ValueError('retrigger_time value should be a number 0 or above. '
+                             'Ensure this value is quoted as string e.g. "2.5".')
         if utils.check_reserved(notif) is False:
             raise ValueError('Invalid notification instance name.')
         if rule is not None and utils.check_reserved(rule) is False:
@@ -374,16 +391,7 @@ async def put_notification(request):
 
         try:
             # Get default config for rule and channel plugins
-            url = str(request.url)
-            url_parts = url.split("/fledge/notification")
-            url = '{}/fledge/notification/plugin'.format(url_parts[0])
-            try:
-                # When authentication is mandatory we need to pass token in request header
-                auth_token = request.token
-            except AttributeError:
-                auth_token = None
-
-            list_plugins = json.loads(await _hit_get_url(url, auth_token))
+            list_plugins = await fetch_plugins()
             search_rule = rule if rule_changed else current_config['rule']['value']
             r = list(filter(lambda rules: rules['name'] == search_rule, list_plugins['rules']))
             if len(r) == 0:
@@ -436,14 +444,14 @@ async def put_notification(request):
             notification_config.update({"notification_type": notification_type})
         if enabled is not None:
             notification_config.update({"enable": is_enabled})
-        if retrigger_time:
+        if retrigger_time is not None:
             notification_config["retrigger_time"] = retrigger_time
         await _update_configurations(config_mgr, notif, notification_config, rule_config, delivery_config)
     except ValueError as e:
         raise web.HTTPBadRequest(reason=str(e))
     except NotFoundError as e:
         raise web.HTTPNotFound(reason=str(e))
-    except Exception as ex:
+    except (Exception, PluginFetchError) as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to update {} notification instance.".format(notif))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

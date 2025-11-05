@@ -131,86 +131,13 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 
 				Logger::getLogger()->info(logMsg.c_str());
 
-				// Try loading all filter plugins: abort on any error
-				for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
-				{
-					if (itr->IsString())
-					{
-						// Get "plugin" item fromn filterCategoryName
-						string filterCategoryName = itr->GetString();
-						ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
-						if (!filterDetails.itemExists("plugin"))
-						{
-							string errMsg("loadFilters: 'plugin' item not found ");
-							errMsg += "in " + filterCategoryName + " category";
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						string filterName = filterDetails.getValue("plugin");
-						PLUGIN_HANDLE filterHandle;
-						// Load filter plugin only: we don't call any plugin method right now
-						filterHandle = loadFilterPlugin(filterName);
-						if (!filterHandle)
-						{
-							string errMsg("Cannot load filter plugin '" + filterName + "'");
-							Logger::getLogger()->fatal(errMsg.c_str());
-							throw runtime_error(errMsg);
-						}
-						else
-						{
-							// Save filter handler: key is filterCategoryName
-							filterInfo.push_back(pair<string,PLUGIN_HANDLE>
-									     (filterCategoryName, filterHandle));
-						}
-					}
-					else if (itr->IsArray())
-					{
-						// Sub pipeline
-						Logger::getLogger()->warn("This version of Fledge does not support branching of pipelines. The branch will be ignored.");
-					}
-					else if (itr->IsObject())
-					{
-						// An object, probably the write destination
-						Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
-					}
-					else
-					{
-						Logger::getLogger()->error("Unexpected object in  pipeline definition %s, ignoring", categoryName.c_str());
-					}
-				}
+				loadPipeline(filterList, m_filters);
 
 				// We have kept filter default config in the filterInfo map
 				// Handle configuration for each filter
-				PluginManager *pluginManager = PluginManager::getInstance();
-				for (vector<pair<string, PLUGIN_HANDLE>>::iterator itr = filterInfo.begin();
-				     itr != filterInfo.end();
-				     ++itr)
+				for (auto& itr : m_filters)
 				{
-					// Get plugin default configuration
-					string filterConfig = pluginManager->getInfo(itr->second)->config;
-
-					// Create/Update default filter category items
-					DefaultConfigCategory filterDefConfig(categoryName + "_" + itr->first, filterConfig);
-					string filterDescription = "Configuration of '" + itr->first;
-					filterDescription += "' filter for plugin '" + categoryName + "'";
-					filterDefConfig.setDescription(filterDescription);
-
-					if (!mgtClient->addCategory(filterDefConfig, true))
-					{
-						string errMsg("Cannot create/update '" + \
-							      categoryName + "' filter category");
-						Logger::getLogger()->fatal(errMsg.c_str());
-						throw runtime_error(errMsg);
-					}
-					children.push_back(categoryName + "_" + itr->first);
-
-					// Instantiate the FilterPlugin class
-					// in order to call plugin entry points
-					FilterPlugin* currentFilter = new FilterPlugin(itr->first,
-										       itr->second);
-
-					// Add filter to filters vector
-					m_filters.push_back(currentFilter);
+					itr->setupConfiguration(mgtClient, children);
 				}
 			}
 		}
@@ -248,6 +175,56 @@ bool FilterPipeline::loadFilters(const string& categoryName)
 	}
 }
 
+void FilterPipeline::loadPipeline(const Value& filterList, vector<PipelineElement *>& pipeline)
+{
+	// Try loading all filter plugins: abort on any error
+	for (Value::ConstValueIterator itr = filterList.Begin(); itr != filterList.End(); ++itr)
+	{
+		if (itr->IsString())
+		{
+			// Get "plugin" item from filterCategoryName
+			string filterCategoryName = itr->GetString();
+			Logger::getLogger()->info("Creating pipeline filter %s", filterCategoryName.c_str());
+			try {
+				ConfigCategory filterDetails = mgtClient->getCategory(filterCategoryName);
+
+				PipelineFilter *element = new PipelineFilter(filterCategoryName, filterDetails);
+				element->setServiceName(serviceName);
+				element->setStorage(&storage);
+				pipeline.emplace_back(element);
+			} catch (exception& e) {
+				Logger::getLogger()->error("Failed to create filter %s: %s",
+						filterCategoryName.c_str(), e.what());
+			} catch (exception *e) {
+				Logger::getLogger()->error("Failed to create filter %s: %s",
+						filterCategoryName.c_str(), e->what());
+			}
+		}
+		else if (itr->IsArray())
+		{
+			// Sub pipeline
+			Logger::getLogger()->info("Creating pipeline branch");
+			PipelineBranch *element = new PipelineBranch(this);
+			loadPipeline(*itr, element->getBranchElements());
+			pipeline.emplace_back(element);
+		}
+		else if (itr->IsObject())
+		{
+			// An object, probably the write destination
+			Logger::getLogger()->warn("This version of Fledge does not support pipelines with different destinations. The destination will be ignored and the data written to the default storage service.");
+		}
+		else
+		{
+			Logger::getLogger()->error("Unexpected object in pipeline definition, ignoring");
+		}
+	}
+
+	// End the pipeline with a writer element that sends data to the
+	// ingest of the storage system
+	PipelineWriter *element = new PipelineWriter();
+	pipeline.emplace_back(element);
+}
+
 /**
  * Set the filter pipeline
  * 
@@ -268,88 +245,72 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 	string errMsg = "'plugin_init' failed for filter '";
 	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
 	{
-		string filterCategoryName =  serviceName + "_" + (*it)->getName();
-		ConfigCategory updatedCfg;
-		vector<string> children;
 		
 		try
 		{
-			Logger::getLogger()->info("Load plugin categoryName %s", filterCategoryName.c_str());
-			// Fetch up to date filter configuration
-			updatedCfg = mgtClient->getCategory(filterCategoryName);
-
-			// Pass Management client IP:Port to filter so that it may connect to bucket service
-			updatedCfg.addItem("mgmt_client_url_base", "Management client host and port",
-								"string", "127.0.0.1:0",
-								mgtClient->getUrlbase());
-
-			// Add filter category name under service/process config name
-			children.push_back(filterCategoryName);
-			mgtClient->addChildCategories(serviceName, children);
-			
-			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
-			m_serviceHandler = (ServiceHandler *)ingest;
-			
-			m_filterCategories[filterCategoryName] = (*it);
+			if ((*it)->isBranch())
+			{
+				Logger::getLogger()->info("Set branch functions");
+				PipelineBranch *branch = (PipelineBranch *)(*it);
+				branch->setFunctions(passToOnwardFilter, useFilteredData, ingest);
+			}
+			Logger::getLogger()->info("Setup element %s", (*it)->getName().c_str());
+			(*it)->setup(mgtClient, ingest, m_filterCategories);
+			// Iterate the load filters set in the Ingest class m_filters member 
+			if ((it + 1) != m_filters.end())
+			{
+				(*it)->setNext(*(it + 1));
+				// Set next filter pointer as OUTPUT_HANDLE
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(*(it + 1)),
+							filterReadingSetFn(passToOnwardFilter)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
+					initErrors = true;
+					break;
+				}
+			}
+			else
+			{
+				// Set the Ingest class pointer as OUTPUT_HANDLE
+				try {
+					if (!(*it)->init((OUTPUT_HANDLE *)(ingest),
+							 filterReadingSetFn(useFilteredData)))
+					{
+						errMsg += (*it)->getName() + "'";
+						initErrors = true;
+						break;
+					}
+				} catch (exception& e) {
+					Logger::getLogger()->error("Unable to initialise plugin %s, %s", (*it)->getName().c_str(), e.what());
+					initErrors = true;
+					break;
+				}
+			}
 		}
 		// TODO catch specific exceptions
 		catch (...)
 		{		
 			throw;		
 		}
-
-		// Iterate the load filters set in the Ingest class m_filters member 
-		if ((it + 1) != m_filters.end())
-		{
-			// Set next filter pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					(OUTPUT_HANDLE *)(*(it + 1)),
-					filterReadingSetFn(passToOnwardFilter)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-		else
-		{
-			// Set the Ingest class pointer as OUTPUT_HANDLE
-			if (!(*it)->init(updatedCfg,
-					 (OUTPUT_HANDLE *)(ingest),
-					 filterReadingSetFn(useFilteredData)))
-			{
-				errMsg += (*it)->getName() + "'";
-				initErrors = true;
-				break;
-			}
-		}
-
-		if ((*it)->persistData())
-		{
-			// Plugin support SP_PERSIST_DATA
-			// Instantiate the PluginData class
-			(*it)->m_plugin_data = new PluginData(&storage);
-			// Load plugin data from storage layer
-			string pluginStoredData = (*it)->m_plugin_data->loadStoredData(serviceName + (*it)->getName());
-			//call 'plugin_start' with plugin data: startData()
-			(*it)->startData(pluginStoredData);
-		}
-		else
-		{
-			// We don't call simple plugin_start for filters right now
-		}
 	}
 
 	if (initErrors)
 	{
 		// Failure
-		Logger::getLogger()->fatal("%s error: %s", __FUNCTION__, errMsg.c_str());
+		Logger::getLogger()->fatal("Failed to create pipeline,  %s", errMsg.c_str());
 		return false;
 	}
 
 	// Set filter pipeline is ready for data ingest
 	m_ready = true;
+	// Set the service handler for the pipeline
+	m_serviceHandler = (ServiceHandler *)ingest;
 
 	//Success
 	return true;
@@ -365,38 +326,29 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
  */
 void FilterPipeline::cleanupFilters(const string& categoryName)
 {
-	// Cleanup filters, in reverse order
+
+	// Shutdown filters - do this down the pipeline, starting
+	// from the first filter in the pipeline. This allows a filter
+	// to asynchronously send data in the shutdown call to the
+	// next element in the pipeline since that next element has
+	// not yet been asked to shutdown.
+	//
+	// This is not behaviour that is encouraged or designed, but a
+	// small number of Python filters have implemented sending data
+	// during shutdown, hence the need to ensure that data has
+	// somewhere to go.
+	for (auto it = m_filters.begin(); it != m_filters.end(); ++it)
+	{
+		PipelineElement *element = *it;
+		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
+		element->shutdown(m_serviceHandler, configHandler);
+	}
+	// Delete filters, in reverse order
 	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
-		FilterPlugin* filter = *it;
-		string filterCategoryName =  categoryName + "_" + filter->getName();
-		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
-		configHandler->unregisterCategory(m_serviceHandler, filterCategoryName);
-		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
-		
-		// If plugin has SP_PERSIST_DATA option:
-		if (filter->m_plugin_data)
-	 	{
-			// 1- call shutdownSaveData and get up-to-date plugin data.
-			string saveData = filter->shutdownSaveData();
-			// 2- store returned data: key is service/task categoryName + pluginName
-			string key(categoryName + filter->getName());
-			if (!filter->m_plugin_data->persistPluginData(key, saveData))
-			{
-				Logger::getLogger()->error("Filter plugin %s has failed to save data [%s] for key %s",
-							   filter->getName().c_str(),
-							   saveData.c_str(),
-							   key.c_str());
-			}
-		}
-		else
-		{
-			// Call filter plugin shutdown
-			filter->shutdown();
-		}
-
+		PipelineElement *element = *it;
 		// Free filter
-		delete filter;
+		delete element;
 	}
 }
 
@@ -410,23 +362,6 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
  */
 void FilterPipeline::configChange(const string& category, const string& newConfig)
 {
-	Logger::getLogger()->debug("%s:%d: category=%s, newConfig=%s", __FUNCTION__, __LINE__, category.c_str(), newConfig.c_str());
-
-	if(newConfig.compare("logLevel") == 0)
-	{
-		PluginManager *pluginManager = PluginManager::getInstance();
-		Logger::getLogger()->debug("m_filterCategories has %d entries", m_filterCategories.size());
-		for(auto & it : m_filterCategories)
-		{
-			const string &filtername = it.first;
-			FilterPlugin *fp = it.second;
-			PLUGIN_TYPE type = pluginManager->getPluginImplType(fp->getHandle());
-			Logger::getLogger()->debug("%s:%d: filter name=%s, filter type = %s", __FUNCTION__, __LINE__, filtername.c_str(), (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
-			if(type == PYTHON_PLUGIN)
-				fp->reconfigure(newConfig);
-		}
-	}
-	
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{
@@ -434,3 +369,295 @@ void FilterPipeline::configChange(const string& category, const string& newConfi
 	}
 }
 
+/**
+ * Called when we pass the data into the pipeline. Set the
+ * number of active branches to 1
+ */
+void FilterPipeline::execute()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches = 1;
+}
+
+/**
+ * Wait for all active branches of the pipeline to complete
+ */
+void FilterPipeline::awaitCompletion()
+{
+	unique_lock<mutex> lck(m_actives);
+	while (m_activeBranches > 0)
+	{
+		m_branchActivations.wait(lck);
+	}
+}
+
+/**
+ * A new branch has started in the pipeline
+ */
+void FilterPipeline::startBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches++;
+}
+
+/**
+ * A branch in the pipeline has completed
+ */
+void FilterPipeline::completeBranch()
+{
+	unique_lock<mutex> lck(m_actives);
+	m_activeBranches--;
+	if (m_activeBranches == 0)
+	{
+		m_branchActivations.notify_all();
+	}
+}
+
+/**
+ * Attach the debugger to the pipeline elements
+ *
+ * @return bool	True if the pipeline was attached
+ */
+bool FilterPipeline::attachDebugger()
+{
+	bool rval =  attachDebugger(m_filters);
+	setDebuggerBuffer(1);
+	return rval;
+}
+
+/**
+ * Attach the debugger to the pipeline elements
+ *
+ * @param pipeline	The pipeline (or branch) to attach the debugger
+ * @return bool		True if the debugger was attached
+ */
+bool FilterPipeline::attachDebugger(const vector<PipelineElement *>& pipeline)
+{
+	bool ret = true;
+	if (pipeline.size() == 0)
+	{
+		// Makes no sense to attach the debugger to an empty pipeline
+		return false;
+	}
+	for (auto& elem : pipeline)
+	{
+		if (!elem->attachDebugger())
+		{
+			ret = false;
+			break;
+		}
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			if (!attachDebugger(branch->getBranchElements()))
+			{
+				ret = false;
+				break;
+			}
+		}
+	}
+	if (!ret)
+	{
+		// Detach any partially attached pipeline
+		detachDebugger(pipeline);
+	}
+	return ret;
+}
+
+/**
+ * Detach the debugger from the pipeline elements
+ */
+void FilterPipeline::detachDebugger()
+{
+	detachDebugger(m_filters);
+}
+
+/**
+ * Detach the debugger from the pipeline elements
+ *
+ * @param pipeline	The pipeline or branch to detach the debugger from
+ */
+void FilterPipeline::detachDebugger(const vector<PipelineElement *>& pipeline)
+{
+	for (auto& elem : pipeline)
+	{
+		elem->detachDebugger();
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			detachDebugger(branch->getBranchElements());
+		}
+	}
+}
+
+/**
+ * Set the debugger buffer size to the pipeline elements
+ *
+ * @param size	The request number of readings to buffer
+ */
+void FilterPipeline::setDebuggerBuffer(unsigned int size)
+{
+	setDebuggerBuffer(m_filters, size);
+}
+
+/**
+ * Set the debugger buffer size to the pipeline elements
+ *
+ * @param pipeline	The pipeline or branch to set the buffer size for
+ * @param size		The desired number of readings to buffer
+ */
+void FilterPipeline::setDebuggerBuffer(const vector<PipelineElement *>& pipeline, unsigned int size)
+{
+	for (auto& elem : pipeline)
+	{
+		elem->setDebuggerBuffer(size);
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			setDebuggerBuffer(branch->getBranchElements(), size);
+		}
+	}
+}
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer()
+{
+	string	rval = "{ \"data\" : [";
+	rval += getDebuggerBuffer(m_filters);
+	rval += "]}";
+	return rval;
+}
+
+
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @param pipeline	The pipeline to fetch the buffered data from
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer(const vector<PipelineElement *>& pipeline)
+{
+	string rval;
+
+	for (auto& elem : pipeline)
+	{
+		vector<shared_ptr<Reading>> buf = elem->getDebuggerBuffer();
+		rval += "{ \"name\" : \"";
+		rval += elem->getName();
+		rval += "\", \"readings\" : [ ";
+		rval += readingsToJSON(buf);
+		rval += "] }";
+		if (elem->getNext())
+			rval += ",";
+		if (elem->isBranch())
+		{
+			PipelineBranch *branch = (PipelineBranch *)elem;
+			rval += "[ ";
+			rval += getDebuggerBuffer(branch->getBranchElements());
+			rval += "], ";
+		}
+	}
+
+	return rval;
+}
+
+/**
+ * Get the debugger buffer contents for all the pipeline elements
+ *
+ * @param name		The name of the filter element we return the buffer from
+ * @return string	JSON document with all the buffer contents
+ */
+string FilterPipeline::getDebuggerBuffer(const string& name)
+{
+	string	rval;
+
+	for (auto& elem : m_filters)
+	{
+		if (elem->getName().compare(name) == 0)
+		{
+			vector<shared_ptr<Reading>> buf = elem->getDebuggerBuffer();
+			rval += "{ \"name\" : \"";
+			rval += name;
+			rval += "\", ";
+			rval += readingsToJSON(buf);
+			rval += "}";
+		}
+	}
+	return rval;
+}
+
+/**
+ * Convert a vector of readings into JSON that we can use to return 
+ * the buffered data held at each stage within the filter pipeline.
+ *
+ * @param readings	A vector of shared pointers to readings
+ * @return string	A JSON structure containing the pipeline buffers
+ */
+string FilterPipeline::readingsToJSON(vector<shared_ptr<Reading>> readings)
+{
+	string rval;
+
+	for (int j = 0; j < readings.size(); j++)
+	{
+		shared_ptr<Reading> reading = readings[j];
+		rval += reading->toJSON();
+		if (j < readings.size() - 1)
+				rval += ",";
+	}
+
+	return rval;
+}
+
+/**
+ * Replay the data in the first saved buffer to the filter pipeline
+ *
+ * @return bool	Returns true if data has been replayed, otehrwise retuns false
+ */
+bool FilterPipeline::replayDebugger()
+{
+ReadingSet 		*replay;
+vector<Reading *>	*readings = new vector<Reading *>;
+PipelineElement		*first;
+       
+	if (m_filters.size() > 0)
+	{
+		first = m_filters[0]; 
+	}
+	else
+	{
+		// No filters to replay to
+		return false;
+	}
+
+	if (first)
+	{
+		vector<shared_ptr<Reading>> buf = first->getDebuggerBuffer();
+		for (int i = 0; i < buf.size(); i++)
+		{
+			if (buf[i])
+			{
+				readings->emplace_back(new Reading(*buf[i].get()));
+			}
+		}
+		replay = new ReadingSet(readings);
+			
+		if (replay)
+		{
+			first->ingest(replay);
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}

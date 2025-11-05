@@ -30,7 +30,8 @@ static void threadMain(void *arg)
 DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) : 
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
 	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL), m_perfMonitor(NULL),
-	m_prefetchLimit(2)
+	m_prefetchLimit(2), m_isolate(false), m_debuggerAttached(false),
+	m_debuggerBufferSize(1), m_suspendIngest(false), m_steps(0)
 {
 	m_blockSize = DEFAULT_BLOCK_SIZE;
 
@@ -41,6 +42,7 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_nextStreamUpdate = 1;
 	m_streamUpdate = 1;
 	m_lastFetched = getLastSentId();
+	m_streamSent = getLastSentId();
 	m_flushRequired = false;
 	m_thread = new thread(threadMain, this);
 	loadFilters(name);
@@ -128,9 +130,12 @@ void DataLoad::loadThread()
 	while (!m_shutdown)
 	{
 		unsigned int block = waitForReadRequest();
-		while (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 
-		       						// the prefetch limit already queued
+		while (m_shutdown == false && m_queue.size() < m_prefetchLimit)
+		{
+			// Read another block if we have less than 
+			// the prefetch limit already queued
 			readBlock(block);
+		}
 	}
 }
 
@@ -174,7 +179,19 @@ void DataLoad::triggerRead(unsigned int blockSize)
 void DataLoad::readBlock(unsigned int blockSize)
 {
 	int n_waits = 0;
+	int n_update_streamId = 0;
+	int max_wait_count = 5;	// Maximum wait counter to update streams table
 	unsigned int waitPeriod = INITIAL_BLOCK_WAIT;
+	if (m_suspendIngest && willStep())
+	{
+		lock_guard<mutex> guard(m_suspendMutex);
+		blockSize = m_steps;
+		m_steps = 0;
+	}
+	else if (m_suspendIngest)
+	{
+		return;
+	}
 	do
 	{
 		ReadingSet* readings = nullptr;
@@ -211,6 +228,7 @@ void DataLoad::readBlock(unsigned int blockSize)
 		}
 		if (readings && readings->getCount())
 		{
+			n_update_streamId = 0;
 			m_lastFetched = readings->getLastId();
 			Logger::getLogger()->debug("DataLoad::readBlock(): Got %lu readings from storage client, updated m_lastFetched=%lu", 
 							readings->getCount(), m_lastFetched);
@@ -226,6 +244,12 @@ void DataLoad::readBlock(unsigned int blockSize)
 		{
 			// Delete the empty readings set
 			delete readings;
+			n_update_streamId++;
+			if (n_update_streamId > max_wait_count) {
+				// Update 'last_object_id' in 'streams' table when no readings to send
+				n_update_streamId = 0;
+				flushLastSentId();
+			}
 		}
 		else
 		{
@@ -253,7 +277,7 @@ ReadingSet *DataLoad::fetchStatistics(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -287,7 +311,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 {
 	const Condition conditionId(GreaterThan);
 	// WHERE id > lastId
-	Where* wId = new Where("id", conditionId, to_string(m_lastFetched + 1));
+	Where* wId = new Where("id", conditionId, to_string(m_lastFetched));
 	vector<Returns *> columns;
 	// Add colums and needed aliases
 	columns.push_back(new Returns("id"));
@@ -360,8 +384,8 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 {
 	if (m_pipeline)
 	{
-		FilterPlugin *firstFilter = m_pipeline->getFirstFilterPlugin();
-		if (firstFilter)
+		PipelineElement *firstElement = m_pipeline->getFirstFilterPlugin();
+		if (firstElement)
 		{
 
 			// Check whether filters are set before calling ingest
@@ -371,8 +395,12 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 									  "filter pipeline is ready");
 				std::this_thread::sleep_for(std::chrono::milliseconds(150));
 			}
+
+			m_pipeline->execute();
 			// Pass readingSet to filter chain
-			firstFilter->ingest(readings);
+			firstElement->ingest(readings);
+			m_pipeline->completeBranch();	// Main branch has completed
+			m_pipeline->awaitCompletion();
 			return;
 		}
 	}
@@ -400,7 +428,7 @@ void DataLoad::bufferReadings(ReadingSet *readings)
 ReadingSet *DataLoad::fetchReadings(bool wait)
 {
 	unique_lock<mutex> lck(m_qMutex);
-	while (m_queue.empty())
+	while (m_shutdown == false && m_queue.empty())
 	{
 		if (m_perfMonitor && m_perfMonitor->isCollecting())
 		{
@@ -416,9 +444,13 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 			return NULL;
 		}
 	}
-	ReadingSet *rval = m_queue.front();
-	m_queue.pop_front();
-	if (m_queue.size() < m_prefetchLimit)	// Read another block if we have less than 5 already queued
+	ReadingSet *rval = NULL;
+	if (!m_queue.empty())
+	{
+		rval = m_queue.front();
+		m_queue.pop_front();
+	}
+	if (m_queue.size() < m_prefetchLimit && m_shutdown == false)	// Read another block if we have less than 5 already queued
 	{
 		triggerRead(m_blockSize);
 	}
@@ -441,7 +473,7 @@ InsertValues streamValues;
 	if (m_storage->insertTable("streams", streamValues) != 1)
 	{
 		Logger::getLogger()->error("Failed to insert a row into the streams table");
-        }
+    }
 	else
 	{
 		// Select the row just created, having description='process name'
@@ -537,6 +569,12 @@ bool DataLoad::loadFilters(const string& categoryName)
 	if (rval)
 	{
 		m_pipeline = filterPipeline;
+		// If we previously had a debugger attached then attach to the new pipeline
+		if (m_debuggerAttached)
+		{
+			attachDebugger();
+			setDebuggerBuffer(m_debuggerBufferSize);
+		}
 	}
 	else
 	{
@@ -560,8 +598,8 @@ bool DataLoad::loadFilters(const string& categoryName)
 void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 				READINGSET *readingSet)
 {
-	// Get next filter in the pipeline
-	FilterPlugin *next = (FilterPlugin *)outHandle;
+	// Get next element in the pipeline
+	PipelineElement *next = (PipelineElement *)outHandle;
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -592,6 +630,12 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
+
+	if (load->isolated())
+	{
+		delete readingSet;
+		return;
+	}
 	std::vector<Reading *>* vecPtr = readingSet->getAllReadingsPtr();
     unsigned long lastReadingId = 0;
 

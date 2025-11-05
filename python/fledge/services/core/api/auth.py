@@ -5,18 +5,25 @@
 # FLEDGE_END
 
 """ auth routes """
+import asyncio
+import os
+import subprocess
 import datetime
 import re
 import json
 from collections import OrderedDict
+from pathlib import Path
 import jwt
 from aiohttp import web
 
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.logger import FLCoreLogger
 from fledge.common.web.middleware import has_permission
 from fledge.common.web.ssl_wrapper import SSLVerifier
+from fledge.services.core.api import utils as apiutils
 from fledge.services.core.user_model import User
+
 
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -43,16 +50,18 @@ _help = """
     | PUT                        | /fledge/admin/{user_id}/enable                     |
     | PUT                        | /fledge/admin/{user_id}/reset                      |
     | DELETE                     | /fledge/admin/{user_id}/delete                     |
+    | POST                       | /fledge/admin/{user_id}/authcertificate            |
     ------------------------------------------------------------------------------------
 """
 
 JWT_SECRET = 'f0gl@mp'
-JWT_ALGORITHM = 'HS256'
+JWT_ALGORITHM = 'HS512'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
@@ -101,7 +110,7 @@ async def login(request):
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
-
+    _data = {}
     try:
         # Check ott inside request payload.
         _data = json.loads(data)
@@ -110,6 +119,7 @@ async def login(request):
     except json.JSONDecodeError:
         if auth_method == 'password':
             raise web.HTTPBadRequest(reason="Use valid username & password to log in.")
+        # For auth_method 'any' or 'certificate', we might have certificate data
         pass
 
     # Check for appropriate payload per auth_method
@@ -124,18 +134,17 @@ async def login(request):
 
         try:
             await User.Objects.verify_certificate(data)
-            username = SSLVerifier.get_subject()['commonName']
+            username = SSLVerifier.get_subject()['commonName'].lower()
             uid, token, is_admin = await User.Objects.certificate_login(username, host)
             # set the user to request object
             request.user = await User.Objects.get(uid=uid)
             # set the token to request
             request.token = token
         except (SSLVerifier.VerificationError, User.DoesNotExist, OSError) as e:
-            raise web.HTTPUnauthorized(reason="Authentication failed")
+            raise web.HTTPUnauthorized(reason="Authentication failed: invalid or untrusted certificate.")
         except ValueError as ex:
             raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
     elif auth_method == "OTT":
-
         _ott = _data.get('ott')
         if _ott not in OTT.OTT_MAP:
             raise web.HTTPUnauthorized(reason="Authentication failed. Either the given token expired or already used.")
@@ -151,6 +160,9 @@ async def login(request):
         else:
             raise web.HTTPUnauthorized(reason="Authentication failed! The given token has expired")
     else:
+        # Ensure we have valid JSON data
+        if not _data:
+            raise web.HTTPBadRequest(reason="Invalid or untrusted certificate or missing credentials in payload.")
 
         username = _data.get('username')
         password = _data.get('password')
@@ -166,14 +178,22 @@ async def login(request):
             host, port = peername
         try:
             uid, token, is_admin = await User.Objects.login(username, password, host)
-        except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+        except User.PasswordNotSetError as err:
+            msg = str(err)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
         except User.PasswordExpired as ex:
             # delete all user token for this user
             await User.Objects.delete_user_tokens(str(ex))
             msg = 'Your password has been expired. Please set your password again.'
             _logger.warning(msg)
             raise web.HTTPUnauthorized(reason=msg)
+        except Exception as exc:
+            msg = str(exc)
+            _logger.error(exc, "Failed to login.")
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     _logger.info("User with username:<{}> logged in successfully.".format(username))
     return web.json_response({"message": "Logged in successfully.", "uid": uid, "token": token, "admin": is_admin})
@@ -283,6 +303,7 @@ async def logout(request):
     return web.json_response({"logout": True})
 
 
+@has_permission("admin")
 async def get_roles(request):
     """ get roles
 
@@ -304,7 +325,6 @@ async def get_user(request):
     """
     user_id = None
     user_name = None
-
     if 'id' in request.query:
         try:
             user_id = int(request.query['id'])
@@ -315,9 +335,13 @@ async def get_user(request):
 
     if 'username' in request.query and request.query['username'] != '':
         user_name = request.query['username'].lower()
-
     if user_id or user_name:
         try:
+            if not request.is_auth_optional:
+                if int(request.user["role_id"]) not in [1, 5]:
+                    if ((user_id is not None and int(request.user["id"]) != user_id)
+                            or (user_name is not None and request.user["uname"] != user_name)):
+                        raise web.HTTPForbidden
             user = await User.Objects.get(user_id, user_name)
             u = OrderedDict()
             u['userId'] = user.pop('id')
@@ -342,6 +366,11 @@ async def get_user(request):
                 u["accessMethod"] = row["access_method"]
                 u["realName"] = row["real_name"]
                 u["description"] = row["description"]
+                if row["block_until"]:
+                    curr_time = datetime.datetime.now(datetime.timezone.utc).strftime(DATE_FORMAT)
+                    block_time = row["block_until"].split('.')[0] # strip time after HH:MM:SS for display
+                    if datetime.datetime.strptime(row["block_until"], DATE_FORMAT) > datetime.datetime.strptime(curr_time, DATE_FORMAT):
+                        u["blockUntil"] = block_time
                 res.append(u)
         result = {'users': res}
 
@@ -570,6 +599,16 @@ async def update_password(request):
         msg = "User ID should be in integer."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    # Restrictions
+    if int(request.user["id"]) != int(user_id):
+        # Super Admin default user
+        if int(user_id) == 1:
+            raise web.HTTPUnauthorized(reason="Insufficient privileges to update the password for the given user.")
+        else:
+            if int(request.user["role_id"]) != ADMIN_ROLE_ID:
+                raise web.HTTPUnauthorized(
+                    reason="Insufficient privileges to update the password for the given user.")
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -578,7 +617,7 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        err_msg = "New password should be in string format."
+        err_msg = "New password should be a valid string."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
     error_msg = await validate_password(new_password)
     if error_msg:
@@ -680,6 +719,59 @@ async def enable_user(request):
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
+@has_permission("admin")
+async def unblock_user(request):
+    """ Unblock the user got blocked due to multiple invalid log in attempts
+        :Example:
+            curl -H "authorization: <token>" -X PUT  http://localhost:8081/fledge/admin/{user_id}/unblock
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+
+    try:
+        from fledge.services.core import connect
+        storage_client = connect.get_storage_async()
+        result = await _unblock_user(user_id,storage_client)
+        if 'response' in result:
+            if result['response'] == 'updated':
+                # USRUB audit trail entry
+                audit = AuditLogger(storage_client)
+                await audit.information('USRUB', {'user_id': int(user_id),
+                                "message": "User with ID:<{}> has been unblocked.".format(user_id)})
+        else:
+            raise KeyError("Unblock operation for user with ID:<{}> failed".format(user_id))
+    except (KeyError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        _logger.error(exc, "Failed to unblock user ID:<{}>.".format(user_id))
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'message': 'User with ID:<{}> has been unblocked successfully.'.format(int(user_id))})
+
+
+async def _unblock_user(user_id, storage_client):
+    """ implementation for unblock user
+    """
+
+    from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+    payload = PayloadBuilder().SELECT("id").WHERE(
+        ['id', '=', user_id]).payload()
+    old_result = await storage_client.query_tbl_with_payload('users', payload)
+    if len(old_result['rows']) == 0:
+        raise User.DoesNotExist('User does not exist')
+
+    # Clear the failed_attempts so that maximum allowed attempts can be used correctly
+    payload = PayloadBuilder().SET(block_until=None, failed_attempts=0).WHERE(['id', '=', user_id]).payload()
+    result = await storage_client.update_tbl("users", payload)
+    return result
 
 @has_permission("admin")
 async def reset(request):
@@ -714,9 +806,10 @@ async def reset(request):
     if password and not isinstance(password, str):
         err_msg = "New password should be in string format."
         raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
-    error_msg = await validate_password(password)
-    if error_msg:
-        raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
+    if password:
+        error_msg = await validate_password(password)
+        if error_msg:
+            raise web.HTTPBadRequest(reason=error_msg, body=json.dumps({"message": error_msg}))
     user_data = {}
     if 'role_id' in data:
         user_data.update({'role_id': data['role_id']})
@@ -797,6 +890,66 @@ async def delete_user(request):
     return web.json_response({'message': "User has been deleted successfully."})
 
 
+@has_permission("admin")
+async def create_certificate(request):
+    """ Add authentication certificate
+
+    :Example:
+        curl -o username.cert -H "authorization: <token>" -sX POST  http://localhost:8081/fledge/admin/{user_id}/authcertificate
+    """
+
+    async def delete_cert_after_response(cert_dir, cert_name):
+        await asyncio.sleep(1)
+        import glob
+        files = "{}/{}*".format(cert_dir, cert_name)
+        for f in glob.glob(files):
+            os.remove(f)
+
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = int(request.match_info.get('user_id'))
+    try:
+        data = await request.json()
+        expiration_days = data.get("expiration_days", 365)
+        if not isinstance(expiration_days, int):
+            msg = "expiration_days must be an integer."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+        if expiration_days < 1 or expiration_days > 365:
+            msg = "expiration_days must be between 1 and 365."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+    except json.JSONDecodeError:
+        expiration_days = 365
+    try:
+        user = await User.Objects.get(uid=user_id)
+        username = user['uname']
+        os.chdir(_FLEDGE_ROOT)
+        result = subprocess.run(['bash', "./scripts/auth_certificates", 'user', username, str(expiration_days)])
+        if result.returncode != 0:
+            raise Exception
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+    except User.DoesNotExist:
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps(msg))
+    except Exception as exc:
+        msg = str(exc)
+        _logger.error(exc, "Unable to generate the authentication certificate for user '{}'..".format(username))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps(msg))
+    else:
+        certs_dir = apiutils.get_fl_dir("/etc/certs/")
+        cert_path = Path(certs_dir) / "{}.cert".format(username)
+        if cert_path.exists() and cert_path.is_file():
+            response = web.FileResponse(path=cert_path)
+            asyncio.ensure_future(delete_cert_after_response(certs_dir, username))
+            return response
+        else:
+            msg = "The certificate for {} could not be found.".format(username)
+            return web.HTTPNotFound(reason=msg, body=json.dumps(msg))
+
+
 async def is_valid_role(role_id):
     roles = [int(r["id"]) for r in await User.Objects.get_roles()]
     try:
@@ -828,9 +981,9 @@ async def validate_password(password) -> str:
     min_chars = category['length']['value']
     max_chars = category['length']['maximum']
     if len(password) < int(min_chars):
-        message = "Password length is minimum of {} characters.".format(min_chars)
+        message = "Password should have minimum {} characters.".format(min_chars)
     if len(password) > int(max_chars):
-        message = "Password length is maximum of {} characters.".format(max_chars)
+        message = "Password should have maximum {} characters.".format(max_chars)
     if not message:
         has_lower = any(pwd.islower() for pwd in password)
         has_upper = any(pwd.isupper() for pwd in password)

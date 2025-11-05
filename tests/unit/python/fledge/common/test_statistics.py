@@ -6,8 +6,6 @@
 
 import asyncio
 import json
-import sys
-
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -21,8 +19,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "statistics")
 class TestStatistics:
 
     async def test_init_with_no_storage(self):
@@ -38,12 +34,7 @@ class TestStatistics:
             await asyncio.sleep(0)
             return ""
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(statistics.Statistics, '_load_keys', return_value=_rv):
             s = await statistics.create_statistics(storage_client_mock)
             assert isinstance(s, statistics.Statistics)
@@ -56,12 +47,7 @@ class TestStatistics:
         async def mock_coro():
             return ""
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(statistics.Statistics, '_load_keys', return_value=_rv):
             storageMock1 = MagicMock(spec=StorageClientAsync)
             s1 = await statistics.create_statistics(storageMock1)
@@ -80,12 +66,7 @@ class TestStatistics:
             await asyncio.sleep(0)
             return {"response": "updated", "rows_affected": 1}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(stats, '_load_keys', return_value=_rv):
             with patch.object(stats._storage, 'insert_into_tbl', return_value=_rv) as stat_update:
                 await stats.register('T1Stat', 'Test stat')
@@ -107,12 +88,7 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(stats, '_load_keys', return_value=_rv):
             with patch.object(stats._storage, 'insert_into_tbl', return_value=_rv) as stat_insert:
                 await stats.register('T2Stat', 'Test stat')
@@ -141,12 +117,8 @@ class TestStatistics:
         async def mock_coro():
             return {'rows': [{"previous_value": 0, "value": 1,
                               "key": "K1", "description": "desc1"}]}
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        
+        _rv = await mock_coro()
         with patch.object(s._storage, 'query_tbl_with_payload', return_value=_rv) as patch_query_tbl:
             await s._load_keys()
             assert "K1" in s._registered_keys
@@ -161,12 +133,7 @@ class TestStatistics:
         async def mock_coro():
             return Exception
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(statistics._logger, 'exception') as logger_exception:
             with patch.object(s._storage, 'query_tbl_with_payload', return_value=_rv):
                 await s._load_keys()
@@ -180,12 +147,7 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         payload = '{"where": {"column": "key", "condition": "=", "value": "READING"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 5}]}'
         expected_result = {"response": "updated", "rows_affected": 1}
@@ -230,12 +192,7 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "updated", "rows_affected": 1}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(s._storage, 'update_tbl', return_value=_rv) as stat_update:
             await s.add_update(stat_dict)
         stat_update.assert_called_once_with('statistics', payload)
@@ -248,12 +205,7 @@ class TestStatistics:
         async def mock_coro():
             return {"response": "not updated", "rows_affected": 0}
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro()
-        else:
-            _rv = asyncio.ensure_future(mock_coro())
-
+        _rv = await mock_coro()
         with patch.object(s._storage, 'update_tbl', return_value=_rv) as stat_update:
             with patch.object(statistics._logger, 'exception') as logger_exception:
                 with pytest.raises(KeyError):

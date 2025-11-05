@@ -36,7 +36,7 @@ CheckUpdates::CheckUpdates(int argc, char** argv) : FledgeProcess(argc, argv)
 {
 	std::string paramName;
 	paramName = getName();
-	m_logger = new Logger(paramName);
+	m_logger = Logger::getLogger();	// Logger is created by FledgeProcess
 	m_logger->info("CheckUpdates starting - parameters name :%s:", paramName.c_str() );
 	m_mgtClient = this->getManagementClient();
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+#help 		Attach the pipeline debugger
+curl -s -X PUT http://localhost:${DEBUG_SERVICE}/fledge/${DEBUG_TYPE}/debug/attach|jq

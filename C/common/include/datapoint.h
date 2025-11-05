@@ -18,6 +18,7 @@
 #include <dpimage.h>
 #include <databuffer.h>
 #include <rapidjson/document.h>
+#include "string_utils.h"
 
 class Datapoint;
 /**
@@ -325,7 +326,7 @@ class Datapoint {
 		 */
 		std::string	toJSONProperty()
 		{
-			std::string rval = "\"" + m_name + "\":";
+			std::string rval = "\"" + escape(m_name) + "\":";
 			rval += m_value.toString();
 
 			return rval;

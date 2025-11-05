@@ -6,6 +6,7 @@
 
 """Common utilities"""
 
+import asyncio
 import functools
 import datetime
 
@@ -39,6 +40,22 @@ def check_reserved(string):
             return False
     return True
 
+def is_valid_identifier(string):
+    """
+    Check if the given string is a valid identifier which doesn't have any disallowed characters.
+   
+    :param string: The string to check.
+    :return: True if the string is a valid identifier, False otherwise.
+    """
+    disallowed_characters = ["\\"]
+    if string is None or not isinstance(string, str) or string == "":
+        return False , ""
+    for ch in disallowed_characters:
+        if ch in string:    # check if disallowed char exists anywhere
+            return False, ch
+    return True, ""
+
+   
 
 def check_fledge_reserved(string):
     reserved = [
@@ -138,7 +155,6 @@ def get_open_ssl_version(version_string=True):
 def make_async(fn):
     """ turns a sync function to async function using threads """
     from concurrent.futures import ThreadPoolExecutor
-    import asyncio
     pool = ThreadPoolExecutor()
 
     @functools.wraps(fn)
@@ -147,4 +163,47 @@ def make_async(fn):
         return asyncio.wrap_future(future)  # make it awaitable
 
     return wrapper
+
+
+def dict_difference(dict1, dict2):
+    """ Compare two dictionaries and return their difference """
+    diff = {}
+
+    # Check keys in dict1 not in dict2
+    for key in dict1:
+        if key not in dict2:
+            diff[key] = dict1[key]
+        else:
+            # Recursively compare nested dictionaries
+            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                nested_diff = dict_difference(dict1[key], dict2[key])
+                if nested_diff:
+                    diff[key] = nested_diff
+            elif dict1[key] != dict2[key]:
+                diff[key] = dict1[key]
+
+    # Check keys in dict2 not in dict1
+    for key in dict2:
+        if key not in dict1:
+            diff[key] = dict2[key]
+        else:
+            # Recursively compare nested dictionaries
+            if isinstance(dict1[key], dict) and isinstance(dict2[key], dict):
+                nested_diff = dict_difference(dict1[key], dict2[key])
+                if nested_diff:
+                    diff[key] = nested_diff
+            elif dict1[key] != dict2[key]:
+                diff[key] = dict2[key]
+    return diff
+
+
+def async_sleep(seconds):
+    # Check Python version
+    if sys.version_info < (3, 7):
+        # For older versions, explicitly pass the loop argument
+        loop = asyncio.get_event_loop()
+        return asyncio.sleep(seconds, loop=loop)
+    else:
+        # For Python 3.7+, just use asyncio.sleep as usual
+        return asyncio.sleep(seconds)
 

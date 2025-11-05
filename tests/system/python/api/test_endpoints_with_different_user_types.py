@@ -38,16 +38,11 @@ def change_to_auth_mandatory(fledge_url, wait_time):
     jdoc = json.loads(r)
     assert "mandatory" == jdoc['authentication']['value']
 
-    conn.request("PUT", '/fledge/restart', json.dumps({}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "Fledge restart has been scheduled." == jdoc['message']
+    from conftest import restart_and_wait_for_fledge
+    restart_and_wait_for_fledge(fledge_url, wait_time)
 
 
-def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 3)
+def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url):
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
@@ -110,14 +105,21 @@ class TestAPIEndpointsWithViewUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
-        ("PUT", "/fledge/user/3/password", 500), ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=3", 200), ("GET", "/fledge/user?id=2", 403),
+        ("GET", "/fledge/user?username={}".format(VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 403),
+        ("GET", "/fledge/user?id={}&username={}".format(3, VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
+        ("GET", "/fledge/user?username=admin&id=1", 403),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/3/password", 500),
+        ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -186,7 +188,7 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/plugins/installed", 200),
         # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt-update
         ("POST", "/fledge/plugins", 403), ("PUT", "/fledge/plugins/south/sinusoid/update", 403),
-        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("GET", "/fledge/service/foo/persist", 404),
+        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("PUT", "/fledge/plugin/validate", 400), ("GET", "/fledge/service/foo/persist", 404),
         ("GET", "/fledge/service/foo/plugin/omf/data", 404), ("POST", "/fledge/service/foo/plugin/omf/data", 403),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 403),
         # filters
@@ -228,7 +230,12 @@ class TestAPIEndpointsWithViewUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 403),
         ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
-        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 403),
+        ("GET", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/{name}/debug?action=attach", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -268,14 +275,20 @@ class TestAPIEndpointsWithDataViewUserType:
         # health
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
-        ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
-        ("PUT", "/fledge/user/4/password", 500), ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user", 403), ("GET", "/fledge/user?id=4", 200), ("GET", "/fledge/user?id=1", 403),
+        ("GET", "/fledge/user?username={}".format(DATA_VIEW_USERNAME), 200), ("GET", "/fledge/user?username=user", 403),
+        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
+        ("GET", "/fledge/user?id=1&username=admin", 403),
+        ("GET", "/fledge/user?username={}&id={}".format(DATA_VIEW_USERNAME, 4), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403), ("PUT", "/fledge/user/4/password", 500),
+        ("GET", "/fledge/user/role", 403),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 403),
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 403), ("POST", "/fledge/category", 403), ("GET", "/fledge/category/General", 403),
         ("PUT", "/fledge/category/General", 403), ("DELETE", "/fledge/category/General", 403),
@@ -342,7 +355,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # plugins
         ("GET", "/fledge/plugins/installed", 403), ("GET", "/fledge/plugins/available", 403),
         ("POST", "/fledge/plugins", 403), ("PUT", "/fledge/plugins/south/sinusoid/update", 403),
-        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("GET", "/fledge/service/foo/persist", 403),
+        ("DELETE", "/fledge/plugins/south/sinusoid", 403), ("PUT", "/fledge/plugin/validate", 403), ("GET", "/fledge/service/foo/persist", 403),
         ("GET", "/fledge/service/foo/plugin/omf/data", 403), ("POST", "/fledge/service/foo/plugin/omf/data", 403),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 403),
         # filters
@@ -384,7 +397,12 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 403), ("DELETE", "/fledge/monitors", 403),
         ("DELETE", "/fledge/monitors/SVC", 403), ("DELETE", "/fledge/monitors/Svc/Counter", 403),
         # alerts
-        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403)
+        ("GET", "/fledge/alert", 403), ("DELETE", "/fledge/alert", 403), ("DELETE", "/fledge/alert/blah", 403),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 403),
+        ("GET", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 403),
+        ("PUT", "/fledge/service/name/debug?action=attach", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
@@ -407,7 +425,8 @@ class TestAPIEndpointsWithControlUserType:
     def test_login(self, fledge_url, wait_time):
         time.sleep(wait_time * 2)
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("POST", "/fledge/login", json.dumps({"username": CONTROL_USERNAME, "password": CONTROL_PWD}))
+        conn.request("POST", "/fledge/login", json.dumps({"username": CONTROL_USERNAME,
+                                                          "password": CONTROL_PWD}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -424,14 +443,21 @@ class TestAPIEndpointsWithControlUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 500),
-        ("PUT", "/fledge/user/3/password", 500), ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user", 200), ("GET", "/fledge/user?id=5", 200), ("GET", "/fledge/user?id=1", 200),
+        ("GET", "/fledge/user?username={}".format(CONTROL_USERNAME), 200), ("GET", "/fledge/user?username=admin", 200),
+        ("GET", "/fledge/user?id={}&username={}".format(5, CONTROL_USERNAME), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(CONTROL_USERNAME, 5), 200),
+        ("GET", "/fledge/user?username={}&id={}".format(VIEW_USERNAME, 3), 200),
+        ("GET", "/fledge/user?id={}&username={}".format(4, DATA_VIEW_USERNAME), 200),
+        ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 401), ("PUT", "/fledge/user/5/password", 500),
+        ("GET", "/fledge/user/role", 403),
         # auth
-        ("POST", "/fledge/login", 500), ("PUT", "/fledge/31/logout", 401),
+        ("POST", "/fledge/login", 400), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),
         # admin
         ("POST", "/fledge/admin/user", 403), ("DELETE", "/fledge/admin/3/delete", 403), ("PUT", "/fledge/admin/3", 403),
         ("PUT", "/fledge/admin/3/enable", 403), ("PUT", "/fledge/admin/3/reset", 403),
+        ("POST", "/fledge/admin/3/authcertificate", 403),
         # category
         ("GET", "/fledge/category", 200), ("POST", "/fledge/category", 400), ("GET", "/fledge/category/General", 200),
         ("PUT", "/fledge/category/General", 400), ("DELETE", "/fledge/category/General", 400),
@@ -502,7 +528,7 @@ class TestAPIEndpointsWithControlUserType:
         # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt operations
         # ("PUT", "/fledge/plugins/south/sinusoid/update", 200),
         # ("DELETE", "/fledge/plugins/south/sinusoid", 404),
-        ("POST", "/fledge/plugins", 400), ("GET", "/fledge/service/foo/persist", 404),
+        ("POST", "/fledge/plugins", 400), ("PUT", "/fledge/plugin/validate", 400), ("GET", "/fledge/service/foo/persist", 404),
         ("GET", "/fledge/service/foo/plugin/omf/data", 404), ("POST", "/fledge/service/foo/plugin/omf/data", 404),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 404),
         # filters
@@ -544,7 +570,12 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/monitors/Svc/Counter", 200), ("DELETE", "/fledge/monitors", 200),
         ("DELETE", "/fledge/monitors/SVC", 200), ("DELETE", "/fledge/monitors/Svc/Counter", 200),
         # alerts
-        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404)
+        ("GET", "/fledge/alert", 200), ("DELETE", "/fledge/alert", 200), ("DELETE", "/fledge/alert/blah", 404),
+        # pipeline debugger
+        ("GET", "/fledge/service/name/debug?action=state", 404),
+        ("GET", "/fledge/service/name/debug?action=buffer", 404),
+        ("PUT", "/fledge/service/name/debug?action=buffer", 404),
+        ("PUT", "/fledge/service/{name}/debug?action=attach", 404)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)

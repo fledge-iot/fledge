@@ -18,8 +18,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "web")
 class TestSSLVerifier:
     @pytest.fixture
     def user_cert(self):
@@ -80,10 +78,13 @@ AShK4DM84LGNChzbdD6EVAl066+d9FRDuoX0KJj2/qepeevh2LC8dqG/QHcl75Ef
                        'Time Stamp signing CA : No'
                        ]
         assert '01' == SSLVerifier.get_serial()
+        # TODO: FOGL-7302 -x509_strict check when OpenSSL version >=3.x; Currently, only Ubuntu 22 and CentOS Stream 9
         if utils.get_open_ssl_version(version_string=False)[0] >= 3:
-            ssl_purpose.extend(['Code signing : No', 'Code signing CA : No'])
-        assert ssl_purpose == SSLVerifier.get_purposes()
+            import sys
+            if sys.version_info < (3, 10):
+                ssl_purpose.extend(['Code signing : No', 'Code signing CA : No'])
 
+        assert ssl_purpose == SSLVerifier.get_purposes()
         assert 'C=US, CN=MY-CA' == SSLVerifier.get_issuer_common_name()
         assert {'email': 'fledge@googlegroups.com', 'commonName': 'user',
                 'organisation': 'OSIsoft', 'state': 'California',

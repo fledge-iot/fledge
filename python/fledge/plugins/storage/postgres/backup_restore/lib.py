@@ -884,7 +884,9 @@ class BackupRestoreLib(object):
         _event_loop.run_until_complete(cfg_manager.create_category(
             self._CONFIG_CATEGORY_NAME,
             self._CONFIG_DEFAULT,
-            self._CONFIG_CATEGORY_DESCRIPTION))
+            self._CONFIG_CATEGORY_DESCRIPTION, display_name="Backup & Restore"))
+        _event_loop.run_until_complete(cfg_manager.create_child_category(
+            "Utilities", [self._CONFIG_CATEGORY_NAME]))
         self._config_from_manager = _event_loop.run_until_complete(cfg_manager.get_category_all_items
                                                                    (self._CONFIG_CATEGORY_NAME))
 

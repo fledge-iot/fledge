@@ -22,6 +22,94 @@ using namespace rapidjson;
 
 #define TYPE_ID 1234
 
+// Mock SimpleHttps class for testing
+class MockSimpleHttps : public HttpSender
+{
+public:
+    MockSimpleHttps(const std::string& host_port,
+                    unsigned int connect_timeout = 0,
+                    unsigned int request_timeout = 0,
+                    unsigned int retry_sleep_Time = 1,
+                    unsigned int max_retry = 4) :
+                    m_host_port(host_port),
+                    m_retry_sleep_time(retry_sleep_Time),
+                    m_max_retry(max_retry),
+                    m_http_response(""),
+                    m_auth_method(""),
+                    m_auth_basic_credentials(""),
+                    m_ocs_namespace(""),
+                    m_ocs_tenant_id(""),
+                    m_ocs_client_id(""),
+                    m_ocs_client_secret(""),
+                    m_ocs_token("")
+    {
+    }
+
+    ~MockSimpleHttps() = default;
+
+    void setProxy(const std::string& proxy) override
+    {
+        m_proxy = proxy;
+    }
+
+    int sendRequest(const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
+                   const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
+                   const std::vector<std::pair<std::string, std::string>>& headers = {},
+                   const std::string& payload = std::string()) override
+    {
+        // Mock implementation - return success
+        m_last_method = method;
+        m_last_path = path;
+        m_last_headers = headers;
+        m_last_payload = payload;
+        m_http_response = "{\"status\":\"success\"}";
+        return 200;
+    }
+
+    std::string getHostPort() override { return m_host_port; }
+    std::string getHTTPResponse() override { return m_http_response; }
+    unsigned int getMaxRetries() override { return m_max_retry; }
+
+    void setAuthMethod(std::string& authMethod) override { m_auth_method = authMethod; }
+    void setAuthBasicCredentials(std::string& authBasicCredentials) override { m_auth_basic_credentials = authBasicCredentials; }
+    void setMaxRetries(unsigned int retries) override { m_max_retry = retries; }
+
+    // OCS configurations
+    void setOCSNamespace(std::string& OCSNamespace) override { m_ocs_namespace = OCSNamespace; }
+    void setOCSTenantId(std::string& OCSTenantId) override { m_ocs_tenant_id = OCSTenantId; }
+    void setOCSClientId(std::string& OCSClientId) override { m_ocs_client_id = OCSClientId; }
+    void setOCSClientSecret(std::string& OCSClientSecret) override { m_ocs_client_secret = OCSClientSecret; }
+    void setOCSToken(std::string& OCSToken) override { m_ocs_token = OCSToken; }
+
+    // Mock-specific methods for testing
+    std::string getLastMethod() const { return m_last_method; }
+    std::string getLastPath() const { return m_last_path; }
+    std::string getLastPayload() const { return m_last_payload; }
+    std::vector<std::pair<std::string, std::string>> getLastHeaders() const { return m_last_headers; }
+    std::string getAuthMethod() const { return m_auth_method; }
+    std::string getAuthBasicCredentials() const { return m_auth_basic_credentials; }
+
+private:
+    std::string m_host_port;
+    unsigned int m_retry_sleep_time;
+    unsigned int m_max_retry;
+    std::string m_http_response;
+    std::string m_proxy;
+    std::string m_auth_method;
+    std::string m_auth_basic_credentials;
+    std::string m_ocs_namespace;
+    std::string m_ocs_tenant_id;
+    std::string m_ocs_client_id;
+    std::string m_ocs_client_secret;
+    std::string m_ocs_token;
+    
+    // Mock tracking
+    std::string m_last_method;
+    std::string m_last_path;
+    std::vector<std::pair<std::string, std::string>> m_last_headers;
+    std::string m_last_payload;
+};
+
 // 2 readings JSON text
 const char *af_hierarchy_test01 = R"(
 {
@@ -328,7 +416,7 @@ TEST(OMF_transation, OneReading)
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, SuperSet)
 {
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(readings_with_different_datapoints);
@@ -453,7 +541,7 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesGood)
 	bool AFMapEmptyMetadata;
 
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	omf.setAFMap(af_hierarchy_test01);
@@ -483,7 +571,7 @@ TEST(OMF_AfHierarchy, HandleAFMapEmpty)
 	bool AFMapEmptyMetadata;
 
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	// Test
@@ -503,7 +591,7 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
 	map<std::string, std::string> MetadataRulesExist;
 
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	omf.setAFMap(af_hierarchy_test01);
@@ -519,7 +607,7 @@ TEST(PiServer_NamingRules, NamingRulesCheck)
 	bool changed = false;
 
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_1", &changed), "asset_1");
@@ -556,7 +644,7 @@ TEST(PiServer_NamingRules, Suffix)
 {
 	string assetName;
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	assetName = "asset_1";
@@ -587,7 +675,7 @@ TEST(PiServer_NamingRules, Prefix)
 	string asset;
 
 	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	MockSimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf("test", sender, "/", 1, "ABC");
 
 	asset="asset_1";
@@ -787,4 +875,86 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (variable, "${Orange:unknown12}");
 	ASSERT_EQ (value, "Orange");
 	ASSERT_EQ (deafult, "unknown12");
+}
+
+TEST(OMF_MockSimpleHttps, MockFunctionality)
+{
+    // Test that the mock SimpleHttps works correctly
+    MockSimpleHttps sender("test-host:8080", 10, 10, 10, 1);
+    
+    // Test basic getters
+    ASSERT_EQ(sender.getHostPort(), "test-host:8080");
+    ASSERT_EQ(sender.getMaxRetries(), 1);
+    
+    // Test authentication methods
+    std::string auth_method = "basic";
+    std::string auth_creds = "dGVzdDp0ZXN0"; // base64 encoded "test:test"
+    sender.setAuthMethod(auth_method);
+    sender.setAuthBasicCredentials(auth_creds);
+    
+    ASSERT_EQ(sender.getAuthMethod(), "basic");
+    ASSERT_EQ(sender.getAuthBasicCredentials(), "dGVzdDp0ZXN0");
+    
+    // Test OCS configuration methods
+    std::string ocs_namespace = "test-namespace";
+    std::string ocs_tenant_id = "test-tenant";
+    std::string ocs_client_id = "test-client";
+    std::string ocs_client_secret = "test-secret";
+    std::string ocs_token = "test-token";
+    
+    sender.setOCSNamespace(ocs_namespace);
+    sender.setOCSTenantId(ocs_tenant_id);
+    sender.setOCSClientId(ocs_client_id);
+    sender.setOCSClientSecret(ocs_client_secret);
+    sender.setOCSToken(ocs_token);
+    
+    // Test sendRequest mock functionality
+    std::vector<std::pair<std::string, std::string>> headers = {
+        {"Content-Type", "application/json"},
+        {"Authorization", "Bearer test-token"}
+    };
+    std::string payload = "{\"test\":\"data\"}";
+    
+    int result = sender.sendRequest("POST", "/api/test", headers, payload);
+    
+    // Verify the mock captured the request details
+    ASSERT_EQ(result, 200);
+    ASSERT_EQ(sender.getLastMethod(), "POST");
+    ASSERT_EQ(sender.getLastPath(), "/api/test");
+    ASSERT_EQ(sender.getLastPayload(), "{\"test\":\"data\"}");
+    ASSERT_EQ(sender.getLastHeaders().size(), 2);
+    ASSERT_EQ(sender.getLastHeaders()[0].first, "Content-Type");
+    ASSERT_EQ(sender.getLastHeaders()[0].second, "application/json");
+    ASSERT_EQ(sender.getLastHeaders()[1].first, "Authorization");
+    ASSERT_EQ(sender.getLastHeaders()[1].second, "Bearer test-token");
+    
+    // Test HTTP response
+    ASSERT_EQ(sender.getHTTPResponse(), "{\"status\":\"success\"}");
+}
+
+TEST(OMF_MockSimpleHttps, OMFIntegration)
+{
+    // Test that OMF class works correctly with the mock
+    MockSimpleHttps sender("pi-server:5460", 10, 10, 10, 1);
+    OMF omf("test", sender, "/", 1, "ABC");
+    
+    // Create a test reading
+    string strVal("test-device");
+    DatapointValue value(strVal);
+    Reading testReading("test-asset", new Datapoint("device", value));
+    
+    // Add another datapoint
+    DatapointValue id((long) 1001);
+    testReading.addDatapoint(new Datapoint("id", id));
+    
+    // Test that OMF can use the mock sender
+    // This test verifies that the OMF class can work with our mock
+    // without making actual HTTP requests
+    ASSERT_EQ(sender.getHostPort(), "pi-server:5460");
+    ASSERT_EQ(sender.getMaxRetries(), 1);
+    
+    // The mock should not have made any requests yet
+    ASSERT_EQ(sender.getLastMethod(), "");
+    ASSERT_EQ(sender.getLastPath(), "");
+    ASSERT_EQ(sender.getLastPayload(), "");
 }

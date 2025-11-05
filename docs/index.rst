@@ -18,6 +18,7 @@ Welcome to Fledge's documentation!
     control
     plugin_index
     building_pipelines
+    monitoring/index
     securing_fledge
     tuning_fledge
     troubleshooting_pi-server_integration

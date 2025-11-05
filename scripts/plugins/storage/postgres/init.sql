@@ -602,6 +602,9 @@ CREATE TABLE fledge.users (
        enabled           boolean                     NOT NULL DEFAULT TRUE,
        pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
        access_method     character varying(5) CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
+       hash_algorithm    character varying(6) CHECK( hash_algorithm IN ('SHA256', 'SHA512') )  NOT NULL DEFAULT 'SHA512',
+       failed_attempts   integer                     DEFAULT 0,
+       block_until       timestamp(6)                DEFAULT NULL,
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES fledge.roles (id) MATCH SIMPLE
@@ -813,8 +816,9 @@ CREATE INDEX asset_tracker_ix2 ON fledge.asset_tracker USING btree (service);
 -- Create plugin_data table
 -- Persist plugin data in the storage
 CREATE TABLE fledge.plugin_data (
-	key     character varying(255)    NOT NULL,
-	data    jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	key             character varying(255)    NOT NULL,
+	data            jsonb                     NOT NULL DEFAULT '{}'::jsonb,
+	service_name    character varying(255),
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
 -- Create packages table
@@ -978,8 +982,8 @@ INSERT INTO fledge.roles ( name, description )
 -- Users
 DELETE FROM fledge.users;
 INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
-     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
-            ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
+     VALUES ('admin', 'Admin user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 1, 'admin user'),
+            ('user', 'Normal user', '495f7f5b17c534dbeabab3da2287a934b32ed6876568563b04c312be49e8773299243abd3881d13112ccfb67c4fb3ec8231406474810e1f6eb347d61c63785d4:672169c60df24b76b6b94e78cad800f8', 2, 'normal user');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;
@@ -1036,7 +1040,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
             ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' ),
             ( 'CTEAD', 'Control Entrypoint Added' ),( 'CTECH', 'Control Entrypoint Changed' ),('CTEDL', 'Control Entrypoint Deleted' ),
-            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' )
+            ( 'BUCAD', 'Bucket Added' ), ( 'BUCCH', 'Bucket Changed' ), ( 'BUCDL', 'Bucket Deleted' ),
+            ( 'USRBK', 'User Blocked' ), ( 'USRUB', 'User Unblocked' )
             ;
 
 --
@@ -1078,10 +1083,10 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',          100 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',   30  );
 INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
-INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north',             '["tasks/north"]'                    );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',     20  );
 INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]', 10  );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'pipeline_c',        '["services/pipeline_c"]',       90  );
 
 -- Automation script tasks
 --

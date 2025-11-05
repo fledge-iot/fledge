@@ -17,7 +17,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(../../../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../../../C/common/include)
 
-file(GLOB test_sources "../../../../../../../../C/plugins/storage/common/*.cpp")
+file(GLOB test_sources "../../../../../../../../C/plugins/storage/common/sql_buffer.cpp")
 set(common_sources "../../../../../../../../C/common/string_utils.cpp")
 
  

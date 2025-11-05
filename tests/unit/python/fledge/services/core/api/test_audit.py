@@ -5,14 +5,11 @@
 # FLEDGE_END
 
 
-import asyncio
 import json
 from unittest.mock import MagicMock, patch
 from collections import Counter
 from aiohttp import web
 import pytest
-import sys
-
 from fledge.services.core import routes
 from fledge.services.core import connect
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -25,8 +22,6 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "audit")
 class TestAudit:
 
     @pytest.fixture
@@ -82,13 +77,7 @@ class TestAudit:
     async def test_audit_log_codes(self, client, get_log_codes):
         async def get_log_codes_async():
             return get_log_codes
-
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await get_log_codes_async()
-        else:
-            _rv = asyncio.ensure_future(get_log_codes_async())
-        
+        _rv = await get_log_codes_async()
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as log_code_patch:
@@ -128,14 +117,8 @@ class TestAudit:
         async def async_mock_log():
             return get_log_codes
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock_log()
-            _rv2 = await async_mock()
-        else:
-            _rv1 = asyncio.ensure_future(async_mock_log())
-            _rv2 = asyncio.ensure_future(async_mock())
-        
+        _rv1 = await async_mock_log()
+        _rv2 = await async_mock()
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv1):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as log_code_patch:
@@ -164,12 +147,7 @@ class TestAudit:
         async def async_mock_log():
             return get_log_codes
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock_log()
-        else:
-            _rv = asyncio.ensure_future(async_mock_log())
-        
+        _rv = await async_mock_log()
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv):
@@ -194,12 +172,7 @@ class TestAudit:
         async def async_mock():
             return response
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())
-        
+        _rv = await async_mock()
         storage_mock = MagicMock(spec=StorageClientAsync)
         AuditLogger(storage_mock)
         with patch.object(storage_mock, 'insert_into_tbl', return_value=_rv) as insert_tbl_patch:

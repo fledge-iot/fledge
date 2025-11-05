@@ -40,6 +40,7 @@ def create_alert(url, payload):
     assert len(jdoc), "Failed to create alert!"
     return jdoc
 
+
 class TestAlerts:
 
     def test_get_default_alerts(self, fledge_url, reset_and_start_fledge):
@@ -109,6 +110,8 @@ class TestAlerts:
         assert 'urgency' in alert_jdoc
         assert 'Normal' == alert_jdoc['urgency']
         assert 'timestamp' in alert_jdoc
+        import utils
+        assert utils.validate_date_format(alert_jdoc['timestamp']) is True, "Timestamp format mismatched."
 
     def test_delete_alert_by_key(self, fledge_url):
         payload = {"key": "Sine", "message": "The service has restarted 4 times", "urgency": "critical"}

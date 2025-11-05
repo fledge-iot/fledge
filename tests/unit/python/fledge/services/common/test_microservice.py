@@ -38,8 +38,6 @@ _DEFAULT_CONFIG = {
 }
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("common", "fledge-microservice")
 class TestFledgeMicroservice:
 
     def test_constructor_abstract_method_missing(self):

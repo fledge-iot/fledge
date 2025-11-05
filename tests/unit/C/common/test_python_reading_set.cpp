@@ -117,6 +117,7 @@ TEST_F(PythonReadingSetTest, SingleReading)
 	DatapointValue value(i);
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	ReadingSet set(readings);
+	delete readings;
 	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pySet = ((PythonReadingSet *)(&set))->toPython();
 	PyObject *obj = callPythonFunc("count", pySet);
@@ -134,6 +135,7 @@ TEST_F(PythonReadingSetTest, MultipleReadings)
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	ReadingSet set(readings);
+	delete readings;
 	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pySet = ((PythonReadingSet *)(&set))->toPython();
 	PyObject *obj = callPythonFunc("count", pySet);

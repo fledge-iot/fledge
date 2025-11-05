@@ -14,8 +14,6 @@ from unittest.mock import patch
 from fledge.services import core
 
 
-@pytest.allure.feature("unit")
-@pytest.allure.story("services", "core")
 async def test_main():
     with patch('fledge.services.core', return_value=None) as mockedMain:
         srvr = mockedMain.Server

@@ -15,6 +15,7 @@ from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
 from fledge.services.core.scheduler.entities import Task
+from fledge.services.core.scheduler.exceptions import NotReadyError
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry.exceptions import DoesNotExist
 
@@ -120,6 +121,9 @@ async def _get_north_schedules(cf_mgr):
                             'protocol': s_record._protocol,
                             'status': ServiceRecord.Status(int(s_record._status)).name.lower()
                         }
+                        # Add the 'debug' key only if it's non-empty
+                        if s_record._debug:
+                            north_sch_dict['debug'] = s_record._debug
                 # north-C service case, If not in service registry
                 if sch.enabled is False and sch.name not in [s_record._name for s_record in services_from_registry]:
                     north_sch_dict = {
@@ -183,6 +187,11 @@ async def get_north_schedules(request):
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats
         msg = str(e)
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NotReadyError:
+        # This case will occur if request is made while Fledge is not fully operational and/or being started.
+        msg = "Failed to fetch schedules information. Fledge is not fully operational and/or being started. Try again!"
+        _logger.warning(msg)
+        return web.HTTPServiceUnavailable(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to get the north schedules.")

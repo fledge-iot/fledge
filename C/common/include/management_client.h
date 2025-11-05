@@ -24,6 +24,7 @@
 #include <thread>
 #include <bearer_token.h>
 #include <acl.h>
+#include "utils.h"
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -119,6 +120,7 @@ class ManagementClient {
 		AssetTrackingTable	*getDeprecatedAssetTrackingTuples();
 		std::string		getAlertByKey(const std::string& key);
 		bool			raiseAlert(const std::string& key, const std::string& message, const std::string& urgency="normal");
+		bool			clearAlert(const std::string& key);
 
 	private:
 		std::ostringstream 			m_urlbase;
@@ -144,6 +146,12 @@ class ManagementClient {
 		template<class T> bool	addCategory(const T& t, bool keepOriginalItems = false)
 		{
 			try {
+				std::string blockedCharacter = {};
+				if (!isValidIdentifier(t.getName(), blockedCharacter))
+				{
+					m_logger->error("The category name %s contains %s invalid character(s).", blockedCharacter.c_str(), t.getName().c_str());
+					return false;
+				}
 				std::string url = "/fledge/service/category";
 
                                 // Build the JSON payload

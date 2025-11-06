@@ -1,0 +1,651 @@
+# Fledge Notification Service - Feature Development Rules (MDC Format)
+
+---
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-01-01"
+  author: "Fledge Development Team"
+  service: "notification-service"
+  language: "cpp"
+  framework: "custom"
+  license: "MIT"
+---
+
+## Configuration
+
+### Development Environment
+```yaml
+development:
+  language: "cpp"
+  standard: "c++11"
+  compiler: "gcc-11"
+  build_system: "cmake"
+  testing_framework: "gtest"
+  linting: "clang-tidy"
+  formatting: "clang-format"
+  documentation: "doxygen"
+```
+
+### Project Structure
+```yaml
+project_structure:
+  root: "fledge-service-notification"
+  directories:
+    src:
+      - core/           # Core business logic
+      - api/            # API endpoints and handlers
+      - storage/        # Data persistence layer
+      - utils/          # Utility functions
+      - tests/          # Unit and integration tests
+    include:            # Header files
+    docs:              # Documentation
+    scripts:           # Build and deployment scripts
+    config:            # Configuration files
+```
+
+### Naming Conventions
+```yaml
+naming_conventions:
+  classes: "PascalCase"
+  methods: "camelCase"
+  member_variables: "m_camelCase"
+  constants: "UPPER_SNAKE_CASE"
+  namespaces: "lowercase"
+  files: "snake_case"
+  examples:
+    classes: ["NotificationManager", "EmailService"]
+    methods: ["sendNotification", "validateRecipient"]
+    member_variables: ["m_notificationQueue", "m_config"]
+    constants: ["MAX_RETRY_ATTEMPTS", "DEFAULT_TIMEOUT"]
+```
+
+## Development Rules
+
+### Pre-Development Checklist
+```yaml
+pre_development_checklist:
+  architecture:
+    - "Review existing architecture and module boundaries"
+    - "Identify affected components and dependencies"
+    - "Plan integration points with existing services"
+  requirements:
+    - "Define clear acceptance criteria"
+    - "Consider backward compatibility requirements"
+    - "Plan error handling and edge cases"
+  observability:
+    - "Design logging and observability strategy"
+    - "Plan metrics collection"
+    - "Define monitoring alerts"
+```
+
+### Code Quality Standards
+```yaml
+code_quality:
+  complexity:
+    max_function_lines: 50
+    max_nesting_levels: 3
+    max_cyclomatic_complexity: 10
+  memory_management:
+    required: "raw_pointers"
+  thread_safety:
+    required: "mutex_protection"
+    patterns: ["lock_guard", "unique_lock", "atomic_operations"]
+  error_handling:
+    required: "exception_based"
+    forbidden: ["silent_failures", "error_ignoring"]
+    patterns: ["try_catch", "custom_exceptions", "error_logging"]
+```
+
+### C++ Development Standards
+```yaml
+cpp_standards:
+  memory_management:
+    preferred:
+      - "Notification* notification = new Notification()"
+      - "delete notification"
+  
+  error_handling:
+    preferred:
+      - "class NotificationException : public std::runtime_error"
+      - "throw NotificationException(\"Invalid recipient: \" + recipient)"
+    patterns:
+      - "exception_based"
+      - "meaningful_error_messages"
+      - "proper_logging"
+  
+  thread_safety:
+    required:
+      - "mutex_protection_for_shared_resources"
+      - "atomic_operations_where_appropriate"
+    patterns:
+      - "std::lock_guard<std::mutex> lock(m_mutex)"
+      - "std::atomic<int> counter"
+```
+
+### API Design Standards
+```yaml
+api_design:
+  restful_endpoints:
+    base_path: "/api/v1"
+    patterns:
+      - "GET /notifications"
+      - "POST /notifications"
+      - "GET /notifications/{id}"
+      - "PUT /notifications/{id}"
+      - "DELETE /notifications/{id}"
+  
+  request_models:
+    required_fields:
+      - "recipient"
+      - "subject"
+      - "message"
+      - "type"
+    optional_fields:
+      - "templateId"
+      - "metadata"
+    validation:
+      - "recipient_format"
+      - "message_length"
+      - "type_enumeration"
+  
+  response_models:
+    standard_fields:
+      - "id"
+      - "status"
+      - "createdAt"
+      - "updatedAt"
+    error_response:
+      - "error_code"
+      - "error_message"
+      - "timestamp"
+```
+
+### Testing Standards
+```yaml
+testing_standards:
+  unit_tests:
+    required:
+      - "success_paths"
+      - "failure_paths"
+      - "edge_cases"
+      - "boundary_conditions"
+    patterns:
+      - "Arrange-Act-Assert"
+      - "Given-When-Then"
+    naming: "MethodName_Scenario_ExpectedResult"
+  
+  integration_tests:
+    required:
+      - "end_to_end_flows"
+      - "api_endpoints"
+      - "database_operations"
+    patterns:
+      - "TestHttpClient"
+      - "TestDatabase"
+      - "MockServices"
+  
+  test_coverage:
+    minimum: 80
+    critical_paths: 100
+    new_features: 90
+```
+
+### Logging and Observability
+```yaml
+logging_standards:
+  levels:
+    - "TRACE"
+    - "DEBUG"
+    - "INFO"
+    - "WARN"
+    - "ERROR"
+    - "FATAL"
+  
+  structured_logging:
+    required_fields:
+      - "timestamp"
+      - "level"
+      - "service"
+      - "operation"
+    optional_fields:
+      - "request_id"
+      - "user_id"
+      - "duration"
+      - "metadata"
+  
+  sensitive_data:
+    forbidden_in_logs:
+      - "passwords"
+      - "api_keys"
+      - "personal_identifiers"
+      - "credit_card_numbers"
+    redaction_patterns:
+      - "password=***"
+      - "key=***"
+```
+
+### Security Standards
+```yaml
+security_standards:
+  input_validation:
+    required:
+      - "recipient_format"
+      - "message_length"
+      - "type_enumeration"
+      - "sql_injection_prevention"
+    patterns:
+      - "whitelist_validation"
+      - "regex_validation"
+      - "length_limits"
+  
+  authentication:
+    required:
+      - "token_validation"
+      - "permission_checks"
+      - "session_management"
+    patterns:
+      - "JWT_tokens"
+      - "OAuth2"
+      - "API_keys"
+  
+  authorization:
+    required:
+      - "role_based_access"
+      - "resource_permissions"
+      - "audit_logging"
+    patterns:
+      - "RBAC"
+      - "ABAC"
+      - "Permission_matrix"
+```
+
+### Performance Guidelines
+```yaml
+performance_guidelines:
+  memory_management:
+    preferred:
+      - "RAII_principles"
+      - "smart_pointers"
+      - "move_semantics"
+    avoid:
+      - "unnecessary_copies"
+      - "memory_leaks"
+      - "fragmentation"
+  
+  async_processing:
+    patterns:
+      - "thread_pools"
+      - "async_await"
+      - "future_promise"
+    use_cases:
+      - "notification_sending"
+      - "batch_processing"
+      - "external_api_calls"
+  
+  caching:
+    strategies:
+      - "in_memory_cache"
+      - "distributed_cache"
+      - "cache_invalidation"
+    patterns:
+      - "LRU_cache"
+      - "TTL_expiration"
+      - "cache_warming"
+```
+
+### Configuration Management
+```yaml
+configuration_management:
+  structure:
+    required_sections:
+      - "database"
+      - "email"
+      - "logging"
+      - "security"
+    optional_sections:
+      - "caching"
+      - "monitoring"
+      - "external_services"
+  
+  validation:
+    required:
+      - "type_safety"
+      - "value_ranges"
+      - "required_fields"
+    patterns:
+      - "schema_validation"
+      - "environment_validation"
+      - "dependency_validation"
+  
+  environment_specific:
+    development:
+      - "debug_logging"
+      - "mock_services"
+      - "local_database"
+    production:
+      - "error_logging_only"
+      - "real_services"
+      - "clustered_database"
+```
+
+### Documentation Standards
+```yaml
+documentation_standards:
+  code_documentation:
+    required:
+      - "public_apis"
+      - "complex_algorithms"
+      - "business_logic"
+    format: "doxygen"
+    tags:
+      - "@brief"
+      - "@param"
+      - "@return"
+      - "@throws"
+      - "@example"
+  
+  api_documentation:
+    required:
+      - "endpoint_descriptions"
+      - "request_response_examples"
+      - "error_codes"
+    format: "OpenAPI_3.0"
+  
+  deployment_documentation:
+    required:
+      - "build_instructions"
+      - "deployment_steps"
+      - "configuration_guide"
+      - "troubleshooting"
+```
+
+### Deployment and DevOps
+```yaml
+deployment_standards:
+  build_system:
+    tool: "cmake"
+    minimum_version: "3.16"
+    cpp_standard: "17"
+    dependencies:
+      - "gtest"
+      - "spdlog"
+      - "nlohmann_json"
+  
+  containerization:
+    base_image: "gcc:11"
+    runtime_image: "debian:bullseye-slim"
+    multi_stage: true
+    security_scanning: true
+  
+  ci_cd:
+    required_stages:
+      - "build"
+      - "test"
+      - "lint"
+      - "security_scan"
+      - "deploy"
+    quality_gates:
+      - "test_coverage >= 80%"
+      - "no_critical_vulnerabilities"
+      - "build_success"
+```
+
+## Code Review Checklist
+
+### Architecture & Design
+```yaml
+architecture_checklist:
+  - "Code follows established architectural patterns"
+  - "No unnecessary coupling between modules"
+  - "Clear separation of concerns"
+  - "Proper use of inheritance vs composition"
+  - "Module boundaries respected"
+```
+
+### Code Quality
+```yaml
+code_quality_checklist:
+  - "All functions are under 50 lines"
+  - "No more than 4 levels of nesting"
+  - "No code duplication (DRY principle)"
+  - "Meaningful variable and function names"
+  - "Consistent coding style"
+  - "No magic numbers without constants"
+```
+
+### Testing
+```yaml
+testing_checklist:
+  - "Unit tests cover all new functionality"
+  - "Integration tests for API endpoints"
+  - "Edge cases and error conditions tested"
+  - "Test names clearly describe behavior"
+  - "Mock objects used appropriately"
+  - "Test coverage meets minimum requirements"
+```
+
+### Security
+```yaml
+security_checklist:
+  - "Input validation implemented"
+  - "Authentication/authorization checks"
+  - "No sensitive data in logs"
+  - "Secure error handling"
+  - "No SQL injection vulnerabilities"
+  - "Proper secrets management"
+```
+
+### Performance
+```yaml
+performance_checklist:
+  - "No N+1 query patterns"
+  - "Efficient algorithms used"
+  - "Memory management follows RAII"
+  - "Async operations where appropriate"
+  - "No blocking operations in hot paths"
+  - "Resource cleanup implemented"
+```
+
+### Documentation
+```yaml
+documentation_checklist:
+  - "Public APIs documented with Doxygen"
+  - "README updated if needed"
+  - "Code comments explain 'why' not 'what'"
+  - "Configuration documented"
+  - "Deployment instructions updated"
+  - "API documentation current"
+```
+
+## Anti-Patterns
+
+### Memory Management Anti-Patterns
+```yaml
+memory_anti_patterns:
+  - "Missing cleanup in destructors"
+  - "Resource leaks in error paths"
+  - "Improper ownership semantics"
+```
+
+### Thread Safety Anti-Patterns
+```yaml
+thread_safety_anti_patterns:
+  - "Shared mutable state without protection"
+  - "Missing mutex locks"
+  - "Race conditions in concurrent access"
+  - "Improper atomic operation usage"
+  - "Deadlock scenarios"
+```
+
+### Error Handling Anti-Patterns
+```yaml
+error_handling_anti_patterns:
+  - "Silent failures"
+  - "Catching all exceptions without handling"
+  - "Incomplete error recovery"
+  - "Insufficient error logging"
+  - "Error swallowing"
+```
+
+### Performance Anti-Patterns
+```yaml
+performance_anti_patterns:
+  - "Unnecessary object copying"
+  - "Inefficient algorithms"
+  - "Blocking operations in hot paths"
+  - "Memory allocation in performance-critical code"
+  - "N+1 query patterns"
+```
+
+## Feature Development Template
+
+### Template Structure
+```yaml
+feature_template:
+  interface_definition:
+    - "Define the feature interface"
+    - "Specify public API methods"
+    - "Document method signatures"
+  
+  implementation:
+    - "Implement the feature class"
+    - "Add proper error handling"
+    - "Include logging and metrics"
+    - "Follow thread safety patterns"
+  
+  testing:
+    - "Create unit tests"
+    - "Add integration tests"
+    - "Test edge cases"
+    - "Verify error conditions"
+  
+  documentation:
+    - "Document public APIs"
+    - "Add usage examples"
+    - "Update README if needed"
+    - "Include configuration docs"
+```
+
+### Template Code Structure
+```yaml
+template_code:
+  header_file: "include/[FeatureName]Service.h"
+  implementation_file: "src/core/[FeatureName]Service.cpp"
+  test_file: "src/tests/[FeatureName]ServiceTest.cpp"
+  documentation_file: "docs/[FeatureName]Service.md"
+  
+  class_structure:
+    - "Public interface methods"
+    - "Private helper methods"
+    - "Member variables"
+    - "Constructor and destructor"
+  
+  test_structure:
+    - "Setup and teardown"
+    - "Success path tests"
+    - "Failure path tests"
+    - "Edge case tests"
+```
+
+## Validation Rules
+
+### Code Validation
+```yaml
+code_validation:
+  static_analysis:
+    - "clang-tidy"
+    - "cppcheck"
+    - "sonarqube"
+  
+  dynamic_analysis:
+    - "valgrind"
+    - "asan"
+    - "tsan"
+  
+  style_checking:
+    - "clang-format"
+    - "cpplint"
+    - "custom_style_rules"
+```
+
+### Test Validation
+```yaml
+test_validation:
+  coverage_requirements:
+    line_coverage: 80
+    branch_coverage: 70
+    function_coverage: 90
+  
+  test_quality:
+    - "No flaky tests"
+    - "Fast execution"
+    - "Clear assertions"
+    - "Proper mocking"
+```
+
+### Security Validation
+```yaml
+security_validation:
+  static_analysis:
+    - "semgrep"
+    - "bandit"
+    - "custom_security_rules"
+  
+  dependency_checking:
+    - "safety"
+    - "snyk"
+    - "vulnerability_scanning"
+```
+
+## Compliance
+
+### Standards Compliance
+```yaml
+compliance:
+  coding_standards:
+    - "C++11 standard"
+    - "MISRA C++ guidelines"
+    - "Google C++ Style Guide"
+    - "Project-specific conventions"
+  
+  security_standards:
+    - "OWASP guidelines"
+    - "CWE/SANS Top 25"
+    - "Industry best practices"
+  
+  performance_standards:
+    - "Response time requirements"
+    - "Throughput requirements"
+    - "Resource utilization limits"
+```
+
+### Quality Gates
+```yaml
+quality_gates:
+  build:
+    - "Successful compilation"
+    - "No warnings"
+    - "Static analysis passed"
+  
+  test:
+    - "All tests passing"
+    - "Coverage requirements met"
+    - "No flaky tests"
+  
+  security:
+    - "No critical vulnerabilities"
+    - "Security scan passed"
+    - "Dependency audit clean"
+  
+  performance:
+    - "Performance benchmarks passed"
+    - "Memory usage within limits"
+    - "Response time requirements met"
+```
+
+---
+# End of MDC Configuration
+description:
+globs:
+alwaysApply: false
+---

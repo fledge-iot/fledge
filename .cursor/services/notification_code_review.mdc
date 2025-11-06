@@ -1,0 +1,449 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Fledge Notification Service - Multi-Document Context (MDC)
+
+### Project Overview
+This MDC file contains comprehensive rules, guidelines, and documentation for AI-assisted development and code review in the Fledge Notification Service project. It combines code review evaluation criteria, git diff analysis techniques, and project-specific standards.
+
+---
+
+## 1. Code Review Evaluation Criteria
+
+### 1.1 Design & Architecture
+- Verify the change fits your system's architectural patterns
+- Avoid unnecessary coupling or speculative features
+- Enforce clear separation of concerns
+- Align with defined module boundaries
+- Check for proper inheritance vs composition decisions
+
+### 1.2 Complexity & Maintainability
+- Ensure control flow remains flat
+- Keep cyclomatic complexity low
+- Abstract duplicate logic (DRY principle)
+- Remove dead or unreachable code
+- Refactor dense logic into testable helper methods
+- Break down complex methods into smaller, focused functions
+
+### 1.3 Functionality & Correctness
+- Confirm new code paths behave correctly under valid and invalid inputs
+- Cover all edge cases
+- Maintain idempotency for retry-safe operations
+- Satisfy all functional requirements or user stories
+- Include robust error-handling semantics
+- Validate input parameters and configuration
+
+### 1.4 Readability & Naming
+- Check that identifiers clearly convey intent
+- Comments should explain *why* (not *what*)
+- Code blocks should be logically ordered
+- No surprising side-effects hide behind deceptively simple names
+- Use consistent naming conventions
+
+### 1.5 Best Practices & Patterns
+- Validate use of language- or framework-specific idioms
+- Adhere to SOLID principles
+- Ensure proper resource cleanup
+- Maintain consistent logging/tracing
+- Clear separation of responsibilities across layers
+- Use RAII and smart pointers for memory management
+
+### 1.6 Test Coverage & Quality
+- Verify unit tests for both success and failure paths
+- Include integration tests exercising end-to-end flows
+- Use appropriate mocks/stubs
+- Include meaningful assertions (including edge-case inputs)
+- Test names should accurately describe behavior
+
+### 1.7 Standardization & Style
+- Ensure conformance to style guides (indentation, import/order, naming conventions)
+- Maintain consistent project structure (folder/file placement)
+- Zero new linter or formatter warnings
+- Follow C++11 standards and project conventions
+
+### 1.8 Documentation & Comments
+- Confirm public APIs or complex algorithms have clear in-code documentation
+- Update README, Swagger/OpenAPI, CHANGELOG, or other user-facing docs
+- Use Doxygen-style comments for all public APIs
+- Include `@brief`, `@param`, `@return`, `@throws` tags
+
+### 1.9 Security & Compliance
+- Check input validation and sanitization against injection attacks
+- Ensure proper output encoding
+- Implement secure error handling
+- Check dependency license and vulnerability checks
+- Follow secrets management best practices
+- Enforce authZ/authN where applicable
+
+### 1.10 Performance & Scalability
+- Identify N+1 query patterns or inefficient I/O
+- Check memory management concerns
+- Avoid heavy hot-path computations
+- Consider caching, batching, memoization, async patterns
+- Optimize algorithms where necessary
+
+### 1.11 Observability & Logging
+- Verify that key events emit metrics or tracing spans
+- Use appropriate log levels
+- Redact sensitive data
+- Include contextual information for monitoring and debugging
+- Support post-mortem analysis
+
+### 1.12 CI/CD & DevOps
+- Validate build pipeline integrity
+- Ensure automated test gating
+- Check artifact creation
+- Verify dependency declarations
+- Follow organizational DevOps best practices
+
+---
+
+## 2. C++ Specific Standards
+
+### 2.1 Naming Conventions
+- **Classes**: PascalCase (e.g., `NotificationManager`)
+- **Methods**: camelCase (e.g., `setupFilterPipeline()`)
+- **Member variables**: m_camelCase (e.g., `m_filterPipeline`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `DEFAULT_RETRIGGER_TIME`)
+- **Namespaces**: lowercase (e.g., `std`)
+
+### 2.2 Memory Management
+- Follow RAII principles
+- Avoid manual memory management where possible
+- Ensure proper cleanup in destructors
+
+### 2.3 Error Handling
+- Use exceptions for exceptional conditions
+- Log errors with appropriate log levels
+- Provide meaningful error messages
+- Handle resource failures gracefully
+
+### 2.4 Thread Safety
+- Use mutex for shared resource protection
+- Consider atomic operations where appropriate
+- Document thread safety guarantees
+- Avoid race conditions in concurrent code
+
+---
+
+## 3. Git Diff Analysis Techniques
+
+### 3.1 Understanding Git Diff Commands
+```bash
+# Show file names only
+git diff --name-only origin/develop...origin/feature-branch
+
+# Show statistics
+git diff --stat origin/develop...origin/feature-branch
+
+# Show detailed statistics
+git diff --numstat origin/develop...origin/feature-branch
+
+# Show short statistics
+git diff --shortstat origin/develop...origin/feature-branch
+
+# Show word-level changes
+git diff --word-diff origin/develop...origin/feature-branch
+
+# Show context with more lines
+git diff -U10 origin/develop...origin/feature-branch
+```
+
+### 3.2 Diff Output Interpretation
+
+#### File Statistics Analysis
+```bash
+git diff --numstat origin/develop...origin/feature-branch
+```
+Output format: `[insertions] [deletions] [filename]`
+
+#### Change Pattern Recognition
+- **High insertion count**: New functionality or major refactoring
+- **High deletion count**: Code cleanup or breaking changes
+- **Balanced changes**: Refactoring or feature updates
+- **Low net change**: Bug fixes or minor improvements
+
+### 3.3 Three-Way Merge Analysis
+```bash
+# Compare two branches
+git diff branch1...branch2
+
+# Compare with common ancestor
+git diff branch1..branch2
+```
+
+### 3.4 Change Impact Assessment
+
+#### File-Level Analysis
+1. **Header Files**: Interface changes, new dependencies
+2. **Source Files**: Implementation changes, new functionality
+3. **Test Files**: Test coverage, validation logic
+4. **Configuration Files**: Settings, defaults, options
+
+#### Line-Level Analysis
+1. **Additions (+)**: New code, features, methods
+2. **Deletions (-)**: Removed code, cleanup, breaking changes
+3. **Context**: Surrounding code for understanding changes
+
+### 3.5 Pattern Recognition in Diffs
+
+#### Common Patterns
+1. **New Includes**: `#include <new_header.h>`
+2. **Method Signatures**: Parameter changes, return type changes
+3. **Class Inheritance**: `class X : public Y`
+4. **Member Variables**: `Type* m_variable;`
+5. **Configuration**: JSON structures, default values
+
+#### Red Flags in Diffs
+1. **Manual Memory Management**: `new`/`delete` without smart pointers
+2. **Missing Error Handling**: No try-catch blocks
+3. **Inconsistent Naming**: Mixed naming conventions
+4. **Large Methods**: Methods with many lines added
+5. **Missing Documentation**: New methods without comments
+
+---
+
+## 4. Issue Severity Levels
+
+### 4.1 Critical
+- Memory leaks or resource leaks
+- Race conditions or thread safety issues
+- Security vulnerabilities
+- Data corruption risks
+- Build failures or compilation errors
+
+### 4.2 Major
+- Performance issues affecting scalability
+- Architectural violations
+- Missing error handling
+- Incomplete functionality
+- Breaking changes without proper migration
+
+### 4.3 Minor
+- Code style violations
+- Missing documentation
+- Inefficient algorithms
+- Code duplication
+- Minor bugs with workarounds
+
+### 4.4 Enhancement
+- Missing test coverage
+- Performance optimizations
+- Code refactoring opportunities
+- Additional features or improvements
+- Better error messages or logging
+
+---
+
+## 5. Code Review Process
+
+### 5.1 High-Level Summary
+Describe product impact and engineering approach in 2-3 sentences:
+- **Product impact**: What does this change deliver for users or customers?
+- **Engineering approach**: Key patterns, frameworks, or best practices in use
+
+### 5.2 Fetch and Scope the Diff
+1. Run `git fetch origin` to ensure latest code
+2. Compute `git diff --name-only --diff-filter=M origin/develop...origin/feature-branch`
+3. For each file, run `git diff --quiet origin/develop...origin/feature-branch -- <file>`
+4. Skip files that produce no actual diff hunks
+
+### 5.3 Evaluate Against Criteria
+For each truly changed file and each diffed hunk, evaluate against the 12 evaluation criteria listed above.
+
+### 5.4 Report Issues
+For each validated issue, output a nested bullet like this:
+- File: `<path>:<line-range>`
+  - Issue: [One-line summary of the root problem]
+  - Fix: [Concise suggested change or code snippet]
+
+### 5.5 Prioritize Issues
+Group issues by severity in this order:
+- Critical
+- Major
+- Minor
+- Enhancement
+
+### 5.6 Highlight Positives
+Include a brief bulleted list of positive findings or well-implemented patterns observed in the diff.
+
+---
+
+## 6. Common Issues to Watch For
+
+### 6.1 Memory Management
+- Manual `new`/`delete` without smart pointers
+- Missing cleanup in destructors
+- Resource leaks in error paths
+- Improper ownership semantics
+
+### 6.2 Thread Safety
+- Shared mutable state without protection
+- Missing mutex locks
+- Race conditions in concurrent access
+- Improper atomic operation usage
+
+### 6.3 Error Handling
+- Missing exception handling
+- Incomplete error recovery
+- Silent failures
+- Insufficient error logging
+
+### 6.4 Performance
+- Unnecessary object copying
+- Inefficient algorithms
+- Blocking operations in hot paths
+- Memory allocation in performance-critical code
+
+### 6.5 Code Quality
+- Code duplication
+- Complex methods (>50 lines)
+- Deep nesting (>4 levels)
+- Magic numbers without constants
+- Inconsistent naming
+
+---
+
+## 7. Positive Patterns to Recognize
+
+- Proper use of RAII and smart pointers
+- Clear separation of concerns
+- Comprehensive error handling
+- Good logging and observability
+- Consistent coding style
+- Thorough documentation
+- Appropriate test coverage
+- Performance-conscious design
+- Thread-safe implementations
+- Backward compatibility maintenance
+
+---
+
+## 8. Advanced Git Commands for Analysis
+
+```bash
+# Show only function changes
+git diff -p origin/develop...origin/feature-branch | grep -A 5 -B 5 "^[+-].*("
+
+# Show only structural changes
+git diff --stat --summary origin/develop...origin/feature-branch
+
+# Show changes with context
+git diff -U5 origin/develop...origin/feature-branch
+
+# Show only additions
+git diff --diff-filter=A origin/develop...origin/feature-branch
+
+# Show only deletions
+git diff --diff-filter=D origin/develop...origin/feature-branch
+
+# Show only modifications
+git diff --diff-filter=M origin/develop...origin/feature-branch
+
+# Count lines by type
+git diff origin/develop...origin/feature-branch | grep -c "^+"
+git diff origin/develop...origin/feature-branch | grep -c "^-"
+
+# Find new includes
+git diff origin/develop...origin/feature-branch | grep "^+#include"
+
+# Find new class definitions
+git diff origin/develop...origin/feature-branch | grep "^+class"
+
+# Find new method definitions
+git diff origin/develop...origin/feature-branch | grep "^+.*("
+```
+
+---
+
+## 9. Fledge-Specific Guidelines
+
+### 9.1 Notification Service Architecture
+- Follow existing notification patterns and conventions
+- Maintain backward compatibility with existing configurations
+- Use proper plugin architecture for extensibility
+- Implement proper resource cleanup for notification instances
+
+### 9.2 Filter Pipeline Integration
+- Ensure thread-safe filter pipeline operations
+- Implement proper error handling for filter setup
+- Use smart pointers for filter pipeline management
+- Add comprehensive logging for filter operations
+
+### 9.3 Configuration Management
+- Follow Fledge configuration patterns
+- Implement proper category registration/unregistration
+- Handle configuration changes gracefully
+- Validate configuration parameters
+
+### 9.4 Testing Requirements
+- Unit tests for all new functionality
+- Integration tests for filter pipeline workflows
+- Performance tests for large datasets
+- Error condition testing
+
+---
+
+## 10. AI-Assisted Development Guidelines
+
+### 10.1 Code Generation
+- Follow established naming conventions
+- Include proper error handling
+- Add comprehensive documentation
+- Ensure thread safety where applicable
+
+### 10.2 Code Review Assistance
+- Analyze git diffs systematically
+- Identify potential issues early
+- Suggest improvements and optimizations
+- Maintain consistency with existing codebase
+
+### 10.3 Documentation Generation
+- Create clear, concise documentation
+- Include examples and usage patterns
+- Document API changes and breaking changes
+- Maintain up-to-date README files
+
+### 10.4 Testing Assistance
+- Generate comprehensive test cases
+- Include edge case testing
+- Ensure proper test coverage
+- Create integration test scenarios
+
+---
+
+## 11. Project-Specific Rules
+
+### 11.1 File Organization
+- Keep header files in `include/` directories
+- Organize source files logically
+- Maintain consistent file naming
+- Group related functionality together
+
+### 11.2 Build System
+- Follow CMake conventions
+- Maintain proper dependency management
+- Ensure cross-platform compatibility
+- Include proper version information
+
+### 11.3 Version Control
+- Use meaningful commit messages
+- Create feature branches for new development
+- Maintain clean git history
+- Follow branching strategies
+
+### 11.4 Code Quality
+- Pass all linting checks
+- Maintain consistent formatting
+- Follow coding standards
+- Include proper comments
+
+---
+
+This MDC file serves as a comprehensive guide for AI-assisted development and code review in the Fledge Notification Service project. It provides structured evaluation criteria, git diff analysis techniques, and project-specific guidelines to ensure high-quality code development and review processes.
+description:
+globs:
+alwaysApply: false
+---

@@ -1,0 +1,25 @@
+{
+  "return": ["key"],
+  "aggregate": [
+    {
+      "operation": "sum",
+      "column": "value"
+    },
+    {
+      "operation": "count",
+      "column": "value"
+    }
+  ],
+  "where": {
+    "column": "history_ts",
+    "condition": ">=",
+    "value": "1762764219.123255",
+    "and": {
+      "column": "key",
+      "condition": "=",
+      "value": "READINGS"
+    }
+  },
+  "group": "key"
+}
+

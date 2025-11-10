@@ -126,4 +126,5 @@ timezone - readings   - read 3,PUT,http://localhost:8080/storage/reading/query,t
 timezone - readings   - read 4,PUT,http://localhost:8080/storage/reading/query,tz_readings_read_4.json
 Add more Readings,POST,http://localhost:8080/storage/reading,readings_timebucket.json
 Query Readings Timebucket,PUT,http://localhost:8080/storage/reading/query,query_timebucket_datapoints.json
+FOGL-4102 return aggregate sum count where and group,PUT,http://localhost:8080/storage/table/statistics_history/query,FOGL-4102.json
 Shutdown,POST,http://localhost:1081/fledge/service/shutdown,,checkstate

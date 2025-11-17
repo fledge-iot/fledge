@@ -1,0 +1,317 @@
+---
+description: C++ South Plugin Architecture.
+globs: ["*.cpp", "*.h"]
+alwaysApply: true
+author: "Devki Nandan Ghildiyal"
+---
+
+## South Plugin
+
+- South plugin are of two types poll plugin and asyc plugin
+
+- Poll type plugin calls plugin_poll method at the defined interval to collect data from sensor.
+
+- Asych type plugin use some incoming event from device or callback mechanism
+
+- SP_ASYNC flag is used to support async feature
+
+- Plugin interface version 1.0.0 is used to fetch single reading
+
+- Plugin interface version 2.0.0 is used to fetch multiple readings
+
+- South plugin can be used to extract controls (Set Point Control) on the underlying device to which it is connected
+
+- SP_CONTROL Flag is used to support Set Point Control feature
+
+
+## General plugin guidelines
+
+- General guidelines to write a Fledge plugin is at '../../../docs/plugin_developers_guide/02_writing_plugins.rst' file
+
+## South plugin Guidelines
+
+- Specific guidelines to write a south plugin is at '../../../docs/plugin_developers_guide/03_south_C_plugins.rst'
+
+## Persisting Data 
+
+- Persistence feature can be implemented in the plugin to persist state between the execution of plugin.
+
+- SP_PERSIST_DATA flag is used to support persist data feature
+
+- Guidelines to implement persistance feature is at '../../../docs/plugin_developers_guide/02_persisting_data.rst'
+
+## Common support classes
+
+- Information about common support classes used by plugin is at '../../../docs/plugin_developers_guide/035_CPP.rst'
+
+## Mutex and Locking
+
+- Thread Safety: The fledge south plugin can receive data (ingest()) and configuration changes (reconfigure()) simultaneously from different threads
+- Data Consistency: Prevents reading configuration while it's being modified
+- RAII Pattern: std::lock_guard automatically unlocks when going out of scope, preventing deadlocks
+
+- Following sample code demonstrates use of mutex and locks when doing ingestion
+
+```
+void ingest(std::vector<Reading *> *readings, std::vector<Reading *>& outReadings)
+{
+    std::lock_guard<std::mutex> guard(m_configMutex);
+    IngestData(readings, outReadings);
+    readings->clear();
+}
+
+```
+
+- Following sample code demonstrates use of mutex and locks when doing configuration changes
+
+```
+void reconfigure(const std::string& conf)
+{
+    std::lock_guard<std::mutex> guard(m_configMutex);
+    setConfig(conf);
+    handleConfig(m_config);
+}
+
+```
+
+## Implementation details of plugin
+
+- South plugin fetches data from sensors or external sources and store in Fledge
+- Common C++ classes used in Fledge framework are at following location '../../../C/common/include' and '../../../C/common/'
+- C++ class to handle reading in Fledge is at '../../../C/common/include/reading.h'
+- C++ class to handle datapoint in Fledge is at '../../../C/common/include/datapoint.h'
+- C++ class to handle logging in Fledge is at '../../../C/common/include/logger.h'
+- C++ plugin must have a 'plugin.cpp' file
+- 'plugin.cpp' file must have plugin configuration and 
+- Implementation of requirement of plugin is kept into a separate header and class implementation file which is used by 'plugin.cpp' file
+- Every plugin has 'docs' and 'tests' directory
+- 'plugin.cpp' must define plugin of the configuration
+
+## Fledge plugin configuration
+
+Every Fledge plugin has a default configuration represented by a JSON.
+
+Following example demonstrates minimial configurtion for every plugin. configuration JSON for each plugin must have an elments called "plugin"
+
+
+```
+const char *default_config = QUOTE({
+              "plugin" : {
+                      "description" : "My example plugin in C++",
+                      "type" : "string",
+                      "default" : "MyPlugin",
+                      "readonly" : "true"
+                      }
+});
+```
+
+- constant default_config is a string that contains the JSON configuration document.
+- QUOTE macro is used to manage JSON document easily
+- Configuation JSON documment will have multiple elements for each configuration item.
+- Fledge plugin supports following types
+
+| Type | Description | 
+|:-----|:------------|
+|integer|An integer numeric value. The minimum and maximum properties may be used to control the limits of the values assigned to an integer.|
+|float|A floating point numeric item. The minimum and maximum properties may be used to control the limits of the values assigned to a float.|
+|string|An alpha-numeric array of characters that may contain any printable characters. The length property can be used to constrain the maximum length of the string.|
+|password|It is same as string type. User interfaces do not show this in plain text.|
+|boolean|A boolean value that can be assigned the values true or false.|
+|enumeration|The item can be assigned one of a fixed set of values. These values are defined in the options property of the item.|
+|list|A list of items, the items can be of type string, integer, float, enumeration or object. The type of the items within the list must all be the same, and this is defined via the items property of the list. A limit on the maximum number of entries allowed in the list can be enforced by use of the listSize property.|
+|kvlist|A key value pair list. The key is a string value always but the value of the item in the list may be of type string, enumeration, float, integer or object. The type of the values in the kvlist is defined by the items property of the configuration item. A limit on the maximum number of entries allowed in the list can be enforced by use of the listSize property.|
+|object|A complex configuration type with multiple elements that may be used within list and kvlist items only, it is not possible to have object type items outside of a list. Object type configuration items have a set of properties defined, each of which is itself a configuration item.|
+
+## Example for integer type
+
+Sample configuration item "register"
+
+```
+ "register" : {
+			  "description" : "The register number to read",
+			  "displayName" : "Register",
+			  "type" : "integer",
+			  "default" : "0",
+			  "order" : "1"
+			  }
+```
+
+## Example for integer type
+
+Sample configuration item "temperature"
+
+```
+ "temperature" : {
+			  "description" : "Temperate of PLC",
+			  "displayName" : "PLC Temperature",
+			  "type" : "float",
+			  "default" : "0",
+			   "order" : "2"
+			  }
+
+```
+
+## Example for string type
+
+Sample configuration item "asset"
+
+```
+"asset" : {
+		  "description" : "The name of the asset the plugin will produce",
+		  "displayName" : "Asset Name",
+		  "type" : "string",
+		  "default" : "MyAsset",
+		   "order" : "3"
+		  }
+```
+
+## Example of password type
+
+Sample configuration item "db_password"
+
+```
+"db_password" : {
+		  "description" : "Password of the database",
+		  "displayName" : "Database Password",
+		  "type" : "boolean",
+		  "default" : "MyAsset",
+		   "order" : "4"
+		  }
+```
+
+## Example of boolean type
+
+Sample configuration item "apply_scaling"
+
+```
+"apply_scaling": {
+				"description": "Option to apply scaling",
+				"displayName": "Use Scaling"
+				"type": "boolean",
+				"default": "true",
+				 "order" : "5"
+			}
+```
+
+## Example of enumeration type
+
+Sample configuration item "authentication"
+
+```
+"authentication": {
+  "description": "Server Authentication",
+  "displayName": "Authentication",
+  "type": "enumeration",
+  "options": [
+    "mandatory",
+    "optional"
+  ],
+  "default": "optional",
+   "order" : "6"
+  
+}
+```
+
+## Example of list type
+
+Sample configuration item "tags"
+
+```
+"tags" : {
+               "description" : "A set of tag names on which to operate",
+			   "displayName" : "Labels",
+               "type" : "list",
+               "items" : "string",
+               "default" : "[ \"speed\", \"temperature\", \"voltage\" ]",
+               "order" : "7"
+               
+          }
+
+```
+
+## Example of kvlist type
+
+Sample configuration item "expressions"
+
+```
+"expressions" : {
+              "description" : "A set of expressions used to evaluate and label data",
+			  "displayName" : "Labels",
+              "type" : "kvlist",
+              "items" : "string",
+              "default" : "{\"idle\" : \"speed == 0\"}",
+              "order" : "8"
+              
+              }
+```
+
+## Example of object type
+
+Sample configuration item "map" 
+
+```
+"map": {
+      "description": "A list of datapoints to read and PLC register definitions",
+      "type": "list",
+      "items" : "object",
+      "default": "[ { \"datapoint\" : \"speed\", \"register\" : \"10\", \"width\" : \"1\", \"type\" : \"integer\"} ]",
+      "order" : "3",
+      "displayName" : "PLC Map",
+      "properties" : {
+              "datapoint" : {
+                      "description" : "The name of the datapoint to create for the map entry",
+                      "displayName" : "Datapoint",
+                      "type" : "string",
+                      "default" : "datapoint"
+                      },
+              "register" : {
+                      "description" : "The register number to read",
+                      "displayName" : "Register",
+                      "type" : "integer",
+                      "default" : "0"
+                      },
+              "width" : {
+                      "description" : "Number of registers to read",
+                      "displayName" : "Width",
+                      "type" : "integer",
+                      "maximum" : "4",
+                      "default" : "1"
+                      },
+              "type" : {
+                      "description" : "The data type to read",
+                      "displayName" : "Data Type",
+                      "type" : "enumeration",
+                      "options" : [ "integer","float", "boolean" ],
+                      "default" : "integer"
+                      }
+              }
+      }
+```
+
+## Supported Poperties by configuration items in configuration JSON document
+
+|Property|Description|
+|:-----|:------------|
+|default|The default value for the configuration item. This is always expressed as a string regardless of the type of the configuration item.|
+|deprecated|A boolean flag to indicate that this item is no longer used and will be removed in a future release.|
+|description|A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.|
+|displayName|The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.|
+|items|The type of the items in a list or kvlist configuration item.|
+|length|The maximum length of the string value of the item.|
+|listSize|The maximum number of entries allowed in a list or kvlist item.|
+|mandatory|A boolean flag to indicate that this item can not be left blank.|
+|maximum|The maximum value for a numeric configuration item.|
+|minimum|The minimum value for a numeric configuration item.|
+|options|Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.|
+|order|Used in the user interface to give an indication of how high up in the dialogue to place this item.|
+|group|Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation and edit screens.|
+|readonly|A boolean property that can be used to include items that can not be altered by the API.|
+|rule|A validation rule that will be run against the value. This must evaluate to true for the new value to be accepted by the API|
+|type|The type of the configuration item. The list of types supported are; integer, float, string, password, enumeration, boolean, list, kvlist, JSON, URL, IPV4, IPV6, script, code, X509 certificate and northTask.|
+|validity|An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.|
+|value|The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.|
+|properties|A set of items that are used in list and kvlist type items to create a list of groups of configuration items.|
+|keyName|A display name to be used for entry and display of key in the key-value list type, with item being an object.|
+|keyDescription|A description of key value in the key-value list type, with item being an object.|
+|permissions|An array of user roles that are allowed to update this configuration item. If not given then the configuration item can be updated by any user. If the permissions property is included in a configuration item the array must have at least one entry.|
+

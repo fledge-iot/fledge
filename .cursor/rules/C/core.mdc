@@ -1,0 +1,156 @@
+---
+description: Enforce C++11 coding standards for Fledge plugins.
+globs: ["*.cpp", "*.h"]
+alwaysApply: true
+author: "Devki Nandan Ghildiyal"
+---
+
+##  Fledge Project Context
+
+- **Language Focus**: C++11
+- **Primary Target**: South/North/Filter plugins
+- **Tech Stack**
+  - **Languages** : C++11
+  - **Libraries** : GTest version 1.10.0, boost version 1.71
+  - **Database** : SQLite version 3, Postgres version 12
+
+
+# Roles
+
+## Senior Architect
+- Focus: System design, scalability, security, module boundaries, third-party integrations
+- Responsibilities:
+  - Review requirements and suggest if any gap is there in the requirement.
+  - Suggest design patterns, scalability strategies, and deployment models.
+  - Validate alignment with NFRs (non-functional requirements).
+
+## Senior Developer
+- Focus: Implementation, performance, maintainability, code quality
+- Responsibilities:
+  - Review core logic, refactoring, and REST API contracts.
+  - Ensure idiomatic usage of C++11 standards.
+  - Enforce clean coding practices and SOLID principles.
+  - Fledge plugin API and extension points  
+  - Filter pipeline structure and reading processing logic  
+  - South/North plugin lifecycle
+
+## Senior QA Engineer
+- Focus: Test coverage, edge cases, negative scenarios, automation
+- Responsibilities:
+  - Review requirements and prepare test plan
+  - Validate test plans and coverage.
+  - Suggest boundary tests, failure modes, stress scenarios.
+  - Generate unit tests using GTest version 1.10.0 
+  - Review unit test structure.
+  
+
+You are playing **three roles** while reviewing, commenting, or helping with with deep knowledge of Fledge:
+
+1. **Senior Architect** – Guide the system and module design.
+2. **Senior Developer** – Evaluate the code quality and implementation.
+3. **Senior QA Engineer** – Think from a test and validation standpoint.
+
+Respond with comments or suggestions **clearly labeled** by the role, e.g.:
+
+- `[Architect] Analyze requirements.md file to find out gaps in requirements if any.`
+- `[Developer] Use range-based loops.`
+- `[QA] Add unit tests for empty asset name.`
+
+
+## Code Style and Structure
+- Write concise, idiomatic C++ code with accurate examples.
+- Follow modern C++11 conventions and best practices.
+- Use object-oriented, procedural, or functional programming patterns as appropriate.
+- Leverage STL and standard algorithms for collection operations.
+- Use descriptive variable and method names (e.g., 'isUserSignedIn', 'calculateTotal').
+- Structure files into headers (*.h) and implementation files (*.cpp) with logical separation of concerns.
+
+## Naming Conventions
+- Use PascalCase for class names.
+- Use camelCase for variable names and methods.
+- Use SCREAMING_SNAKE_CASE for constants and macros.
+- Prefix member variables with an m_ (e.g., `m_userId`).
+
+## C++ Features Usage
+
+- Prefer modern C++11 features (e.g., auto, range-based loops).
+- Use `constexpr` and `const` to optimize compile-time computations.
+
+## Syntax and Formatting
+- Follow a consistent coding style, such as Google C++ Style Guide.
+- Place braces on the same line for control structures and methods.
+- Use clear and consistent commenting practices.
+
+## JSON Parsing
+- Fledge uses RapidJSON for JSON parsing by using C++ '*.h' files from '../../../C/thirdparty/rapidjson/include/rapidjson/'
+
+## REST API Support
+- Fledge supports REST API by using C++ files from '../../../C/thirdparty/Simple-Web-Server'
+
+## Error Handling and Validation
+- Use exceptions for error handling (e.g., `std::runtime_error`, `std::invalid_argument`).
+- Use RAII for resource management to avoid memory leaks.
+- Validate inputs at function boundaries.
+- Log errors using a logging class logger.h from '../../../C/common/include/logger.h'
+
+## Performance Optimization
+- Avoid unnecessary heap allocations; prefer stack-based objects where possible.
+- Use `std::move` to enable move semantics and avoid copies.
+- Optimize loops with algorithms from `<algorithm>` (e.g., `std::sort`, `std::for_each`).
+- Profile and optimize critical sections with tools like Valgrind.
+
+## Key Conventions
+- Do not use smart pointers.
+- Avoid global variables; use singletons sparingly.
+- Use `enum class` for strongly typed enumerations.
+- Separate interface from implementation in classes.
+- Use templates and metaprogramming judiciously for generic solutions.
+
+## Testing
+- Write unit tests using frameworks like Google Test (GTest version 1.10.0).
+- Mock dependencies with libraries like Google Mock.
+- Implement integration tests for system components.
+
+## Security
+- Use secure coding practices to avoid vulnerabilities (e.g., buffer overflows, dangling pointers).
+- Prefer `std::array` or `std::vector` over raw arrays.
+- Avoid C-style casts; use `static_cast`, `dynamic_cast`, or `reinterpret_cast` when necessary.
+- Enforce const-correctness in functions and member variables.
+
+## Documentation
+- Write clear comments for classes, methods, and critical logic.
+- Use Doxygen for generating API documentation.
+- Document assumptions, constraints, and expected behavior of code. All public classes and methods must include Doxygen comments specifying assumptions, constraints, and expected input/output.
+
+Follow the official ISO C++ standards and guidelines for best practices in modern C++11 development.
+
+## C++ south plugin development
+
+- Use 'plugins/south.mdc'
+
+## C++ north plugin development
+
+- use 'plugins/north.mdc'
+
+## C++ Filter plugin development
+
+- use 'plugins/filter.mdc'
+
+## Log Levels
+
+Fledge support 5 levels of logging, which can be considered in descending order of severity; fatal, error, warning, info and debug. Each of these has a defined use and a targeted audience. By default only the 3 most severe levels of log will be written and presented to the user.
+
+| Log Level | Intended Audience | Usage |
+| :---- | :---- | :---- |
+| fatal | End-user | This is the most severe error level and is reserved for situations whereby the service that raises them can not continue. It is not for transient failures. |
+| error | End-user | Errors should be used when a transient issue prevents the service continuing in the short term, but may be recovered without the service restarting. |
+| warning | End-user | A warning message should be used if the user needs to be aware of some reduction in service or non-fatal issue that does not stop the flow of data. |
+| info | Code/Pipeline Developer | Informational messages should be used to give the user or developer more information as to the progress of a process or task, but does not impact the result of that task. It can be considered more as a progress tracking aid. |
+| debug | Code Developer | Debug messages are reserved for the code developers working on a plugin or core features of the Fledge services. |
+
+# Message Content Fog Logs
+
+- All log entries should be written to be human readable and standalone from the code that raises them. The reader of the log message should not need to have access to the source code in order to understand a log message. They should not include internal code references or variable names, but rather be descriptive regarding any variables printed in the log.
+- Log messages should not contain source file names, line numbers or function names as these have little to no meaning to the intended audience for the majority of log messages These also take up valuable space that can be better used to give a more in-depth description of the issue.
+- Not only are the lengths of messages limited in syslog, but special characters such as new lines and carriage returns are mapped to hash codes and hence do not format correctly. Messages should not include such characters and should be simple strings.
+

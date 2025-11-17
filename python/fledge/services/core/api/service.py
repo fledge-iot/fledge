@@ -135,31 +135,6 @@ class ServiceInfoCache(object):
 # service info cache instance
 _service_info_cache = ServiceInfoCache()
 
-# TODO: FOGL-1022 - This is a temporary solution to get the service info for the prebuilt services.
-# Prebuilt services configuration
-_PREBUILT_SERVICES = {
-    "south": {
-        "name": "south",
-        "description": "Service used to interact with device, API and generic sources of data",
-        "type": "south",
-        "process": "south",
-        "process_script": "south_c"
-    },
-    "north": {
-        "name": "north",
-        "description": "Service used to interact with device, API and generic sources of data",
-        "type": "north",
-        "process": "north",
-        "process_script": "north_C"
-    },
-    "storage": {
-        "name": "storage",
-        "description": "The storage service buffers data within a single Fledge instance",
-        "type": "storage",
-        "process": "storage",
-        "process_script": "storage"
-    }
-}
 
 #################################
 #  Service
@@ -204,12 +179,11 @@ async def _fetch_service_info(service_name: str) -> dict:
     Returns:
         Service info dictionary with service details, or empty response if all methods fail
     """
-    # Check cache first for non-prebuilt services
-    if service_name not in _PREBUILT_SERVICES:
-        cached_info = _service_info_cache.get(service_name)
-        if cached_info is not None:
-            _logger.debug(f"Retrieved service info for {service_name} from cache")
-            return cached_info
+    # Check cache first
+    cached_info = _service_info_cache.get(service_name)
+    if cached_info is not None:
+        _logger.debug(f"Retrieved service info for {service_name} from cache")
+        return cached_info
 
     def _create_empty_service_response(name: str) -> dict:
         return {
@@ -291,10 +265,9 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(service_path, service_name=service_name)
             if service_info:
-                # Cache successful result for non-prebuilt services
-                if service_name not in _PREBUILT_SERVICES:
-                    _service_info_cache.update(service_name, service_info)
-                    _logger.debug(f"Cached service info for {service_name}")
+                # Cache successful result
+                _service_info_cache.update(service_name, service_info)
+                _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -310,10 +283,9 @@ async def _fetch_service_info(service_name: str) -> dict:
         try:
             service_info = _get_service_info_from_path(python_service_path, is_python=True, service_name=service_name)
             if service_info:
-                # Cache successful result for non-prebuilt services
-                if service_name not in _PREBUILT_SERVICES:
-                    _service_info_cache.update(service_name, service_info)
-                    _logger.debug(f"Cached service info for {service_name}")
+                # Cache successful result
+                _service_info_cache.update(service_name, service_info)
+                _logger.debug(f"Cached service info for {service_name}")
                 return service_info
             else:
                 # File found but unable to get info - return early
@@ -329,16 +301,50 @@ async def _fetch_service_info(service_name: str) -> dict:
 
 
 def get_service_installed() -> List:
-    paths = [_FLEDGE_ROOT + "/services", _FLEDGE_ROOT + "/python/fledge/services/management"]
+    paths = [
+        os.path.join(_FLEDGE_ROOT, "services"),
+        os.path.join(_FLEDGE_ROOT, "python", "fledge", "services")
+    ]
     services = []
     svc_prefix = 'fledge.services.'
+    ignored_items = {'common', 'core', 'south'}
     for _path in paths:
-        for root, dirs, files in os.walk(_path):
-            for _file in files:
-                if _file.startswith(svc_prefix):
-                    services.append(_file.split(svc_prefix)[-1])
-                elif _file == '__main__.py':
-                    services.append('management')
+        if not os.path.exists(_path):
+            continue
+        if _path.endswith("/python/fledge/services"):
+            # Python-based services
+            try:
+                for item in os.listdir(_path):
+                    if item in ignored_items or item.startswith('__'):
+                        continue
+
+                    item_path = os.path.join(_path, item)
+                    if not os.path.isdir(item_path):
+                        continue
+
+                    init_file = os.path.join(item_path, '__init__.py')
+                    main_file = os.path.join(item_path, '__main__.py')
+
+                    if os.path.isfile(init_file) and os.path.isfile(main_file):
+                        services.append(item)
+                    else:
+                        missing = []
+                        if not os.path.isfile(init_file):
+                            missing.append('__init__.py')
+                        if not os.path.isfile(main_file):
+                            missing.append('__main__.py')
+                        _logger.error(
+                            f"'{item}' service is not installed correctly — missing: {', '.join(missing)}"
+                        )
+            except Exception as ex:
+                _logger.warning(f"Failed to list Python services at {_path}: {ex}")
+        else:
+            # C-based services
+            for root, dirs, files in os.walk(_path):
+                for _file in files:
+                    if _file.startswith(svc_prefix):
+                        service_name = _file[len(svc_prefix):]
+                        services.append(service_name)
     return services
 
 
@@ -360,10 +366,6 @@ async def get_service_info(request):
         installed_services = get_service_installed()
         services = []
         for service_name in installed_services:
-            # Check if it's a prebuilt service
-            if service_name in _PREBUILT_SERVICES:
-                services.append(_PREBUILT_SERVICES[service_name])
-                continue
             service_info = await _fetch_service_info(service_name)
             services.append(service_info)
         response = {"services": services}
@@ -398,12 +400,8 @@ async def get_service_info_by_name(request):
             msg = f"Service '{service_name}' not found in installed services."
             raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
 
-        # Check if it's a prebuilt service
-        if service_name in _PREBUILT_SERVICES:
-            service_info = _PREBUILT_SERVICES[service_name]
-        else:
-            # Try to get service info from C or Python service
-            service_info = await _fetch_service_info(service_name)
+        # Get service info from C or Python service
+        service_info = await _fetch_service_info(service_name)
         return web.json_response(service_info)
     except Exception as ex:
         msg = str(ex)
@@ -425,11 +423,6 @@ async def get_health(request):
     try:
         if 'type' in request.query and request.query['type'] != '':
             _type = request.query['type']
-            svc_type_members = ServiceRecord.Type._member_names_
-            is_type_exists = _type in svc_type_members
-            if not is_type_exists:
-                raise ValueError('{} is not a valid service type. Supported types are {}'.format(_type,
-                                                                                                 svc_type_members))
             response = get_service_records(_type)
         else:
             response = get_service_records()
@@ -564,19 +557,15 @@ async def add_service(request):
     :Example:
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
-             curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
-             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}' | jq
-             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "BucketServer", "type": "bucketstorage", "enabled": true}' | jq
+             curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "Notification", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "Dispatcher", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
-             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Pipeline-Ingest", "type": "pipeline", "enabled": true}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
-             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage"}'
-             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
-             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"1.9.1"}'
-             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage", "version":"1.9.2"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"3.1.0"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"3.1.0"}'
     """
 
     try:
@@ -589,7 +578,6 @@ async def add_service(request):
         service_type = data.get('type', None)
         enabled = data.get('enabled', None)
         config = data.get('config', None)
-
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if 'action' in request.query and request.query['action'] != '':
@@ -661,16 +649,11 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Invalid name property in payload.')
         if utils.check_fledge_reserved(name) is False:
             raise web.HTTPBadRequest(reason="'{}' is reserved for Fledge and can not be used as service name!".format(name))
-        if service_type is None:
+        normalized_type = str(service_type).lower() if str(service_type).lower() in ('south', 'north') else service_type
+        if normalized_type is None:
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
-
-        service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher',
-                                'bucketstorage', 'pipeline']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher, bucketstorage '
-                                            'and pipeline types are supported.')
-        if plugin is None and service_type in ('south', 'north'):
-            raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(service_type))
+        if plugin is None and normalized_type in ('south', 'north'):
+            raise web.HTTPBadRequest(reason='Missing plugin property for type {} in payload.'.format(normalized_type))
         if plugin and utils.check_reserved(plugin) is False:
             raise web.HTTPBadRequest(reason='Invalid plugin property in payload.')
 
@@ -682,18 +665,23 @@ async def add_service(request):
             (type(enabled) is bool and enabled is True))) else False
         
         dryrun = not is_enabled
+        process_name = None
+        script = None
+        priority = None
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
-        if service_type == 'south' or service_type == 'north':
+        if normalized_type in ('south', 'north'):
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
             # folder, within the plugin_module_path.
             # if multiple plugin with same name are found, then python plugin import will be tried first
-            plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
-            process_name = 'south_c' if service_type == 'south' else 'north_C'
-            script = '["services/south_c"]' if service_type == 'south' else '["services/north_C"]'
+            plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, normalized_type, plugin)
+            service_info = await _fetch_service_info(normalized_type)
+            process_name = service_info['process']
+            script = service_info['process_script']
+            priority = service_info['startup_priority']
             try:
-                plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
+                plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, normalized_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
                     msg = "Plugin '{}' import problem from path '{}''.".format(plugin, plugin_module_path)
@@ -701,8 +689,8 @@ async def add_service(request):
                     raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except FileNotFoundError as ex:
                 # Checking for C-type plugins
-                plugin_config = load_c_plugin(plugin, service_type)
-                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
+                plugin_config = load_c_plugin(plugin, normalized_type)
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, normalized_type, plugin)
                 if not plugin_config:
                     msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
                     _logger.exception(ex, msg)
@@ -712,36 +700,17 @@ async def add_service(request):
             except Exception as ex:
                 _logger.error(ex, "Failed to fetch plugin info config item.")
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
-        elif service_type == 'notification':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'notification_c'
-            script = '["services/notification_c"]'
-        elif service_type == 'management':
-            file_names_list = ['{}/python/fledge/services/management/__main__.py'.format(_FLEDGE_ROOT),
-                               '{}/scripts/services/management'.format(_FLEDGE_ROOT),
-                               '{}/scripts/tasks/manage'.format(_FLEDGE_ROOT)]
-            if not all(list(map(os.path.exists, file_names_list))):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'management'
-            script = '["services/management"]'
-        elif service_type == 'dispatcher':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'dispatcher_c'
-            script = '["services/dispatcher_c"]'
-        elif service_type == 'bucketstorage':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucket"):
-                msg = "{} service is not installed correctly.".format(service_type.capitalize())
-                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-            process_name = 'bucket_storage_c'
-            script = '["services/bucket_storage_c"]'
-        elif service_type == 'pipeline':
-            process_name = 'pipeline_c'
-            script = '["services/pipeline_c"]'
+        else:
+            for service_name in get_service_installed():
+                service_info = await _fetch_service_info(service_name)
+                if service_info['type'] == normalized_type:
+                    process_name = service_info['process']
+                    script = service_info['process_script']
+                    priority = service_info['startup_priority']
+                    break
+        if process_name is None or script is None or priority is None:
+            message = f"The '{normalized_type}' service has not been installed correctly."
+            raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -760,12 +729,11 @@ async def add_service(request):
         count = await check_scheduled_processes(storage, process_name, script)
         if count == 0:
             # Now first create the scheduled process entry for the new service
-            column_name = {"name": process_name, "script": script}
-            if service_type == 'management':
-                column_name["priority"] = 300
+            column_name = {"name": process_name, "script": script, "priority": priority}
             payload = PayloadBuilder().INSERT(**column_name).payload()
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
+                await server.Server.scheduler._get_process_scripts()
             except StorageServerError as ex:
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
@@ -773,35 +741,7 @@ async def add_service(request):
                 _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
-        # check that notification service is not already registered, right now notification service LIMIT to 1
-        if service_type == 'notification':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'notification_c' in ps['process_name']:
-                    msg = "A Notification service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
-        elif service_type == 'dispatcher':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'dispatcher_c' in ps['process_name']:
-                    msg = "A Dispatcher service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check the schedule entry for BucketStorage service as LIMIT to 1
-        elif service_type == 'bucketstorage':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'bucket_storage_c' in ps['process_name']:
-                    msg = "A BucketStorage service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        # check that management service is not already registered, right now management service LIMIT to 1
-        elif service_type == 'management':
-            res = await check_schedule_entry(storage)
-            for ps in res['rows']:
-                if 'management' in ps['process_name']:
-                    msg = "A Management service type schedule already exists."
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        elif service_type == 'south' or service_type == 'north':
+        if normalized_type in ('south', 'north'):
             try:
                 # Create a configuration category from the configuration defined in the plugin
                 category_desc = plugin_config['plugin']['description']
@@ -810,7 +750,7 @@ async def add_service(request):
                                                  category_value=plugin_config,
                                                  keep_original_items=True)
                 # Create the parent category for all South services
-                parent_cat_name = service_type.capitalize()
+                parent_cat_name = normalized_type.capitalize()
                 await config_mgr.create_category(parent_cat_name, {}, "{} microservices".format(parent_cat_name), True)
                 await config_mgr.create_child_category(parent_cat_name, [name])
 
@@ -832,6 +772,12 @@ async def add_service(request):
                 msg = "Failed to create plugin configuration while adding service."
                 _logger.error(ex, msg)
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if process_name in ps['process_name']:
+                    msg = f"A {process_name} service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
@@ -1109,3 +1055,4 @@ async def issueOTPToken(request):
     startToken = ServiceRegistry.issueStartupToken(service_name)
 
     return web.json_response({"startupToken": startToken})
+

@@ -80,12 +80,15 @@ class TestNotificationServiceAPI:
         finally:
             remove_directories("/tmp/fledge-service-{}".format(SERVICE))
 
-        # Start service
+        # GET service type
         conn = http.client.HTTPConnection(fledge_url)
-        data = {"name": SERVICE_NAME,
-                "type": "notification",
-                "enabled": "true"
-                }
+        conn.request("GET", f'/fledge/service/info/{SERVICE}')
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        # Add service
+        data = {"name": SERVICE_NAME, "type": jdoc['type'], "enabled": "true"}
         conn.request("POST", '/fledge/service', json.dumps(data))
         r = conn.getresponse()
         assert 200 == r.status

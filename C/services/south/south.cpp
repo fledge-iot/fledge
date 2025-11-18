@@ -280,7 +280,7 @@ SouthService::SouthService(const string& myName, const string& token) :
 	m_type = SERVICE_TYPE;
 	m_pollType = POLL_INTERVAL;
 
-	logger = new Logger(myName);
+	logger = Logger::getNewLogger(myName);
 	logger->setMinLevel("warning");
 
 	m_reconfThread = new std::thread(reconfThreadMain, this);

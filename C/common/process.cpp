@@ -12,7 +12,7 @@
  * Fledge process base class
  */
 #include <iostream>
-#include <logger.h>
+#include <loggerlinux.h>
 #include <process.h>
 #include <service_record.h>
 #include <signal.h>
@@ -112,7 +112,7 @@ FledgeProcess::FledgeProcess(int argc, char** argv) :
 	}
 
 	myName = m_name;
-	m_logger = new Logger(myName);
+	m_logger = new LoggerLinux(myName);
 
 	if (m_core_mngt_host.empty())
 	{

@@ -326,7 +326,7 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_allowDebugger(true)
 {
 	m_name = myName;
-	logger = new Logger(myName);
+	logger = Logger::getNewLogger(myName);
 	logger->setMinLevel("warning");
 }
 

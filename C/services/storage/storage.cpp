@@ -25,7 +25,6 @@
 #include <syslog.h>
 #include <config_handler.h>
 #include <plugin_configuration.h>
-#include <loggerlinux.h>
 
 #define NO_EXIT_STACKTRACE		0	// Set to 1 to make storage loop after stacktrace
 						// This is useful to be able to attach a debbugger
@@ -234,7 +233,6 @@ StorageService::StorageService(const string& myName) : m_name(myName),
 {
 unsigned short servicePort;
 
-	// logger = new LoggerLinux(myName);	// Do this first to make sure we have the right logger
 	logger = Logger::getNewLogger(myName);	// Do this first to make sure we have the right logger
 	config = new StorageConfiguration();
 

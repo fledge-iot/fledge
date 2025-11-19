@@ -1,5 +1,6 @@
 #ifndef _LOGGERLINUX_H
 #define _LOGGERLINUX_H
+#ifdef __linux__
 /*
  * Fledge Logger for Linux
  *
@@ -55,23 +56,24 @@ class LoggerLinux : public virtual Logger {
 		LoggerLinux(const std::string& application);
 		~LoggerLinux();
 		static LoggerLinux *getLogger();
-		void debug(const std::string& msg, ...);
-		void printLongString(const std::string&, LogLevel = LogLevel::DEBUG);
-		void info(const std::string& msg, ...);
-		void warn(const std::string& msg, ...);
-		void error(const std::string& msg, ...);
-		void fatal(const std::string& msg, ...);
-		void setMinLevel(const std::string& level);
-		std::string& getMinLevel() { return levelString; }
+		static Logger *getNewLogger(const std::string &application);
+		void debug(const std::string& msg, ...) override;
+		void printLongString(const std::string&, LogLevel = LogLevel::DEBUG) override;
+		void info(const std::string& msg, ...) override;
+		void warn(const std::string& msg, ...) override;
+		void error(const std::string& msg, ...) override;
+		void fatal(const std::string& msg, ...) override;
+		void setMinLevel(const std::string& level) override;
+		std::string& getMinLevel() override { return levelString; }
 
 		// LogInterceptor callback function signature
-		typedef void (*LogInterceptor)(LogLevel, const std::string&, void*);
+		// typedef void (*LogInterceptor)(LogLevel, const std::string&, void*);
 
 		// Register an interceptor
-		bool registerInterceptor(LogLevel level, LogInterceptor callback, void* userData);
+		bool registerInterceptor(LogLevel level, LogInterceptor callback, void* userData) override;
 
 		// Unregister an interceptor
-		bool unregisterInterceptor(LogLevel level, LogInterceptor callback);
+		bool unregisterInterceptor(LogLevel level, LogInterceptor callback) override;
 
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
@@ -114,4 +116,4 @@ class LoggerLinux : public virtual Logger {
 };
 
 #endif
-
+#endif

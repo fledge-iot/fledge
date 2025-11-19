@@ -37,8 +37,6 @@ public:
 	// LogInterceptor callback function signature
 	typedef void (*LogInterceptor)(LogLevel, const std::string &, void *);
 
-	Logger() = default;
-	Logger(const std::string &application);
 	virtual ~Logger() = 0;
 	static Logger *getLogger();
 	static Logger *getNewLogger(const std::string &application);
@@ -57,7 +55,10 @@ public:
 	// Unregister an interceptor
 	virtual bool unregisterInterceptor(LogLevel level, LogInterceptor callback) = 0;
 
+protected:
 	static Logger *instance;
+	Logger() = default;
+	Logger(const std::string &application);
 };
 
 #endif

@@ -1,34 +1,22 @@
 /*
  * Fledge Logger base class
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
-#include <logger.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <stdarg.h>
-#include <memory>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <exception>
-#include <arpa/inet.h>
-#include <stdexcept>
-#include <algorithm>
+#include "logger.h"
 
-// /**
-//  * The singleton pointer
-//  */
+/**
+ * The singleton pointer
+ */
 Logger *Logger::instance = 0;
 
-// /**
-//  * Destructor for the logger class.
-//  */
+/**
+ * Logger Class virtual destructor
+ */
 Logger::~Logger()
 {
 	// Stop the getLogger() call returning a deleted instance

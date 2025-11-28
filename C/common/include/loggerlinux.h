@@ -2,30 +2,21 @@
 #define _LOGGERLINUX_H
 #ifdef __linux__
 /*
- * Fledge Logger for Linux
+ * Fledge Logger for Linux syslog
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 
-#include <string>
-#include <functional>
-#include <map>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <condition_variable>
-#include <atomic>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <logger.h>
+#include "logger.h"
 #define PRINT_FUNC	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 /**
- * Fledge Logger class used to log to syslog
+ * Fledge LoggerLinux class used to log to syslog
+ * This is a subclass of virtual base class Logger
  *
  * At startup this class should be constructed
  * using the standard constructor. To log a message
@@ -35,23 +26,9 @@
  * To obtain that singleton instance call the static
  * method getLogger.
  *
- * It is generally unsafe to delete the logger class
- * as it may be called asynchronouly from multiple
- * threads and single handlers. The destructor has
- * hence been made private to prevent the destruction
- * of the class.
  */
 class LoggerLinux : public virtual Logger {
 	public:
-		// enum class LogLevel			// already defined in Logger base class
-		// {
-		// 	ERROR,
-		// 	WARNING,
-		// 	INFO,
-		// 	DEBUG,
-		// 	FATAL
-		// };
-
 		LoggerLinux() = default;
 		LoggerLinux(const std::string& application);
 		~LoggerLinux();
@@ -66,9 +43,6 @@ class LoggerLinux : public virtual Logger {
 		void setMinLevel(const std::string& level) override;
 		std::string& getMinLevel() override { return levelString; }
 
-		// LogInterceptor callback function signature
-		// typedef void (*LogInterceptor)(LogLevel, const std::string&, void*);
-
 		// Register an interceptor
 		bool registerInterceptor(LogLevel level, LogInterceptor callback, void* userData) override;
 
@@ -77,8 +51,6 @@ class LoggerLinux : public virtual Logger {
 
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
-		// static Logger   *instance;
-		// LoggerLinux() = default;
 		friend class Logger;
 		std::string     levelString;
 		int		m_level;

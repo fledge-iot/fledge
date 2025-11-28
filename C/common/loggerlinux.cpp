@@ -1,13 +1,13 @@
+#ifdef __linux__
 /*
- * Fledge Logger for Linux
+ * Fledge Logger for Linux syslog
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
-#include <loggerlinux.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <syslog.h>
@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <stdexcept>
 #include <algorithm>
+#include "loggerlinux.h"
 
 using namespace std;
 
@@ -528,3 +529,5 @@ void LoggerLinux::log(int sysLogLvl, const char * lvlName, LogLevel appLogLvl, c
 		executeInterceptor(appLogLvl, buffer);
 	}
 }
+
+#endif

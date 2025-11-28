@@ -3,7 +3,7 @@
 /*
  * Fledge Logger virtual base class
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2025 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -18,8 +18,6 @@
 #include <thread>
 #include <condition_variable>
 #include <atomic>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #define PRINT_FUNC Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 class Logger

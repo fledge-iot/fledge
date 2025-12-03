@@ -79,7 +79,7 @@ class TestAnyCharPolicy:
         assert '{} user has been created successfully.'.format(payload['username']) == jdoc['message']
 
     def test_update_password(self, fledge_url):
-        uid = 4
+        uid = 5
         payload = {"current_password": "password", "new_password": "0123456"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),
@@ -113,7 +113,7 @@ class TestMixedCasePolicy:
         assert '{} user has been created successfully.'.format(payload['username']) == jdoc['message']
 
     def test_update_password(self, fledge_url):
-        uid = 6
+        uid = 7
         payload = {"current_password": "Passw0rd", "new_password": "13pAss1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),
@@ -147,7 +147,7 @@ class TestMixedAndNumericCasePolicy:
         assert '{} user has been created successfully.'.format(payload['username']) == jdoc['message']
 
     def test_update_password(self, fledge_url):
-        uid = 11
+        uid = 12
         payload = {"current_password": "paSSw0rd", "new_password": "13pAss1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),
@@ -181,7 +181,7 @@ class TestMixedAndNumericAndSpecialCasePolicy:
         assert '{} user has been created successfully.'.format(payload['username']) == jdoc['message']
 
     def test_update_password(self, fledge_url):
-        uid = 17
+        uid = 18
         payload = {"current_password": "Fl@3737", "new_password": "pAss@!1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),

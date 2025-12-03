@@ -55,6 +55,7 @@ fi
 FLEDGE_ROOT="/usr/local/fledge"
 FLEDGE_DATA="${FLEDGE_ROOT}/data"
 FLEDGE_USER=`ls -ld "${FLEDGE_DATA}" | awk '{print $3}'`
+FLEDGE_CERT="${FLEDGE_ROOT}/data/etc/certs/systemctl.cert"
 PID_FILE="${FLEDGE_DATA}/var/run/fledge.core.pid"
 PID=0
  
@@ -68,7 +69,13 @@ get_pid() {
 
 fledge_start() {
     if [ "$IS_RHEL" = "" ]; then
-        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+        if [ -f "${FLEDGE_CERT}" ]; then
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" -c "$FLEDGE_CERT}" start > /dev/null
+        else
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
+	fi
+    elif [ -f "${FLEDGE_CERT}" ]; then
+        "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" start > /dev/null
     else
         "${FLEDGE_ROOT}/bin/fledge" start > /dev/null
     fi
@@ -76,7 +83,13 @@ fledge_start() {
  
 fledge_stop() {
     if [ "$IS_RHEL" = "" ]; then
-        sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+	if [ -f "${FLEDGE_CERT}" ]; then
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" stop > /dev/null
+	else
+            sudo -u ${FLEDGE_USER} "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
+	fi
+    elif [ -f "${FLEDGE_CERT}" ]; then
+        "${FLEDGE_ROOT}/bin/fledge" -c "${FLEDGE_CERT}" stop > /dev/null
     else
         "${FLEDGE_ROOT}/bin/fledge" stop > /dev/null
     fi
@@ -139,7 +152,7 @@ case "$1" in
         rm -f $PID_FILE
         exit 1
       else
-        fledge_stop
+        kill -TERM $PID
         echo "Fledge stopped [$PID]"
       fi
     fi
@@ -148,7 +161,19 @@ case "$1" in
 
   restart)
 
-    $0 fledge_stop
+    get_pid
+    if [ $PID -eq 0 ]; then
+      echo "Fledge not running"
+    else
+      ps -p $PID
+      if [ $? -eq 1 ]; then
+        echo "Fledge not running (process dead but PID file exists)"
+        rm -f $PID_FILE
+      else
+        kill -TERM $PID
+        echo "Fledge stopped [$PID]"
+      fi
+    fi
     $0 fledge_start
     ;;
 

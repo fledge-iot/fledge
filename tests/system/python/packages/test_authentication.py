@@ -44,7 +44,9 @@ ROLES = {'roles': [
     {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
     {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'},
     {'id': 5, 'name': 'control',
-     'description': 'Same as editor can do and also have access for control scripts and pipelines'}
+     'description': 'Same as editor can do and also have access for control scripts and pipelines'},
+    {'id': 6, 'name': 'systemctl', 'description':
+        'It solely facilitates the execution of commands initiated by the fledge script'}
 ]}
 
 
@@ -411,7 +413,10 @@ class TestAuthAnyWithoutTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -432,7 +437,10 @@ class TestAuthAnyWithoutTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -469,10 +477,10 @@ class TestAuthAnyWithoutTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user_with_password_token(self, fledge_url, form_data, expected_values):
@@ -487,10 +495,10 @@ class TestAuthAnyWithoutTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any2", "password": "User@123", "real_name": "PG", "description": "Nerd user"},
-         {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
+         {'user': {'userName': 'any2', 'userId': 6, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
                    'description': 'Nerd user'}, 'message': 'any2 user has been created successfully.'}),
         ({"username": "admin2", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin2', 'userId': 7, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin2 user has been created successfully.'})
     ])
     def test_create_user_with_certificate_token(self, fledge_url, form_data, expected_values):
@@ -519,7 +527,7 @@ class TestAuthAnyWithoutTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password_with_password_token(self, fledge_url):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -531,7 +539,7 @@ class TestAuthAnyWithoutTLS:
         assert {'message': 'Password has been updated successfully for user ID:<{}>.'.format(uid)} == jdoc
 
     def test_update_password_with_certificate_token(self, fledge_url):
-        uid = 5
+        uid = 6
         data = {"current_password": "User@123", "new_password": "F0gl@mp2"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -557,23 +565,23 @@ class TestAuthAnyWithoutTLS:
 
     def test_reset_user_with_password_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!#1"}),
-                     headers={"authorization": PASSWORD_TOKEN})
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!#1"}), headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_reset_user_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/admin/5/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!#2"}),
-                     headers={"authorization": CERT_TOKEN})
+        conn.request("PUT", "/fledge/admin/6/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!#2"}), headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<5> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<6> has been updated successfully.'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
@@ -590,7 +598,7 @@ class TestAuthAnyWithoutTLS:
 
     def test_delete_user_with_password_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": PASSWORD_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -599,7 +607,7 @@ class TestAuthAnyWithoutTLS:
 
     def test_delete_user_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("DELETE", "/fledge/admin/6/delete", headers={"authorization": CERT_TOKEN})
+        conn.request("DELETE", "/fledge/admin/7/delete", headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -645,8 +653,8 @@ class TestAuthAnyWithoutTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()
@@ -682,8 +690,8 @@ class TestAuthAnyWithoutTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()
@@ -822,7 +830,10 @@ class TestAuthPasswordWithoutTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -850,10 +861,10 @@ class TestAuthPasswordWithoutTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
@@ -880,7 +891,7 @@ class TestAuthPasswordWithoutTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password(self, fledge_url):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -902,13 +913,13 @@ class TestAuthPasswordWithoutTLS:
 
     def test_reset_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
                      headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_login_with_resetted_password(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -921,7 +932,7 @@ class TestAuthPasswordWithoutTLS:
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": PASSWORD_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -930,7 +941,8 @@ class TestAuthPasswordWithoutTLS:
 
     def test_login_of_deleted_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("POST", "/fledge/login", body=json.dumps({"username": "admin1", "password": "F0gl@mp!"}))
+        conn.request("POST", "/fledge/login", body=json.dumps(
+            {"username": "admin1", "password": "F0gl@mp!"}))
         r = conn.getresponse()
         assert 404 == r.status
         assert "User does not exist" == r.reason
@@ -963,7 +975,8 @@ class TestAuthPasswordWithoutTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -1155,10 +1168,10 @@ class TestAuthCertificateWithoutTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
@@ -1172,7 +1185,7 @@ class TestAuthCertificateWithoutTLS:
         assert expected_values == jdoc
 
     def test_update_password(self, fledge_url):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -1185,17 +1198,17 @@ class TestAuthCertificateWithoutTLS:
 
     def test_reset_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
                      headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": CERT_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -1232,8 +1245,8 @@ class TestAuthCertificateWithoutTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()
@@ -1540,7 +1553,10 @@ class TestAuthAnyWithTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -1561,7 +1577,10 @@ class TestAuthAnyWithTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -1598,10 +1617,10 @@ class TestAuthAnyWithTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user_with_password_token(self, form_data, expected_values):
@@ -1616,10 +1635,10 @@ class TestAuthAnyWithTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any2", "password": "User@123", "real_name": "PG", "description": "Nerd user"},
-         {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
+         {'user': {'userName': 'any2', 'userId': 6, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
                    'description': 'Nerd user'}, 'message': 'any2 user has been created successfully.'}),
         ({"username": "admin2", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin2', 'userId': 7, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin2 user has been created successfully.'})
     ])
     def test_create_user_with_certificate_token(self, form_data, expected_values):
@@ -1648,7 +1667,7 @@ class TestAuthAnyWithTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password_with_password_token(self):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -1660,7 +1679,7 @@ class TestAuthAnyWithTLS:
         assert {'message': 'Password has been updated successfully for user ID:<{}>.'.format(uid)} == jdoc
 
     def test_update_password_with_certificate_token(self):
-        uid = 5
+        uid = 6
         data = {"current_password": "User@123", "new_password": "F0gl@mp2"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -1686,23 +1705,23 @@ class TestAuthAnyWithTLS:
 
     def test_reset_user_with_password_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!#1"}),
-                     headers={"authorization": PASSWORD_TOKEN})
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!#1"}), headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_reset_user_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/admin/5/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!#2"}),
-                     headers={"authorization": CERT_TOKEN})
+        conn.request("PUT", "/fledge/admin/6/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!#2"}), headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<5> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<6> has been updated successfully.'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
@@ -1719,7 +1738,7 @@ class TestAuthAnyWithTLS:
 
     def test_delete_user_with_password_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": PASSWORD_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -1728,7 +1747,7 @@ class TestAuthAnyWithTLS:
 
     def test_delete_user_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("DELETE", "/fledge/admin/6/delete", headers={"authorization": CERT_TOKEN})
+        conn.request("DELETE", "/fledge/admin/7/delete", headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -1811,8 +1830,8 @@ class TestAuthAnyWithTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()
@@ -1951,7 +1970,10 @@ class TestAuthPasswordWithTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -1979,10 +2001,10 @@ class TestAuthPasswordWithTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user(self, form_data, expected_values):
@@ -2009,7 +2031,7 @@ class TestAuthPasswordWithTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password(self):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -2031,13 +2053,13 @@ class TestAuthPasswordWithTLS:
 
     def test_reset_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
-                     headers={"authorization": PASSWORD_TOKEN})
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!"}), headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_login_with_resetted_password(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2050,7 +2072,7 @@ class TestAuthPasswordWithTLS:
 
     def test_delete_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": PASSWORD_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -2059,7 +2081,8 @@ class TestAuthPasswordWithTLS:
 
     def test_login_of_deleted_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("POST", "/fledge/login", body=json.dumps({"username": "admin1", "password": "F0gl@mp!"}))
+        conn.request("POST", "/fledge/login", body=json.dumps(
+            {"username": "admin1", "password": "F0gl@mp!"}))
         r = conn.getresponse()
         assert 404 == r.status
         assert "User does not exist" == r.reason
@@ -2092,8 +2115,8 @@ class TestAuthPasswordWithTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()
@@ -2261,7 +2284,10 @@ class TestAuthCertificateWithTLS:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
@@ -2289,10 +2315,10 @@ class TestAuthCertificateWithTLS:
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'})
     ])
     def test_create_user(self, form_data, expected_values):
@@ -2306,7 +2332,7 @@ class TestAuthCertificateWithTLS:
         assert expected_values == jdoc
 
     def test_update_password(self):
-        uid = 3
+        uid = 4
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
@@ -2319,17 +2345,17 @@ class TestAuthCertificateWithTLS:
 
     def test_reset_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
-                     headers={"authorization": CERT_TOKEN})
+        conn.request("PUT", "/fledge/admin/4/reset", body=json.dumps(
+            {"role_id": 1, "password": "F0gl@mp!"}), headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with ID:<3> has been updated successfully.'} == jdoc
+        assert {'message': 'User with ID:<4> has been updated successfully.'} == jdoc
 
     def test_delete_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": CERT_TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -2366,8 +2392,8 @@ class TestAuthCertificateWithTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
-                     headers={"authorization": _token})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(
+            {"username": "other", "password": "User@123"}), headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()

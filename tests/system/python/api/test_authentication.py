@@ -70,7 +70,10 @@ class TestAuthenticationAPI:
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
                          'description': 'admin user'},
                         {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
-                         'description': 'normal user'}]}),
+                         'description': 'normal user'},
+                        {'userId': 3, 'userName': 'systemctl', 'roleId': 6, 'accessMethod': 'cert',
+                         'realName': 'Systemctl user', 'description': 'User used by the systemctl scripts'}
+                        ]}),
         ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
                    'description': 'normal user'}),
         ('?username=admin',
@@ -101,34 +104,36 @@ class TestAuthenticationAPI:
                           {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
                           {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'},
                           {'id': 5, 'name': 'control', 'description':
-                              'Same as editor can do and also have access for control scripts and pipelines'}
+                              'Same as editor can do and also have access for control scripts and pipelines'},
+                          {'id': 6, 'name': 'systemctl', 'description':
+                              'It solely facilitates the execution of commands initiated by the fledge script'}
                           ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
-         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+         {'user': {'userName': 'any1', 'userId': 4, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
                    'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'admin1', 'userId': 5, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'admin1 user has been created successfully.'}),
         ({"username": "bogus", "password": "Fl3dG$", "role_id": 2},
-         {'user': {'userName': 'bogus', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': '',
+         {'user': {'userName': 'bogus', 'userId': 6, 'roleId': 2, 'accessMethod': 'any', 'realName': '',
                    'description': ''}, 'message': 'bogus user has been created successfully.'}),
         ({"username": "view", "password": "V!3w@1", "role_id": 3, "real_name": "View",
           "description": "Only to view the configuration"},
          {'user': {
-             'userName': 'view', 'userId': 6, 'roleId': 3, 'accessMethod': 'any', 'realName': 'View',
+             'userName': 'view', 'userId': 7, 'roleId': 3, 'accessMethod': 'any', 'realName': 'View',
              'description': 'Only to view the configuration'}, 'message': 'view user has been created successfully.'}),
         ({"username": "dataView", "password": "DV!3w@1", "role_id": 4, "real_name": "DataView",
           "description": "Only read the data in buffer"},
          {'user': {
-             'userName': 'dataview', 'userId': 7, 'roleId': 4, 'accessMethod': 'any', 'realName': 'DataView',
+             'userName': 'dataview', 'userId': 8, 'roleId': 4, 'accessMethod': 'any', 'realName': 'DataView',
              'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully.'}
          ),
         ({"username": "control", "password": "C0ntrol!", "role_id": 5, "real_name": "Control",
           "description": "Same as editor can do and also have access for control scripts and pipelines"},
          {'user': {
-             'userName': 'control', 'userId': 8, 'roleId': 5, 'accessMethod': 'any', 'realName': 'Control',
+             'userName': 'control', 'userId': 9, 'roleId': 5, 'accessMethod': 'any', 'realName': 'Control',
              'description': 'Same as editor can do and also have access for control scripts and pipelines'},
              'message': 'control user has been created successfully.'})
     ])
@@ -142,7 +147,7 @@ class TestAuthenticationAPI:
         assert expected_values == jdoc
 
     def test_update_password(self, fledge_url):
-        uid = 3
+        uid = 4
         payload = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),
@@ -154,7 +159,7 @@ class TestAuthenticationAPI:
         assert {'message': 'Password has been updated successfully for user ID:<{}>.'.format(uid)} == jdoc
 
     def test_update_user(self, fledge_url):
-        uid = 5
+        uid = 6
         conn = http.client.HTTPConnection(fledge_url)
         payload = {"real_name": "Test Real", "description": "Test Desc", "access_method": "pwd"}
         conn.request("PUT", "/fledge/admin/{}".format(uid), body=json.dumps(payload),
@@ -188,7 +193,7 @@ class TestAuthenticationAPI:
         assert payload['real_name'] == jdoc['realName']
 
     def test_enable_user(self, fledge_url):
-        uid = 5
+        uid = 6
         # Fetch users list
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
@@ -219,7 +224,7 @@ class TestAuthenticationAPI:
         assert uid not in user_list
 
     def test_reset_user(self, fledge_url):
-        uid = 3
+        uid = 4
         payload = {"role_id": 1, "password": "F0gl@mp!"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/admin/{}/reset".format(uid), body=json.dumps(payload),
@@ -238,10 +243,10 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        user = jdoc["users"][6]
+        user = jdoc["users"][7]
         if storage_plugin == 'postgres':
-            user = jdoc["users"][4]
-        assert 8 == user["userId"]
+            user = jdoc["users"][5]
+        assert 9 == user["userId"]
         assert "control" == user["userName"]
 
         # Generate an Authentication Certificate for the control user.
@@ -260,10 +265,10 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        user = jdoc["users"][6]
+        user = jdoc["users"][7]
         if storage_plugin == 'postgres':
-            user = jdoc["users"][4]
-        assert 8 == user["userId"]
+            user = jdoc["users"][5]
+        assert 9 == user["userId"]
         assert "control" == user["userName"]
 
         # Log in using the newly created certificate above
@@ -283,7 +288,7 @@ class TestAuthenticationAPI:
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("DELETE", "/fledge/admin/4/delete", headers={"authorization": TOKEN})
+        conn.request("DELETE", "/fledge/admin/5/delete", headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

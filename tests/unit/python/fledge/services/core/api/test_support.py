@@ -269,6 +269,28 @@ class TestBundleSupport:
         jdict = json.loads(res)
         assert {"message": message} == jdict
 
+    @pytest.mark.parametrize("param", ["source", "keyword"])
+    @pytest.mark.parametrize("payload", ["x';sleep 6;echo '", "x';id;echo '", "$(id)", "`id`", "a&b", "a\nb"])
+    @pytest.mark.parametrize("nontotals", ["true", "false"])
+    async def test_syslog_rejects_shell_metacharacters(self, client, param, payload, nontotals):
+        with patch.object(subprocess, "Popen") as patch_popen:
+            resp = await client.get('/fledge/syslog', params={param: payload, 'nontotals': nontotals})
+        assert 400 == resp.status
+        assert "{} contains invalid characters".format(param) in resp.reason
+        patch_popen.assert_not_called()
+
+    async def test_syslog_nontotals_uses_argv_without_shell(self, client):
+        with patch.object(subprocess, "Popen") as patch_popen:
+            patch_popen.return_value.stdout.readlines.return_value = [b"line\n"]
+            resp = await client.get('/fledge/syslog', params={'source': 'Sine 1', 'keyword': 'a.b_c|d',
+                                                               'nontotals': 'true'})
+        assert 200 == resp.status
+        args, kwargs = patch_popen.call_args
+        assert isinstance(args[0], list)
+        assert kwargs['shell'] is False
+        assert args[0][args[0].index('-keyword') + 1] == 'a.b_c|d'
+        assert args[0][args[0].index('-source') + 1] == 'Sine 1'
+
     async def test_get_syslog_entries_cmd_exception(self, client):
         msg = 'Internal Server Error'
         with patch.object(subprocess, "Popen", side_effect=Exception(msg)):

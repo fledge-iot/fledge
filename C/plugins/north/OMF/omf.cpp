@@ -1376,6 +1376,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
+	if (m_resendPending && std::chrono::steady_clock::now() < m_resendAfter)
+	{
+		return 0;
+	}
+
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1891,8 +1896,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			parseLinkData(omfData, links);
 			LogLinks(409, "creating Link", links);
 
-			Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
-			m_PIstable = false;
+			scheduleResend(409);
 			delete[] omfData;
 			return 0;
 		}
@@ -1951,6 +1955,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	// Remove all assets supersetDataPoints
 	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
+
+	m_resendPending = false;
+	m_resendDelay = 0;
 
 	// Return number of sent readings to the caller
 	return readings.size();
@@ -4972,6 +4979,21 @@ void OMF::handleRESTException(const std::exception &e, const char *mainMessage)
 	}
 }
 
+void OMF::resetSentState()
+{
+	m_linkedAssetState.clear();
+	m_baseTypesSent = false;
+}
+
+void OMF::scheduleResend(const int httpCode)
+{
+	resetSentState();
+	m_resendDelay = (m_resendDelay == 0) ? RESEND_DELAY_MIN_SECONDS : std::min(m_resendDelay * 2, (unsigned int) RESEND_DELAY_MAX_SECONDS);
+	m_resendAfter = std::chrono::steady_clock::now() + std::chrono::seconds(m_resendDelay);
+	m_resendPending = true;
+	Logger::getLogger()->warn("HTTP Code %d: types, containers and links will be sent again in %u seconds", httpCode, m_resendDelay);
+}
+
 /**
  * Check the HTTP response code and the error message for conditions
  * indicating loss of connection or instability in the PI Server
@@ -4986,8 +5008,7 @@ void OMF::CheckHttpCode(const int httpCode, const std::string &errorMessage)
 	case 404: // Not Found
 		if (errorMessage.compare(PIWEBAPI_CONTAINER_NOT_FOUND) == 0)
 		{
-			Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, httpCode);
-			m_PIstable = false;
+			scheduleResend(httpCode);
 		}
 		break;
 	case 413: // Request Entity Too Large

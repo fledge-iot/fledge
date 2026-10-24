@@ -11,6 +11,7 @@
  */
 #include <string>
 #include <vector>
+#include <chrono>
 #include <map>
 #include <unordered_map>
 #include <reading.h>
@@ -26,6 +27,8 @@
 #define PIWEBAPI_PIPOINTS_NOT_CREATED		"One or more PI Points could not be created."
 #define PIWEBAPI_CONTAINER_NOT_FOUND		"Container not found."
 #define PIWEBAPI_UPDATE_EXCEPTION			"An exception occurred while updating data."
+#define RESEND_DELAY_MIN_SECONDS			5
+#define RESEND_DELAY_MAX_SECONDS			60
 #define MESSAGE_PI_UNSTABLE					"HTTP Code %d: Processing cannot continue until data archive errors are corrected"
 #define MESSAGE_UNAUTHORIZED				"OMF endpoint reported we are not authorized, please check configuration of the authentication method and credentials"
 
@@ -339,6 +342,8 @@ private:
 		void handleRESTException(const std::exception &e, const char *mainMessage);
 
 		void CheckHttpCode(const int httpCode, const std::string &errorMessage);
+		void resetSentState();
+		void scheduleResend(const int httpCode);
 
 		std::string getExceptionMessage(const std::exception &e, OMFError *error);
 
@@ -552,6 +557,11 @@ private:
 		 * Have base types been sent to the PI Server
 		 */
 		bool			m_baseTypesSent;
+
+		bool			m_resendPending = false;
+		unsigned int		m_resendDelay = 0;
+		std::chrono::steady_clock::time_point
+					m_resendAfter;
 
 		/**
 		 * If true, plugin configuration is correct and the PI Server shows no errors

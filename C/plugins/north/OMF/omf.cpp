@@ -1376,9 +1376,15 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
-	if (m_resendPending && std::chrono::steady_clock::now() < m_resendAfter)
+	if (m_resendPending)
 	{
-		return 0;
+		auto now = std::chrono::steady_clock::now();
+		if (now < m_resendAfter)
+		{
+			return 0;
+		}
+		m_resendDelay = std::min(m_resendDelay * 2, (unsigned int) RESEND_DELAY_MAX_SECONDS);
+		m_resendAfter = now + std::chrono::seconds(m_resendDelay);
 	}
 
 #if INSTRUMENT
@@ -1415,6 +1421,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// the superset[assetName] is then passed to routines which handles
 	// creation of OMF data types. This is used for the initial type
 	// handling of complex data types.
+	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
 
 #if INSTRUMENT
@@ -4991,7 +4998,10 @@ void OMF::resetSentState()
 void OMF::scheduleResend(const int httpCode)
 {
 	resetSentState();
-	m_resendDelay = (m_resendDelay == 0) ? RESEND_DELAY_MIN_SECONDS : std::min(m_resendDelay * 2, (unsigned int) RESEND_DELAY_MAX_SECONDS);
+	if (!m_resendPending)
+	{
+		m_resendDelay = RESEND_DELAY_MIN_SECONDS;
+	}
 	m_resendAfter = std::chrono::steady_clock::now() + std::chrono::seconds(m_resendDelay);
 	m_resendPending = true;
 	Logger::getLogger()->warn("HTTP Code %d: types, containers and links will be sent again in %u seconds", httpCode, m_resendDelay);

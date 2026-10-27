@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
+# Not keyed on github.workflow: when called from another workflow it is the
+# caller's name, which would collide with the caller's own concurrency group
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: checker-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

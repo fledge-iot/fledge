@@ -1,0 +1,13 @@
+* text=auto
+
+*.sh text eol=lf
+*.py text eol=lf
+*.bash text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+
+scripts/package/debian/deb/DEBIAN/preinst text eol=lf
+scripts/package/debian/deb/DEBIAN/postinst text eol=lf
+scripts/package/debian/deb/DEBIAN/prerm text eol=lf
+scripts/package/debian/deb/DEBIAN/postrm text eol=lf
+scripts/fledge text eol=lf

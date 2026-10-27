@@ -5,6 +5,7 @@
 # FLEDGE_END
 
 import os
+import re
 import subprocess
 import json
 import datetime
@@ -31,6 +32,10 @@ _SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
+# Allow-list for the user supplied source and keyword; these values end up in grep patterns and in get_logs.sh,
+# so anything that could be interpreted by a shell (quotes, ;, $, `, &, etc.) must be rejected.
+# Space and hyphen are permitted as well since service names commonly contain them; they are inert here.
+_SAFE_QUERY_VALUE = re.compile(r'^[A-Za-z0-9._| -]+$')
 
 # Debug and above
 __GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
@@ -157,6 +162,9 @@ async def get_syslog_entries(request):
         # source
         source = urllib.parse.unquote(request.query['source']) if 'source' in request.query and request.query[
             'source'] != '' else __DEFAULT_LOG_SOURCE
+        if not _SAFE_QUERY_VALUE.fullmatch(source):
+            raise ValueError('source contains invalid characters. Only alphanumeric, dot, underscore, hyphen, '
+                             'space and pipe are allowed.')
         if source.lower() in ['fledge', 'storage']:
             source = source.lower()
             valid_source = {'fledge': "Fledge.*", 'storage': 'Fledge Storage'}
@@ -190,6 +198,9 @@ async def get_syslog_entries(request):
         keyword = ''
         if 'keyword' in request.query and request.query['keyword'] != '':
             keyword = request.query['keyword']
+            if not _SAFE_QUERY_VALUE.fullmatch(keyword):
+                raise ValueError('keyword contains invalid characters. Only alphanumeric, dot, underscore, hyphen, '
+                                 'space and pipe are allowed.')
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[
@@ -207,14 +218,17 @@ async def get_syslog_entries(request):
             script_path = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
             # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
-            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source \'{}\' -level {}'.format(
-                script_path, offset, limit, pattern, _SYSLOG_FILE, source, level)
+            cmd = [script_path, '-offset', str(offset), '-limit', str(limit), '-pattern', pattern,
+                   '-logfile', _SYSLOG_FILE, '-source', source, '-level', level]
             if len(keyword):
-                cmd += ' -keyword \'{}\''.format(keyword)
-            _logger.debug('********* non_totals={}: new shell command: {}'.format(non_totals, cmd))
+                cmd += ['-keyword', keyword]
+            _logger.debug('********* non_totals={}: new command: {}'.format(non_totals, cmd))
 
         t1 = datetime.datetime.now()
-        rv = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        if isinstance(cmd, list):
+            rv = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE).stdout.readlines()
+        else:
+            rv = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         t2 = datetime.datetime.now()
         rv_str = [b.decode() for b in rv]  # Since "rv" contains return value in bytes, convert it to string
         _logger.debug('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))

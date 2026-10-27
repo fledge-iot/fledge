@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2018 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+set -e
+
+SSL_NAME="fledge"
+SSL_DAYS="365"
+AUTH_NAME="ca"
+
+is_running_in_container() {
+    grep -qaE '/docker|/lxc|/kubepods|containerd' /proc/1/cgroup 2>/dev/null && return 0
+    grep -qa 'container=' /proc/1/environ 2>/dev/null && return 0
+    [ -f /.dockerenv ] && return 0
+    [ -f /run/.containerenv ] && return 0
+    return 1
+}
+
+link_update_task() {
+    echo "Changing setuid of update_task.apt"
+    chmod ugo+s /usr/local/fledge/bin/update_task.apt
+    echo "Removing task/update"
+    [ -e /usr/local/fledge/scripts/tasks/update ] && rm /usr/local/fledge/scripts/tasks/update
+    echo "Create link file"
+    ln -s /usr/local/fledge/bin/update_task.apt /usr/local/fledge/scripts/tasks/update
+}
+
+copy_fledge_sudoer_file() {
+    cp /usr/local/fledge/bin/fledge.sudoers /etc/sudoers.d/fledge
+}
+
+copy_service_file() {
+    cp /usr/local/fledge/extras/scripts/fledge.service /etc/init.d/fledge
+}
+
+enable_fledge_service() {
+    systemctl enable fledge
+}
+
+start_fledge_service() {
+    systemctl start fledge
+}
+
+set_files_ownership () {
+    chown root:root /etc/init.d/fledge
+    chown -R root:root /usr/local/fledge
+    if [ -n "${SUDO_USER:-}" ]; then
+        chown -R ${SUDO_USER}:${SUDO_USER} /usr/local/fledge/data
+    else
+        chown -R root:root /usr/local/fledge/data
+    fi
+}
+
+setuid_cmdutil () {
+    chmod u+s /usr/local/fledge/extras/C/cmdutil
+}
+
+generate_certs () {
+    if [ ! -f /usr/local/fledge/data/etc/certs/fledge.cert ]; then
+        echo "Certificate files do not exist. Generating new certificate files."
+        cd /usr/local/fledge
+        ./scripts/certificates ${SSL_NAME} ${SSL_DAYS}
+    else
+        echo "Certificate files already exist. Skipping generating new certificate files."
+    fi
+}
+
+generate_auth_certs () {
+    if [ ! -f /usr/local/fledge/data/etc/certs/ca.cert ]; then
+        echo "CA Certificate file does not exist. Generating new CA certificate file."
+        cd /usr/local/fledge
+        ./scripts/auth_certificates ca ${AUTH_NAME} ${SSL_DAYS}
+    else
+        echo "CA Certificate file already exists. Skipping generating new CA certificate file."
+    fi
+    if [ ! -f /usr/local/fledge/data/etc/certs/admin.cert ]; then
+        echo "Admin Certificate file does not exist. Generating new admin certificate file."
+        cd /usr/local/fledge
+        ./scripts/auth_certificates user admin ${SSL_DAYS}
+    else
+        echo "Admin Certificate file already exists. Skipping generating new admin certificate file."
+    fi
+    if [ ! -f /usr/local/fledge/data/etc/certs/user.cert ]; then
+        echo "User Certificate file does not exist. Generating new user certificate file."
+        cd /usr/local/fledge
+        ./scripts/auth_certificates user user ${SSL_DAYS}
+    else
+        echo "User Certificate file already exists. Skipping generating new user certificate file."
+    fi
+}
+
+copy_new_data () {
+    if [ ! -d /usr/local/fledge/data ]; then
+        echo "Data directory does not exist. Using new data directory"
+        mv /usr/local/fledge/data.new /usr/local/fledge/data
+    else
+        echo "Data directory already exists. Updating data/extras/fogbench/fogbench_sensor_coap.template.json only."
+        cp /usr/local/fledge/data.new/extras/fogbench/fogbench_sensor_coap.template.json /usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json
+        rm -rf /usr/local/fledge/data.new
+    fi
+}
+
+install_pip3_packages () {
+    PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+    PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+    PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+
+    if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 11 ] && [ "$PYTHON_MINOR" -lt 12 ]; then
+        FLAG="--break-system-packages"
+    elif [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -ge 12 ]; then
+        FLAG="--ignore-installed --break-system-packages"
+    else
+        FLAG=""
+    fi
+
+    python3 -m pip install --upgrade pip $FLAG
+    python3 -m pip install -r /usr/local/fledge/python/requirements.txt $FLAG
+}
+
+call_package_update_script () {
+    installed_version_file="/usr/local/fledge/.current_installed_version"
+    if [ -s "${installed_version_file}" ]; then
+        current_installed_version=$(cat ${installed_version_file})
+        update_script="/usr/local/fledge/scripts/package/debian/package_update.sh"
+        if [ -x "${update_script}" ] && [ -s "${update_script}" ] && [ -O "${update_script}" ]; then
+            ${update_script} ${current_installed_version}
+        fi
+        rm ${installed_version_file}
+    fi
+}
+
+echo "Install python dependencies"
+install_pip3_packages
+echo "Resolving data directory"
+copy_new_data
+echo "Installing service script"
+copy_service_file
+echo "Generating certificate files"
+generate_certs
+echo "Generating auth certificate files"
+generate_auth_certs
+echo "Setting ownership of Fledge files"
+set_files_ownership
+echo "Calling Fledge package update script"
+call_package_update_script
+echo "Linking update task"
+link_update_task
+echo "Copying sudoers file"
+copy_fledge_sudoer_file
+echo "Setting setuid bit of cmdutil"
+setuid_cmdutil
+
+if is_running_in_container; then
+    echo "INFO: Detected container environment - skipping service enable"
+    /usr/local/fledge/bin/fledge start
+else
+    echo "Enabling Fledge service"
+    enable_fledge_service
+    echo "Starting Fledge service"
+    start_fledge_service
+fi

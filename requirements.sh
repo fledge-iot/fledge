@@ -96,22 +96,30 @@ curl_upgrade_evaluates(){
 
 }
 
-# Builds sqlite3 from sources
+SQLITE_UPSTREAM_VERSION="3480000"
+SQLITE_UPSTREAM_URL="https://sqlite.org/2025/sqlite-autoconf-${SQLITE_UPSTREAM_VERSION}.tar.gz"
+SQLITE_UPSTREAM_SHA256="ac992f7fca3989de7ed1fe99c16363f848794c8c32a158dafd4eb927a2e02fd5"
+SQLITE_BUILD_ROOT="/tmp/sqlite3-pkg"
+SQLITE_BUILD_SRC="${SQLITE_BUILD_ROOT}/src"
+
 sqlite3_build_prepare(){
 
-	# SQLite3 build - start
-	SQLITE_PKG_REPO_NAME="sqlite3-pkg"
-	if [ -d /tmp/${SQLITE_PKG_REPO_NAME} ]; then
-		rm -rf /tmp/${SQLITE_PKG_REPO_NAME}
-	fi
-	echo "Pulling SQLite3 from Dianomic ${SQLITE_PKG_REPO_NAME} repository ..."
-	cd /tmp/
-	git clone https://github.com/dianomic/${SQLITE_PKG_REPO_NAME}.git ${SQLITE_PKG_REPO_NAME}
-	cd ${SQLITE_PKG_REPO_NAME}
-	cd src
+	rm -rf "${SQLITE_BUILD_ROOT}"
+	mkdir -p "${SQLITE_BUILD_SRC}"
+
+	sqlite_tarball="${SQLITE_BUILD_ROOT}/sqlite-autoconf-${SQLITE_UPSTREAM_VERSION}.tar.gz"
+	echo "Downloading SQLite3 ${SQLITE_UPSTREAM_VERSION} from sqlite.org ..."
+	curl -fsSL --retry 3 -o "${sqlite_tarball}" "${SQLITE_UPSTREAM_URL}"
+
+	echo "Verifying SQLite3 tarball checksum ..."
+	echo "${SQLITE_UPSTREAM_SHA256}  ${sqlite_tarball}" | sha256sum -c -
+
+	tar xzf "${sqlite_tarball}" -C "${SQLITE_BUILD_SRC}" --strip-components=1
+	rm -f "${sqlite_tarball}"
+
+	cd "${SQLITE_BUILD_SRC}"
 	echo "Compiling SQLite3 static library for Fledge ..."
 	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_MAX_COMPOUND_SELECT=900 -DSQLITE_MAX_ATTACHED=62 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
-	autoreconf -f -i
 }
 
 

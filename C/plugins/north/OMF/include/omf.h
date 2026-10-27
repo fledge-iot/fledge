@@ -247,6 +247,9 @@ class OMF
 		std::size_t getNumBlocks() { return m_numBlocks; };
 		void setNumBlocks(std::size_t numBlocks) { m_numBlocks = numBlocks; };
 
+		void setResendDelays(unsigned int minSeconds, unsigned int maxSeconds)
+			{ m_resendDelayMin = minSeconds; m_resendDelayMax = maxSeconds; };
+
 		// Map object types found in input data
 		void setMapObjectTypes(const std::vector<Reading *>& data,
 					std::map<std::string, Reading*>& dataSuperSet);
@@ -560,6 +563,8 @@ private:
 
 		bool			m_resendPending = false;
 		unsigned int		m_resendDelay = 0;
+		unsigned int		m_resendDelayMin = RESEND_DELAY_MIN_SECONDS;
+		unsigned int		m_resendDelayMax = RESEND_DELAY_MAX_SECONDS;
 		std::chrono::steady_clock::time_point
 					m_resendAfter;
 

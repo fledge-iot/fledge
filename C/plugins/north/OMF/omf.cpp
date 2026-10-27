@@ -1383,7 +1383,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		{
 			return 0;
 		}
-		m_resendDelay = std::min(m_resendDelay * 2, (unsigned int) RESEND_DELAY_MAX_SECONDS);
+		m_resendDelay = std::min(m_resendDelay * 2, m_resendDelayMax);
 		m_resendAfter = now + std::chrono::seconds(m_resendDelay);
 	}
 
@@ -5000,7 +5000,7 @@ void OMF::scheduleResend(const int httpCode)
 	resetSentState();
 	if (!m_resendPending)
 	{
-		m_resendDelay = RESEND_DELAY_MIN_SECONDS;
+		m_resendDelay = m_resendDelayMin;
 	}
 	m_resendAfter = std::chrono::steady_clock::now() + std::chrono::seconds(m_resendDelay);
 	m_resendPending = true;

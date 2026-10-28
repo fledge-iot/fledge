@@ -1,0 +1,1 @@
+-- No downgrade is required, as the Pipeline service is no longer in use.

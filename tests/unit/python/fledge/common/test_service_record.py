@@ -25,14 +25,6 @@ class TestServiceRecord:
                 ] == slots
 
     @pytest.mark.parametrize("name, value", [
-        ('Storage', 1), ('Core', 2), ('Southbound', 3), ('Notification', 4), ('Management', 5), ('Northbound', 6),
-        ('Dispatcher', 7), ('BucketStorage', 8), ('Pipeline', 9)
-    ])
-    def test_types(self, name, value):
-        assert 9 == len(ServiceRecord.Type)
-        assert name == ServiceRecord.Type(value).name
-
-    @pytest.mark.parametrize("name, value", [
         ('Running', 1), ('Shutdown', 2), ('Failed', 3), ('Unresponsive', 4), ('Restart', 5)
     ])
     def test_status(self, name, value):
@@ -68,10 +60,3 @@ class TestServiceRecord:
         assert "aName" == obj._name
         assert s_type == obj._type
 
-    @pytest.mark.parametrize("s_type", [
-        "", None, 12, "southbound", "south", "South", "North", "Filter", "External"
-    ])
-    def test_init_with_invalid_type(self, s_type):
-        with pytest.raises(Exception) as ex:
-            ServiceRecord("some id", "aName", s_type, "http", "127.0.0.1", None, 1234)
-        assert ex.type is ServiceRecord.InvalidServiceType

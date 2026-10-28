@@ -542,13 +542,32 @@ fledge_status() {
                 # Show Services
                 fledge_log "info" "=== Fledge services:" "outonly" "pretty"
                 fledge_log "info" "fledge.services.core" "outonly" "pretty"
-                ps -ef | grep "fledge.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.storage " $9 " " $10}' || true
-                ps -ef | grep "fledge.services.south " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.south "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
-                ps -ef | grep "fledge.services.north " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.north "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
-                ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.notification "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
-                ps -ef | grep "fledge.services.dispatcher" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.dispatcher "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
-                ps -ef | grep "fledge.services.bucket" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.bucket "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
-                ps -ef | grep "fledge.services.pipeline " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.pipeline "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
+
+                show_service_processes() {
+                    local service_name="$1"
+                    local has_name_param="$2"
+
+                    if [ "$has_name_param" = "true" ]; then
+                        # Services with parameter
+                        ps -ef | grep "$service_name" | grep -v python3 | grep -v 'grep' | grep -v awk | \
+                        awk -v svc="$service_name" '{printf svc " "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | \
+                        sed -e 's/--token.*--name/--name/g' || true
+                    else
+                        # Services without parameter (like storage)
+                        ps -ef | grep "$service_name" | grep -v 'grep' | grep -v awk | \
+                        awk -v svc="$service_name" '{print svc " " $9 " " $10}' || true
+                    fi
+                }
+
+                # Show Services in C code
+                for service_name in $(ls ${FLEDGE_ROOT}/services)
+                do
+                    if [ "$service_name" = "fledge.services.storage" ]; then
+                        show_service_processes "$service_name" "false"
+                    else
+                        show_service_processes "$service_name" "true"
+                    fi
+                done
                 # Show Python services (except core)
                 ps -ef | grep -o 'python3 -m fledge.services.*' | grep -o 'fledge.services.*' | grep -v 'fledge.services.core' | grep -v 'fledge.services\.\*' | sed -e 's/--token.*--name/--name/g' || true
 
@@ -557,7 +576,7 @@ fledge_status() {
                 ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*' | grep -v 'fledge.tasks\.\*' || true
 
                 # Show Tasks in C code
-                for task_name in `ls ${FLEDGE_ROOT}/tasks`
+                for task_name in $(ls ${FLEDGE_ROOT}/tasks)
                 do
                     ps -ef | grep "./tasks/$task_name" | grep -v python3 | grep -v grep | grep -v awk | awk  '{printf "tasks/'$task_name' " ; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 done

@@ -820,6 +820,11 @@ INSERT INTO fledge.statistics ( key, description, value, previous_value )
 -- Use this to create guids: https://www.uuidgenerator.net/version1 */
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 
+-- South/North Services
+--
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',         100 );
+INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',         200 );
+
 -- Core Tasks
 --
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'       );
@@ -834,15 +839,9 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'update checker
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('backup',  '["tasks/backup"]'  );
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["tasks/restore"]' );
 
--- South, Notification, North Tasks
+-- North Tasks
 --
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'south_c',           '["services/south_c"]',         100  );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'notification_c',    '["services/notification_c"]',    30 );
 INSERT INTO fledge.scheduled_processes (name, script)             VALUES ( 'north_c',           '["tasks/north_c"]'                  );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'north_C',           '["services/north_C"]',          200 );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]',      20 );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]',  10 );
-INSERT INTO fledge.scheduled_processes (name, script, priority)   VALUES ( 'pipeline_c',        '["services/pipeline_c"]',        90 );
 
 -- Automation script tasks
 --
@@ -855,9 +854,6 @@ INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'automation_scr
 -- Weekly repeat for timed schedules: set schedule_interval to 168:00:00
 --
 
-
--- Core Tasks
---
 
 -- Purge
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,

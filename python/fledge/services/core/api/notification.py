@@ -45,7 +45,8 @@ class PluginFetchError(Exception):
 async def fetch_plugins():
     """ Fetch all rule and delivery plugins from notification service """
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        # FIXME: Fetch type from Service Info
+        notification_service = ServiceRegistry.get(s_type="Notification")
         _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise ValueError("No Notification service available.")
@@ -197,7 +198,8 @@ async def post_notification(request):
              curl -X POST http://localhost:8081/fledge/notification -d '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        # FIXME: Fetch type from Service Info
+        notification_service = ServiceRegistry.get(s_type="Notification")
         _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
@@ -331,7 +333,8 @@ async def put_notification(request):
              curl -X PUT http://localhost:8081/fledge/notification/<notification_name> -d '{"description":"Test Notification", "rule": "threshold", "channel": "email", "notification_type": "one shot", "enabled": false, "rule_config": {}, "delivery_config": {}}'
     """
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        # FIXME: Fetch type from Service Info
+        notification_service = ServiceRegistry.get(s_type="Notification")
         _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
@@ -467,7 +470,8 @@ async def delete_notification(request):
         curl -X DELETE http://localhost:8081/fledge/notification/<notification_name>
     """
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        # FIXME: Fetch type from Service Info
+        notification_service = ServiceRegistry.get(s_type="Notification")
         _address, _port = notification_service[0]._address, notification_service[0]._port
     except service_registry_exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason="No Notification service available.")
@@ -756,7 +760,8 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
     """
 
     try:
-        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        # FIXME: Fetch type from Service Info
+        notification_service = ServiceRegistry.get(s_type="Notification")
         _address, _port = notification_service[0]._address, notification_service[0]._port
 
     except service_registry_exceptions.DoesNotExist:

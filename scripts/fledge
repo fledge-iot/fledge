@@ -302,9 +302,76 @@ fledge_start() {
 
 }
 
+## Fledge Core PID
+#
+# Prints the PID of the running Fledge core, or nothing if there is none.
+# The PID file is only trusted if the process it names is still the core.
+#
+get_core_pid() {
+  local pid_file="${FLEDGE_DATA}/var/run/fledge.core.pid"
+  local pid
+  [[ -s "${pid_file}" ]] || return 0
+  pid=`tr -d ' ' < "${pid_file}" | grep -o '"processID":[0-9]*' | grep -o '[0-9]*'`
+  [[ -n "${pid}" ]] || return 0
+  if ps -p "${pid}" -o args= 2>/dev/null | grep -q 'fledge.services.core'; then
+    echo "${pid}"
+  fi
+}
+
+## Process running check
+#
+# True if the PID is alive and not a zombie. A zombie is an exited process that
+# has not been reaped yet, which happens under a PID 1 that does not reap.
+#
+pid_running() {
+  local stat=`ps -p "$1" -o stat= 2>/dev/null`
+  [[ -n "${stat}" && "${stat}" != Z* ]]
+}
+
+## Fledge Stop via signal
+#
+# Sends SIGTERM to the core, which runs the same graceful shutdown as the
+# REST call. Being able to signal the process (same OS user, or root) is the
+# authorisation, so no Fledge credentials are needed.
+# The core only requests the storage shutdown, so wait for the storage
+# service to exit too before reporting Fledge as stopped.
+# Returns 1 if the core cannot be signalled, so the caller can fall back.
+#
+fledge_stop_by_signal() {
+  local pid=`get_core_pid`
+  [[ -n "${pid}" ]] || return 1
+  local storage_pids=`pgrep -f 'fledge.services.storage --address' || true`
+  kill -TERM "${pid}" 2>/dev/null || return 1
+
+  echo -n "Stopping Fledge."
+  local attempts=60
+  local p
+  for p in ${pid} ${storage_pids}; do
+    while pid_running "${p}"; do
+      attempts=$((attempts - 1))
+      if [[ $attempts -le 0 ]]; then
+        echo
+        fledge_log "err" "Fledge cannot be stopped." "all" "pretty"
+        fledge_log "err" "Number of attempts exceeded: Fledge may be in an inconsistent state." "all" "pretty"
+        exit 1
+      fi
+      sleep 1
+      echo -n "."
+    done
+  done
+  echo
+  rm -f ~/.fledge_token
+  fledge_log "info" "Fledge stopped." "all" "pretty"
+  return 0
+}
+
 ## Fledge Stop
 #
 fledge_stop() {
+
+  if fledge_stop_by_signal; then
+    return 0
+  fi
 
   result=`fledge_status "silent"`
 

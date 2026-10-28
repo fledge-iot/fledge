@@ -1,0 +1,315 @@
+name: Plugin .deb
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        type: string
+        required: true
+      kind:
+        type: string
+        required: true
+      exclude-codenames:
+        type: string
+        default: ""
+      fledge-ref:
+        type: string
+        default: develop
+      core-run-id:
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE: ${{ inputs.package }}
+  RELEASE_BRANCH: develop
+  FLEDGE_REPOSITORY: ${{ github.repository_owner }}/fledge
+  APT_REPO_URL: https://packages.helinplatform.com/apt
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      version_file: ${{ steps.version.outputs.version_file }}
+      base_version: ${{ steps.version.outputs.base_version }}
+      version: ${{ steps.version.outputs.version }}
+      suite_suffix: ${{ steps.version.outputs.suite_suffix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          KIND: ${{ inputs.kind }}
+        run: |
+          set -euo pipefail
+          case "${KIND}" in
+            cpp)
+              version_file=VERSION
+              base_version="$(tr -d '[:space:]' < VERSION)"
+              ;;
+            python)
+              plugin_type="$(sed -n 's/^plugin_type=//p' Package | head -1 | tr -d '"[:space:]')"
+              plugin_name="$(sed -n 's/^plugin_name=//p' Package | head -1 | tr -d '"[:space:]')"
+              version_file="VERSION.${plugin_type}.${plugin_name}"
+              base_version="$(sed -n 's/^fledge_.*_version=//p' "${version_file}" | head -1 | tr -d '[:space:]')"
+              ;;
+            *)
+              echo "ERROR: kind '${KIND}' is not cpp or python" >&2
+              exit 1
+              ;;
+          esac
+          if [[ -z "${base_version}" ]]; then
+            echo "ERROR: no version found in ${version_file}" >&2
+            exit 1
+          fi
+          version="${base_version}"
+          suite_suffix=""
+          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            tag="${GITHUB_REF_NAME#v}"
+            if [[ "${tag}" =~ ^${base_version//./\\.}-rc\.([1-9][0-9]*)$ ]]; then
+              version="${base_version}~rc.${BASH_REMATCH[1]}"
+              suite_suffix="-rc"
+            elif [[ "${tag}" != "${base_version}" ]]; then
+              echo "ERROR: release tag '${GITHUB_REF_NAME}' does not match ${version_file} '${base_version}' (expected v${base_version} or v${base_version}-rc.<n>)" >&2
+              exit 1
+            fi
+          fi
+          {
+            echo "version_file=${version_file}"
+            echo "base_version=${base_version}"
+            echo "version=${version}"
+            echo "suite_suffix=${suite_suffix}"
+          } >> "$GITHUB_OUTPUT"
+          echo "${PACKAGE} ${version} (${KIND})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        env:
+          KIND: ${{ inputs.kind }}
+          EXCLUDE: ${{ inputs.exclude-codenames }}
+        run: |
+          set -euo pipefail
+          if [[ "${KIND}" == "cpp" ]]; then
+            all='[
+              {"codename":"bullseye","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bullseye-slim","light":false},
+              {"codename":"bullseye","deb_arch":"arm64","runner":"ubuntu-22.04-arm","platform":"linux/arm64","base_image":"debian:bullseye-slim","light":false},
+              {"codename":"bookworm","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bookworm-slim","light":false},
+              {"codename":"bookworm","deb_arch":"arm64","runner":"ubuntu-22.04-arm","platform":"linux/arm64","base_image":"debian:bookworm-slim","light":false},
+              {"codename":"jammy","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:22.04","light":false},
+              {"codename":"noble","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:24.04","light":false},
+              {"codename":"noble","deb_arch":"arm64","runner":"ubuntu-22.04-arm","platform":"linux/arm64","base_image":"ubuntu:24.04","light":true},
+              {"codename":"noble","deb_arch":"armhf","runner":"ubuntu-22.04","platform":"linux/arm/v7","base_image":"ubuntu:24.04","light":true}
+            ]'
+          else
+            all='[
+              {"codename":"bullseye","deb_arch":"all","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bullseye-slim","light":false},
+              {"codename":"bookworm","deb_arch":"all","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bookworm-slim","light":false},
+              {"codename":"jammy","deb_arch":"all","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:22.04","light":false},
+              {"codename":"noble","deb_arch":"all","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:24.04","light":false}
+            ]'
+          fi
+          matrix="$(jq -c --arg exclude "${EXCLUDE}" \
+            '($exclude | split(" ") | map(select(length > 0))) as $ex | {include: map(select(.codename as $c | $ex | index($c) | not))}' \
+            <<< "${all}")"
+          if [[ "$(jq '.include | length' <<< "${matrix}")" -eq 0 ]]; then
+            echo "ERROR: every codename is excluded" >&2
+            exit 1
+          fi
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build .deb (${{ matrix.codename }}/${{ matrix.deb_arch }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ inputs.kind == 'python' && 30 || 90 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Checkout fledge
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          repository: ${{ env.FLEDGE_REPOSITORY }}
+          ref: ${{ inputs.fledge-ref }}
+          path: fledge
+          sparse-checkout: ${{ inputs.kind == 'python' && '.ci' || '' }}
+
+      - name: Stage packaging scripts
+        shell: bash
+        env:
+          KIND: ${{ inputs.kind }}
+        run: |
+          set -euo pipefail
+          rm -rf .ci/deb
+          mkdir -p .ci/deb
+          cp -R "fledge/.ci/plugin-deb/${KIND}/." .ci/deb/
+          chmod +x .ci/deb/*.sh
+          if [[ "${KIND}" == "python" ]]; then
+            cp fledge/.ci/apt/python-constraints.txt .ci/deb/python-constraints.txt
+          fi
+
+      - name: Stamp release candidate version
+        if: needs.plan.outputs.version != needs.plan.outputs.base_version
+        shell: bash
+        env:
+          VERSION_FILE: ${{ needs.plan.outputs.version_file }}
+          BASE_VERSION: ${{ needs.plan.outputs.base_version }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "${VERSION_FILE}" == "VERSION" ]]; then
+            printf '%s\n' "${VERSION}" > VERSION
+          else
+            sed -i -E "s/^(fledge_[^=]*_version=)${BASE_VERSION//./\\.}[[:space:]]*\$/\1${VERSION}/" "${VERSION_FILE}"
+            grep -q "_version=${VERSION}\$" "${VERSION_FILE}"
+          fi
+
+      - name: Set up QEMU (armv7 only)
+        if: matrix.platform == 'linux/arm/v7'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
+        with:
+          platforms: arm
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Fetch core .deb from a fledge build run
+        if: matrix.light && inputs.core-run-id != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.APT_PUBLISH_TOKEN }}
+          CORE_RUN_ID: ${{ inputs.core-run-id }}
+        run: |
+          set -euo pipefail
+          gh run download "${CORE_RUN_ID}" -R "${FLEDGE_REPOSITORY}" -n "fledge-${{ matrix.codename }}-${{ matrix.deb_arch }}" -D core-artifact
+          core_deb="$(find "$PWD/core-artifact" -name 'fledge_*.deb' | head -n1)"
+          test -n "$core_deb"
+          echo "FLEDGE_CORE_DEB=${core_deb}" >> "$GITHUB_ENV"
+
+      - name: Build .deb
+        shell: bash
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+          APT_SUITE_SUFFIX: ${{ needs.plan.outputs.suite_suffix }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.light }}" == "true" ]]; then
+            .ci/deb/build_light.sh "${BASE_IMAGE}" "${{ matrix.platform }}" "${{ matrix.codename }}" "${{ matrix.deb_arch }}"
+          else
+            .ci/deb/build.sh "${BASE_IMAGE}" "${{ matrix.platform }}"
+          fi
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ${{ env.PACKAGE }}-${{ matrix.codename }}-${{ matrix.deb_arch }}
+          path: build-out/*.deb
+          if-no-files-found: error
+
+  package-check:
+    name: Check package metadata
+    needs: [plan, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: ${{ env.PACKAGE }}-*
+          path: dist
+
+      - name: Verify package fields
+        shell: bash
+        env:
+          KIND: ${{ inputs.kind }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          debs=(dist/**/*.deb)
+          if [[ ${#debs[@]} -eq 0 ]]; then
+            echo "ERROR: no .deb artifacts downloaded" >&2
+            exit 1
+          fi
+          for deb in "${debs[@]}"; do
+            pkg="$(dpkg-deb --field "$deb" Package)"
+            ver="$(dpkg-deb --field "$deb" Version)"
+            deps="$(dpkg-deb --field "$deb" Depends)"
+            arch="$(dpkg-deb --field "$deb" Architecture)"
+            if [[ "$pkg" != "${PACKAGE}" ]]; then
+              echo "ERROR: ${deb} has Package '${pkg}', expected '${PACKAGE}'" >&2
+              exit 1
+            fi
+            if [[ "$ver" != "${VERSION}" ]]; then
+              echo "ERROR: ${deb} has Version '${ver}', expected '${VERSION}'" >&2
+              exit 1
+            fi
+            if [[ "$deps" != *fledge* ]]; then
+              echo "ERROR: ${deb} Depends '${deps}' does not include fledge" >&2
+              exit 1
+            fi
+            if [[ "${KIND}" == "python" && "$arch" != "all" ]]; then
+              echo "ERROR: ${deb} has Architecture '${arch}', expected 'all'" >&2
+              exit 1
+            fi
+            dpkg-deb --info "$deb"
+            dpkg-deb --contents "$deb"
+          done
+
+  dispatch-publish:
+    name: Dispatch signed publish
+    needs: [plan, package-check]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag is on the release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_sha="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          if [[ "${tag_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' resolves to ${tag_sha} but workflow is running on ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${RELEASE_BRANCH}"; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' (${GITHUB_SHA}) is not an ancestor of origin/${RELEASE_BRANCH}; only commits merged into ${RELEASE_BRANCH} may be released" >&2
+            exit 1
+          fi
+
+      - name: Trigger publish workflow in fledge repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.APT_PUBLISH_TOKEN }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${FLEDGE_REPOSITORY}/dispatches" \
+            -f event_type=plugin-publish \
+            -f "client_payload[repository]=${GITHUB_REPOSITORY}" \
+            -f "client_payload[run_id]=${GITHUB_RUN_ID}" \
+            -f "client_payload[package]=${PACKAGE}" \
+            -f "client_payload[version]=${VERSION}"
+          echo "dispatched plugin-publish for ${PACKAGE} ${VERSION} (run ${GITHUB_RUN_ID})" >> "$GITHUB_STEP_SUMMARY"

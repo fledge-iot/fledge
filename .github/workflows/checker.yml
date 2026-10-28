@@ -2,16 +2,34 @@ name: Checker
 
 on:
   push:
-    branches: ['**']
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+  # Lets release and publish workflows require a green Checker before they run
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Not keyed on github.workflow: when called from another workflow it is the
+# caller's name, which would collide with the caller's own concurrency group
+concurrency:
+  group: checker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: 🛠️ Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
+
+    permissions:
+      contents: read
+      checks: write
 
     env:
       FLEDGE_ROOT: ${{ github.workspace }}
@@ -19,7 +37,7 @@ jobs:
 
     steps:
       - name: 🛎️ Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: ⚙️ Compile Fledge Core
         id: make_fledge
@@ -40,51 +58,94 @@ jobs:
           echo "🔧 Run setup prerequisites 📦 and compilation of code 🛠️"
           cd "$FLEDGE_ROOT"
           sudo ./requirements.sh
+          python3 --version
           make -j"$(nproc)"
 
+      # The test steps fail the job when a test fails, but still collect their
+      # reports first so the failure can be inspected in the Test Results.
       - name: 🧪 Run C Unit Tests
         if: steps.make_fledge.outcome == 'success'
-        continue-on-error: true
         run: |
-          set +e
           cd "$FLEDGE_ROOT/tests/unit/C"
 
           echo "🛠️ Installing C test dependencies..."
           chmod +x requirements.sh && ./requirements.sh
 
           echo "📋 Running C tests..."
-          chmod +x scripts/RunAllTests.sh && ./scripts/RunAllTests.sh
+          rc=0
+          chmod +x scripts/RunAllTests.sh && ./scripts/RunAllTests.sh || rc=$?
 
           mkdir -p "$FLEDGE_ROOT/reports"
           cp -v results/*.xml "$FLEDGE_ROOT/reports/" || echo "⚠️ No C test reports found"
+          exit $rc
 
       - name: 🧪 Run Python Unit Tests
-        if: steps.make_fledge.outcome == 'success'
-        continue-on-error: true
+        if: ${{ !cancelled() && steps.make_fledge.outcome == 'success' }}
         run: |
-          set +e
           echo "🛠️ Installing Python test dependencies..."
           python3 -m pip install -Ir python/requirements-test.txt
 
           echo "📋 Running Python tests..."
+          rc=0
           python3 -m pytest -s -vv \
             --junit-xml="$FLEDGE_ROOT/tests/unit/python/fledge/python_test_output.xml" \
             "$FLEDGE_ROOT/tests/unit/python/fledge" \
-            --tb=line
+            --tb=line || rc=$?
 
           mkdir -p "$FLEDGE_ROOT/reports"
           cp -v "$FLEDGE_ROOT/tests/unit/python/fledge/"*.xml "$FLEDGE_ROOT/reports/" || echo "⚠️ No Python test report found"
+          exit $rc
+
+      # Installs the build, starts Fledge and checks that the REST API answers,
+      # which the unit tests alone never prove on a given Ubuntu release.
+      - name: 🚀 Smoke test (install, start, ping, stop)
+        if: ${{ !cancelled() && steps.make_fledge.outcome == 'success' }}
+        run: |
+          sudo make install
+          export FLEDGE_ROOT=/usr/local/fledge
+          fledge() { sudo env -u PYTHONPATH FLEDGE_ROOT="$FLEDGE_ROOT" "$FLEDGE_ROOT/bin/fledge" "$@"; }
+
+          fledge start
+
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8081/fledge/ping; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+
+          fledge status || true
+          fledge stop || true
+
+          if [ "$ok" -ne 1 ]; then
+            echo "❌ Fledge did not answer /fledge/ping within 120s"
+            sudo tail -n 100 "$FLEDGE_ROOT/data/core.err" 2>/dev/null || true
+            sudo tail -n 100 /var/log/syslog 2>/dev/null | grep -i fledge || true
+            exit 1
+          fi
+          echo "✅ Fledge started and answered /fledge/ping"
+
+      - name: 📦 Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: ${{ env.FLEDGE_ROOT }}/reports/*.xml
+          if-no-files-found: ignore
 
       # Publish test results to GitHub UI using a third-party action
       # Note: GitHub Actions does not yet support native test report publishing in the UI
-      # This step uses dorny/test-reporter to visualize test results in the Actions tab
+      # This step uses dorny/test-reporter to visualize test results in the Actions tab.
+      # It only presents results (the test steps above decide pass or fail), and it
+      # cannot write check runs for pull requests from forks.
       - name: 📤 Publish Test Report to GitHub
-        if: steps.make_fledge.outcome == 'success'
+        if: ${{ !cancelled() && steps.make_fledge.outcome == 'success' && github.event.pull_request.head.repo.fork != true }}
         continue-on-error: true
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@3eeb9fc888e82e8be2fb356bbeec2750231672bc  # v1
         with:
           name: 📊 Test Results on ${{ matrix.os }}
           path: ${{ env.FLEDGE_ROOT }}/reports/*.xml
           reporter: java-junit
           fail-on-error: true
-

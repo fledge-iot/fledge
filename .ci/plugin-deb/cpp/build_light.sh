@@ -30,7 +30,8 @@ else
             }'
     }
     suite_suffix="${APT_SUITE_SUFFIX:-}"
-    pool_path="$(find_core "$suite_suffix")"
+    # A suite may have no index at all for this arch (404), so tolerate failure.
+    pool_path="$(find_core "$suite_suffix" || true)"
     # Non-release builds may borrow core from a fallback suite (e.g. -rc) when
     # the primary suite has no core for this arch yet.
     fallback="${CORE_FALLBACK_SUITE_SUFFIX:-}"

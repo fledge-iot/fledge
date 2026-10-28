@@ -6,8 +6,9 @@
 
 import asyncio
 import json
-from typing import List
-import pkg_resources
+import re
+from importlib import metadata
+from typing import Dict, List, Tuple
 from aiohttp import web
 
 from fledge.common.audit_logger import AuditLogger
@@ -28,10 +29,25 @@ _help = """
 _LOGGER = FLCoreLogger().get_logger(__name__)
 
 
+def canonical_name(name: str) -> str:
+    return re.sub(r'[-_.]+', '-', name).lower()
+
+
+def display_name(name: str) -> str:
+    return re.sub('[^A-Za-z0-9.]+', '-', name)
+
+
+def get_installed_distributions() -> Dict[str, Tuple[str, str]]:
+    installed = {}
+    for dist in metadata.distributions():
+        name = dist.metadata['Name']
+        if name and canonical_name(name) not in installed:
+            installed[canonical_name(name)] = (display_name(name), dist.version)
+    return installed
+
+
 def get_packages_installed() -> List:
-    package_ws = pkg_resources.WorkingSet()
-    installed_pkgs = [{'package': dist.project_name, 'version': dist.version} for dist in package_ws]
-    return installed_pkgs
+    return [{'package': name, 'version': version} for name, version in get_installed_distributions().values()]
 
 
 async def get_packages(request: web.Request) -> web.Response:
@@ -69,11 +85,7 @@ async def install_package(request: web.Request) -> web.Response:
         return web.HTTPBadRequest(reason="Package name empty.")
 
     def get_installed_package_info(input_package):
-        packages = pkg_resources.WorkingSet()
-        for package in packages:
-            if package.project_name.lower() == input_package.lower():
-                return package.project_name, package.version
-        return None, None
+        return get_installed_distributions().get(canonical_name(input_package), (None, None))
     
     install_args = input_package_name
     if input_package_version:

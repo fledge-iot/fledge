@@ -17,19 +17,31 @@ mkdir -p "$OUT_DIR" "$CORE_DIR"
 if [[ -n "${FLEDGE_CORE_DEB:-}" ]]; then
     cp "$FLEDGE_CORE_DEB" "${CORE_DIR}/fledge-core.deb"
 else
-    index_url="${APT_REPO_URL}/dists/${CODENAME}${APT_SUITE_SUFFIX:-}/main/binary-${DEB_ARCH}/Packages"
-    pool_path="$(curl -fsSL "$index_url" | awk '
-        BEGIN { RS = ""; FS = "\n" }
-        {
-            is_core = 0; path = ""
-            for (i = 1; i <= NF; i++) {
-                if ($i == "Package: fledge") is_core = 1
-                if ($i ~ /^Filename: /) path = substr($i, 11)
-            }
-            if (is_core && path != "") { print path; exit }
-        }')"
+    find_core() {
+        curl -fsSL "${APT_REPO_URL}/dists/${CODENAME}${1}/main/binary-${DEB_ARCH}/Packages" | awk '
+            BEGIN { RS = ""; FS = "\n" }
+            {
+                is_core = 0; path = ""
+                for (i = 1; i <= NF; i++) {
+                    if ($i == "Package: fledge") is_core = 1
+                    if ($i ~ /^Filename: /) path = substr($i, 11)
+                }
+                if (is_core && path != "") { print path; exit }
+            }'
+    }
+    suite_suffix="${APT_SUITE_SUFFIX:-}"
+    pool_path="$(find_core "$suite_suffix")"
+    # Non-release builds may borrow core from a fallback suite (e.g. -rc) when
+    # the primary suite has no core for this arch yet.
+    fallback="${CORE_FALLBACK_SUITE_SUFFIX:-}"
+    if [[ -z "$pool_path" && -n "$fallback" && "$fallback" != "$suite_suffix" ]]; then
+        pool_path="$(find_core "$fallback" || true)"
+        if [[ -n "$pool_path" ]]; then
+            echo "::warning::no fledge core for ${CODENAME}${suite_suffix}/${DEB_ARCH}; using ${CODENAME}${fallback} (${pool_path})"
+        fi
+    fi
     if [[ -z "$pool_path" ]]; then
-        echo "ERROR: no fledge core package for ${CODENAME}/${DEB_ARCH} in ${index_url}" >&2
+        echo "ERROR: no fledge core package for ${CODENAME}${suite_suffix}/${DEB_ARCH} in ${APT_REPO_URL}" >&2
         exit 1
     fi
     curl -fsSL "${APT_REPO_URL}/${pool_path}" -o "${CORE_DIR}/fledge-core.deb"

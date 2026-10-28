@@ -205,6 +205,7 @@ jobs:
         env:
           BASE_IMAGE: ${{ matrix.base_image }}
           APT_SUITE_SUFFIX: ${{ needs.plan.outputs.suite_suffix }}
+          CORE_FALLBACK_SUITE_SUFFIX: ${{ github.event_name != 'release' && '-rc' || '' }}
         run: |
           set -euo pipefail
           if [[ "${{ matrix.light }}" == "true" ]]; then

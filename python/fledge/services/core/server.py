@@ -405,6 +405,9 @@ class Server:
     _alert_manager = None
     """ Alert Manager """
 
+    _loop = None
+    """ Event loop reference for signal handlers """
+
     running_in_safe_mode = False
     """ Fledge running in Safe mode """
 
@@ -1049,11 +1052,88 @@ class Server:
         await cls._alert_manager.get_all()
 
     @classmethod
+    def _signal_handler(cls, signum, frame):
+        """Signal handler for graceful shutdown and restart
+        
+        Args:
+            signum: Signal number
+            frame: Current stack frame
+        """
+        signal_name = signal.Signals(signum).name
+        
+        # Handle SIGHUP as restart, others as shutdown
+        if signum == signal.SIGHUP:
+            _logger.info("Received signal %s (%d), initiating graceful restart...", signal_name, signum)
+            if cls._loop and not cls._loop.is_closed():
+                asyncio.run_coroutine_threadsafe(cls._signal_restart(), cls._loop)
+            else:
+                _logger.error("Event loop not available for graceful restart")
+                sys.exit(1)
+        else:
+            _logger.info("Received signal %s (%d), initiating graceful shutdown...", signal_name, signum)
+            if cls._loop and not cls._loop.is_closed():
+                asyncio.run_coroutine_threadsafe(cls._signal_shutdown(), cls._loop)
+            else:
+                _logger.error("Event loop not available for graceful shutdown")
+                sys.exit(1)
+
+    @classmethod
+    async def _signal_shutdown(cls):
+        """Immediate shutdown method for signal handlers (no delay)
+        
+        This method provides immediate shutdown without the 2-second delay
+        that's appropriate for HTTP API shutdowns but not for signal handling.
+        """
+        try:
+            await cls._stop()
+            _logger.info("Stopping the Fledge Core event loop. Good Bye!")
+            cls._loop.stop()
+        except Exception as ex:
+            _logger.error("Error during signal shutdown: %s", str(ex))
+            cls._loop.stop()
+
+    @classmethod
+    async def _signal_restart(cls):
+        """Immediate restart method for signal handlers (no delay)
+        
+        This method provides immediate restart without the 2-second delay
+        that's appropriate for HTTP API restarts but not for signal handling.
+        """
+        try:
+            await cls._stop()
+            _logger.info("Restarting Fledge Core...")
+            
+            # Allow some time for cleanup
+            await asyncio.sleep(1.0)
+            
+            # Remove safe-mode from sys.argv if present
+            if 'safe-mode' in sys.argv:
+                sys.argv.remove('safe-mode')
+                sys.argv.append('')
+            
+            # Restart the process
+            python3 = sys.executable
+            os.execl(python3, python3, *sys.argv)  # Replaces current process, no return
+        except Exception as ex:
+            _logger.error("Error during signal restart: %s", str(ex))
+            cls._loop.stop()
+
+    @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
             _logger.info("Starting in SAFE MODE ...")
         else:
             _logger.info("Starting ...")
+        
+        # Store the loop reference for signal handlers
+        cls._loop = loop
+        
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGHUP, cls._signal_handler)
+        signal.signal(signal.SIGTERM, cls._signal_handler)
+        signal.signal(signal.SIGINT, cls._signal_handler)
+        _logger.info("Signal handlers registered for SIGHUP, SIGTERM, and SIGINT")
+        
         try:
             host = cls._host
 

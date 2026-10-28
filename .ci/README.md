@@ -6,24 +6,39 @@ Azure DevOps (`Docker@2` task with buildx).
 
 ## Supported matrix
 
-The CI workflow (`.github/workflows/publish-apt-azure.yml`) builds six
-artifacts on every release:
+The CI workflow (`.github/workflows/publish-apt-azure.yml`) builds these
+targets:
 
-| Codename | Base image           | Arch  | Runner             | Notes  |
-| -------- | -------------------- | ----- | ------------------ | ------ |
-| bullseye | debian:bullseye-slim | amd64 | ubuntu-22.04       | native |
-| bullseye | debian:bullseye-slim | arm64 | ubuntu-22.04-arm   | native |
-| bookworm | debian:bookworm-slim | amd64 | ubuntu-22.04       | native |
-| bookworm | debian:bookworm-slim | arm64 | ubuntu-22.04-arm   | native |
-| jammy    | ubuntu:22.04         | amd64 | ubuntu-22.04       | native |
-| noble    | ubuntu:24.04         | amd64 | ubuntu-22.04       | native |
+| Codename | Base image           | Arch  | Runner             | Notes          |
+| -------- | -------------------- | ----- | ------------------ | -------------- |
+| bullseye | debian:bullseye-slim | amd64 | ubuntu-22.04       | native         |
+| bullseye | debian:bullseye-slim | arm64 | ubuntu-22.04-arm   | native         |
+| bookworm | debian:bookworm-slim | amd64 | ubuntu-22.04       | native         |
+| bookworm | debian:bookworm-slim | arm64 | ubuntu-22.04-arm   | native         |
+| jammy    | ubuntu:22.04         | amd64 | ubuntu-22.04       | native         |
+| noble    | ubuntu:24.04         | amd64 | ubuntu-22.04       | native         |
+| noble    | ubuntu:24.04         | arm64 | ubuntu-22.04-arm   | native         |
+| noble    | ubuntu:24.04         | armhf | ubuntu-22.04       | QEMU emulation |
 
 Native ARM64 runners (`ubuntu-22.04-arm`, GA on public repos since 2025-08
 and on private repos since 2026-01) eliminate QEMU emulation from the arm64
-build step. ARMv7 (`armhf`) is currently disabled — no native GHA runner
-exists and QEMU emulation is too slow; re-enable in the matrix when there's
-demand. Ubuntu builds are amd64-only for now; extend the matrix to add
-ubuntu arm64 if there's demand.
+build step. ARMv7 (`armhf`) has no native GHA runner, so it builds under QEMU
+and is by far the slowest target.
+
+### When packages are built
+
+| Trigger                                         | Builds | Publishes |
+| ----------------------------------------------- | ------ | --------- |
+| Pull request changing packaging (`.ci/apt`, `.ci/build`, `.ci/release`, `scripts/package/debian`, `requirements.sh`, the workflow) | all targets | no |
+| Nightly (03:17 UTC, skipped if `develop` has not moved since the last successful nightly) | all targets | no |
+| Manual run (`workflow_dispatch`)                | all targets | no (dry-run signing by default) |
+| Release (`v*` tag)                              | all targets, after the Checker passes | yes |
+
+Other pull requests and merges to `develop` do not build packages: the
+Checker workflow compiles and tests them on Ubuntu 22.04 and 24.04, and the
+nightly build catches distro- or arch-specific breakage. To build packages
+for a pull request that does not touch packaging, run the workflow manually
+on its branch.
 
 The resulting apt repository hosts both Debian versions concurrently. End
 users select the matching codename in their `sources.list`:

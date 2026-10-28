@@ -5,6 +5,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     LANG=C.UTF-8
 
+RUN if grep -qs bullseye /etc/apt/sources.list; then \
+        sed -i -e 's|deb.debian.org/debian-security|archive.debian.org/debian-security|g' \
+               -e 's|deb.debian.org/debian|archive.debian.org/debian|g' \
+               -e '/bullseye-updates/d' /etc/apt/sources.list \
+        && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive; \
+    fi
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         python3 python3-pip python3-venv \

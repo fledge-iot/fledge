@@ -3,7 +3,15 @@ name: Checker
 on:
   push:
     branches: [develop, main]
+    paths-ignore:
+      - "docs/**"
+      - "dco-signoffs/**"
+      - "**/*.md"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "dco-signoffs/**"
+      - "**/*.md"
   workflow_dispatch:
   # Lets release and publish workflows require a green Checker before they run
   workflow_call:

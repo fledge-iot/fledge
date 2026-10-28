@@ -1,29 +1,19 @@
 name: Build and publish apt repository
 
 on:
+  # Pull requests build the packages only when they change packaging. Source
+  # changes are compiled and tested by the Checker; distro- and arch-specific
+  # breakage is caught by the nightly build.
   pull_request:
     paths:
       - ".github/workflows/publish-apt-azure.yml"
-      - ".ci/**"
+      - ".ci/apt/**"
+      - ".ci/build/**"
+      - ".ci/release/**"
       - "scripts/package/debian/**"
-      - "C/**"
-      - "python/**"
-      - "scripts/**"
-      - "Makefile"
       - "requirements.sh"
-      - "VERSION"
-  push:
-    branches: [develop]
-    paths:
-      - ".github/workflows/publish-apt-azure.yml"
-      - ".ci/**"
-      - "scripts/package/debian/**"
-      - "C/**"
-      - "python/**"
-      - "scripts/**"
-      - "Makefile"
-      - "requirements.sh"
-      - "VERSION"
+  schedule:
+    - cron: "17 3 * * *"
   release:
     types: [published]
   workflow_dispatch:
@@ -59,9 +49,37 @@ env:
   RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
 
 jobs:
+  # The nightly build is skipped when nothing has been merged since the last
+  # successful one.
+  changes:
+    name: Changes since last nightly
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - name: Compare with last successful nightly
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          last="$(gh run list -R "$GITHUB_REPOSITORY" -w publish-apt-azure.yml \
+            --event schedule --status success -L 1 --json headSha --jq '.[0].headSha // ""')"
+          if [[ "$last" == "$GITHUB_SHA" ]]; then
+            echo "No changes since the last successful nightly build (${last}), skipping"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # Release tags only publish when the full Checker (build, unit tests, smoke
-  # test on Ubuntu 22.04 and 24.04) passes. Pull requests and develop pushes
-  # skip it: they already run the Checker as its own workflow.
+  # test on Ubuntu 22.04 and 24.04) passes. Pull requests and nightly runs
+  # skip it: the Checker already runs as its own workflow.
   checks:
     name: Checker
     if: startsWith(github.ref, 'refs/tags/v')
@@ -72,8 +90,11 @@ jobs:
 
   build:
     name: Build .deb (${{ matrix.codename }}/${{ matrix.deb_arch }})
-    needs: checks
-    if: ${{ !cancelled() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') }}
+    needs: [changes, checks]
+    if: >-
+      !cancelled()
+      && (needs.changes.result == 'skipped' || needs.changes.outputs.build == 'true')
+      && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 150 || 90 }}
     strategy:

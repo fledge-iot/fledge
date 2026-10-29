@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2018 OSIsoft, LLC
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+set -e
+
+PKG_NAME="fledge"
+
+is_fledge_installed () {
+    set +e
+    current_files_all=$(dpkg -L $PKG_NAME | grep 'fledge/bin/fledge$')
+    rc=$((!$?))
+    echo $rc
+    set -e
+}
+
+get_fledge_script () {
+    fledge_script=$(dpkg -L $PKG_NAME | grep 'fledge/bin/fledge$')
+    echo $fledge_script
+}
+
+is_fledge_running () {
+    set +e
+    fledge_script=$(get_fledge_script)
+    fledge_status_output=$($fledge_script status 2>&1 | grep 'Fledge Uptime')
+    rc=$((!$?))
+    echo $rc
+    set -e
+}
+
+get_current_version_file () {
+    current_version_file=$(dpkg -L $PKG_NAME | grep VERSION)
+    echo $current_version_file
+}
+
+get_schema_version () {
+    version_file=$1
+    schema_version=$(grep fledge_schema $version_file | awk -F = '{print $2}')
+    echo $schema_version
+}
+
+exists_schema_change_path () {
+    echo 1
+}
+
+IS_FLEDGE_INSTALLED=$(is_fledge_installed)
+
+if [ "$IS_FLEDGE_INSTALLED" -eq "1" ]
+then
+    echo "Fledge is already installed: this is an upgrade/downgrade."
+
+    IS_FLEDGE_RUNNING=$(is_fledge_running)
+    if [ "$IS_FLEDGE_RUNNING" -eq "1" ]
+    then
+        echo "*** ERROR. Fledge is currently running. Stop Fledge and try again. ***"
+        exit 1
+    fi
+
+    sed -i -e 's/^remove_unused_files$/#remove_unused_files/' /var/lib/dpkg/info/fledge.postrm
+
+    installed_version=$(dpkg -s ${PKG_NAME} | grep '^Version:' | awk '{print $2}')
+    if [ "${installed_version}" ]
+    then
+        this_dir=$(pwd)
+        cd usr/local/fledge/
+        echo "${installed_version}" > .current_installed_version
+        cd ${this_dir}
+    fi
+
+    CURRENT_VERSION_FILE=$(get_current_version_file)
+    CURRENT_SCHEMA_VERSION=$(get_schema_version $CURRENT_VERSION_FILE)
+    echo "Fledge currently has schema version $CURRENT_SCHEMA_VERSION"
+    EXISTS_SCHEMA_CHANGE_PATH=$(exists_schema_change_path)
+    if [ "$EXISTS_SCHEMA_CHANGE_PATH" -eq "0" ]
+    then
+        echo "*** ERROR. There is no schema change path from the installed version to the new version. ***"
+        exit 1
+    fi
+fi

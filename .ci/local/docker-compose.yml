@@ -1,0 +1,40 @@
+# Build Fledge from this checkout and run it locally.
+#
+#   docker compose -f .ci/local/docker-compose.yml up --build -d
+#   docker compose -f .ci/local/docker-compose.yml logs -f
+#   docker compose -f .ci/local/docker-compose.yml down -v     # -v also drops the data volume
+#
+# API: http://localhost:8082/fledge/ping  (8082 so it does not clash with another Fledge on 8081)
+# The first build compiles the C++ core and takes a while; later builds reuse the layer cache.
+name: fledge-local
+
+services:
+  # Compiles Fledge and packages the .deb (stage "builder" of .ci/build/Dockerfile).
+  # Never started; it only exists so the runtime image can take the .deb from it.
+  deb-builder:
+    image: fledge-deb-builder:local
+    build:
+      context: ../..
+      dockerfile: .ci/build/Dockerfile
+      target: builder
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
+    profiles: ["build-only"]
+
+  fledge:
+    image: fledge-local:dev
+    build:
+      context: ../image
+      dockerfile: ../local/Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
+      additional_contexts:
+        debbuilder: service:deb-builder
+    container_name: fledge-local
+    ports:
+      - "${FLEDGE_PORT:-8082}:8081"
+    volumes:
+      - fledge-data:/usr/local/fledge/data
+
+volumes:
+  fledge-data:

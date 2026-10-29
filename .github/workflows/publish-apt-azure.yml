@@ -592,48 +592,51 @@ jobs:
       matrix:
         # Same matrix as the build job — keep them in sync. BASE_IMAGE must match
         # the codename's .deb-build base so the Boost ABI in Depends: resolves.
+        # Base images come from the ECR Public mirror of Docker Official Images (same
+        # digests): the OIDC Docker Hub token only covers the push org, so pulling
+        # library/* from docker.io with it fails with 'insufficient scopes'.
         include:
           - codename: bullseye
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
           - codename: bullseye
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
           - codename: bookworm
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
           - codename: bookworm
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
           - codename: jammy
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
+            base_image: public.ecr.aws/docker/library/ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
           - codename: noble
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
           - codename: noble
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
             skip_full: true
           - codename: noble
             deb_arch: armhf
             runner: ubuntu-22.04
             platform: linux/arm/v7
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
             skip_full: true
 
     steps:

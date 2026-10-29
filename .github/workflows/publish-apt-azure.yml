@@ -183,6 +183,9 @@ jobs:
   assemble-repo:
     name: Assemble apt repository
     needs: build
+    # Explicit status check: without it, the skipped `changes`/`checks`
+    # ancestors cause this and every downstream job to be skipped.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
 
@@ -222,6 +225,7 @@ jobs:
   apt-install-test:
     name: apt install (${{ matrix.codename }}/${{ matrix.deb_arch }})
     needs: assemble-repo
+    if: ${{ !cancelled() && needs.assemble-repo.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
@@ -292,7 +296,7 @@ jobs:
   sign-dry-run:
     name: Sign with Key Vault (dry run, no publish)
     needs: apt-install-test
-    if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+    if: ${{ !cancelled() && needs.apt-install-test.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     runs-on: ubuntu-22.04
     environment: production
     timeout-minutes: 30
@@ -371,7 +375,7 @@ jobs:
   publish:
     name: Publish to Azure Blob apt repository
     needs: apt-install-test
-    if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && !inputs.skip_apt_publish
+    if: ${{ !cancelled() && needs.apt-install-test.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && !inputs.skip_apt_publish }}
     runs-on: ubuntu-22.04
     environment: production
     timeout-minutes: 60
@@ -576,7 +580,7 @@ jobs:
   docker-build:
     name: Build & push image (${{ matrix.codename }}/${{ matrix.deb_arch }})
     needs: build
-    if: (startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    if: ${{ !cancelled() && needs.build.result == 'success' && ((startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && inputs.dry_run)) }}
     runs-on: ${{ matrix.runner }}
     environment: production
     timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 60 || 30 }}
@@ -725,7 +729,7 @@ jobs:
   docker-manifest:
     name: Assemble multi-arch manifest lists
     needs: docker-build
-    if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run }}
     runs-on: ubuntu-22.04
     environment: production
     timeout-minutes: 15

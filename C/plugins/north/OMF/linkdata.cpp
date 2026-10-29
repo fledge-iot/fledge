@@ -289,6 +289,11 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Readin
 			}
 			else if (dpLookup->second.containerState(assetName) == false)
 			{
+				string knownBaseType = dpLookup->second.knownBaseType(assetName);
+				if (!knownBaseType.empty())
+				{
+					baseType = knownBaseType;
+				}
 				sendContainer(link, dp, hints, baseType);
 				dpLookup->second.containerSent(assetName, baseType);
 

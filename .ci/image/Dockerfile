@@ -65,12 +65,16 @@ FROM slim AS full
 ARG FLEDGE_CODENAME
 ARG APT_REPO_URL=https://packages.helinplatform.com/apt
 
+# plugins.txt: one "package=version" per line, optionally followed by "!<codename>" for each codename the
+# plugin is not built for (e.g. "fledge-filter-omfhint=3.1.0 !bullseye").
 COPY plugins.txt /tmp/plugins.txt
-RUN curl -fsSL "${APT_REPO_URL}/fledge.gpg" -o /usr/share/keyrings/fledge.gpg \
+RUN awk -v c="${FLEDGE_CODENAME}" '{ sub(/\r$/, ""); skip = 0; for (i = 2; i <= NF; i++) if ($i == "!" c) skip = 1; if (NF && !skip) print $1 }' \
+      /tmp/plugins.txt > /tmp/plugins.install \
+ && curl -fsSL "${APT_REPO_URL}/fledge.gpg" -o /usr/share/keyrings/fledge.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/fledge.gpg] ${APT_REPO_URL} ${FLEDGE_CODENAME} main" \
       > /etc/apt/sources.list.d/fledge.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends build-essential python3-dev \
- && xargs -a /tmp/plugins.txt apt-get install -y --no-install-recommends \
+ && xargs -a /tmp/plugins.install apt-get install -y --no-install-recommends \
  && apt-get purge -y --auto-remove build-essential python3-dev \
- && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/plugins.txt
+ && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/plugins.txt /tmp/plugins.install

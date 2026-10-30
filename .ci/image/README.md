@@ -9,7 +9,9 @@ container. `rsyslog.conf` and `rsyslog-rotate.sh` decide where logs go.
 
 `plugins.txt` is the authoritative list and the only place to change it. It holds
 28 entries, each pinned to an exact package version, and the `full` stage installs
-exactly those from the signed apt repository:
+exactly those from the signed apt repository. An entry can end with `!<codename>`
+(one per codename) to skip it on a distribution the plugin is not built for; for
+example, omfhint is marked `!bullseye`:
 
 - 15 filters: asset, change, delta, expression, fft, log, metadata, omfhint,
   python35, rate, rename, replace, rms, scale, threshold

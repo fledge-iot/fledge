@@ -16,6 +16,10 @@ on:
         description: "Only build these codename/arch targets, e.g. 'focal/amd64 bullseye/armhf'. Empty builds the default set."
         type: string
         default: ""
+      release-tag:
+        description: "Stamp the version from this tag outside a release event, e.g. 'v3.1.0-rc.1' builds 3.1.0~rc.1 for the -rc suites"
+        type: string
+        default: ""
       fledge-ref:
         type: string
         default: develop
@@ -53,6 +57,7 @@ jobs:
         shell: bash
         env:
           KIND: ${{ inputs.kind }}
+          RELEASE_TAG: ${{ inputs.release-tag || (github.event_name == 'release' && github.ref_name || '') }}
         run: |
           set -euo pipefail
           case "${KIND}" in
@@ -77,13 +82,13 @@ jobs:
           fi
           version="${base_version}"
           suite_suffix=""
-          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
-            tag="${GITHUB_REF_NAME#v}"
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            tag="${RELEASE_TAG#v}"
             if [[ "${tag}" =~ ^${base_version//./\\.}-rc\.([1-9][0-9]*)$ ]]; then
               version="${base_version}~rc.${BASH_REMATCH[1]}"
               suite_suffix="-rc"
             elif [[ "${tag}" != "${base_version}" ]]; then
-              echo "ERROR: release tag '${GITHUB_REF_NAME}' does not match ${version_file} '${base_version}' (expected v${base_version} or v${base_version}-rc.<n>)" >&2
+              echo "ERROR: release tag '${RELEASE_TAG}' does not match ${version_file} '${base_version}' (expected v${base_version} or v${base_version}-rc.<n>)" >&2
               exit 1
             fi
           fi

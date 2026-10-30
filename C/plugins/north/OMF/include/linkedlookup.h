@@ -70,6 +70,11 @@ class LALookup {
 					m_sentState |= LAL_LINK_SENT;
 				};
 		void		afLinkSent() {  m_sentState |= LAL_AFLINK_SENT; };
+		void		resetSentState() { m_sentState = 0; };
+		std::string	knownBaseType(const std::string& tagName)
+				{
+					return (m_baseType != OMFBT_UNKNOWN && m_tagName.compare(tagName) == 0) ? getBaseTypeString() : "";
+				};
 		void		containerSent(const std::string& tagName, const std::string& baseType);
 		void		containerSent(const std::string& tagName, OMFBaseType baseType);
 	private:

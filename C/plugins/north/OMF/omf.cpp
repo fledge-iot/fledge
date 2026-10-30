@@ -1376,6 +1376,17 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
+	if (m_resendPending)
+	{
+		auto now = std::chrono::steady_clock::now();
+		if (now < m_resendAfter)
+		{
+			return 0;
+		}
+		m_resendDelay = std::min(m_resendDelay * 2, m_resendDelayMax);
+		m_resendAfter = now + std::chrono::seconds(m_resendDelay);
+	}
+
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1410,6 +1421,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// the superset[assetName] is then passed to routines which handles
 	// creation of OMF data types. This is used for the initial type
 	// handling of complex data types.
+	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
 
 #if INSTRUMENT
@@ -1891,8 +1903,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			parseLinkData(omfData, links);
 			LogLinks(409, "creating Link", links);
 
-			Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
-			m_PIstable = false;
+			scheduleResend(409);
 			delete[] omfData;
 			return 0;
 		}
@@ -1951,6 +1962,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	// Remove all assets supersetDataPoints
 	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
+
+	m_resendPending = false;
+	m_resendDelay = 0;
 
 	// Return number of sent readings to the caller
 	return readings.size();
@@ -4972,6 +4986,27 @@ void OMF::handleRESTException(const std::exception &e, const char *mainMessage)
 	}
 }
 
+void OMF::resetSentState()
+{
+	for (auto& entry : m_linkedAssetState)
+	{
+		entry.second.resetSentState();
+	}
+	m_baseTypesSent = false;
+}
+
+void OMF::scheduleResend(const int httpCode)
+{
+	resetSentState();
+	if (!m_resendPending)
+	{
+		m_resendDelay = m_resendDelayMin;
+	}
+	m_resendAfter = std::chrono::steady_clock::now() + std::chrono::seconds(m_resendDelay);
+	m_resendPending = true;
+	Logger::getLogger()->warn("HTTP Code %d: types, containers and links will be sent again in %u seconds", httpCode, m_resendDelay);
+}
+
 /**
  * Check the HTTP response code and the error message for conditions
  * indicating loss of connection or instability in the PI Server
@@ -4986,8 +5021,7 @@ void OMF::CheckHttpCode(const int httpCode, const std::string &errorMessage)
 	case 404: // Not Found
 		if (errorMessage.compare(PIWEBAPI_CONTAINER_NOT_FOUND) == 0)
 		{
-			Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, httpCode);
-			m_PIstable = false;
+			scheduleResend(httpCode);
 		}
 		break;
 	case 413: // Request Entity Too Large
@@ -5448,8 +5482,7 @@ bool OMF::sendAFLinks(Reading &reading, OMFHints *hints)
 		LogLinks(409, "creating Link", links);
 		string msg = "Conflict sending AF Link Data message for the asset " + reading.getAssetName();
 		handleRESTException(e, msg.c_str());
-		Logger::getLogger()->warn(MESSAGE_PI_UNSTABLE, 409);
-		m_PIstable = false;
+		scheduleResend(409);
 		success = false;
 	}
 	catch (const std::exception &e)

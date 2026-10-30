@@ -38,7 +38,8 @@ env:
   CODENAMES: "bullseye bookworm jammy noble"
   COMPONENT: main
   CONTAINER: apt
-  RELEASE_BRANCH: develop
+  # 3.1.x maintenance releases are cut from release/3.1.x, not develop.
+  RELEASE_BRANCH: release/3.1.x
   # The /apt path segment is the blob container name on the storage account.
   # When Azure Storage serves requests for packages.helinplatform.com (registered
   # as a custom domain on the account), the first path segment selects the container.

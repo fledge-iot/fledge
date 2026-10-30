@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 env:
-  CODENAMES: "bullseye bookworm jammy noble"
+  CODENAMES: "focal bullseye bookworm jammy noble"
   COMPONENT: main
   CONTAINER: apt
   PUBLIC_APT_URL: https://packages.helinplatform.com/apt

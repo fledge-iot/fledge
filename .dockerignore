@@ -9,3 +9,4 @@ cmake_build
 **/*.pyc
 *.deb
 *.log
+.verify-evidence

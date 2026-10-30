@@ -97,3 +97,6 @@ doxy/
 tests/unit/C/build
 tests/unit/C/lib
 tests/unit/C/*/build
+
+# Evidence from the verify skill (.github/skills/verify)
+.verify-evidence/

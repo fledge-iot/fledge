@@ -592,51 +592,48 @@ jobs:
       matrix:
         # Same matrix as the build job — keep them in sync. BASE_IMAGE must match
         # the codename's .deb-build base so the Boost ABI in Depends: resolves.
-        # Base images come from the ECR Public mirror of Docker Official Images (same
-        # digests): the OIDC Docker Hub token only covers the push org, so pulling
-        # library/* from docker.io with it fails with 'insufficient scopes'.
         include:
           - codename: bullseye
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
           - codename: bullseye
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
           - codename: bookworm
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
           - codename: bookworm
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
           - codename: jammy
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: public.ecr.aws/docker/library/ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
+            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
           - codename: noble
             deb_arch: amd64
             runner: ubuntu-22.04
             platform: linux/amd64
-            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
           - codename: noble
             deb_arch: arm64
             runner: ubuntu-22.04-arm
             platform: linux/arm64
-            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
             skip_full: true
           - codename: noble
             deb_arch: armhf
             runner: ubuntu-22.04
             platform: linux/arm/v7
-            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
             skip_full: true
 
     steps:
@@ -675,10 +672,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
 
-      # Build everything first and log in to Docker Hub only right before pushing.
-      # The OIDC token is short-lived (a few minutes): the QEMU armhf build takes
-      # ~7 min, so a login before the build expires before the push. The push steps
-      # rebuild from the buildx cache in seconds.
+      # Authenticated pulls of the docker.io base images. The OIDC connection must
+      # grant read access to public repositories, or library/* pulls fail with
+      # "insufficient scopes".
+      - name: Docker Hub login for base image pulls (OIDC)
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTION_ID }}
+        with:
+          username: ${{ vars.DOCKERHUB_ORG }}
+
+      # Build first, then log in again right before pushing. The OIDC token lasts
+      # only a few minutes and the QEMU armhf build takes ~7 min, so the token
+      # from the first login expires before the push. The push steps rebuild
+      # from the buildx cache in seconds.
       - name: Build per-arch slim image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
         with:
@@ -714,7 +721,7 @@ jobs:
           provenance: false
           sbom: false
 
-      - name: Docker Hub login (OIDC)
+      - name: Docker Hub login for push (OIDC)
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
         env:
           DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTION_ID }}

@@ -1,0 +1,897 @@
+name: Build and publish apt repository
+
+on:
+  # Pull requests build the packages only when they change packaging. Source
+  # changes are compiled and tested by the Checker; distro- and arch-specific
+  # breakage is caught by the nightly build.
+  pull_request:
+    paths:
+      - ".github/workflows/publish-apt-azure.yml"
+      - ".ci/apt/**"
+      - ".ci/build/**"
+      - ".ci/release/**"
+      - "scripts/package/debian/**"
+      - "requirements.sh"
+  schedule:
+    - cron: "17 3 * * *"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Sign with the real Key Vault key and upload the signature as an artifact, without publishing anything"
+        type: boolean
+        default: true
+      skip_apt_publish:
+        description: "Rebuild and push images from an existing tag, leaving the apt repository untouched"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CODENAMES: "bullseye bookworm jammy noble"
+  COMPONENT: main
+  CONTAINER: apt
+  RELEASE_BRANCH: develop
+  # The /apt path segment is the blob container name on the storage account.
+  # When Azure Storage serves requests for packages.helinplatform.com (registered
+  # as a custom domain on the account), the first path segment selects the container.
+  PUBLIC_APT_URL: https://packages.helinplatform.com/apt
+  DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE || 'fledgeiot/fledge' }}
+  SUITE_SUFFIX: ${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-rc.') && '-rc' || '' }}
+  NOT_AUTOMATIC: ${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-rc.') && 'yes' || '' }}
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+
+jobs:
+  # The nightly build is skipped when nothing has been merged since the last
+  # successful one.
+  changes:
+    name: Changes since last nightly
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - name: Compare with last successful nightly
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          last="$(gh run list -R "$GITHUB_REPOSITORY" -w publish-apt-azure.yml \
+            --event schedule --status success -L 1 --json headSha --jq '.[0].headSha // ""')"
+          if [[ "$last" == "$GITHUB_SHA" ]]; then
+            echo "No changes since the last successful nightly build (${last}), skipping"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Release tags only publish when the full Checker (build, unit tests, smoke
+  # test on Ubuntu 22.04 and 24.04) passes. Pull requests and nightly runs
+  # skip it: the Checker already runs as its own workflow.
+  checks:
+    name: Checker
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      checks: write
+    uses: ./.github/workflows/checker.yml
+
+  build:
+    name: Build .deb (${{ matrix.codename }}/${{ matrix.deb_arch }})
+    needs: [changes, checks]
+    if: >-
+      !cancelled()
+      && (needs.changes.result == 'skipped' || needs.changes.outputs.build == 'true')
+      && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 150 || 90 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - codename: bullseye
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+          - codename: bullseye
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+          # armhf disabled for now — QEMU build is slow and we have no active armv7 fleet.
+          # Re-enable when there's demand (and ideally once a native armv7 GHA runner exists).
+          # - codename: bullseye
+          #   deb_arch: armhf
+          #   runner: ubuntu-22.04
+          #   platform: linux/arm/v7
+          #   base_image: debian:bullseye-slim
+          - codename: bookworm
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: bookworm
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: jammy
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
+          - codename: noble
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - codename: noble
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - codename: noble
+            deb_arch: armhf
+            runner: ubuntu-22.04
+            platform: linux/arm/v7
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      # Only the armhf build needs emulation — no native armv7 GHA runner exists.
+      - name: Set up QEMU (armv7 only)
+        if: matrix.platform == 'linux/arm/v7'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
+        with:
+          platforms: arm
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Build .deb
+        shell: bash
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: |
+          set -euo pipefail
+          chmod +x .ci/build/build.sh scripts/package/debian/build_deb.sh .ci/release/resolve_version.sh
+          export DEB_VERSION="$(.ci/release/resolve_version.sh VERSION "${RELEASE_TAG}" deb_version)"
+          .ci/build/build.sh "${BASE_IMAGE}" "${{ matrix.platform }}"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: fledge-${{ matrix.codename }}-${{ matrix.deb_arch }}
+          path: build-out/fledge_*.deb
+          if-no-files-found: error
+
+  assemble-repo:
+    name: Assemble apt repository
+    needs: build
+    # Explicit status check: without it, the skipped `changes`/`checks`
+    # ancestors cause this and every downstream job to be skipped.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: fledge-*
+          path: dist
+
+      - name: Install apt metadata tools
+        run: sudo apt-get update && sudo apt-get install -y apt-utils dpkg-dev
+
+      - name: Build local apt repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .ci/apt/build_repo.sh
+          for codename in $CODENAMES; do
+            stage="staging/${codename}"
+            mkdir -p "$stage"
+            find dist -path "*fledge-${codename}-*" -name 'fledge_*.deb' -exec cp -v {} "$stage/" \;
+            CODENAME="${codename}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
+              .ci/apt/build_repo.sh "$stage" apt-repo-out
+          done
+
+      - name: Upload apt repository artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: apt-repo-preview
+          path: apt-repo-out/**
+          if-no-files-found: error
+
+  apt-install-test:
+    name: apt install (${{ matrix.codename }}/${{ matrix.deb_arch }})
+    needs: assemble-repo
+    if: ${{ !cancelled() && needs.assemble-repo.result == 'success' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - codename: bullseye
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+          - codename: bookworm
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: bookworm
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: jammy
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
+          - codename: noble
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - codename: noble
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - codename: noble
+            deb_arch: armhf
+            runner: ubuntu-22.04
+            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Download apt repository artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: apt-repo-preview
+          path: apt-repo-out
+
+      - name: Set up QEMU (armhf only)
+        if: matrix.deb_arch == 'armhf'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
+        with:
+          platforms: arm
+
+      - name: Serve local apt repository
+        shell: bash
+        run: |
+          python3 -m http.server 8080 --directory apt-repo-out &
+          sleep 2
+
+      - name: Install from local apt repository
+        shell: bash
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: |
+          set -euo pipefail
+          chmod +x .ci/apt/test_repo.sh
+          CODENAME="${{ matrix.codename }}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
+            .ci/apt/test_repo.sh "http://host.docker.internal:8080" "${{ matrix.deb_arch }}"
+
+  sign-dry-run:
+    name: Sign with Key Vault (dry run, no publish)
+    needs: apt-install-test
+    if: ${{ !cancelled() && needs.apt-install-test.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    runs-on: ubuntu-22.04
+    environment: production
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      KV_NAME: ${{ vars.APT_SIGNING_KV_NAME }}
+      KEY_NAME: ${{ vars.APT_SIGNING_KEY_NAME }}
+      KEY_VERSION: ${{ vars.APT_SIGNING_KEY_VERSION }}
+      KEY_FPR: ${{ vars.APT_SIGNING_KEY_FPR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Download apt repository artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: apt-repo-preview
+          path: apt-repo-out
+
+      - name: Install signing tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y gpgv gnupg
+          python3 -m pip install -r .ci/apt/requirements.txt
+
+      - name: Azure login (OIDC)
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign repository metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .ci/apt/helin-archive-keyring.gpg apt-repo-out/fledge.gpg
+          for codename in $CODENAMES; do
+            codename="${codename}${SUITE_SUFFIX}"
+            python3 .ci/apt/sign_release.py --kv-name "$KV_NAME" --key-name "$KEY_NAME" \
+              ${KEY_VERSION:+--key-version "$KEY_VERSION"} \
+              sign --in "apt-repo-out/dists/${codename}/Release" \
+                   --out "apt-repo-out/dists/${codename}/Release.gpg" \
+                   --keyring apt-repo-out/fledge.gpg \
+                   ${KEY_FPR:+--expect-fingerprint "$KEY_FPR"}
+          done
+
+      - name: Verify signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for codename in $CODENAMES; do
+            codename="${codename}${SUITE_SUFFIX}"
+            gpgv --keyring "${PWD}/apt-repo-out/fledge.gpg" \
+              "apt-repo-out/dists/${codename}/Release.gpg" \
+              "apt-repo-out/dists/${codename}/Release"
+            echo "OK: ${codename} verifies against the published keyring"
+          done
+          gpg --list-packets "apt-repo-out/dists/bookworm${SUITE_SUFFIX}/Release.gpg" \
+            | grep -E "keyid|digest algo|issuer fpr"
+
+      - name: Upload signed metadata for inspection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: signed-metadata-dry-run
+          path: |
+            apt-repo-out/dists/*/Release
+            apt-repo-out/dists/*/Release.gpg
+            apt-repo-out/fledge.gpg
+          if-no-files-found: error
+
+  publish:
+    name: Publish to Azure Blob apt repository
+    needs: apt-install-test
+    if: ${{ !cancelled() && needs.apt-install-test.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && !inputs.skip_apt_publish }}
+    runs-on: ubuntu-22.04
+    environment: production
+    timeout-minutes: 60
+    # Serialises every pull-modify-push against the shared blob apt tree,
+    # including plugin publishes from publish-plugin-apt.yml. Two concurrent
+    # publishers would silently drop each other's packages.
+    concurrency:
+      group: apt-repo-publish
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      # Signing Key Vault + key for this environment (set as GitHub Environment vars).
+      KV_NAME: ${{ vars.APT_SIGNING_KV_NAME }}
+      KEY_NAME: ${{ vars.APT_SIGNING_KEY_NAME }}
+      KEY_VERSION: ${{ vars.APT_SIGNING_KEY_VERSION }}
+      KEY_FPR: ${{ vars.APT_SIGNING_KEY_FPR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag matches VERSION file
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .ci/release/resolve_version.sh
+          .ci/release/resolve_version.sh VERSION "${GITHUB_REF_NAME}" > /dev/null
+          version="$(.ci/release/resolve_version.sh VERSION "${GITHUB_REF_NAME}" image_version)"
+          # Guard against the GitHub Release UI being edited to point at a
+          # different commit after the fact.
+          tag_sha="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          if [[ "${tag_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' resolves to ${tag_sha} but workflow is running on ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${RELEASE_BRANCH}"; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' (${GITHUB_SHA}) is not an ancestor of origin/${RELEASE_BRANCH}; only commits merged into ${RELEASE_BRANCH} may be released" >&2
+            exit 1
+          fi
+          echo "OK: tag ${GITHUB_REF_NAME} matches VERSION ${version} at ${GITHUB_SHA} and is contained in ${RELEASE_BRANCH}"
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: fledge-*
+          path: dist
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
+        with:
+          platforms: arm64,arm
+
+      - name: Install apt metadata tools
+        run: sudo apt-get update && sudo apt-get install -y apt-utils dpkg-dev gpgv
+
+      - name: Azure login (OIDC)
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Pull existing repository from blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apt-repo-out
+          az storage blob download-batch \
+            --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+            --source "${CONTAINER}" \
+            --destination apt-repo-out \
+            --pattern "dists/*" \
+            --auth-mode login \
+            --overwrite
+          az storage blob download-batch \
+            --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+            --source "${CONTAINER}" \
+            --destination apt-repo-out \
+            --pattern "pool/*" \
+            --auth-mode login \
+            --overwrite
+
+      - name: Add packages and regenerate metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .ci/apt/build_repo.sh .ci/apt/test_repo.sh
+          for codename in $CODENAMES; do
+            stage="staging/${codename}"
+            mkdir -p "$stage"
+            find dist -path "*fledge-${codename}-*" -name 'fledge_*.deb' -exec cp -v {} "$stage/" \;
+            CODENAME="${codename}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
+              .ci/apt/build_repo.sh "$stage" apt-repo-out
+          done
+
+      - name: Install signing dependencies
+        shell: bash
+        run: python3 -m pip install -r .ci/apt/requirements.txt
+
+      - name: Sign repository metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .ci/apt/helin-archive-keyring.gpg apt-repo-out/fledge.gpg
+          for codename in $CODENAMES; do
+            codename="${codename}${SUITE_SUFFIX}"
+            python3 .ci/apt/sign_release.py --kv-name "$KV_NAME" --key-name "$KEY_NAME" \
+              ${KEY_VERSION:+--key-version "$KEY_VERSION"} \
+              sign --in "apt-repo-out/dists/${codename}/Release" \
+                   --out "apt-repo-out/dists/${codename}/Release.gpg" \
+                   --keyring apt-repo-out/fledge.gpg \
+                   ${KEY_FPR:+--expect-fingerprint "$KEY_FPR"}
+          done
+
+      - name: Verify signatures before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          for codename in $CODENAMES; do
+            codename="${codename}${SUITE_SUFFIX}"
+            gpgv --keyring "${PWD}/apt-repo-out/fledge.gpg" \
+              "apt-repo-out/dists/${codename}/Release.gpg" \
+              "apt-repo-out/dists/${codename}/Release"
+            echo "OK: ${codename} Release signature verifies against the published keyring"
+          done
+
+      - name: Upload packages to blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+            --destination "${CONTAINER}" \
+            --source apt-repo-out \
+            --pattern "pool/*" \
+            --auth-mode login \
+            --overwrite
+
+      - name: Upload keyring and signed metadata to blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+            --destination "${CONTAINER}" \
+            --source apt-repo-out \
+            --pattern "fledge.gpg" \
+            --auth-mode login \
+            --overwrite
+          az storage blob upload-batch \
+            --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+            --destination "${CONTAINER}" \
+            --source apt-repo-out \
+            --pattern "dists/*" \
+            --auth-mode login \
+            --overwrite
+
+      - name: Verify blob contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          for codename in $CODENAMES; do
+            codename="${codename}${SUITE_SUFFIX}"
+            echo "=== dists/${codename}/ ==="
+            az storage blob list \
+              --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+              --container-name "${CONTAINER}" \
+              --prefix "dists/${codename}/" \
+              --auth-mode login \
+              --query "[].name" \
+              -o tsv
+            echo "=== pool/${codename}/ ==="
+            az storage blob list \
+              --account-name "${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+              --container-name "${CONTAINER}" \
+              --prefix "pool/${codename}/${COMPONENT}/" \
+              --auth-mode login \
+              --query "[].name" \
+              -o tsv
+          done
+
+      # Post-publish sanity check: confirms the blob upload actually serves
+      # the new packages over HTTPS. Single combo only — `repository-smoke`
+      # already validated the wider codename×arch surface before publish.
+      - name: Install from published apt repository (sanity check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== Published apt install: bookworm${SUITE_SUFFIX} / amd64 (verifying signature) ==="
+          CODENAME="bookworm${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
+            BASE_IMAGE=debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 \
+            KEYRING_URL="${PUBLIC_APT_URL}/fledge.gpg" \
+            .ci/apt/test_repo.sh "${PUBLIC_APT_URL}" amd64
+
+  docker-build:
+    name: Build & push image (${{ matrix.codename }}/${{ matrix.deb_arch }})
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' && ((startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && inputs.dry_run)) }}
+    runs-on: ${{ matrix.runner }}
+    environment: production
+    timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 60 || 30 }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Same matrix as the build job — keep them in sync. BASE_IMAGE must match
+        # the codename's .deb-build base so the Boost ABI in Depends: resolves.
+        # Base images come from the ECR Public mirror of Docker Official Images (same
+        # digests): the OIDC Docker Hub token only covers the push org, so pulling
+        # library/* from docker.io with it fails with 'insufficient scopes'.
+        include:
+          - codename: bullseye
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+          - codename: bullseye
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: public.ecr.aws/docker/library/debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
+          - codename: bookworm
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: bookworm
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: public.ecr.aws/docker/library/debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
+          - codename: jammy
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: public.ecr.aws/docker/library/ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
+          - codename: noble
+            deb_arch: amd64
+            runner: ubuntu-22.04
+            platform: linux/amd64
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - codename: noble
+            deb_arch: arm64
+            runner: ubuntu-22.04-arm
+            platform: linux/arm64
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            skip_full: true
+          - codename: noble
+            deb_arch: armhf
+            runner: ubuntu-22.04
+            platform: linux/arm/v7
+            base_image: public.ecr.aws/docker/library/ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+            skip_full: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Set up QEMU (armv7 only)
+        if: matrix.platform == 'linux/arm/v7'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130  # v3.7.0
+        with:
+          platforms: arm
+
+      - name: Download .deb artifact for this matrix entry
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: fledge-${{ matrix.codename }}-${{ matrix.deb_arch }}
+          path: .ci/image/
+
+      - name: Rename .deb to predictable filename for COPY
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The build job produces one fledge_<ver>_<arch>.deb per matrix entry.
+          mv .ci/image/fledge_*.deb .ci/image/fledge.deb
+          ls -lh .ci/image/fledge.deb
+
+      - name: Resolve image version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .ci/release/resolve_version.sh
+          version="$(.ci/release/resolve_version.sh VERSION "${RELEASE_TAG}" image_version)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      # Build everything first and log in to Docker Hub only right before pushing.
+      # The OIDC token is short-lived (a few minutes): the QEMU armhf build takes
+      # ~7 min, so a login before the build expires before the push. The push steps
+      # rebuild from the buildx cache in seconds.
+      - name: Build per-arch slim image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        with:
+          context: .ci/image
+          file: .ci/image/Dockerfile
+          target: slim
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            FLEDGE_VERSION=${{ steps.version.outputs.version }}
+            FLEDGE_CODENAME=${{ matrix.codename }}
+          push: false
+          provenance: false
+          sbom: false
+
+      # The full (default) image installs every published plugin from the signed
+      # apt repository, so it can only build once those packages are live —
+      # real releases only, never dry runs.
+      - name: Build per-arch full image
+        if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && matrix.skip_full != true && env.SUITE_SUFFIX == ''
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        with:
+          context: .ci/image
+          file: .ci/image/Dockerfile
+          target: full
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            FLEDGE_VERSION=${{ steps.version.outputs.version }}
+            FLEDGE_CODENAME=${{ matrix.codename }}
+            APT_REPO_URL=${{ env.PUBLIC_APT_URL }}
+          push: false
+          provenance: false
+          sbom: false
+
+      - name: Docker Hub login (OIDC)
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTION_ID }}
+        with:
+          username: ${{ vars.DOCKERHUB_ORG }}
+
+      - name: Push per-arch slim image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        with:
+          context: .ci/image
+          file: .ci/image/Dockerfile
+          target: slim
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            FLEDGE_VERSION=${{ steps.version.outputs.version }}
+            FLEDGE_CODENAME=${{ matrix.codename }}
+          push: true
+          tags: ${{ inputs.dry_run && format('{0}:dry-run-{1}-{2}-slim', env.DOCKER_IMAGE, matrix.codename, matrix.deb_arch) || format('{0}:{1}-{2}-{3}-slim', env.DOCKER_IMAGE, steps.version.outputs.version, matrix.codename, matrix.deb_arch) }}
+          provenance: false
+          sbom: false
+
+      - name: Push per-arch full image
+        if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && matrix.skip_full != true && env.SUITE_SUFFIX == ''
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        with:
+          context: .ci/image
+          file: .ci/image/Dockerfile
+          target: full
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            FLEDGE_VERSION=${{ steps.version.outputs.version }}
+            FLEDGE_CODENAME=${{ matrix.codename }}
+            APT_REPO_URL=${{ env.PUBLIC_APT_URL }}
+          push: true
+          tags: ${{ format('{0}:{1}-{2}-{3}', env.DOCKER_IMAGE, steps.version.outputs.version, matrix.codename, matrix.deb_arch) }}
+          provenance: false
+          sbom: false
+
+      - name: Summarise pushed tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "DRY RUN: pushed ${DOCKER_IMAGE}:dry-run-${{ matrix.codename }}-${{ matrix.deb_arch }}-slim (disposable, not part of any release)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "pushed ${DOCKER_IMAGE}:${{ steps.version.outputs.version }}-${{ matrix.codename }}-${{ matrix.deb_arch }} ${{ matrix.skip_full == true && '(slim only, no full image yet)' || '(full) and -slim' }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  docker-manifest:
+    name: Assemble multi-arch manifest lists
+    needs: docker-build
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run }}
+    runs-on: ubuntu-22.04
+    environment: production
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify release tag matches VERSION file
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .ci/release/resolve_version.sh
+          version="$(.ci/release/resolve_version.sh VERSION "${GITHUB_REF_NAME}" image_version)"
+          tag_sha="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          if [[ "${tag_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' resolves to ${tag_sha} but workflow is running on ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${RELEASE_BRANCH}"; then
+            echo "ERROR: tag '${GITHUB_REF_NAME}' (${GITHUB_SHA}) is not an ancestor of origin/${RELEASE_BRANCH}; only commits merged into ${RELEASE_BRANCH} may be released" >&2
+            exit 1
+          fi
+          echo "OK: tag ${GITHUB_REF_NAME} matches VERSION ${version} at ${GITHUB_SHA} and is contained in ${RELEASE_BRANCH}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Docker Hub login (OIDC)
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTION_ID }}
+        with:
+          username: ${{ vars.DOCKERHUB_ORG }}
+
+      - name: Assemble manifest lists
+        shell: bash
+        env:
+          IMG: ${{ env.DOCKER_IMAGE }}
+          VER: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${SUITE_SUFFIX}" ]]; then
+            for codename in bullseye bookworm; do
+              docker buildx imagetools create \
+                -t "${IMG}:${VER}-${codename}-slim" \
+                "${IMG}:${VER}-${codename}-amd64-slim" \
+                "${IMG}:${VER}-${codename}-arm64-slim"
+            done
+            docker buildx imagetools create \
+              -t "${IMG}:${VER}-jammy-slim" \
+              "${IMG}:${VER}-jammy-amd64-slim"
+            docker buildx imagetools create \
+              -t "${IMG}:${VER}-noble-slim" \
+              "${IMG}:${VER}-noble-amd64-slim" \
+              "${IMG}:${VER}-noble-arm64-slim" \
+              "${IMG}:${VER}-noble-armhf-slim"
+            echo "release candidate ${VER}: pushed versioned -slim tags only"
+            exit 0
+          fi
+
+          # Default tags = full images (core + every published plugin); the bare
+          # runtime carries a -slim suffix on every tag.
+          # bullseye + bookworm: multi-arch (amd64 + arm64)
+          for codename in bullseye bookworm; do
+            docker buildx imagetools create \
+              -t "${IMG}:${VER}-${codename}" \
+              -t "${IMG}:${codename}" \
+              "${IMG}:${VER}-${codename}-amd64" \
+              "${IMG}:${VER}-${codename}-arm64"
+            docker buildx imagetools create \
+              -t "${IMG}:${VER}-${codename}-slim" \
+              -t "${IMG}:${codename}-slim" \
+              "${IMG}:${VER}-${codename}-amd64-slim" \
+              "${IMG}:${VER}-${codename}-arm64-slim"
+          done
+
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}-jammy" \
+            -t "${IMG}:jammy" \
+            "${IMG}:${VER}-jammy-amd64"
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}-jammy-slim" \
+            -t "${IMG}:jammy-slim" \
+            "${IMG}:${VER}-jammy-amd64-slim"
+
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}-noble" \
+            -t "${IMG}:noble" \
+            "${IMG}:${VER}-noble-amd64"
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}-noble-slim" \
+            -t "${IMG}:noble-slim" \
+            "${IMG}:${VER}-noble-amd64-slim" \
+            "${IMG}:${VER}-noble-arm64-slim" \
+            "${IMG}:${VER}-noble-armhf-slim"
+
+          # `latest` and bare `<version>` track the bookworm manifest (reference distro).
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}" \
+            -t "${IMG}:latest" \
+            "${IMG}:${VER}-bookworm-amd64" \
+            "${IMG}:${VER}-bookworm-arm64"
+          docker buildx imagetools create \
+            -t "${IMG}:${VER}-slim" \
+            -t "${IMG}:slim" \
+            "${IMG}:${VER}-bookworm-amd64-slim" \
+            "${IMG}:${VER}-bookworm-arm64-slim"
+
+          echo "=== Pushed tags ==="
+          for codename in bullseye bookworm jammy noble; do
+            echo "  ${IMG}:${codename} (+ -slim)"
+            echo "  ${IMG}:${VER}-${codename} (+ -slim)"
+          done
+          echo "  ${IMG}:${VER} (+ -slim)"
+          echo "  ${IMG}:latest"
+          echo "  ${IMG}:slim"

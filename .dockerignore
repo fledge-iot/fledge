@@ -1,0 +1,11 @@
+.git
+.github
+build-out
+build-out-*
+apt-repo-out
+apt-repo-*
+cmake_build
+**/__pycache__
+**/*.pyc
+*.deb
+*.log

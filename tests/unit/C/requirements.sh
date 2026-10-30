@@ -31,16 +31,7 @@ install_gtest_from_package() {
 
     # Install the libgtest-dev package
     sudo apt-get install -y libgtest-dev
-
-    if [[ "${OS_VERSION}" == "18.04" || "${OS_CODENAME}" == "buster" ]]; then
-        echo "Building Google Test libraries manually..."
-        cd /usr/src/gtest
-        sudo cmake -E make_directory build
-        sudo cmake -E chdir build cmake ..
-        sudo cmake --build build
-        sudo cp build/libgtest* /usr/lib
-    fi
-    
+   
     echo "Google Test has been successfully installed."
 }
 
@@ -50,7 +41,12 @@ install_gtest_from_source() {
 
     # Define repository name and branch
     local GTEST_REPO_NAME="googletest"
-    local GTEST_BRANCH="${1:-release-1.11.0}"  # Default branch is release-1.11.0
+    local GTEST_BRANCH="${1:-release-1.11.0}"
+    local GTEST_EXPECTED_COMMIT="${2:-e2239ee6043f73722e7aa812a459f54a28552929}"
+
+    if [ -n "$1" ] && [ -z "$2" ]; then
+        GTEST_EXPECTED_COMMIT=""
+    fi
 
     # Clean up any existing directory
     if [ -d "/tmp/${GTEST_REPO_NAME}" ]; then
@@ -64,6 +60,15 @@ install_gtest_from_source() {
 
     # Build and install Google Test
     cd "/tmp/${GTEST_REPO_NAME}"
+
+    if [ -n "${GTEST_EXPECTED_COMMIT}" ]; then
+        cloned_commit="$(git rev-parse HEAD)"
+        if [ "${cloned_commit}" != "${GTEST_EXPECTED_COMMIT}" ]; then
+            echo "ERROR: googletest ${GTEST_BRANCH} resolved to ${cloned_commit}, expected ${GTEST_EXPECTED_COMMIT}" >&2
+            exit 1
+        fi
+    fi
+
     mkdir -p build && cd build
     echo "Configuring and building Google Test..."
     cmake .. -DBUILD_GMOCK=OFF > /dev/null

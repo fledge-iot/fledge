@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+##--------------------------------------------------------------------
+## Copyright (c) 2019 Dianomic Systems Inc.
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##--------------------------------------------------------------------
+
+set -e
+
+remove_unused_files () {
+  find /usr/local/fledge/ -maxdepth 1 -mindepth 1 -type d | egrep -v -w '(/usr/local/fledge/data)' | xargs rm -rf
+}
+
+remove_fledge_sudoer_file() {
+    rm -rf /etc/sudoers.d/fledge
+}
+
+case "$1" in
+  remove|purge)
+    echo "Cleanup of files"
+    remove_unused_files
+    echo "Remove fledge sudoers file"
+    remove_fledge_sudoer_file
+    ;;
+  disappear)
+    ;;
+  upgrade)
+    ;;
+  failed-upgrade)
+    ;;
+  abort-install)
+    ;;
+  abort-upgrade)
+    ;;
+  *) echo "$0: didn't understand being called with \`$1'" 1>&2
+     exit 0;;
+esac
+exit 0

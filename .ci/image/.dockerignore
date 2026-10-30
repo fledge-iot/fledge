@@ -1,0 +1,7 @@
+*
+!fledge.deb
+!Dockerfile
+!entrypoint.sh
+!plugins.txt
+!rsyslog.conf
+!rsyslog-rotate.sh

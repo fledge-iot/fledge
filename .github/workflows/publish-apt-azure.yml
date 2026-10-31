@@ -26,6 +26,10 @@ on:
         description: "Rebuild and push images from an existing tag, leaving the apt repository untouched"
         type: boolean
         default: false
+      targets:
+        description: "Only build and publish these codename/arch targets to apt, e.g. 'focal/amd64 bullseye/armhf'. Skips Docker images. Empty builds everything."
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -35,7 +39,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  CODENAMES: "bullseye bookworm jammy noble"
+  CODENAMES: "focal bullseye bookworm jammy noble"
+  # docker/build-push-action uploads a "<owner>~<repo>~<id>.dockerbuild" record
+  # artifact per build, which the `fledge-*` download patterns below also match.
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
   COMPONENT: main
   CONTAINER: apt
   # 3.1.x maintenance releases are cut from release/3.1.x, not develop.
@@ -89,66 +96,73 @@ jobs:
       checks: write
     uses: ./.github/workflows/checker.yml
 
+  # Single source of truth for the codename/arch targets. focal and
+  # bullseye/armhf are apt-only (no Docker image) and exist for existing
+  # 3.1.x installs.
+  plan:
+    name: Plan targets
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.matrix.outputs.build }}
+      test: ${{ steps.matrix.outputs.test }}
+    steps:
+      - name: Build target matrices
+        id: matrix
+        shell: bash
+        env:
+          TARGETS: ${{ inputs.targets }}
+        run: |
+          set -euo pipefail
+          bullseye='debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792'
+          bookworm='debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241'
+          focal='ubuntu:20.04@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214'
+          jammy='ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f'
+          noble='ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea'
+          # codename deb_arch runner platform base_image apt_test default
+          # default=false rows are only built when named in the `targets` input.
+          all="$(cat <<EOF | jq -R -s -c 'split("\n") | map(select(length > 0) | split(" ") | {codename: .[0], deb_arch: .[1], runner: .[2], platform: .[3], base_image: .[4], apt_test: (.[5] == "true"), default: (.[6] == "true")})'
+          focal amd64 ubuntu-22.04 linux/amd64 ${focal} true false
+          bullseye amd64 ubuntu-22.04 linux/amd64 ${bullseye} true true
+          bullseye arm64 ubuntu-22.04-arm linux/arm64 ${bullseye} false true
+          bullseye armhf ubuntu-22.04 linux/arm/v7 ${bullseye} true false
+          bookworm amd64 ubuntu-22.04 linux/amd64 ${bookworm} true true
+          bookworm arm64 ubuntu-22.04-arm linux/arm64 ${bookworm} true true
+          jammy amd64 ubuntu-22.04 linux/amd64 ${jammy} true true
+          noble amd64 ubuntu-22.04 linux/amd64 ${noble} true true
+          noble arm64 ubuntu-22.04-arm linux/arm64 ${noble} true true
+          noble armhf ubuntu-22.04 linux/arm/v7 ${noble} true true
+          EOF
+          )"
+          selected="$(jq -c --arg t "${TARGETS}" '
+            ($t | split(" ") | map(select(length > 0))) as $want
+            | if ($want | length) == 0 then map(select(.default)) else map(select((.codename + "/" + .deb_arch) as $k | $want | index($k))) end' <<< "${all}")"
+          wanted="$(wc -w <<< "${TARGETS}")"
+          if [[ "${wanted}" -gt 0 && "$(jq length <<< "${selected}")" -ne "${wanted}" ]]; then
+            echo "ERROR: targets '${TARGETS}' must each be one of: $(jq -r 'map(.codename + "/" + .deb_arch) | join(" ")' <<< "${all}")" >&2
+            exit 1
+          fi
+          if [[ "$(jq 'any(.[]; .apt_test)' <<< "${selected}")" != "true" ]]; then
+            echo "ERROR: targets must include at least one apt-install-tested target (publish is gated on it)" >&2
+            exit 1
+          fi
+          echo "build={\"include\":${selected}}" >> "$GITHUB_OUTPUT"
+          echo "test={\"include\":$(jq -c 'map(select(.apt_test))' <<< "${selected}")}" >> "$GITHUB_OUTPUT"
+          jq -r '.[] | "- \(.codename)/\(.deb_arch)"' <<< "${selected}" >> "$GITHUB_STEP_SUMMARY"
+
   build:
     name: Build .deb (${{ matrix.codename }}/${{ matrix.deb_arch }})
-    needs: [changes, checks]
+    needs: [plan, changes, checks]
     if: >-
       !cancelled()
+      && needs.plan.result == 'success'
       && (needs.changes.result == 'skipped' || needs.changes.outputs.build == 'true')
       && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 150 || 90 }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - codename: bullseye
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            platform: linux/amd64
-            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
-          - codename: bullseye
-            deb_arch: arm64
-            runner: ubuntu-22.04-arm
-            platform: linux/arm64
-            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
-          # armhf disabled for now — QEMU build is slow and we have no active armv7 fleet.
-          # Re-enable when there's demand (and ideally once a native armv7 GHA runner exists).
-          # - codename: bullseye
-          #   deb_arch: armhf
-          #   runner: ubuntu-22.04
-          #   platform: linux/arm/v7
-          #   base_image: debian:bullseye-slim
-          - codename: bookworm
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            platform: linux/amd64
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
-          - codename: bookworm
-            deb_arch: arm64
-            runner: ubuntu-22.04-arm
-            platform: linux/arm64
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
-          - codename: jammy
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            platform: linux/amd64
-            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
-          - codename: noble
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            platform: linux/amd64
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
-          - codename: noble
-            deb_arch: arm64
-            runner: ubuntu-22.04-arm
-            platform: linux/arm64
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
-          - codename: noble
-            deb_arch: armhf
-            runner: ubuntu-22.04
-            platform: linux/arm/v7
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+      matrix: ${{ fromJSON(needs.plan.outputs.build) }}
 
     steps:
       - name: Checkout
@@ -208,13 +222,21 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x .ci/apt/build_repo.sh
+          touched=""
           for codename in $CODENAMES; do
             stage="staging/${codename}"
             mkdir -p "$stage"
             find dist -path "*fledge-${codename}-*" -name 'fledge_*.deb' -exec cp -v {} "$stage/" \;
+            if ! compgen -G "${stage}/*.deb" > /dev/null; then
+              echo "No packages built for ${codename}; leaving it untouched"
+              continue
+            fi
             CODENAME="${codename}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
               .ci/apt/build_repo.sh "$stage" apt-repo-out
+            touched="${touched} ${codename}"
           done
+          [[ -n "${touched}" ]] || { echo "ERROR: no packages to publish" >&2; exit 1; }
+          echo "TOUCHED=${touched# }" >> "$GITHUB_ENV"
 
       - name: Upload apt repository artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -225,42 +247,13 @@ jobs:
 
   apt-install-test:
     name: apt install (${{ matrix.codename }}/${{ matrix.deb_arch }})
-    needs: assemble-repo
+    needs: [plan, assemble-repo]
     if: ${{ !cancelled() && needs.assemble-repo.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - codename: bullseye
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            base_image: debian:bullseye-slim@sha256:f313b4bd62667092a59b3a664d7d3ab8b5e65f41675f48e81455a15dc5abe792
-          - codename: bookworm
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
-          - codename: bookworm
-            deb_arch: arm64
-            runner: ubuntu-22.04-arm
-            base_image: debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
-          - codename: jammy
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            base_image: ubuntu:22.04@sha256:3b06811b2afd352be909dd088a004166d665dc76d38b13eada33522a9d915c6f
-          - codename: noble
-            deb_arch: amd64
-            runner: ubuntu-22.04
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
-          - codename: noble
-            deb_arch: arm64
-            runner: ubuntu-22.04-arm
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
-          - codename: noble
-            deb_arch: armhf
-            runner: ubuntu-22.04
-            base_image: ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+      matrix: ${{ fromJSON(needs.plan.outputs.test) }}
 
     steps:
       - name: Checkout
@@ -339,8 +332,7 @@ jobs:
         run: |
           set -euo pipefail
           cp .ci/apt/helin-archive-keyring.gpg apt-repo-out/fledge.gpg
-          for codename in $CODENAMES; do
-            codename="${codename}${SUITE_SUFFIX}"
+          for codename in $(ls apt-repo-out/dists); do
             python3 .ci/apt/sign_release.py --kv-name "$KV_NAME" --key-name "$KEY_NAME" \
               ${KEY_VERSION:+--key-version "$KEY_VERSION"} \
               sign --in "apt-repo-out/dists/${codename}/Release" \
@@ -353,14 +345,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for codename in $CODENAMES; do
-            codename="${codename}${SUITE_SUFFIX}"
+          for codename in $(ls apt-repo-out/dists); do
             gpgv --keyring "${PWD}/apt-repo-out/fledge.gpg" \
               "apt-repo-out/dists/${codename}/Release.gpg" \
               "apt-repo-out/dists/${codename}/Release"
             echo "OK: ${codename} verifies against the published keyring"
           done
-          gpg --list-packets "apt-repo-out/dists/bookworm${SUITE_SUFFIX}/Release.gpg" \
+          gpg --list-packets "$(ls -d apt-repo-out/dists/*/ | head -n1)Release.gpg" \
             | grep -E "keyid|digest algo|issuer fpr"
 
       - name: Upload signed metadata for inspection
@@ -471,13 +462,21 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x .ci/apt/build_repo.sh .ci/apt/test_repo.sh
+          touched=""
           for codename in $CODENAMES; do
             stage="staging/${codename}"
             mkdir -p "$stage"
             find dist -path "*fledge-${codename}-*" -name 'fledge_*.deb' -exec cp -v {} "$stage/" \;
+            if ! compgen -G "${stage}/*.deb" > /dev/null; then
+              echo "No packages built for ${codename}; leaving it untouched"
+              continue
+            fi
             CODENAME="${codename}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
               .ci/apt/build_repo.sh "$stage" apt-repo-out
+            touched="${touched} ${codename}"
           done
+          [[ -n "${touched}" ]] || { echo "ERROR: no packages to publish" >&2; exit 1; }
+          echo "TOUCHED=${touched# }" >> "$GITHUB_ENV"
 
       - name: Install signing dependencies
         shell: bash
@@ -488,7 +487,7 @@ jobs:
         run: |
           set -euo pipefail
           cp .ci/apt/helin-archive-keyring.gpg apt-repo-out/fledge.gpg
-          for codename in $CODENAMES; do
+          for codename in $TOUCHED; do
             codename="${codename}${SUITE_SUFFIX}"
             python3 .ci/apt/sign_release.py --kv-name "$KV_NAME" --key-name "$KEY_NAME" \
               ${KEY_VERSION:+--key-version "$KEY_VERSION"} \
@@ -502,7 +501,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for codename in $CODENAMES; do
+          for codename in $TOUCHED; do
             codename="${codename}${SUITE_SUFFIX}"
             gpgv --keyring "${PWD}/apt-repo-out/fledge.gpg" \
               "apt-repo-out/dists/${codename}/Release.gpg" \
@@ -545,7 +544,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for codename in $CODENAMES; do
+          for codename in $TOUCHED; do
             codename="${codename}${SUITE_SUFFIX}"
             echo "=== dists/${codename}/ ==="
             az storage blob list \
@@ -581,7 +580,7 @@ jobs:
   docker-build:
     name: Build & push image (${{ matrix.codename }}/${{ matrix.deb_arch }})
     needs: build
-    if: ${{ !cancelled() && needs.build.result == 'success' && ((startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && inputs.dry_run)) }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && !inputs.targets && ((startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && inputs.dry_run)) }}
     runs-on: ${{ matrix.runner }}
     environment: production
     timeout-minutes: ${{ matrix.deb_arch == 'armhf' && 60 || 30 }}

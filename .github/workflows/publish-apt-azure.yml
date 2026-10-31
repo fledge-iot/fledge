@@ -106,6 +106,7 @@ jobs:
     outputs:
       build: ${{ steps.matrix.outputs.build }}
       test: ${{ steps.matrix.outputs.test }}
+      sanity: ${{ steps.matrix.outputs.sanity }}
     steps:
       - name: Build target matrices
         id: matrix
@@ -148,6 +149,8 @@ jobs:
           fi
           echo "build={\"include\":${selected}}" >> "$GITHUB_OUTPUT"
           echo "test={\"include\":$(jq -c 'map(select(.apt_test))' <<< "${selected}")}" >> "$GITHUB_OUTPUT"
+          # Post-publish install check target: bookworm/amd64 when selected, else the first tested target.
+          echo "sanity=$(jq -c 'map(select(.apt_test)) | (map(select(.codename == "bookworm" and .deb_arch == "amd64")) + .)[0]' <<< "${selected}")" >> "$GITHUB_OUTPUT"
           jq -r '.[] | "- \(.codename)/\(.deb_arch)"' <<< "${selected}" >> "$GITHUB_STEP_SUMMARY"
 
   build:
@@ -366,7 +369,7 @@ jobs:
 
   publish:
     name: Publish to Azure Blob apt repository
-    needs: apt-install-test
+    needs: [plan, apt-install-test]
     if: ${{ !cancelled() && needs.apt-install-test.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run && !inputs.skip_apt_publish }}
     runs-on: ubuntu-22.04
     environment: production
@@ -569,13 +572,17 @@ jobs:
       # already validated the wider codename×arch surface before publish.
       - name: Install from published apt repository (sanity check)
         shell: bash
+        env:
+          SANITY_CODENAME: ${{ fromJSON(needs.plan.outputs.sanity).codename }}
+          SANITY_ARCH: ${{ fromJSON(needs.plan.outputs.sanity).deb_arch }}
+          SANITY_BASE_IMAGE: ${{ fromJSON(needs.plan.outputs.sanity).base_image }}
         run: |
           set -euo pipefail
-          echo "=== Published apt install: bookworm${SUITE_SUFFIX} / amd64 (verifying signature) ==="
-          CODENAME="bookworm${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
-            BASE_IMAGE=debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 \
+          echo "=== Published apt install: ${SANITY_CODENAME}${SUITE_SUFFIX} / ${SANITY_ARCH} (verifying signature) ==="
+          CODENAME="${SANITY_CODENAME}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
+            BASE_IMAGE="${SANITY_BASE_IMAGE}" \
             KEYRING_URL="${PUBLIC_APT_URL}/fledge.gpg" \
-            .ci/apt/test_repo.sh "${PUBLIC_APT_URL}" amd64
+            .ci/apt/test_repo.sh "${PUBLIC_APT_URL}" "${SANITY_ARCH}"
 
   docker-build:
     name: Build & push image (${{ matrix.codename }}/${{ matrix.deb_arch }})

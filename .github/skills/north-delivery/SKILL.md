@@ -92,8 +92,6 @@ Every break is a claim about the code. Before reporting one:
 - **Other changes.** Update the action and its code-site comment, update `SITES` in `check.py` if an action is added or renamed, rerun every config, then move the sync commit in Coverage.
 - After any model edit, confirm the model can still catch a bug. Temporarily break the matching code path in the model (for example, make `SendPlugin` advance the position when `k = 0`), check that `fixed` breaks, then revert.
 
-`/maintain-formal-verification-skill` does this pass for you.
-
 ## Findings at the sync commit (not fixed)
 
 Each was found by TLC and walked through the code by reading; the north service has no C++ unit tests.

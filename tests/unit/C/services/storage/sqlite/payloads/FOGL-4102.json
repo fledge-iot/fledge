@@ -1,0 +1,25 @@
+{
+	"return" : ["key"],
+	"aggregate" : [
+		{
+			"operation" : "sum",
+			"column" : "id"
+		},
+		{
+			"operation" : "count",
+			"column" : "id"
+		}
+	],
+	"where" : {
+		"column" : "ts",
+		"condition" : ">=",
+		"value" : "2017-10-10 12:14:26.622315",
+		"and" : {
+			"column" : "key",
+			"condition" : "=",
+			"value" : "TEST1"
+		}
+	},
+	"group" : "key"
+}
+

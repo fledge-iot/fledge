@@ -12,6 +12,14 @@ on:
       exclude-codenames:
         type: string
         default: ""
+      targets:
+        description: "Only build these codename/arch targets, e.g. 'focal/amd64 bullseye/armhf'. Empty builds the default set."
+        type: string
+        default: ""
+      release-tag:
+        description: "Stamp the version from this tag on non-release events (ignored on release events, which use the release tag), e.g. 'v3.1.0-rc.1' builds 3.1.0~rc.1 for the -rc suites"
+        type: string
+        default: ""
       fledge-ref:
         type: string
         default: develop
@@ -49,6 +57,7 @@ jobs:
         shell: bash
         env:
           KIND: ${{ inputs.kind }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.ref_name || inputs.release-tag }}
         run: |
           set -euo pipefail
           case "${KIND}" in
@@ -73,13 +82,13 @@ jobs:
           fi
           version="${base_version}"
           suite_suffix=""
-          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
-            tag="${GITHUB_REF_NAME#v}"
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            tag="${RELEASE_TAG#v}"
             if [[ "${tag}" =~ ^${base_version//./\\.}-rc\.([1-9][0-9]*)$ ]]; then
               version="${base_version}~rc.${BASH_REMATCH[1]}"
               suite_suffix="-rc"
             elif [[ "${tag}" != "${base_version}" ]]; then
-              echo "ERROR: release tag '${GITHUB_REF_NAME}' does not match ${version_file} '${base_version}' (expected v${base_version} or v${base_version}-rc.<n>)" >&2
+              echo "ERROR: release tag '${RELEASE_TAG}' does not match ${version_file} '${base_version}' (expected v${base_version} or v${base_version}-rc.<n>)" >&2
               exit 1
             fi
           fi
@@ -97,11 +106,14 @@ jobs:
         env:
           KIND: ${{ inputs.kind }}
           EXCLUDE: ${{ inputs.exclude-codenames }}
+          TARGETS: ${{ inputs.targets }}
         run: |
           set -euo pipefail
           if [[ "${KIND}" == "cpp" ]]; then
             all='[
+              {"codename":"focal","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:20.04","light":true,"default":false},
               {"codename":"bullseye","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bullseye-slim","light":false},
+              {"codename":"bullseye","deb_arch":"armhf","runner":"ubuntu-22.04","platform":"linux/arm/v7","base_image":"debian:bullseye-slim","light":true,"default":false},
               {"codename":"bullseye","deb_arch":"arm64","runner":"ubuntu-22.04-arm","platform":"linux/arm64","base_image":"debian:bullseye-slim","light":false},
               {"codename":"bookworm","deb_arch":"amd64","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"debian:bookworm-slim","light":false},
               {"codename":"bookworm","deb_arch":"arm64","runner":"ubuntu-22.04-arm","platform":"linux/arm64","base_image":"debian:bookworm-slim","light":false},
@@ -118,11 +130,22 @@ jobs:
               {"codename":"noble","deb_arch":"all","runner":"ubuntu-22.04","platform":"linux/amd64","base_image":"ubuntu:24.04","light":false}
             ]'
           fi
-          matrix="$(jq -c --arg exclude "${EXCLUDE}" \
-            '($exclude | split(" ") | map(select(length > 0))) as $ex | {include: map(select(.codename as $c | $ex | index($c) | not))}' \
+          # Rows with "default":false (legacy focal/bullseye-armhf) are only built when named in `targets`.
+          matrix="$(jq -c --arg exclude "${EXCLUDE}" --arg targets "${TARGETS}" '
+            ($exclude | split(" ") | map(select(length > 0))) as $ex
+            | ($targets | split(" ") | map(select(length > 0))) as $want
+            | map(select(.codename as $c | $ex | index($c) | not))
+            | if ($want | length) == 0 then map(select(.default != false))
+              else map(select((.codename + "/" + .deb_arch) as $k | $want | index($k))) end
+            | {include: map(del(.default))}' \
             <<< "${all}")"
+          wanted="$(wc -w <<< "${TARGETS}")"
+          if [[ "${wanted}" -gt 0 && "$(jq '.include | length' <<< "${matrix}")" -ne "${wanted}" ]]; then
+            echo "ERROR: targets '${TARGETS}' must each be one of: $(jq -r 'map(.codename + "/" + .deb_arch) | join(" ")' <<< "${all}")" >&2
+            exit 1
+          fi
           if [[ "$(jq '.include | length' <<< "${matrix}")" -eq 0 ]]; then
-            echo "ERROR: every codename is excluded" >&2
+            echo "ERROR: no targets left to build" >&2
             exit 1
           fi
           echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"

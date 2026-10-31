@@ -17,7 +17,7 @@ on:
         type: string
         default: ""
       release-tag:
-        description: "Stamp the version from this tag outside a release event, e.g. 'v3.1.0-rc.1' builds 3.1.0~rc.1 for the -rc suites"
+        description: "Stamp the version from this tag on non-release events (ignored on release events, which use the release tag), e.g. 'v3.1.0-rc.1' builds 3.1.0~rc.1 for the -rc suites"
         type: string
         default: ""
       fledge-ref:
@@ -57,7 +57,7 @@ jobs:
         shell: bash
         env:
           KIND: ${{ inputs.kind }}
-          RELEASE_TAG: ${{ inputs.release-tag || (github.event_name == 'release' && github.ref_name || '') }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.ref_name || inputs.release-tag }}
         run: |
           set -euo pipefail
           case "${KIND}" in

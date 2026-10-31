@@ -171,6 +171,12 @@ jobs:
               CODENAME="${codename}${SUITE_SUFFIX}" COMPONENT="$COMPONENT" \
                 .ci/apt/build_repo.sh "$stage" apt-repo-out
               touched="${touched}${touched:+ }${codename}${SUITE_SUFFIX}"
+              for deb in "${stage}"/*.deb; do
+                arch="$(dpkg-deb --field "$deb" Architecture)"
+                # Architecture: all is listed in every binary-* index; check amd64.
+                [[ "$arch" == all ]] && arch=amd64
+                indexes="${indexes:-}${indexes:+ }${codename}${SUITE_SUFFIX}/${arch}"
+              done
             fi
           done
           if [[ -z "$touched" ]]; then
@@ -178,6 +184,7 @@ jobs:
             exit 1
           fi
           echo "touched=${touched}" >> "$GITHUB_OUTPUT"
+          echo "indexes=$(tr ' ' '\n' <<< "${indexes}" | sort -u | xargs)" >> "$GITHUB_OUTPUT"
 
       - name: Install signing dependencies
         shell: bash
@@ -249,11 +256,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for codename in ${{ steps.stage.outputs.touched }}; do
-            packages_url="${PUBLIC_APT_URL}/dists/${codename}/${COMPONENT}/binary-amd64/Packages"
-            if ! curl -fsSL "$packages_url" | grep -x "Package: ${PACKAGE}"; then
-              echo "ERROR: ${PACKAGE} missing from ${packages_url}" >&2
+          # One check per published codename/arch, matching on Package and Version so an
+          # older package already in the index can't satisfy it.
+          for index in ${{ steps.stage.outputs.indexes }}; do
+            codename="${index%/*}"
+            arch="${index#*/}"
+            packages_url="${PUBLIC_APT_URL}/dists/${codename}/${COMPONENT}/binary-${arch}/Packages"
+            if ! curl -fsSL "$packages_url" | awk -v pkg="${PACKAGE}" -v ver="${PKG_VERSION}" '
+                BEGIN { RS = ""; found = 0 }
+                $0 ~ ("(^|\n)Package: " pkg "(\n|$)") && index($0, "\nVersion: " ver "\n") { found = 1 }
+                END { exit !found }'; then
+              echo "ERROR: ${PACKAGE} ${PKG_VERSION} missing from ${packages_url}" >&2
               exit 1
             fi
-            echo "OK: ${PACKAGE} listed in ${codename} Packages index"
+            echo "OK: ${PACKAGE} ${PKG_VERSION} listed in ${codename}/${arch} Packages index"
           done

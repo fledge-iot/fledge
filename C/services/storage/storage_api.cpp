@@ -1457,7 +1457,7 @@ bool StorageApi::readingStream(ReadingStream **readings, bool commit)
 			struct tm timeinfo;
 			gmtime_r(&readings[i]->userTs.tv_sec, &timeinfo);
 			std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
-			snprintf(micro_s, sizeof(micro_s), ".%06lu", readings[i]->userTs.tv_usec);
+			snprintf(micro_s, sizeof(micro_s), ".%06ld", (long) readings[i]->userTs.tv_usec);
 			convert << ts << micro_s;
 			convert << "\",\"reading\":";
 			convert << &(readings[i]->assetCode[readings[i]->assetCodeLength]);

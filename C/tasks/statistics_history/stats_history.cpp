@@ -178,8 +178,8 @@ std::string StatsHistory::getTime(void) const
 	// Add microseconds
 	snprintf(micro_s,
 		    sizeof(micro_s),
-		    ".%06lu",
-		    tv.tv_usec);
+		    ".%06ld",
+		    (long) tv.tv_usec);
 
 	dateTimeLocal.append(micro_s);
 	return dateTimeLocal;

@@ -350,8 +350,8 @@ char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 		// Add microseconds
 		snprintf(micro_s,
 			 sizeof(micro_s),
-			 ".%06lu",
-			 m_timestamp.tv_usec);
+			 ".%06ld",
+			 (long) m_timestamp.tv_usec);
 
 		// Add date_time + microseconds
 		if (dateFormat != FMT_ISO8601MS)
@@ -394,8 +394,8 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 		// Add microseconds
 		snprintf(micro_s,
 			 sizeof(micro_s),
-			 ".%06lu",
-			 m_userTimestamp.tv_usec);
+			 ".%06ld",
+			 (long) m_userTimestamp.tv_usec);
 
 		// Add date_time + microseconds
 		if (dateFormat != FMT_ISO8601MS)

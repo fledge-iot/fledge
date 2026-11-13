@@ -106,3 +106,58 @@ TEST(JsonStringUnescape, DoubleQuotedValue)
 	string json = R"({\"city\":\"\\\"Milan\\\"\"})";
 	ASSERT_EQ(R"({"city":"\"Milan\""})", JSONunescape(json));
 }
+
+TEST(JsonStringUnescape, Backslash)
+{
+	// An escaped backslash must collapse to a single backslash
+	string json = R"("ns=2;s=[Prog]Global\\Tag")";
+	ASSERT_EQ(R"(ns=2;s=[Prog]Global\Tag)", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, BackslashBeforeN)
+{
+	// A backslash followed by the letter 'n' is escaped as backslash,
+	// backslash, 'n' and must not be treated as a newline escape
+	string json = R"("[Prog]Global\\node")";
+	ASSERT_EQ(R"([Prog]Global\node)", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, NewlineEscape)
+{
+	string json = R"("line1\nline2")";
+	ASSERT_EQ("line1\nline2", JSONunescape(json));
+}
+
+TEST(JsonStringUnescape, UnicodeEscapePreserved)
+{
+	// Unicode escapes are passed through for downstream JSON parsing
+	string json = R"("snow\u2603man")";
+	ASSERT_EQ(R"(snow\u2603man)", JSONunescape(json));
+}
+
+TEST(JsonStringEscape, Backslash)
+{
+	ASSERT_EQ(R"(ns=2;s=[Prog]Global\\Tag)", JSONescape(R"(ns=2;s=[Prog]Global\Tag)"));
+}
+
+TEST(JsonStringEscape, DoubleQuote)
+{
+	ASSERT_EQ(R"(say \"hi\")", JSONescape(R"(say "hi")"));
+}
+
+TEST(JsonStringEscape, ControlCharacters)
+{
+	ASSERT_EQ("line1\\nline2\\tend", JSONescape("line1\nline2\tend"));
+}
+
+TEST(JsonStringEscape, NoSpecialCharacters)
+{
+	ASSERT_EQ("plain text", JSONescape("plain text"));
+}
+
+TEST(JsonStringEscape, UnescapeRoundTrip)
+{
+	// JSONunescape must be the inverse of JSONescape
+	string original = R"(ns=2;s=[Prog]Global\Tag with "quotes" and \new lines)";
+	ASSERT_EQ(original, JSONunescape(JSONescape(original)));
+}

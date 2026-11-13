@@ -1629,15 +1629,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["value"].IsObject())
 		{
-			boost::replace_all(m_value, "\\n", "");
 			Document check;
 			check.Parse(m_value.c_str());
 			if (check.HasParseError())
 			{
-				Logger::getLogger()->error("The JSON configuration item %s has a parse error: %s",
-					m_name.c_str(), GetParseError_En(check.GetParseError()));
-				throw new runtime_error(GetParseError_En(check.GetParseError()));
+				// Legacy values may contain literal "\n" sequences between
+				// JSON tokens; strip them and retry before failing. This is
+				// not done up front as it would corrupt values in which a
+				// backslash is legitimately followed by an 'n'
+				string stripped = m_value;
+				boost::replace_all(stripped, "\\n", "");
+				check.Parse(stripped.c_str());
+				if (check.HasParseError())
+				{
+					Logger::getLogger()->error("The JSON configuration item %s has a parse error: %s",
+						m_name.c_str(), GetParseError_En(check.GetParseError()));
+					throw new runtime_error(GetParseError_En(check.GetParseError()));
+				}
+				m_value = stripped;
 			}
+			// Keep the JSON text on a single line: newlines can only
+			// be inter-token whitespace at this point
+			boost::replace_all(m_value, "\n", "");
 			if (!check.IsObject())
 			{
 				Logger::getLogger()->error("The JSON configuration item %s is not a valid JSON objects",
@@ -1738,15 +1751,28 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		// If it's not a real eject, check the string buffer it is:
 		if (!item["default"].IsObject())
 		{
-			boost::replace_all(m_default, "\\n", "");
 			Document check;
 			check.Parse(m_default.c_str());
 			if (check.HasParseError())
 			{
-				Logger::getLogger()->error("The JSON configuration item %s has a parse error in the default value: %s",
-					m_name.c_str(), GetParseError_En(check.GetParseError()));
-				throw new runtime_error(GetParseError_En(check.GetParseError()));
+				// Legacy values may contain literal "\n" sequences between
+				// JSON tokens; strip them and retry before failing. This is
+				// not done up front as it would corrupt values in which a
+				// backslash is legitimately followed by an 'n'
+				string stripped = m_default;
+				boost::replace_all(stripped, "\\n", "");
+				check.Parse(stripped.c_str());
+				if (check.HasParseError())
+				{
+					Logger::getLogger()->error("The JSON configuration item %s has a parse error in the default value: %s",
+						m_name.c_str(), GetParseError_En(check.GetParseError()));
+					throw new runtime_error(GetParseError_En(check.GetParseError()));
+				}
+				m_default = stripped;
 			}
+			// Keep the JSON text on a single line: newlines can only
+			// be inter-token whitespace at this point
+			boost::replace_all(m_default, "\n", "");
 			if (!check.IsObject())
 			{
 				Logger::getLogger()->error("The JSON configuration item %s default is not a valid JSON object",

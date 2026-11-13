@@ -795,3 +795,29 @@ TEST(CategoryTestLF, toJSONWithoutLF)
 	ASSERT_EQ(0, confCategory.getDefault("writemap").compare(defaultJsonClear));
 	ASSERT_EQ(0, confCategory.getValue("writemap").compare(valueJsonClear));
 }
+
+// Config category with backslashes in string and JSON item values,
+// as produced by OPC UA node identifiers such as ns=2;s=[Prog]Global\Tag
+const char *myCategory_backslash = R"BS({"nodeId": {"description": "OPC UA node id", "type": "string", "value": "ns=2;s=[Prog]Global\\Tag", "default": "ns=2;s=[Prog]Global\\Tag"}, "map": {"description": "Subscription map", "type": "JSON", "value": "{\"asset\":\"PLC\\\\node1\"}", "default": "{}"}})BS";
+
+TEST(CategoryTest, backslashValues)
+{
+	ConfigCategory category("backslash", myCategory_backslash);
+
+	// A single backslash in a string item must be seen by the caller
+	// as a single backslash, not doubled by the JSON round trip
+	ASSERT_EQ(category.getValue("nodeId"), R"(ns=2;s=[Prog]Global\Tag)");
+
+	// A JSON item held as an escaped string must yield parseable JSON
+	// in which a backslash before the letter 'n' is preserved
+	Document doc;
+	doc.Parse(category.getValue("map").c_str());
+	ASSERT_FALSE(doc.HasParseError());
+	ASSERT_TRUE(doc.HasMember("asset"));
+	ASSERT_EQ(string(doc["asset"].GetString()), R"(PLC\node1)");
+
+	// Values must be stable across a serialise/parse round trip
+	ConfigCategory category2("backslash", category.itemsToJSON());
+	ASSERT_EQ(category2.getValue("nodeId"), category.getValue("nodeId"));
+	ASSERT_EQ(category2.getValue("map"), category.getValue("map"));
+}

@@ -72,23 +72,53 @@ bool JSONStringToVectorString(std::vector<std::string>& vectorString,
 
 string JSONescape(const std::string& subject)
 {
-size_t pos = 0;
-string replace("\\\"");
-string escaped = subject;
+	string escaped;
+	escaped.reserve(subject.size());
 
-        while ((pos = escaped.find("\"", pos)) != std::string::npos)
-        {
-                escaped.replace(pos, 1, replace);
-                pos += replace.length();
-        }
-        return escaped;
+	for (char c : subject)
+	{
+		switch (c)
+		{
+			case '\\':
+				escaped += "\\\\";
+				break;
+			case '"':
+				escaped += "\\\"";
+				break;
+			case '\n':
+				escaped += "\\n";
+				break;
+			case '\r':
+				escaped += "\\r";
+				break;
+			case '\t':
+				escaped += "\\t";
+				break;
+			case '\b':
+				escaped += "\\b";
+				break;
+			case '\f':
+				escaped += "\\f";
+				break;
+			default:
+				escaped += c;
+				break;
+		}
+	}
+	return escaped;
 }
 
 /**
  * Return unescaped version of a JSON string
  *
- * Routine removes \" inside the string
- * and leading and trailing "
+ * Routine removes leading and trailing " and processes the
+ * standard JSON escape sequences: \\ \" \n \r \t \b \f.
+ * Unicode escapes (\uXXXX) and any unrecognised sequences are
+ * copied through unchanged so that JSON text held in the string
+ * can be parsed downstream.
+ *
+ * This is the inverse of JSONescape and of the escaping applied
+ * by the rapidjson Writer.
  *
  * @param input         Input string
  * @return              Unescaped string
@@ -107,19 +137,44 @@ std::string JSONunescape(const std::string& input)
 			continue;
 		}
 
-		// \\\" -> \"
-		if (input[i] == '\\' && i + 3 < inputSize && input[i + 1] == '\\' && input[i + 2] == '\\' && input[i + 3] == '"')
+		if (input[i] == '\\' && i + 1 < inputSize)
 		{
-			output.push_back('\\');
-			output.push_back('"');
-			i += 3;
-		}
-		// \\" -> \"
-		// \" -> "
-		else if (input[i] == '\\' && i + 1 < inputSize && input[i + 1] == '"')
-		{
-			output.push_back('"');
-			++i;
+			switch (input[i + 1])
+			{
+				case '\\':
+					output.push_back('\\');
+					++i;
+					break;
+				case '"':
+					output.push_back('"');
+					++i;
+					break;
+				case 'n':
+					output.push_back('\n');
+					++i;
+					break;
+				case 'r':
+					output.push_back('\r');
+					++i;
+					break;
+				case 't':
+					output.push_back('\t');
+					++i;
+					break;
+				case 'b':
+					output.push_back('\b');
+					++i;
+					break;
+				case 'f':
+					output.push_back('\f');
+					++i;
+					break;
+				default:
+					// Unrecognised escape (e.g. \uXXXX):
+					// copy the backslash through unchanged
+					output.push_back(input[i]);
+					break;
+			}
 		}
 		else
 		{

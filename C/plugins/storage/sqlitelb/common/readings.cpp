@@ -483,7 +483,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 				memset(&timeinfo, 0, sizeof(struct tm));
 				gmtime_r(&RDS_USER_TIMESTAMP(readings, curReading).tv_sec, &timeinfo);
 				std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
-				snprintf(micro_s, sizeof(micro_s), ".%06lu", RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
+				snprintf(micro_s, sizeof(micro_s), ".%06ld", (long) RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
 
 				formatted_date[0] = {0};
 				strncat(ts, micro_s, 10);
@@ -594,7 +594,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			memset(&timeinfo, 0, sizeof(struct tm));
 			gmtime_r(&RDS_USER_TIMESTAMP(readings, curReading).tv_sec, &timeinfo);
 			std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
-			snprintf(micro_s, sizeof(micro_s), ".%06lu", RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
+			snprintf(micro_s, sizeof(micro_s), ".%06ld", (long) RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
 
 			formatted_date[0] = {0};
 			strncat(ts, micro_s, 10);

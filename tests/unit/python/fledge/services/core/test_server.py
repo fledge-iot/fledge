@@ -8,6 +8,8 @@
 
 import asyncio
 import json
+import os
+import signal
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from aiohttp import web
@@ -238,6 +240,56 @@ class TestServer:
         assert 1 == mocked_stop_rest_server.call_count
         assert 1 == mocked_stop_storage.call_count
         assert 1 == mocked__remove_pid.call_count
+
+    def test__register_signal_handlers(self):
+        loop = MagicMock()
+        Server._register_signal_handlers(loop)
+        registered = [c.args[0] for c in loop.add_signal_handler.call_args_list]
+        assert [signal.SIGTERM, signal.SIGINT] == registered
+
+    def test__on_shutdown_signal_after_startup(self, mocker):
+        mocker.patch.object(Server, "_startup_complete", True)
+        mocker.patch.object(Server, "_shutdown_requested", False)
+        mocker.patch.object(Server, "_shutdown_on_signal", new=MagicMock(return_value="coro"))
+        loop = MagicMock()
+        Server._on_shutdown_signal(signal.SIGTERM, loop)
+        Server._on_shutdown_signal(signal.SIGINT, loop)
+        assert Server._shutdown_requested is True
+        loop.create_task.assert_called_once_with("coro")
+
+    def test__on_shutdown_signal_during_startup(self, mocker):
+        mocker.patch.object(Server, "_startup_complete", False)
+        mocker.patch.object(Server, "_shutdown_requested", False)
+        loop = MagicMock()
+        Server._on_shutdown_signal(signal.SIGTERM, loop)
+        assert Server._shutdown_requested is True
+        loop.create_task.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("side_effect", [None, RuntimeError("storage gone")])
+    async def test__shutdown_on_signal(self, mocker, side_effect):
+        mocked__stop = mocker.patch.object(Server, "_stop", side_effect=side_effect)
+        loop = MagicMock()
+        await Server._shutdown_on_signal(loop)
+        assert 1 == mocked__stop.call_count
+        loop.stop.assert_called_once_with()
+
+    @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+    def test_signal_stops_event_loop(self, mocker, sig):
+        mocker.patch.object(Server, "_startup_complete", True)
+        mocker.patch.object(Server, "_shutdown_requested", False)
+        mocked__stop = mocker.patch.object(Server, "_stop")
+        loop = asyncio.new_event_loop()
+        try:
+            Server._register_signal_handlers(loop)
+            loop.call_later(0.1, os.kill, os.getpid(), sig)
+            loop.call_later(5, loop.stop)  # safety net if the handler never fires
+            loop.run_forever()
+            assert 1 == mocked__stop.call_count
+        finally:
+            loop.remove_signal_handler(signal.SIGTERM)
+            loop.remove_signal_handler(signal.SIGINT)
+            loop.close()
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="To be implemented")

@@ -406,6 +406,12 @@ class Server:
     """ Alert Manager """
 
     running_in_safe_mode = False
+
+    _startup_complete = False
+    """ Set once the core has finished its startup sequence """
+
+    _shutdown_requested = False
+    """ Set once a shutdown or restart has been requested, by signal or REST call """
     """ Fledge running in Safe mode """
 
     _package_cache_manager = None
@@ -1049,11 +1055,44 @@ class Server:
         await cls._alert_manager.get_all()
 
     @classmethod
+    def _register_signal_handlers(cls, loop):
+        """ Shut down gracefully on SIGTERM (systemd, docker stop, kill) and SIGINT.
+
+        The ability to signal the core process is the authorisation: it requires
+        the same OS user as the core, or root. No Fledge user is involved.
+        """
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, cls._on_shutdown_signal, sig, loop)
+
+    @classmethod
+    def _on_shutdown_signal(cls, sig, loop):
+        if cls._shutdown_requested:
+            _logger.warning("Received %s while a shutdown is already in progress; ignoring.", sig.name)
+            return
+        cls._shutdown_requested = True
+        if not cls._startup_complete:
+            _logger.info("Received %s during startup; Fledge will shut down once startup completes.", sig.name)
+            return
+        _logger.info("Received %s, shutting down Fledge.", sig.name)
+        loop.create_task(cls._shutdown_on_signal(loop))
+
+    @classmethod
+    async def _shutdown_on_signal(cls, loop):
+        try:
+            await cls._stop()
+        except Exception as ex:
+            _logger.error(ex, "Error during signal initiated shutdown.")
+        finally:
+            _logger.info("Stopping the Fledge Core event loop. Good Bye!")
+            loop.stop()
+
+    @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
             _logger.info("Starting in SAFE MODE ...")
         else:
             _logger.info("Starting ...")
+        cls._register_signal_handlers(loop)
         try:
             host = cls._host
 
@@ -1206,6 +1245,9 @@ class Server:
             loop.run_until_complete(cls._audit.information('START', audit_msg))
             if sys.version_info >= (3, 7, 1):
                 ignore_aiohttp_ssl_eror(loop)
+            cls._startup_complete = True
+            if cls._shutdown_requested:
+                loop.create_task(cls._shutdown_on_signal(loop))
             loop.run_forever()
         except SSLVerifier.VerificationError as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
@@ -1835,6 +1877,7 @@ class Server:
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
+        cls._shutdown_requested = True
         try:
             await cls._stop()
             await _stop_event_loop(request.loop)
@@ -1866,6 +1909,7 @@ class Server:
             python3 = sys.executable
             os.execl(python3, python3, *sys.argv)  # Replaces current process, no return
 
+        cls._shutdown_requested = True
         try:
             await cls._stop()
             await _restart_process()

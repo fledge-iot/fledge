@@ -37,6 +37,10 @@ In both cases the user will be prompted to enter a password. It is possible, but
 
    The *start*, *status* and *help* commands do not require authentication.
 
+   The *stop* command does not require authentication when it is run on the Fledge host by the user that started Fledge, or by root. In that case it sends a *SIGTERM* signal to the Fledge core, which shuts down all services gracefully. Authentication is only used when the core cannot be signalled, for example when it is owned by another user.
+
+Fledge also shuts down gracefully on *SIGTERM* or *SIGINT* from any other source, such as *systemctl stop fledge*, *docker stop* or *kill*.
+
 It is also possible to use certificate based authentication to login to the system. In this case the "fledge" command line utility should be passed the *-c* flag with the name of the certificate file to use to authenticate.
 
 .. code-block:: console

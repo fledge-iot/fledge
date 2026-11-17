@@ -67,11 +67,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "${SRC_REPOSITORY}" =~ ^${GITHUB_REPOSITORY_OWNER}/fledge-(filter|south|north|rule|notify|service)-[a-z0-9-]+$ ]]; then
+          if [[ ! "${SRC_REPOSITORY}" =~ ^${GITHUB_REPOSITORY_OWNER}/fledge-((filter|south|north|rule|notify|service)-[a-z0-9-]+|gui)$ ]]; then
             echo "ERROR: repository '${SRC_REPOSITORY}' is not an allowed plugin repository" >&2
             exit 1
           fi
-          if [[ ! "${PACKAGE}" =~ ^fledge-(filter|south|north|rule|notify|service)-[a-z0-9-]+$ ]]; then
+          if [[ ! "${PACKAGE}" =~ ^fledge-((filter|south|north|rule|notify|service)-[a-z0-9-]+|gui)$ ]]; then
             echo "ERROR: package '${PACKAGE}' is not an allowed plugin package name" >&2
             exit 1
           fi
@@ -119,7 +119,7 @@ jobs:
               echo "ERROR: ${deb} has Version '${ver}', expected '${PKG_VERSION}'" >&2
               exit 1
             fi
-            if [[ "$deps" != *fledge* ]]; then
+            if [[ "${PACKAGE}" != fledge-gui && "$deps" != *fledge* ]]; then
               echo "ERROR: ${deb} Depends '${deps}' does not include fledge" >&2
               exit 1
             fi

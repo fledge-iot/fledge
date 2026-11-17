@@ -9,6 +9,7 @@
  */
 
 #include <management_client.h>
+#include <json_utils.h>
 #include <rapidjson/document.h>
 #include <service_record.h>
 #include <string_utils.h>
@@ -651,7 +652,7 @@ string ManagementClient::setCategoryItemValue(const string& categoryName,
 {
 	try {
 		string url = "/fledge/service/category/" + urlEncode(categoryName) + "/" + urlEncode(itemName);
-		string payload = "{ \"value\" : \"" + itemValue + "\" }";
+		string payload = "{ \"value\" : \"" + JSONescape(itemValue) + "\" }";
 		auto res = this->getHttpClient()->request("PUT", url.c_str(), payload);
 		Document doc;
 		string response = res->content.string();

@@ -148,8 +148,8 @@ case "$1" in
 
   restart)
 
-    $0 fledge_stop
-    $0 fledge_start
+    $0 stop
+    $0 start
     ;;
 
   *)

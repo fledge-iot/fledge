@@ -406,6 +406,17 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(["ts", "newer", 60]).AGGREGATE(["count", "*"]).payload()
         assert _payload("data/payload_aggregate_where.json") == json.loads(res)
 
+    def test_FOGL_4102(self):
+        """Test query with return, multiple aggregates (sum and count), where with and condition, and group"""
+        res = PayloadBuilder() \
+            .SELECT("key") \
+            .AGGREGATE(["sum", "value"], ["count", "value"]) \
+            .WHERE(["history_ts", ">=", "1762764219.123255"]) \
+            .AND_WHERE(["key", "=", "READINGS"]) \
+            .GROUP_BY("key") \
+            .payload()
+        assert _payload("data/payload_FOGL-4102.json") == json.loads(res)
+
     def test_join_without_query(self):
         res = PayloadBuilder().JOIN("table1", "table1_id").ON("table2_id").payload()
         assert _payload("data/payload_join_without_query.json") == json.loads(res)

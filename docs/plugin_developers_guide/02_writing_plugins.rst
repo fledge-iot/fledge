@@ -244,7 +244,7 @@ A C/C++ plugin should return a value in a *void* pointer that can then be derefe
    */
   PLUGIN_HANDLE plugin_init(ConfigCategory *config)
   {
-  MyPluginClass *plugin = new MyPluginClass();
+          MyPluginClass *plugin = new MyPluginClass();
 
           plugin->configure(config);
 
@@ -268,9 +268,9 @@ A C/C++ plugin might use this *plugin_shutdown* call to delete the plugin class 
   /**
    * Shutdown the plugin
    */
-  void plugin_shutdown(PLUGIN_HANDLE *handle)
+  void plugin_shutdown(PLUGIN_HANDLE handle)
   {
-  MyPluginClass *plugin = (MyPluginClass *)handle;
+          MyPluginClass *plugin = static_cast<MyPluginClass *>(handle);
 
           delete plugin;
   }
@@ -316,8 +316,8 @@ In C/C++ the *plugin_reconfigure* method is very similar, note however that the 
    */
   void plugin_reconfigure(PLUGIN_HANDLE *handle, string& newConfig)
   {
-  ConfigCategory	config("newConfiguration", newConfig);
-  MyPluginClass		*plugin = (MyPluginClass *)*handle;
+          ConfigCategory   config("newConfiguration", newConfig);
+          MyPluginClass    *plugin = static_cast<MyPluginClass *>(*handle);
 
           plugin->configure(&config);
   }

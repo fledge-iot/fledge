@@ -141,6 +141,36 @@ in the notification rule that triggered this delivery event.
        "timestamp": "2020-11-18 11:52:33.960530+00:00"
    }
 
+**Evaluation data in the trigger reason**
+
+When the notification service enriches a trigger reason with evaluation data,
+the delivery plugin receives that data in an optional ``data`` object. It is
+not a new top-level ``value`` argument to ``plugin_deliver``. For example, a
+single-item evaluation may produce the following reason:
+
+.. code-block:: JSON
+
+   {
+       "reason": "triggered",
+       "asset": ["sinusoid"],
+       "timestamp": "2020-11-18 11:52:33.960530+00:00",
+       "data": {
+           "sinusoid": {"sinusoid": 87.3}
+       }
+   }
+
+In this example the supplied value is at ``data.sinusoid.sinusoid``. The inner
+keys depend on the evaluated assets and datapoints; plugins must not hard-code
+this example's names. Treat ``data`` as optional for compatibility with reasons
+that do not contain it. Its absence does not imply a reading of zero.
+
+For window-based rules the evaluation data may represent an aggregate rather
+than a single original reading. Do not label it as the original triggering
+sample without checking the rule's evaluation mode. To troubleshoot a missing
+``data`` object, compare the deployed notification-service version and capture
+the actual ``triggerReason`` passed to the delivery plugin, rather than only
+the rule plugin's intermediate reason.
+
 The return from the *plugin_deliver* entry point is a boolean that
 indicates if the delivery succeeded or not.
 

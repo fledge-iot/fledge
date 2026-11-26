@@ -24,6 +24,99 @@ Version History
 Fledge v3
 ==========
 
+v3.2.0
+-------
+
+Release Date: TBD
+
+Fledge 3.2.0 includes every fix shipped in 3.1.1.
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Added a plugin configuration validation API, ``PUT /fledge/plugin/validate``, that checks a south or north plugin configuration before the service is created.
+       - Added service information endpoints, ``GET /fledge/service/info`` and ``GET /fledge/service/info/{service_name}``, and an ``--info`` argument on services that reports the same details from the command line.
+       - Added automatic support bundle creation when a service fails. It is controlled by a new support bundle setting, raises an alert naming the bundle, and setting changes apply without a restart.
+       - Added the ``Namespace`` keyword and header for plugins.
+       - Service, configuration category and schedule names containing a backslash are now rejected with an error naming the invalid character.
+       - The python packages API now uses ``importlib.metadata`` instead of ``pkg_resources``, so it works with current setuptools releases.
+       - Plugins are built and published with a shared Debian packaging workflow to the signed apt repository at ``packages.helinplatform.com``, alongside the core packages and the ``helindata/fledge`` Docker images introduced in 3.1.1.
+
+    - Changes:
+
+       - The Python-based south service and north task have been removed. Schema 76 deletes the obsolete ``north`` scheduled process on upgrade. South and north plugins written in Python continue to run in the C++ south and north services.
+       - The core management API endpoint ``GET /fledge/service/authtoken`` has been replaced by ``POST /fledge/service/login``. Microservices written outside the Fledge code base that fetched a token through the old endpoint must be updated.
+       - Removed code paths for platforms that are no longer supported and compatibility logic for Python versions older than 3.8.
+       - The storage schema version is now 76.
+       - Updated aiohttp to 3.14.4 on Python 3.10 and newer, and PyJWT to 2.14.0, to address published security advisories.
+
+    - Bug Fix:
+
+       - Fixed restart and shutdown hanging for several minutes, or indefinitely, on Python 3.12 when API connections were still open.
+       - Fixed reading timestamps losing sub-second precision on 32-bit ARM (armhf) systems with a 64-bit ``time_t``, such as Ubuntu 24.04.
+       - Fixed setting a reading timestamp in whole seconds leaving a stale sub-second part behind.
+       - Fixed the service handler not being passed to filters in a processing pipeline.
+       - Fixed the pipeline debugger accepting an empty pipeline.
+       - Fixed deleting a service occasionally removing its configuration category before its schedule had been disabled.
+       - Fixed incorrect error messages returned by plugin configuration validation.
+       - Fixed HTTP error responses failing when the reason was an exception object rather than a string.
+       - Fixed socket connections not being closed reliably.
+       - Addressed security issue where password values were written in plain text to the CONAD and CONCH audit log entries.
+
+
+- **GUI**
+
+    - New Features:
+
+       - Added the pipeline debugger to the flow editor. It can attach to a south or north service, suspend and resume ingest, isolate the service, show and replay the buffered readings at any point in the pipeline in JSON or tabular form, and place watch nodes on filters and on storage.
+       - Added debugger icons to the south and north service lists for services that have the debugger attached.
+       - Added a Validate action, with a validation report, to the south and north service wizards and configuration pages.
+       - Added CSV and JSON import for list and kvlist configuration items.
+       - Added validity handling for list, kvlist and bucket configuration items. Validity expressions are now evaluated with a sandboxed expression evaluator instead of ``eval``.
+       - Added help icons to the south and north service wizards.
+       - Image and object datapoints in readings are now shown in a popover.
+       - The Developer tab is hidden for users with the view role.
+       - Upgraded to Angular 20, a newer Bulma release and Node.js 22.
+
+    - Bug Fix:
+
+       - Fixed the GUI making excessive service API calls.
+       - Fixed list and kvlist cards showing incorrectly while an item is deleted.
+       - Fixed tooltip, menu and toolbar overlap issues, and dropdown hover behaviour on Firefox.
+       - Fixed the certificate login form layout and the position of the Sent count.
+
+
+v3.1.1
+-------
+
+Release Date: 2026-10-30
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Fledge core packages are published to a signed apt repository at ``packages.helinplatform.com``, and Docker images are published as ``helindata/fledge``, with full images that include the plugins and ``-slim`` images that contain only the core runtime.
+
+    - Bug Fix:
+
+       - Addressed security issue where query parameters of the syslog API could be used for command injection.
+
+
+- **GUI**
+
+    - Bug Fix:
+
+       - Fixed list and kvlist file import to accept LF, CRLF and CR line endings.
+
+
+- **Plugins**
+
+    - Bug Fix:
+
+       - OMF north now recovers after the PI server restarts, retrying with a back-off instead of stopping data delivery.
+
+
 v3.1.0
 -------
 

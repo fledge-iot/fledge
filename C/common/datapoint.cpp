@@ -337,7 +337,7 @@ int bscount = 0;
 	{
 		if (str[i] == '\\')
 		{
-			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/'|| str[i-1] == '\\'))
+			if (i + 1 < str.length() && (str[i + 1] == '"' || str[i + 1] == '\\' || str[i + 1] == '/'|| (i > 0 && str[i-1] == '\\')))
 			{
 				rval += '\\';
 			}
